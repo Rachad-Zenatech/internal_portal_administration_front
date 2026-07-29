@@ -17,6 +17,12 @@ const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
 const Login = lazy(() => import("./pages/Login"));
 const PendingAccess = lazy(() => import("./pages/PendingAccess"));
 
+// Order System Pages
+const TasksPage = lazy(() => import("./pages/Tasks/TasksPage"));
+const WorkflowPage = lazy(() => import("./pages/Workflows/WorkflowPage"));
+const NotificationPlanPage = lazy(() => import("./pages/Notifications/NotificationPlanPage"));
+const SystemLogsPage = lazy(() => import("./pages/Logs/SystemLogsPage"));
+
 function App() {
   return (
     <AuthProvider>
@@ -45,8 +51,15 @@ function App() {
 
 
             {/* Logs */}
-            <Route path="/log" element={<Navigate to="/log/audit-log" replace />} />
+            <Route path="/log" element={<Navigate to="/log/system-logs" replace />} />
             <Route path="/log/audit-log" element={<ProtectedRoute navigationCode="AUDIT_LOG"><AuditLog /></ProtectedRoute>} />
+            <Route path="/log/system-logs" element={<ProtectedRoute navigationCode="AUDIT_LOG"><SystemLogsPage /></ProtectedRoute>} />
+
+            {/* Order System */}
+            <Route path="/tasks" element={<ProtectedRoute navigationCode="TASKS"><TasksPage /></ProtectedRoute>} />
+            <Route path="/workflows" element={<ProtectedRoute navigationCode="WORKFLOWS_MANAGE"><WorkflowPage /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute navigationCode="NOTIFICATIONS_MANAGE"><NotificationPlanPage /></ProtectedRoute>} />
+
 
 
           </Route>

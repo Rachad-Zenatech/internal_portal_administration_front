@@ -3,6 +3,9 @@ import {
   Upload,
   ShieldCheck,
   FileClock,
+  ClipboardList,
+  GitMerge,
+  BellRing
 } from "lucide-react";
 
 export const navigation = [
@@ -20,6 +23,27 @@ export const navigation = [
     section: "MAIN",
     navigationCode: "UPLOAD_FILES",
   },
+  {
+    label: "Tasks",
+    path: "/tasks",
+    icon: ClipboardList,
+    section: "ORDER SYSTEM",
+    navigationCode: "TASKS",
+  },
+  {
+    label: "Workflows",
+    path: "/workflows",
+    icon: GitMerge,
+    section: "ORDER SYSTEM",
+    navigationCode: "WORKFLOWS_MANAGE",
+  },
+  {
+    label: "Notification Plans",
+    path: "/notifications",
+    icon: BellRing,
+    section: "ORDER SYSTEM",
+    navigationCode: "NOTIFICATIONS_MANAGE",
+  },
 
   {
     label: "System & Security",
@@ -35,7 +59,7 @@ export const navigation = [
   },
   {
     label: "Audit Log",
-    path: "/log/audit-log",
+    path: "/log/system-logs",
     icon: FileClock,
     section: "ADMINISTRATION",
     navigationCode: "AUDIT_LOG",
