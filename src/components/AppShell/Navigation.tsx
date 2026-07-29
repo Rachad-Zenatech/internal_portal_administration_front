@@ -5,7 +5,9 @@ import {
   FileClock,
   ClipboardList,
   GitMerge,
-  BellRing
+  BellRing,
+  ShoppingCart,
+  ReceiptText,
 } from "lucide-react";
 
 export const navigation = [
@@ -43,6 +45,18 @@ export const navigation = [
     icon: BellRing,
     section: "ORDER SYSTEM",
     navigationCode: "NOTIFICATIONS_MANAGE",
+    label: "Purchase Requests",
+    path: "/purchasing/requests",
+    icon: ShoppingCart,
+    section: "PURCHASING & AP",
+    // No navigationCode: this is a new prototype feature not yet backed by
+    // RBAC seed data, so it stays visible to any authenticated user for testing.
+  },
+  {
+    label: "Accounts Payable",
+    path: "/purchasing/invoices",
+    icon: ReceiptText,
+    section: "PURCHASING & AP",
   },
 
   {

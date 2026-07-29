@@ -14,6 +14,9 @@ const RoleGroupPermissions = lazy(() => import("./pages/Configurations/RoleGroup
 const RoleApiPermissions = lazy(() => import("./pages/Configurations/RoleApiPermissions"));
 const RoleMcpToolPermissions = lazy(() => import("./pages/Configurations/RoleMcpToolPermissions"));
 const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
+const PurchaseRequests = lazy(() => import("./pages/Purchasing/PurchaseRequests"));
+const RequestDetail = lazy(() => import("./pages/Purchasing/RequestDetail"));
+const Invoices = lazy(() => import("./pages/Purchasing/Invoices"));
 const Login = lazy(() => import("./pages/Login"));
 const PendingAccess = lazy(() => import("./pages/PendingAccess"));
 
@@ -36,6 +39,14 @@ function App() {
           <Route element={<ProtectedRoute><AppShell><Outlet /></AppShell></ProtectedRoute>}>
             <Route path="/" element={<ProtectedRoute navigationCode="DASHBOARD"><Dashboard /></ProtectedRoute>} />
             <Route path="/upload-files" element={<ProtectedRoute navigationCode="UPLOAD_FILES"><UploadFile /></ProtectedRoute>} />
+
+            {/* Purchasing + Accounts Payable workflow (Tasks 1-3).
+                Protected by auth only (no navigationCode) so the prototype flow
+                is testable before RBAC permissions are seeded. */}
+            <Route path="/purchasing" element={<Navigate to="/purchasing/requests" replace />} />
+            <Route path="/purchasing/requests" element={<ProtectedRoute><PurchaseRequests /></ProtectedRoute>} />
+            <Route path="/purchasing/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
+            <Route path="/purchasing/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
 
             <Route path="/configurations" element={<Navigate to="/configurations/users" replace />} />
 
