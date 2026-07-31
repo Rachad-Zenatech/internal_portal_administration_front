@@ -3,18 +3,14 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Loader2, ArrowRight } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
-import { apiClient } from "@/services/apiClient";
 
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { refreshPermissions } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [isDevLoading, setIsDevLoading] = useState(false);
-  const [devEmail, setDevEmail] = useState("");
   const hasProcessedLogin = useRef(false);
 
   useEffect(() => {
@@ -77,37 +73,6 @@ export default function Login() {
     window.location.href = `${baseUrl}/api/auth/microsoft/login`;
   };
 
-  const handleDeveloperLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!devEmail) {
-      toast.error("Please enter an email address");
-      return;
-    }
-    
-    setIsDevLoading(true);
-    try {
-      const response = await apiClient.post<{ token: string }>('/api/auth/developer/login', { email: devEmail });
-      
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("user");
-      sessionStorage.removeItem("ms_id_token");
-      
-      if (response.token) {
-        sessionStorage.setItem("token", response.token);
-      }
-      sessionStorage.setItem("auth_provider", "local");
-      
-      await refreshPermissions();
-      toast.success("Successfully logged in via Developer Bypass");
-      navigate("/");
-    } catch (error: any) {
-      console.error("Developer login failed:", error);
-      toast.error(error.response?.data?.detail || "Developer login failed");
-    } finally {
-      setIsDevLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen w-full bg-slate-50 dark:bg-zinc-950 flex flex-col justify-center items-center p-4 relative overflow-hidden">
       {/* Background decorations */}
@@ -135,7 +100,7 @@ export default function Login() {
             <Button
               onClick={handleLogin}
               className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all mb-3"
-              disabled={isLoading || isDevLoading}
+              disabled={isLoading}
             >
               {isLoading ? (
                 <>
@@ -146,40 +111,6 @@ export default function Login() {
                 "Sign in with Microsoft"
               )}
             </Button>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200 dark:border-zinc-800"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-zinc-900 text-slate-500">Developer Bypass</span>
-              </div>
-            </div>
-
-            <form onSubmit={handleDeveloperLogin} className="space-y-3">
-              <Input
-                type="email"
-                placeholder="developer@zenatech.com"
-                value={devEmail}
-                onChange={(e) => setDevEmail(e.target.value)}
-                className="h-11 bg-slate-50/50 dark:bg-zinc-950/50 border-slate-200 dark:border-zinc-800"
-                disabled={isLoading || isDevLoading}
-              />
-              <Button
-                type="submit"
-                variant="outline"
-                className="w-full h-11 border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                disabled={isLoading || isDevLoading || !devEmail}
-              >
-                {isDevLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <ArrowRight className="mr-2 h-4 w-4" />
-                )}
-                Local Sign In
-              </Button>
-            </form>
-
           </CardContent>
           <CardFooter className="flex justify-center pb-8 pt-4 border-t border-slate-100 dark:border-zinc-800/50 mt-2 bg-slate-50/50 dark:bg-zinc-950/30">
             <p className="text-sm text-slate-500 dark:text-zinc-400">

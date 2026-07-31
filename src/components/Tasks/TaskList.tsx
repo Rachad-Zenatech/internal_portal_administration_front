@@ -8,6 +8,21 @@ import {
 } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
 import { format } from "date-fns";
+import { STATUS_BADGE } from "@/pages/Purchasing/purchasingMeta";
+
+const getStatusKey = (status: string): keyof typeof STATUS_BADGE => {
+  const map: Record<string, keyof typeof STATUS_BADGE> = {
+    "New Request": "NEW",
+    "Under Review": "UNDER_REVIEW",
+    "Waiting Approval": "WAITING_APPROVAL",
+    "Approved": "APPROVED",
+    "Rejected": "REJECTED",
+    "Purchased": "PURCHASED",
+    "Shipped": "SHIPPED",
+    "Completed": "COMPLETED"
+  };
+  return map[status] || "NEW";
+};
 
 interface TaskListProps {
   tasks: any[];
@@ -46,7 +61,7 @@ export default function TaskList({ tasks, onTaskClick }: TaskListProps) {
                 {task.assignee_name ? <span className="text-primary font-medium">{task.assignee_name}</span> : <span className="text-muted-foreground italic">Unassigned</span>}
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{task.status}</Badge>
+                <Badge variant="outline" className={STATUS_BADGE[getStatusKey(task.status)]}>{task.status}</Badge>
               </TableCell>
               <TableCell>
                 {task.created_at ? format(new Date(task.created_at), 'MMM d, yyyy') : ''}

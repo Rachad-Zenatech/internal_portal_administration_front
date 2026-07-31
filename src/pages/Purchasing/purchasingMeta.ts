@@ -11,9 +11,9 @@ import type {
 export const STATUS_LABEL: Record<RequestStatus, string> = {
   NEW: "New Request",
   UNDER_REVIEW: "Under Review",
-  WAITING_APPROVAL: "Waiting Approval",
   APPROVED: "Approved",
   REJECTED: "Rejected",
+  WAITING_PAYMENT: "Waiting Payment",
   PURCHASED: "Purchased",
   SHIPPED: "Shipped",
   ORDERED: "Ordered",
@@ -27,9 +27,9 @@ export const STATUS_LABEL: Record<RequestStatus, string> = {
 export const STATUS_BADGE: Record<RequestStatus, string> = {
   NEW: "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300",
   UNDER_REVIEW: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400",
-  WAITING_APPROVAL: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400",
   APPROVED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400",
   REJECTED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400",
+  WAITING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400",
   PURCHASED: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-400",
   SHIPPED: "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-400",
   ORDERED: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-400",
@@ -62,8 +62,8 @@ export const PAYMENT_BADGE: Record<PaymentStatus, string> = {
 export const SIMPLE_FLOW: RequestStatus[] = [
   "NEW",
   "UNDER_REVIEW",
-  "WAITING_APPROVAL",
   "APPROVED",
+  "WAITING_PAYMENT",
   "PURCHASED",
   "SHIPPED",
   "COMPLETED",
@@ -72,11 +72,11 @@ export const SIMPLE_FLOW: RequestStatus[] = [
 export const COMPLEX_FLOW: RequestStatus[] = [
   "NEW",
   "UNDER_REVIEW",
-  "WAITING_APPROVAL",
   "APPROVED",
   "ORDERED",
   "INVOICE_RECEIVED",
   "SENT_TO_AP",
+  "WAITING_PAYMENT",
   "PAID",
   "COMPLETED",
 ];

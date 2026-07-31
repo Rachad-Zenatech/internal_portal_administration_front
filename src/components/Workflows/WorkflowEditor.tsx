@@ -111,7 +111,7 @@ export default function WorkflowEditor({ open, workflow, onClose, onSuccess }: W
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="sm:max-w-[500px] w-full flex flex-col p-0">
+      <SheetContent className="!max-w-[75vw] !w-[75vw] flex flex-col p-0">
         <div className="p-6 flex-1 overflow-y-auto">
           <SheetHeader className="mb-6 pr-8">
             <SheetTitle>{workflow ? "Edit Workflow" : "Create Workflow"}</SheetTitle>

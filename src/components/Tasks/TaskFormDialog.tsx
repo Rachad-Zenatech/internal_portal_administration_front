@@ -16,13 +16,19 @@ interface TaskFormDialogProps {
 export default function TaskFormDialog({ open, onOpenChange, onSuccess }: TaskFormDialogProps) {
   const [loading, setLoading] = useState(false);
   const [workflows, setWorkflows] = useState<any[]>([]);
+  const getDefaultDueDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+  };
+
   const [formData, setFormData] = useState({
     product_name: "",
     description: "",
     amount: "",
     category: "",
     priority: "Medium",
-    due_date: "",
+    due_date: getDefaultDueDate(),
     workflow_id: ""
   });
 
@@ -56,7 +62,7 @@ export default function TaskFormDialog({ open, onOpenChange, onSuccess }: TaskFo
         amount: "",
         category: "",
         priority: "Medium",
-        due_date: "",
+        due_date: getDefaultDueDate(),
         workflow_id: ""
       });
     } catch (e: any) {

@@ -9,9 +9,9 @@ export type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 export type RequestStatus =
   | "NEW"
   | "UNDER_REVIEW"
-  | "WAITING_APPROVAL"
   | "APPROVED"
   | "REJECTED"
+  | "WAITING_PAYMENT"
   | "PURCHASED"
   | "SHIPPED"
   | "ORDERED"

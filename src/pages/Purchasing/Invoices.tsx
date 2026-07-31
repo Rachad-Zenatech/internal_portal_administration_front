@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -21,32 +20,66 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { useInvoices, usePayInvoice } from "@/hooks/usePurchasing";
-import { PAYMENT_BADGE, PAYMENT_LABEL, formatDate, formatMoney } from "./purchasingMeta";
+import { apiClient as api } from "@/services/apiClient";
+import { STATUS_BADGE, formatDate, formatMoney } from "./purchasingMeta";
+import TaskDetailPanel from "@/components/Tasks/TaskDetailPanel";
+
+const getStatusKey = (status: string): keyof typeof STATUS_BADGE => {
+  const map: Record<string, keyof typeof STATUS_BADGE> = {
+    "Waiting Payment": "WAITING_PAYMENT",
+    "Paid": "PAID",
+  };
+  return map[status] || "NEW";
+};
 
 export default function Invoices() {
-  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const { data: invoices = [], isLoading } = useInvoices(statusFilter === "ALL" ? undefined : statusFilter);
-  const payMutation = usePayInvoice();
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [selectedTask, setSelectedTask] = useState<any | null>(null);
+
+  const fetchTasks = async () => {
+    setIsLoading(true);
+    try {
+      // AP should see "Waiting Payment" and "Paid" statuses
+      let filter = "Waiting Payment,Paid";
+      if (statusFilter === "WAITING_PAYMENT") filter = "Waiting Payment";
+      if (statusFilter === "PAID") filter = "Paid";
+      
+      const res = await api.get<any>(`/tasks?status=${filter}`);
+      setTasks(res.items || []);
+    } catch (e: any) {
+      toast.error("Failed to load Accounts Payable tasks");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, [statusFilter]);
+
+  useEffect(() => {
+    if (selectedTaskId) {
+      api.get(`/tasks/${selectedTaskId}`).then(res => {
+        setSelectedTask(res);
+      }).catch(() => {
+        toast.error("Failed to load task details");
+      });
+    } else {
+      setSelectedTask(null);
+    }
+  }, [selectedTaskId]);
 
   const outstanding = useMemo(
-    () => invoices.filter((i) => i.payment_status !== "PAID").reduce((sum, i) => sum + i.amount, 0),
-    [invoices],
+    () => tasks.filter((t) => t.status === "Waiting Payment").reduce((sum, t) => sum + Number(t.amount || 0), 0),
+    [tasks]
   );
 
   const isOverdue = (dueDate: string | null) => {
     if (!dueDate) return false;
     return new Date(dueDate).getTime() < Date.now();
-  };
-
-  const pay = async (id: string) => {
-    try {
-      await payMutation.mutateAsync(id);
-      toast.success(`Invoice ${id} marked paid`);
-    } catch (err) {
-      toast.error((err as Error).message || "Failed to pay invoice");
-    }
   };
 
   return (
@@ -61,8 +94,7 @@ export default function Invoices() {
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-52"><SelectValue placeholder="Payment status" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All Invoices</SelectItem>
-            <SelectItem value="UNPAID">Unpaid</SelectItem>
+            <SelectItem value="ALL">All Records</SelectItem>
             <SelectItem value="WAITING_PAYMENT">Waiting Payment</SelectItem>
             <SelectItem value="PAID">Paid</SelectItem>
           </SelectContent>
@@ -73,59 +105,60 @@ export default function Invoices() {
         <Table className="m-0" containerClassName="max-h-[calc(100vh-16rem)]">
           <TableHeader className="bg-slate-50/80 dark:bg-zinc-950/50 sticky top-0 z-10 border-b">
             <TableRow>
-              <TableHead>Invoice</TableHead>
-              <TableHead>Vendor</TableHead>
+              <TableHead>Order ID</TableHead>
+              <TableHead>Item / Product Name</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Amount</TableHead>
-              <TableHead>Invoice Date</TableHead>
+              <TableHead>Request Date</TableHead>
               <TableHead>Due Date</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Request</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right">Assignee</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-slate-500">Loading invoices...</TableCell></TableRow>
-            ) : invoices.length ? (
-              invoices.map((inv) => {
-                const overdue = inv.payment_status !== "PAID" && isOverdue(inv.due_date);
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-slate-500">Loading records...</TableCell></TableRow>
+            ) : tasks.length ? (
+              tasks.map((task) => {
+                const overdue = task.status !== "Paid" && isOverdue(task.due_date);
                 return (
-                  <TableRow key={inv.id}>
-                    <TableCell className="font-mono text-xs">{inv.id}</TableCell>
-                    <TableCell className="font-medium">{inv.vendor}</TableCell>
-                    <TableCell>{formatMoney(inv.amount)}</TableCell>
-                    <TableCell className="text-slate-500 text-sm">{formatDate(inv.invoice_date)}</TableCell>
+                  <TableRow key={task.id} className="cursor-pointer hover:bg-slate-50/50 dark:hover:bg-zinc-800/50 transition-colors" onClick={() => setSelectedTaskId(task.id)}>
+                    <TableCell className="font-mono text-xs">#{task.id}</TableCell>
+                    <TableCell className="font-medium">{task.product_name}</TableCell>
+                    <TableCell className="text-sm text-slate-500">{task.category}</TableCell>
+                    <TableCell className="font-semibold">{formatMoney(Number(task.amount))}</TableCell>
+                    <TableCell className="text-slate-500 text-sm">{formatDate(task.created_at)}</TableCell>
                     <TableCell className="text-sm">
                       <span className={overdue ? "text-red-600 font-medium" : "text-slate-500"}>
-                        {formatDate(inv.due_date)}{overdue ? " · overdue" : ""}
+                        {formatDate(task.due_date)}{overdue ? " · overdue" : ""}
                       </span>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={PAYMENT_BADGE[inv.payment_status]}>{PAYMENT_LABEL[inv.payment_status]}</Badge>
+                      <Badge variant="outline" className={STATUS_BADGE[getStatusKey(task.status)]}>{task.status}</Badge>
                     </TableCell>
-                    <TableCell>
-                      <Button variant="link" className="px-0 h-auto font-mono text-xs" onClick={() => navigate(`/purchasing/requests/${inv.request_id}`)}>
-                        {inv.request_id}
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {inv.payment_status !== "PAID" ? (
-                        <Button size="sm" onClick={() => pay(inv.id)} disabled={payMutation.isPending}>
-                          Mark Paid
-                        </Button>
-                      ) : (
-                        <span className="text-sm text-slate-400">Paid {formatDate(inv.paid_date)}</span>
-                      )}
+                    <TableCell className="text-right text-sm">
+                      {task.assignee_name || <span className="italic text-slate-400">Unassigned</span>}
                     </TableCell>
                   </TableRow>
                 );
               })
             ) : (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-slate-500">No invoices found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-slate-500">No records found.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       </Card>
+      
+      <TaskDetailPanel 
+        task={selectedTask}
+        onClose={() => setSelectedTaskId(null)}
+        onUpdate={() => {
+          fetchTasks();
+          if (selectedTaskId) {
+            api.get(`/tasks/${selectedTaskId}`).then(res => setSelectedTask(res));
+          }
+        }}
+      />
     </div>
   );
 }

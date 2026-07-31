@@ -6,7 +6,26 @@ import { useState } from "react";
 import { apiClient as api } from "@/services/apiClient";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Trash2, CheckCircle2, Circle } from "lucide-react";
+import { STATUS_BADGE } from "@/pages/Purchasing/purchasingMeta";
+import { Card, CardContent } from "@/components/ui/card";
+
+const FLOW = ["New Request", "Under Review", "Waiting Payment", "Paid", "Purchased", "Shipped", "Completed"];
+
+const getStatusKey = (status: string): keyof typeof STATUS_BADGE => {
+  const map: Record<string, keyof typeof STATUS_BADGE> = {
+    "New Request": "NEW",
+    "Under Review": "UNDER_REVIEW",
+    "Waiting Payment": "WAITING_PAYMENT",
+    "Paid": "PAID",
+    "Approved": "APPROVED",
+    "Rejected": "REJECTED",
+    "Purchased": "PURCHASED",
+    "Shipped": "SHIPPED",
+    "Completed": "COMPLETED"
+  };
+  return map[status] || "NEW";
+};
 
 interface TaskDetailPanelProps {
   task: any | null;
@@ -79,7 +98,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
 
   return (
     <Sheet open={!!task} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="sm:max-w-[600px] w-full flex flex-col p-0">
+      <SheetContent className="!max-w-[75vw] !w-[75vw] flex flex-col p-0">
         <div className="p-6 flex-1 overflow-y-auto">
           <SheetHeader className="mb-6 pr-8">
             <div className="flex justify-between items-start">
@@ -97,7 +116,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
                 </Button>
               </div>
               <div className="flex gap-2 mt-2">
-                <Badge variant="outline">{task.status}</Badge>
+                <Badge variant="outline" className={STATUS_BADGE[getStatusKey(task.status)]}>{task.status}</Badge>
                 <Badge variant={task.priority === 'High' ? 'destructive' : 'default'}>{task.priority}</Badge>
               </div>
             </div>
@@ -107,6 +126,32 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
             </div>
           </div>
         </SheetHeader>
+
+        <Card className="border border-slate-200 dark:border-zinc-800 mb-8 mx-1">
+          <CardContent className="p-4 overflow-x-auto">
+            <div className="flex items-center gap-1 min-w-max">
+              {FLOW.map((step, i) => {
+                const currentIndex = FLOW.indexOf(task.status);
+                const done = task.status !== "Rejected" && i < currentIndex;
+                const current = i === currentIndex;
+                return (
+                  <div key={step} className="flex items-center gap-1">
+                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
+                      current ? STATUS_BADGE[getStatusKey(step)] + " border" : done ? "text-green-600" : "text-slate-400"
+                    }`}>
+                      {done ? <CheckCircle2 className="h-4 w-4" /> : current ? <Circle className="h-4 w-4 fill-current" /> : <Circle className="h-4 w-4" />}
+                      {step}
+                    </div>
+                    {i < FLOW.length - 1 && <div className={`h-px w-6 ${done ? "bg-green-500" : "bg-slate-200 dark:bg-zinc-700"}`} />}
+                  </div>
+                );
+              })}
+            </div>
+            {task.status === "Rejected" && (
+              <p className="mt-3 text-sm font-medium text-red-600">This order was rejected.</p>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="space-y-8">
           <section>
@@ -131,6 +176,37 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
               <div className="flex gap-3">
                 <Button onClick={handleApprove} className="flex-1 bg-green-600 hover:bg-green-700">Approve</Button>
                 <Button onClick={handleReject} variant="destructive" className="flex-1">Reject</Button>
+              </div>
+            </section>
+          )}
+
+          {task.status === "Waiting Payment" && (
+            <section className="bg-orange-50 dark:bg-orange-950 p-4 rounded-lg border border-orange-200 dark:border-orange-900">
+              <h3 className="text-sm font-medium text-orange-900 dark:text-orange-400 mb-3">Accounts Payable Actions</h3>
+              <div className="flex gap-3">
+                <Button onClick={async () => {
+                  try {
+                    await api.post(`/tasks/${task.id}/status`, { status: "Paid", comment: "Marked as Paid by AP" });
+                    toast.success("Task marked as Paid");
+                    onUpdate();
+                    onClose();
+                  } catch (e: any) {
+                    toast.error(e.message || "Failed to mark as paid");
+                  }
+                }} className="flex-1 bg-emerald-600 hover:bg-emerald-700">Mark Paid</Button>
+                
+                <Button onClick={async () => {
+                  const reason = prompt("Enter rejection reason:");
+                  if (reason === null) return;
+                  try {
+                    await api.post(`/tasks/${task.id}/status`, { status: "Rejected", comment: `AP Rejected: ${reason}` });
+                    toast.success("Task rejected");
+                    onUpdate();
+                    onClose();
+                  } catch (e: any) {
+                    toast.error(e.message || "Failed to reject");
+                  }
+                }} variant="destructive" className="flex-1">Reject</Button>
               </div>
             </section>
           )}

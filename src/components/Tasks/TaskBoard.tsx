@@ -2,8 +2,24 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { apiClient as api } from "@/services/apiClient";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import { STATUS_BADGE } from "@/pages/Purchasing/purchasingMeta";
 
-const COLUMNS = ["New", "Approved", "On hold", "Paid", "Rejected"];
+const COLUMNS = ["New Request", "Under Review", "Waiting Payment", "Paid", "Purchased", "Shipped", "Completed", "Rejected"];
+
+const getStatusKey = (status: string): keyof typeof STATUS_BADGE => {
+  const map: Record<string, keyof typeof STATUS_BADGE> = {
+    "New Request": "NEW",
+    "Under Review": "UNDER_REVIEW",
+    "Waiting Payment": "WAITING_PAYMENT",
+    "Paid": "PAID",
+    "Approved": "APPROVED",
+    "Rejected": "REJECTED",
+    "Purchased": "PURCHASED",
+    "Shipped": "SHIPPED",
+    "Completed": "COMPLETED"
+  };
+  return map[status] || "NEW";
+};
 
 interface TaskBoardProps {
   tasks: any[];
@@ -61,7 +77,7 @@ export default function TaskBoard({ tasks, onTaskClick, onTaskMoved }: TaskBoard
                                   <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">#{task.id}</span>
                                   <h4 className="font-semibold text-sm leading-tight">{task.product_name}</h4>
                                 </div>
-                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-medium whitespace-nowrap bg-muted/50">{task.status}</Badge>
+                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 font-medium whitespace-nowrap ${STATUS_BADGE[getStatusKey(task.status)]}`}>{task.status}</Badge>
                               </div>
                               
                               <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>

@@ -45,6 +45,8 @@ export const navigation = [
     icon: BellRing,
     section: "ORDER SYSTEM",
     navigationCode: "NOTIFICATIONS_MANAGE",
+  },
+  {
     label: "Purchase Requests",
     path: "/purchasing/requests",
     icon: ShoppingCart,
