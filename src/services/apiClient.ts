@@ -158,5 +158,29 @@ export const apiClient = {
       } as HeadersInit
     });
     return handleResponse<T>(res);
+  },
+  
+  async downloadFile(endpoint: string, filename: string): Promise<void> {
+    const res = await monitoredFetch(endpoint, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        ...getAuthHeaders(),
+      } as HeadersInit
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error((err as { detail: string }).detail || "Request failed");
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   }
 };

@@ -1,4 +1,6 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "../../components/ui/sheet";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Textarea } from "../../components/ui/textarea";
@@ -6,7 +8,7 @@ import { useState } from "react";
 import { apiClient as api } from "@/services/apiClient";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Trash2, CheckCircle2, Circle } from "lucide-react";
+import { Trash2, CheckCircle2, Circle, UploadCloud, Edit2, Paperclip } from "lucide-react";
 import { STATUS_BADGE } from "@/pages/Purchasing/purchasingMeta";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -35,9 +37,43 @@ interface TaskDetailPanelProps {
 
 export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailPanelProps) {
   const [note, setNote] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [deleteNoteId, setDeleteNoteId] = useState<number | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [editNoteText, setEditNoteText] = useState("");
   
 
   if (!task) return null;
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      // For simplicity in MVP, we just upload the first file
+      const file = e.dataTransfer.files[0];
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      try {
+        await api.post(`/tasks/${task.id}/notes/upload`, formData);
+        toast.success(`Attached file: ${file.name}`);
+        onUpdate();
+      } catch (err: any) {
+        toast.error("Failed to upload attachment");
+      }
+    }
+  };
 
   const handleAddNote = async () => {
     if (!note.trim()) return;
@@ -49,6 +85,36 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
     } catch (e: any) {
       console.error("Failed to add note", e);
       toast.error(e.message || "Failed to add note");
+    }
+  };
+
+  const handleEditNote = async (noteId: number) => {
+    if (!editNoteText.trim()) return;
+    try {
+      await api.put(`/tasks/${task.id}/notes/${noteId}`, { note_text: editNoteText });
+      toast.success("Note updated");
+      setEditingNoteId(null);
+      setEditNoteText("");
+      onUpdate();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update note");
+    }
+  };
+
+  const handleDeleteNote = (noteId: number) => {
+    setDeleteNoteId(noteId);
+  };
+
+  const confirmDeleteNote = async () => {
+    if (deleteNoteId === null) return;
+    try {
+      await api.delete(`/tasks/${task.id}/notes/${deleteNoteId}`);
+      toast.success("Note deleted");
+      onUpdate();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to delete note");
+    } finally {
+      setDeleteNoteId(null);
     }
   };
 
@@ -94,11 +160,15 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
 
   // very simple permission check (MVP): if user belongs to tier role or is tier user
   // (In full version, this requires evaluating the role from the token/DB)
-  const canApprove = task.current_tier_id != null; 
+  const isHighValue = Number(task.amount) > 10000;
+  const isInvoiceOrWire = task.payment_method?.toLowerCase() === 'invoice' || task.payment_method?.toLowerCase() === 'wire';
+  const needsApproval = isHighValue || isInvoiceOrWire;
+  
+  const canApprove = task.current_tier_id != null && needsApproval; 
 
   return (
     <Sheet open={!!task} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="!max-w-[75vw] !w-[75vw] flex flex-col p-0">
+      <SheetContent aria-describedby={undefined} className="!max-w-[75vw] !w-[75vw] flex flex-col p-0">
         <div className="p-6 flex-1 overflow-y-auto">
           <SheetHeader className="mb-6 pr-8">
             <div className="flex justify-between items-start">
@@ -170,31 +240,166 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
             )}
           </section>
 
-          {canApprove && (
-            <section className="bg-muted p-4 rounded-lg">
-              <h3 className="text-sm font-medium mb-3">Approval Actions</h3>
-              <div className="flex gap-3">
-                <Button onClick={handleApprove} className="flex-1 bg-green-600 hover:bg-green-700">Approve</Button>
-                <Button onClick={handleReject} variant="destructive" className="flex-1">Reject</Button>
-              </div>
-            </section>
-          )}
 
-          {task.status === "Waiting Payment" && (
-            <section className="bg-orange-50 dark:bg-orange-950 p-4 rounded-lg border border-orange-200 dark:border-orange-900">
-              <h3 className="text-sm font-medium text-orange-900 dark:text-orange-400 mb-3">Accounts Payable Actions</h3>
-              <div className="flex gap-3">
-                <Button onClick={async () => {
-                  try {
-                    await api.post(`/tasks/${task.id}/status`, { status: "Paid", comment: "Marked as Paid by AP" });
-                    toast.success("Task marked as Paid");
-                    onUpdate();
-                    onClose();
-                  } catch (e: any) {
-                    toast.error(e.message || "Failed to mark as paid");
-                  }
-                }} className="flex-1 bg-emerald-600 hover:bg-emerald-700">Mark Paid</Button>
+          <Tabs defaultValue="notes" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="notes">Notes</TabsTrigger>
+              <TabsTrigger value="history">Activity History</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="notes" className="relative outline-none">
+              <div 
+                className={`relative rounded-lg p-2 -mx-2 transition-colors ${isDragging ? 'bg-primary/5 ring-2 ring-primary/20 border-dashed' : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                {isDragging && (
+                  <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm border-2 border-dashed border-primary rounded-lg text-primary pointer-events-none">
+                    <UploadCloud className="w-10 h-10 mb-2 animate-bounce" />
+                    <p className="font-medium">Drop files to attach</p>
+                  </div>
+                )}
                 
+                <div className="space-y-4 mb-4 mt-2">
+                  {task.notes?.map((n: any) => (
+                    <div key={n.id} className="bg-muted p-3 rounded-md text-sm group relative">
+                      <div className="flex justify-between items-start mb-2">
+                        {n.user_name && (
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-[10px] font-bold shadow-sm">
+                              {n.user_name.split(" ").map((x: string) => x[0]).join("").substring(0, 2).toUpperCase()}
+                            </div>
+                            <span className="text-xs font-medium">{n.user_name}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => {
+                            setEditingNoteId(n.id);
+                            setEditNoteText(n.note_text);
+                          }}>
+                            <Edit2 className="w-3 h-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteNote(n.id)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {editingNoteId === n.id ? (
+                        <div className="flex flex-col gap-2 mt-2">
+                          <Textarea value={editNoteText} onChange={e => setEditNoteText(e.target.value)} className="min-h-[60px]" />
+                          <div className="flex gap-2 justify-end">
+                            <Button variant="outline" size="sm" onClick={() => setEditingNoteId(null)}>Cancel</Button>
+                            <Button size="sm" onClick={() => handleEditNote(n.id)}>Save</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        (() => {
+                          const isEdited = (n.updated_at && n.updated_at !== n.created_at) || n.is_edited || n.note_text.endsWith('\n[Edited]');
+                          const displayText = n.note_text.endsWith('\n[Edited]') ? n.note_text.slice(0, -9) : n.note_text;
+                          
+                          const renderText = (text: string) => {
+                            const parts = text.split(/(\[Attached: .*?\])/g);
+                            return parts.map((part, i) => {
+                              const match = part.match(/^\[Attached: (.*?)\]$/);
+                              if (match) {
+                                return (
+                                  <a
+                                    key={i}
+                                    href="#"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      api.downloadFile(`/tasks/notes/download/${encodeURIComponent(match[1])}`, match[1])
+                                        .catch((err) => toast.error(err.message || "Failed to download file"));
+                                    }}
+                                    className="text-primary hover:underline font-medium inline-flex items-center bg-primary/10 px-2 py-1 rounded-md mt-1 mb-1"
+                                  >
+                                    <Paperclip className="w-3.5 h-3.5 mr-1.5 opacity-70" />
+                                    <span className="underline decoration-primary/50 underline-offset-4">{match[1]}</span>
+                                  </a>
+                                );
+                              }
+                              return <span key={i}>{part}</span>;
+                            });
+                          };
+
+                          return (
+                            <>
+                              <p className="whitespace-pre-wrap">{renderText(displayText)}</p>
+                              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-2">
+                                {n.created_at ? format(new Date(n.created_at), 'MMM d, yyyy h:mm a') : ''}
+                                {isEdited && (
+                                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-medium text-muted-foreground">Edited</Badge>
+                                )}
+                              </p>
+                            </>
+                          );
+                        })()
+                      )}
+                    </div>
+                  ))}
+                  {(!task.notes || task.notes.length === 0) && (
+                    <p className="text-sm text-muted-foreground italic px-2">No notes yet.</p>
+                  )}
+                </div>
+                <div className="flex gap-2 relative z-10 px-2 pb-2">
+                  <Textarea 
+                    placeholder="Add a note... (or drag files here)" 
+                    value={note} 
+                    onChange={(e) => setNote(e.target.value)} 
+                    className="min-h-[80px]"
+                  />
+                  <Button onClick={handleAddNote} className="self-end">Post</Button>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="history" className="outline-none">
+              <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[0.625rem] before:-translate-x-px before:h-full before:w-0.5 before:bg-muted mt-4">
+                {task.history?.map((h: any) => (
+                  <div key={h.id} className="relative flex items-start gap-4">
+                    <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary z-10 shrink-0 mt-1 shadow-sm" />
+                    <div className="flex-1 p-3 rounded bg-card border shadow-sm text-sm">
+                      {h.changed_by_name && (
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-5 h-5 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-[10px] font-bold shadow-sm">
+                            {h.changed_by_name.split(" ").map((x: string) => x[0]).join("").substring(0, 2).toUpperCase()}
+                          </div>
+                          <span className="text-xs font-medium">{h.changed_by_name}</span>
+                        </div>
+                      )}
+                      <p className="font-medium">{h.action}</p>
+                      {h.old_value && h.new_value && <p className="text-muted-foreground text-xs mt-1">{h.old_value} &rarr; {h.new_value}</p>}
+                      {!h.old_value && h.new_value && <p className="text-muted-foreground text-xs mt-1">{h.new_value}</p>}
+                      {h.comment && <p className="mt-2 bg-muted p-1.5 rounded">{h.comment}</p>}
+                      <time className="block text-xs text-muted-foreground mt-2">{h.created_at ? format(new Date(h.created_at), 'MMM d, h:mm a') : ''}</time>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+        </div>
+
+        {(canApprove || task.status === "Waiting Payment") && (
+          <SheetFooter className="px-6 py-4 border-t bg-muted/20 flex-row sm:flex-row justify-center flex-wrap gap-4 sm:gap-6 mt-0 shadow-sm z-10">
+            {canApprove && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-muted-foreground mr-1">Approval:</span>
+                <Button onClick={handleReject} variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10">Reject</Button>
+                <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700 text-white shadow-sm">Approve</Button>
+              </div>
+            )}
+
+            {canApprove && task.status === "Waiting Payment" && (
+              <div className="w-px h-8 bg-border hidden sm:block" />
+            )}
+
+            {task.status === "Waiting Payment" && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-muted-foreground mr-1">AP Action:</span>
                 <Button onClick={async () => {
                   const reason = prompt("Enter rejection reason:");
                   if (reason === null) return;
@@ -206,73 +411,41 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
                   } catch (e: any) {
                     toast.error(e.message || "Failed to reject");
                   }
-                }} variant="destructive" className="flex-1">Reject</Button>
+                }} variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10">Reject</Button>
+
+                <Button onClick={async () => {
+                  try {
+                    await api.post(`/tasks/${task.id}/status`, { status: "Paid", comment: "Marked as Paid by AP" });
+                    toast.success("Task marked as Paid");
+                    onUpdate();
+                    onClose();
+                  } catch (e: any) {
+                    toast.error(e.message || "Failed to mark as paid");
+                  }
+                }} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">Mark Paid</Button>
               </div>
-            </section>
-          )}
-
-          <section>
-            <h3 className="text-sm font-medium text-muted-foreground mb-4">Notes</h3>
-            <div className="space-y-4 mb-4">
-              {task.notes?.map((n: any) => (
-                <div key={n.id} className="bg-muted p-3 rounded-md text-sm">
-                  {n.user_name && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-5 h-5 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-[10px] font-bold shadow-sm">
-                        {n.user_name.split(" ").map((x: string) => x[0]).join("").substring(0, 2).toUpperCase()}
-                      </div>
-                      <span className="text-xs font-medium">{n.user_name}</span>
-                    </div>
-                  )}
-                  <p>{n.note_text}</p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {n.created_at ? format(new Date(n.created_at), 'MMM d, yyyy h:mm a') : ''}
-                  </p>
-                </div>
-              ))}
-              {(!task.notes || task.notes.length === 0) && (
-                <p className="text-sm text-muted-foreground italic">No notes yet.</p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Textarea 
-                placeholder="Add a note..." 
-                value={note} 
-                onChange={(e) => setNote(e.target.value)} 
-                className="min-h-[80px]"
-              />
-              <Button onClick={handleAddNote} className="self-end">Post</Button>
-            </div>
-          </section>
-
-          <section>
-            <h3 className="text-sm font-medium text-muted-foreground mb-4">Activity History</h3>
-            <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[0.625rem] before:-translate-x-px before:h-full before:w-0.5 before:bg-muted">
-              {task.history?.map((h: any) => (
-                <div key={h.id} className="relative flex items-start gap-4">
-                  <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary z-10 shrink-0 mt-1 shadow-sm" />
-                  <div className="flex-1 p-3 rounded bg-card border shadow-sm text-sm">
-                    {h.changed_by_name && (
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-5 h-5 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-[10px] font-bold shadow-sm">
-                          {h.changed_by_name.split(" ").map((x: string) => x[0]).join("").substring(0, 2).toUpperCase()}
-                        </div>
-                        <span className="text-xs font-medium">{h.changed_by_name}</span>
-                      </div>
-                    )}
-                    <p className="font-medium">{h.action}</p>
-                    {h.old_value && h.new_value && <p className="text-muted-foreground text-xs mt-1">{h.old_value} &rarr; {h.new_value}</p>}
-                    {!h.old_value && h.new_value && <p className="text-muted-foreground text-xs mt-1">{h.new_value}</p>}
-                    {h.comment && <p className="mt-2 bg-muted p-1.5 rounded">{h.comment}</p>}
-                    <time className="block text-xs text-muted-foreground mt-2">{h.created_at ? format(new Date(h.created_at), 'MMM d, h:mm a') : ''}</time>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-        </div>
+            )}
+          </SheetFooter>
+        )}
       </SheetContent>
+      
+      <AlertDialog open={deleteNoteId !== null} onOpenChange={(open) => !open && setDeleteNoteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Note</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this note? This action cannot be undone.
+              Any attached files will also be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteNote} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
