@@ -3,7 +3,19 @@ import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Bookmark, ChevronsUp, ChevronUp, ChevronDown } from "lucide-react";
 
-const COLUMNS = ["New Request", "Under Review", "Waiting Payment", "Paid", "Purchased", "Shipped", "Completed", "Rejected"];
+const BOARD_COLUMNS = [
+  { key: "NEW", label: "New Request" },
+  { key: "UNDER_REVIEW", label: "Under Review" },
+  { key: "WAITING_APPROVAL", label: "Waiting Approval" },
+  { key: "APPROVED", label: "Approved" },
+  { key: "ORDERED", label: "Ordered" },
+  { key: "SHIPPED", label: "Shipped" },
+  { key: "INVOICE_RECEIVED", label: "Invoice Received" },
+  { key: "SENT_TO_AP", label: "Sent to AP" },
+  { key: "PAID", label: "Paid" },
+  { key: "COMPLETED", label: "Completed" },
+  { key: "REJECTED", label: "Rejected" },
+];
 
 const getCategoryColor = (category: string) => {
   const cat = (category || "GENERAL").toUpperCase();
@@ -18,11 +30,13 @@ const getCategoryColor = (category: string) => {
 interface TaskBoardProps {
   tasks: any[];
   onTaskClick: (id: number) => void;
-  onTaskMoved: (taskId: number, newStatus: string) => void;
+  onTaskMoved?: (taskId: number, newStatus: string) => void;
+  readOnly?: boolean;
 }
 
-export default function TaskBoard({ tasks, onTaskClick, onTaskMoved }: TaskBoardProps) {
+export default function TaskBoard({ tasks, onTaskClick, onTaskMoved, readOnly = false }: TaskBoardProps) {
   const onDragEnd = async (result: any) => {
+    if (readOnly || !onTaskMoved) return;
     const { destination, source, draggableId } = result;
 
     if (!destination) return;
@@ -35,29 +49,35 @@ export default function TaskBoard({ tasks, onTaskClick, onTaskMoved }: TaskBoard
     onTaskMoved(taskId, newStatus);
   };
 
-  const getTasksByStatus = (status: string) => {
-    return tasks.filter((t) => t.status === status);
+  const getTasksByStatus = (columnKey: string) => {
+    return tasks.filter((t) => {
+      if (!t.status) return columnKey === "NEW";
+      const raw = t.status.toUpperCase().trim().replace(/\s+/g, "_");
+      if (columnKey === "NEW" && (raw === "NEW" || raw === "NEW_REQUEST")) return true;
+      if (columnKey === "WAITING_APPROVAL" && (raw === "WAITING_APPROVAL" || raw === "WAITING_PAYMENT")) return true;
+      if (columnKey === "ORDERED" && (raw === "ORDERED" || raw === "PURCHASED")) return true;
+      return raw === columnKey;
+    });
   };
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex h-full gap-3 overflow-x-auto pb-4">
-        {COLUMNS.map((col) => (
-          <div key={col} className="w-[280px] flex-shrink-0 flex flex-col bg-[#F4F5F7] dark:bg-slate-900 rounded-sm p-2">
+        {BOARD_COLUMNS.map((col) => (
+          <div key={col.key} className="w-[280px] flex-shrink-0 flex flex-col h-full min-h-0 bg-[#F4F5F7] dark:bg-slate-900 rounded-sm p-2">
             <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 px-2 mt-1">
-              {col} <span className="font-normal ml-1">{getTasksByStatus(col).length}</span>
+              {col.label} <span className="font-normal ml-1">{getTasksByStatus(col.key).length}</span>
             </h3>
             
-            <Droppable droppableId={col}>
+            <Droppable droppableId={col.key}>
               {(provided, snapshot) => (
                 <div 
                   ref={provided.innerRef} 
                   {...provided.droppableProps}
-                  className={`flex-1 overflow-y-auto px-1 pb-1 transition-colors ${snapshot.isDraggingOver ? 'bg-blue-50/50 dark:bg-blue-900/10 rounded-md' : ''}`}
-                  style={{ minHeight: '150px' }}
+                  className={`flex-1 min-h-0 overflow-y-auto px-1 pb-1 transition-colors ${snapshot.isDraggingOver ? 'bg-blue-50/50 dark:bg-blue-900/10 rounded-md' : ''}`}
                 >
-                  {getTasksByStatus(col).map((task, index) => (
-                    <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
+                  {getTasksByStatus(col.key).map((task, index) => (
+                    <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index} isDragDisabled={readOnly}>
                       {(provided, snapshot) => (
                          <div
                           ref={provided.innerRef}

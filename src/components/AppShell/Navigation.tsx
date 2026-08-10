@@ -3,7 +3,6 @@ import {
   Upload,
   ShieldCheck,
   FileClock,
-  ClipboardList,
   GitMerge,
   BellRing,
   ShoppingCart,
@@ -24,13 +23,6 @@ export const navigation = [
     icon: Upload,
     section: "MAIN",
     navigationCode: "UPLOAD_FILES",
-  },
-  {
-    label: "Tasks",
-    path: "/tasks",
-    icon: ClipboardList,
-    section: "ORDER SYSTEM",
-    navigationCode: "TASKS",
   },
   {
     label: "Workflows",
@@ -71,6 +63,7 @@ export const navigation = [
       { label: "Role Assignments", path: "/configurations/user-role-assignment", navigationCode: "CONFIG_USER_ROLE_ASSIGNMENT" },
       { label: "Role Permissions", path: "/configurations/role-group-permissions", navigationCode: "CONFIG_ROLE_API_PERMISSIONS" },
       { label: "MCP Tool Permissions", path: "/configurations/role-mcp-tool-permissions", navigationCode: "CONFIG_ROLE_MCP_TOOL_PERMISSIONS" },
+      { label: "Workflow Assignments", path: "/configurations/workflow-assignments", navigationCode: "CONFIG_USER_ROLE_ASSIGNMENT" },
     ]
   },
   {

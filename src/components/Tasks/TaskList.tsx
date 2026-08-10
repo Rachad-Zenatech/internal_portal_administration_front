@@ -8,21 +8,7 @@ import {
 } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
 import { format } from "date-fns";
-import { STATUS_BADGE } from "@/pages/Purchasing/purchasingMeta";
-
-const getStatusKey = (status: string): keyof typeof STATUS_BADGE => {
-  const map: Record<string, keyof typeof STATUS_BADGE> = {
-    "New Request": "NEW",
-    "Under Review": "UNDER_REVIEW",
-    "Waiting Approval": "WAITING_APPROVAL",
-    "Approved": "APPROVED",
-    "Rejected": "REJECTED",
-    "Purchased": "PURCHASED",
-    "Shipped": "SHIPPED",
-    "Completed": "COMPLETED"
-  };
-  return map[status] || "NEW";
-};
+import { getStatusBadge, getStatusLabel, PRIORITY_BADGE } from "@/pages/Purchasing/purchasingMeta";
 
 interface TaskListProps {
   tasks: any[];
@@ -48,29 +34,29 @@ export default function TaskList({ tasks, onTaskClick }: TaskListProps) {
         <TableBody>
           {tasks.map((task) => (
             <TableRow key={task.id} onClick={() => onTaskClick(task.id)} className="cursor-pointer hover:bg-muted/50">
-              <TableCell className="font-medium">#{task.id}</TableCell>
-              <TableCell>{task.product_name}</TableCell>
-              <TableCell>{task.category}</TableCell>
-              <TableCell>${task.amount}</TableCell>
+              <TableCell className="font-medium font-mono text-xs">#{task.id}</TableCell>
+              <TableCell className="font-semibold text-slate-900 dark:text-zinc-100">{task.product_name || task.title}</TableCell>
+              <TableCell>{task.category || "General"}</TableCell>
+              <TableCell>${task.amount ?? 0}</TableCell>
               <TableCell>
-                <Badge variant={task.priority === 'High' ? 'destructive' : task.priority === 'Medium' ? 'default' : 'secondary'}>
-                  {task.priority}
+                <Badge variant="outline" className={PRIORITY_BADGE[task.priority as keyof typeof PRIORITY_BADGE] ?? PRIORITY_BADGE.MEDIUM}>
+                  {task.priority || "MEDIUM"}
                 </Badge>
               </TableCell>
               <TableCell className="text-sm">
                 {task.assignee_name ? <span className="text-primary font-medium">{task.assignee_name}</span> : <span className="text-muted-foreground italic">Unassigned</span>}
               </TableCell>
               <TableCell>
-                <Badge variant="outline" className={STATUS_BADGE[getStatusKey(task.status)]}>{task.status}</Badge>
+                <Badge variant="outline" className={getStatusBadge(task.status)}>{getStatusLabel(task.status)}</Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="text-muted-foreground text-sm">
                 {task.created_at ? format(new Date(task.created_at), 'MMM d, yyyy') : ''}
               </TableCell>
             </TableRow>
           ))}
           {tasks.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                 No tasks found.
               </TableCell>
             </TableRow>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/services/apiClient";
 import { Button } from "@/components/ui/button";
@@ -285,7 +286,7 @@ export default function RoleApiPermissions() {
       {/* Right Panel: Permissions Configuration */}
       <div className="flex-1 flex flex-col min-h-0">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Role API Permissions</h2>
+          <div className="flex items-center gap-2"><h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Role API Permissions</h2><HelpIcon text="Grant or restrict API routes that are allowed for each specific user role." /></div>
           <p className="text-sm text-slate-500 dark:text-zinc-400">
              {selectedRole ? `Configuring CRUD API permissions for ${selectedRole.name}` : "Select a role from the list to begin."}
           </p>

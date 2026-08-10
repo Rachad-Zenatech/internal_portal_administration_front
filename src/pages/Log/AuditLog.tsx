@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/services/apiClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -267,7 +268,7 @@ export default function AuditLog() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            Audit & Security Logs
+            Audit & Security Logs<HelpIcon text="Displays a detailed timeline of administrative actions, config edits, and security events for compliance." />
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">Track system activity, configuration changes, and login attempts.</p>
         </div>

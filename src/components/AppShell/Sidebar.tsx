@@ -8,6 +8,7 @@ import { useAuth } from "../../lib/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/services/apiClient";
 import type { LucideIcon } from "lucide-react";
+import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 
 interface SidebarUser {
   is_super_admin?: boolean;
@@ -52,6 +53,11 @@ export default function Sidebar({
     !u.is_super_admin && 
     (!u.assigned_roles || u.assigned_roles.length === 0 || u.assigned_roles.every((role) => role.code === "PENDING_USER"))
   ).length || 0;
+
+  const { data: unreadCountData } = useUnreadNotificationCount({
+    refetchInterval: 10000, // Poll every 10 seconds to keep counts fresh
+  });
+  const unreadCount = unreadCountData?.count ?? 0;
 
   const toggleExpand = (label: string) => {
     setExpandedItems(prev => ({ ...prev, [label]: !prev[label] }));
@@ -200,16 +206,29 @@ export default function Sidebar({
                     `
                   }
                 >
-                  <div className="flex items-center justify-center flex-shrink-0">
+                  <div className="flex items-center justify-center flex-shrink-0 relative">
                     <Icon size={20} />
+                    {!isOpen && item.label === "Notification Plans" && unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                      </span>
+                    )}
                   </div>
-                  <span
-                    className={`text-sm font-medium transition-all duration-300 ease-in-out ${
-                      isOpen ? "opacity-100 ml-3 translate-x-0 w-auto" : "opacity-0 ml-0 -translate-x-4 w-0 overflow-hidden"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
+                  <div className="flex-1 flex items-center justify-between min-w-0">
+                    <span
+                      className={`text-sm font-medium transition-all duration-300 ease-in-out truncate ${
+                        isOpen ? "opacity-100 ml-3 translate-x-0 w-auto" : "opacity-0 ml-0 -translate-x-4 w-0 overflow-hidden"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                    {isOpen && item.label === "Notification Plans" && unreadCount > 0 && (
+                      <span className="flex-shrink-0 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mr-2">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </div>
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={10} className={`font-semibold z-50 ${isOpen ? "hidden" : ""}`}>

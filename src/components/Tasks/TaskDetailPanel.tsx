@@ -8,34 +8,25 @@ import { useState } from "react";
 import { apiClient as api } from "@/services/apiClient";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Trash2, CheckCircle2, Circle, UploadCloud, Edit2, Paperclip } from "lucide-react";
-import { STATUS_BADGE } from "@/pages/Purchasing/purchasingMeta";
 import { Card, CardContent } from "@/components/ui/card";
-
-const FLOW = ["New Request", "Under Review", "Waiting Payment", "Paid", "Purchased", "Shipped", "Completed"];
-
-const getStatusKey = (status: string): keyof typeof STATUS_BADGE => {
-  const map: Record<string, keyof typeof STATUS_BADGE> = {
-    "New Request": "NEW",
-    "Under Review": "UNDER_REVIEW",
-    "Waiting Payment": "WAITING_PAYMENT",
-    "Paid": "PAID",
-    "Approved": "APPROVED",
-    "Rejected": "REJECTED",
-    "Purchased": "PURCHASED",
-    "Shipped": "SHIPPED",
-    "Completed": "COMPLETED"
-  };
-  return map[status] || "NEW";
-};
+import { Trash2, UploadCloud, Edit2, Paperclip } from "lucide-react";
+import Stepper from "@/components/Stepper";
+import {
+  SPEND_FLOW,
+  ADMIN_FLOW,
+  RECURRING_FLOW,
+  getStatusBadge,
+  getStatusLabel,
+} from "@/pages/Purchasing/purchasingMeta";
 
 interface TaskDetailPanelProps {
   task: any | null;
   onClose: () => void;
   onUpdate: () => void;
+  readOnly?: boolean;
 }
 
-export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailPanelProps) {
+export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = false }: TaskDetailPanelProps) {
   const [note, setNote] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [deleteNoteId, setDeleteNoteId] = useState<number | null>(null);
@@ -175,19 +166,25 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
             <div>
               <div className="flex items-center gap-3">
                 <SheetTitle className="text-2xl">{task.product_name}</SheetTitle>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
-                  onClick={handleDelete}
-                  title="Delete Order"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                {!readOnly && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={handleDelete}
+                    title="Delete Order"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
               <div className="flex gap-2 mt-2">
-                <Badge variant="outline" className={STATUS_BADGE[getStatusKey(task.status)]}>{task.status}</Badge>
-                <Badge variant={task.priority === 'High' ? 'destructive' : 'default'}>{task.priority}</Badge>
+                <Badge variant="outline" className={getStatusBadge(task.status)}>
+                  {getStatusLabel(task.status)}
+                </Badge>
+                <Badge variant={task.priority?.toLowerCase() === 'high' ? 'destructive' : 'default'}>
+                  {task.priority || 'Medium'}
+                </Badge>
               </div>
             </div>
             <div className="text-right">
@@ -197,31 +194,22 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
           </div>
         </SheetHeader>
 
-        <Card className="border border-slate-200 dark:border-zinc-800 mb-8 mx-1">
-          <CardContent className="p-4 overflow-x-auto">
-            <div className="flex items-center gap-1 min-w-max">
-              {FLOW.map((step, i) => {
-                const currentIndex = FLOW.indexOf(task.status);
-                const done = task.status !== "Rejected" && i < currentIndex;
-                const current = i === currentIndex;
-                return (
-                  <div key={step} className="flex items-center gap-1">
-                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
-                      current ? STATUS_BADGE[getStatusKey(step)] + " border" : done ? "text-green-600" : "text-slate-400"
-                    }`}>
-                      {done ? <CheckCircle2 className="h-4 w-4" /> : current ? <Circle className="h-4 w-4 fill-current" /> : <Circle className="h-4 w-4" />}
-                      {step}
-                    </div>
-                    {i < FLOW.length - 1 && <div className={`h-px w-6 ${done ? "bg-green-500" : "bg-slate-200 dark:bg-zinc-700"}`} />}
-                  </div>
-                );
-              })}
-            </div>
-            {task.status === "Rejected" && (
-              <p className="mt-3 text-sm font-medium text-red-600">This order was rejected.</p>
-            )}
-          </CardContent>
-        </Card>
+        {(() => {
+          let flow = SPEND_FLOW;
+          if (task.category === 'ADMIN' || task.request_type === 'ADMIN') flow = ADMIN_FLOW;
+          else if (task.category === 'RECURRING' || task.request_type === 'RECURRING') flow = RECURRING_FLOW;
+
+          return (
+            <Card className="border border-slate-200 dark:border-zinc-800 mb-8 mx-1">
+              <CardContent className="p-4 sm:p-5">
+                <Stepper flow={flow} requestStatus={task.status} />
+                {task.status?.toUpperCase() === 'REJECTED' && (
+                  <p className="mt-3 text-sm font-medium text-red-600">This order was rejected.</p>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         <div className="space-y-8">
           <section>
@@ -273,17 +261,19 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
                             <span className="text-xs font-medium">{n.user_name}</span>
                           </div>
                         )}
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => {
-                            setEditingNoteId(n.id);
-                            setEditNoteText(n.note_text);
-                          }}>
-                            <Edit2 className="w-3 h-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteNote(n.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
+                        {!readOnly && (
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => {
+                              setEditingNoteId(n.id);
+                              setEditNoteText(n.note_text);
+                            }}>
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteNote(n.id)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       
                       {editingNoteId === n.id ? (
@@ -343,15 +333,17 @@ export default function TaskDetailPanel({ task, onClose, onUpdate }: TaskDetailP
                     <p className="text-sm text-muted-foreground italic px-2">No notes yet.</p>
                   )}
                 </div>
-                <div className="flex gap-2 relative z-10 px-2 pb-2">
-                  <Textarea 
-                    placeholder="Add a note... (or drag files here)" 
-                    value={note} 
-                    onChange={(e) => setNote(e.target.value)} 
-                    className="min-h-[80px]"
-                  />
-                  <Button onClick={handleAddNote} className="self-end">Post</Button>
-                </div>
+                {!readOnly && (
+                  <div className="flex gap-2 relative z-10 px-2 pb-2">
+                    <Textarea
+                      placeholder="Add a note... (or drag files here)"
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      className="min-h-[80px]"
+                    />
+                    <Button onClick={handleAddNote} className="self-end">Post</Button>
+                  </div>
+                )}
               </div>
             </TabsContent>
 

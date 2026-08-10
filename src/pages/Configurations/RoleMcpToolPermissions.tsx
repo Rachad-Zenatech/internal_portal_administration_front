@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/services/apiClient";
 import { Button } from "@/components/ui/button";
@@ -195,7 +196,7 @@ export default function RoleMcpToolPermissions() {
       {/* Right Panel: Permissions Configuration */}
       <div className="flex-1 flex flex-col min-h-0">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Role MCP Tool Permissions</h2>
+          <div className="flex items-center gap-2"><h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Role MCP Tool Permissions</h2><HelpIcon text="Define which MCP tools are accessible by each role to restrict AI code actions." /></div>
           <p className="text-sm text-slate-500 dark:text-zinc-400">
              {selectedRole ? `Configuring MCP tools for ${selectedRole.name}` : "Select a role from the list to begin."}
           </p>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Plus, Search, ShoppingCart, Clock, FileWarning, CheckCircle2 } from "lucide-react";
@@ -33,13 +34,13 @@ import {
 
 import { usePurchaseRequests, usePurchasingSummary, useCreateRequest } from "@/hooks/usePurchasing";
 import type { Priority, RequestCreateInput, RequestType } from "@/types/purchasing";
-import { PRIORITY_BADGE, STATUS_BADGE, STATUS_LABEL, formatDate, formatMoney } from "./purchasingMeta";
+import { PRIORITY_BADGE, STATUS_LABEL, getStatusBadge, getStatusLabel, formatDate, formatMoney } from "./purchasingMeta";
 
 const EMPTY_FORM: RequestCreateInput = {
   title: "",
   requester: "",
   department: "",
-  request_type: "SIMPLE",
+  request_type: "SPEND",
   priority: "MEDIUM",
   description: "",
 };
@@ -97,7 +98,7 @@ export default function PurchaseRequests() {
     <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Purchase Requests</h2>
+          <div className="flex items-center gap-2"><h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Purchase Requests</h2><HelpIcon text="Manage and create purchase requests. Displays current review status and routing info." /></div>
           <p className="text-sm text-slate-500 dark:text-zinc-400">
             Capture, review, approve and track purchasing &amp; accounts payable requests.
           </p>
@@ -141,8 +142,9 @@ export default function PurchaseRequests() {
           <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Type" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Types</SelectItem>
-            <SelectItem value="SIMPLE">Simple Purchase</SelectItem>
-            <SelectItem value="COMPLEX">Complex / AP</SelectItem>
+            <SelectItem value="SPEND">Spend</SelectItem>
+            <SelectItem value="ADMIN">Admin Triage</SelectItem>
+            <SelectItem value="RECURRING">Recurring</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -186,14 +188,14 @@ export default function PurchaseRequests() {
                   <TableCell>{r.department}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize">
-                      {r.request_type === "SIMPLE" ? "Simple" : "Complex"}
+                      {r.request_type}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={PRIORITY_BADGE[r.priority]}>{r.priority}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={STATUS_BADGE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
+                    <Badge variant="outline" className={getStatusBadge(r.status)}>{getStatusLabel(r.status)}</Badge>
                   </TableCell>
                   <TableCell className="text-slate-500 text-sm">{formatDate(r.request_date)}</TableCell>
                 </TableRow>
@@ -228,13 +230,14 @@ export default function PurchaseRequests() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Type</label>
-                <Select value={form.request_type} onValueChange={(v) => setForm({ ...form, request_type: v as RequestType })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SIMPLE">Simple Purchase</SelectItem>
-                    <SelectItem value="COMPLEX">Complex / AP (invoice)</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <Select value={form.request_type} onValueChange={(v: RequestType) => setForm({ ...form, request_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SPEND">Spend Request</SelectItem>
+                      <SelectItem value="ADMIN">Admin Triage</SelectItem>
+                      <SelectItem value="RECURRING">Recurring (Subscription)</SelectItem>
+                    </SelectContent>
+                  </Select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Priority</label>

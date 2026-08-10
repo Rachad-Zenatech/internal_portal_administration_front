@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { apiClient as api } from "@/services/apiClient";
 import { Button } from "../../components/ui/button";
 import { Plus } from "lucide-react";
@@ -42,7 +43,7 @@ export default function WorkflowPage() {
     <div className="p-6 h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Approval Workflows</h1>
+          <div className="flex items-center gap-2"><h1 className="text-3xl font-bold tracking-tight">Approval Workflows</h1><HelpIcon text="Manage multi-tier approval workflows, including tiers, ordering, and transition rules." /></div>
           <p className="text-muted-foreground">Configure dynamic approval chains for tasks</p>
         </div>
         <Button onClick={handleCreate}>

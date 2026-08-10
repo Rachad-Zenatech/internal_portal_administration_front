@@ -13,6 +13,7 @@ const UserRoleAssignment = lazy(() => import("./pages/Configurations/UserRoleAss
 const RoleGroupPermissions = lazy(() => import("./pages/Configurations/RoleGroupPermissions"));
 const RoleApiPermissions = lazy(() => import("./pages/Configurations/RoleApiPermissions"));
 const RoleMcpToolPermissions = lazy(() => import("./pages/Configurations/RoleMcpToolPermissions"));
+const WorkflowAssignments = lazy(() => import("./pages/Configurations/WorkflowAssignments"));
 const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
 const PurchaseRequests = lazy(() => import("./pages/Purchasing/PurchaseRequests"));
 const RequestDetail = lazy(() => import("./pages/Purchasing/RequestDetail"));
@@ -21,7 +22,6 @@ const Login = lazy(() => import("./pages/Login"));
 const PendingAccess = lazy(() => import("./pages/PendingAccess"));
 
 // Order System Pages
-const TasksPage = lazy(() => import("./pages/Tasks/TasksPage"));
 const WorkflowPage = lazy(() => import("./pages/Workflows/WorkflowPage"));
 const NotificationPlanPage = lazy(() => import("./pages/Notifications/NotificationPlanPage"));
 const SystemLogsPage = lazy(() => import("./pages/Logs/SystemLogsPage"));
@@ -59,6 +59,7 @@ function App() {
             <Route path="/configurations/role-group-permissions" element={<ProtectedRoute navigationCode="CONFIG_ROLES"><RoleGroupPermissions /></ProtectedRoute>} />
             <Route path="/configurations/role-api-permissions" element={<ProtectedRoute navigationCode="CONFIG_ROLE_API_PERMISSIONS"><RoleApiPermissions /></ProtectedRoute>} />
             <Route path="/configurations/role-mcp-tool-permissions" element={<ProtectedRoute navigationCode="CONFIG_ROLE_MCP_TOOL_PERMISSIONS"><RoleMcpToolPermissions /></ProtectedRoute>} />
+            <Route path="/configurations/workflow-assignments" element={<ProtectedRoute navigationCode="CONFIG_USER_ROLE_ASSIGNMENT"><WorkflowAssignments /></ProtectedRoute>} />
 
 
             {/* Logs */}
@@ -67,7 +68,7 @@ function App() {
             <Route path="/log/system-logs" element={<ProtectedRoute navigationCode="AUDIT_LOG"><SystemLogsPage /></ProtectedRoute>} />
 
             {/* Order System */}
-            <Route path="/tasks" element={<ProtectedRoute navigationCode="TASKS"><TasksPage /></ProtectedRoute>} />
+            <Route path="/tasks" element={<Navigate to="/" replace />} />
             <Route path="/workflows" element={<ProtectedRoute navigationCode="WORKFLOWS_MANAGE"><WorkflowPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute navigationCode="NOTIFICATIONS_MANAGE"><NotificationPlanPage /></ProtectedRoute>} />
 

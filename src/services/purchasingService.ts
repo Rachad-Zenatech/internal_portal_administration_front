@@ -60,3 +60,7 @@ export function payInvoice(id: string) {
 export function listNotifications(limit = 50) {
   return apiClient.get<PurchasingNotification[]>(`${BASE}/notifications?limit=${limit}`);
 }
+
+export function getPossibleApprovers(requestId: string) {
+  return apiClient.get<Array<{ user_id: string; name: string }>>(`${BASE}/requests/${requestId}/approvers`);
+}

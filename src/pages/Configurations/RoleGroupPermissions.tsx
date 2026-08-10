@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/services/apiClient";
 import { Button } from "@/components/ui/button";
@@ -160,7 +161,7 @@ export default function RoleGroupPermissions() {
       <div className="flex-1 flex flex-col min-h-0">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 flex items-center gap-2"><HelpIcon text="Manage permissions groups and actions associated with roles." />
               Simplified Permissions <ShieldCheck className="h-5 w-5 text-blue-500" />
             </h2>
             <p className="text-sm text-slate-500 dark:text-zinc-400">

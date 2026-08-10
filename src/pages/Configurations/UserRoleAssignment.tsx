@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/services/apiClient";
 import { Button } from "@/components/ui/button";
@@ -141,7 +142,7 @@ export default function UserRoleAssignment() {
       {/* Right Panel: Role Assignment */}
       <div className="flex-1 flex flex-col min-h-0">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Role Assignment</h2>
+          <div className="flex items-center gap-2"><h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Role Assignment</h2><HelpIcon text="Assign custom roles to specific portal users to control their system access." /></div>
           <p className="text-sm text-slate-500 dark:text-zinc-400">
             {selectedUser ? `Configuring permissions for ${selectedUser.full_name || selectedUser.email}` : "Select a user from the list to begin."}
           </p>

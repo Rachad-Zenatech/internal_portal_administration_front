@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { apiClient as api } from "@/services/apiClient";
 import { Button } from "../../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -9,29 +10,15 @@ import TaskList from "../../components/Tasks/TaskList";
 import TaskDetailPanel from "../../components/Tasks/TaskDetailPanel";
 import TaskFormDialog from "../../components/Tasks/TaskFormDialog";
 
+import { useTasks, useChangeTaskStatus } from "@/hooks/useTasks";
+
 export default function TasksPage() {
-  
-  const [tasks, setTasks] = useState<any[]>([]);
+  const { data: tasks = [], refetch: fetchTasks } = useTasks();
+  const changeStatusMutation = useChangeTaskStatus();
   const [searchQuery, setSearchQuery] = useState("");
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
-
-  const fetchTasks = async () => {
-    try {
-      
-      const res = await api.get<any>("/tasks?limit=100"); // simplifications for MVP
-      setTasks(res.items || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      
-    }
-  };
-
-  useEffect(() => {
-    fetchTasks();
-  }, []);
 
   const handleTaskClick = async (taskId: number) => {
     try {
@@ -42,7 +29,7 @@ export default function TasksPage() {
     }
   };
 
-  const filteredTasks = tasks.filter(task => {
+  const filteredTasks = tasks.filter((task: any) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     
@@ -57,7 +44,7 @@ export default function TasksPage() {
     <div className="p-6 h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
+          <div className="flex items-center gap-2"><h1 className="text-3xl font-bold tracking-tight">Tasks</h1><HelpIcon text="Create, view, and track execution of order system tasks and custom workflows." /></div>
           <p className="text-muted-foreground">Manage and track order tasks</p>
         </div>
         <Button onClick={() => setIsFormOpen(true)}>
@@ -87,13 +74,10 @@ export default function TasksPage() {
             tasks={filteredTasks} 
             onTaskClick={handleTaskClick} 
             onTaskMoved={async (taskId, newStatus) => {
-              const prevTasks = [...tasks];
-              setTasks(tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
               try {
-                await api.post<any>(`/tasks/${taskId}/status`, { status: newStatus });
+                await changeStatusMutation.mutateAsync({ taskId, newStatus });
               } catch (e) {
                 console.error("Failed to move task", e);
-                setTasks(prevTasks); // rollback on error
               }
             }} 
           />

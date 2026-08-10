@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowLeft,
   Bell,
-  CheckCircle2,
-  Circle,
   FileText,
   Package,
   ReceiptText,
@@ -24,8 +23,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-import { usePurchaseRequest, useTransitionRequest } from "@/hooks/usePurchasing";
+import { usePurchaseRequest, useTransitionRequest, usePossibleApprovers } from "@/hooks/usePurchasing";
+import Stepper from "@/components/Stepper";
 import type {
   PurchaseOrderInput,
   InvoiceInput,
@@ -36,30 +43,39 @@ import type {
 } from "@/types/purchasing";
 import {
   ACTION_META,
-  COMPLEX_FLOW,
+  ADMIN_FLOW,
+  SPEND_FLOW,
+  RECURRING_FLOW,
   PAYMENT_BADGE,
   PAYMENT_LABEL,
   PRIORITY_BADGE,
-  SIMPLE_FLOW,
   STATUS_BADGE,
-  STATUS_LABEL,
+  getStatusBadge,
+  getStatusLabel,
   formatDate,
   formatMoney,
 } from "./purchasingMeta";
 
-type FormKind = "po" | "invoice" | "approval" | "tracking";
+type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods";
 
 export default function RequestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data, isLoading, isError } = usePurchaseRequest(id);
   const transition = useTransitionRequest(id ?? "");
+  const { data: approvers = [], isLoading: isLoadingApprovers } = usePossibleApprovers(id);
 
   const [activeForm, setActiveForm] = useState<{ action: WorkflowAction; kind: FormKind } | null>(null);
   const [po, setPo] = useState<PurchaseOrderInput>({ vendor: "", item: "", amount: 0, quote_number: "", description: "", expected_delivery_date: "" });
-  const [invoice, setInvoice] = useState<InvoiceInput>({ vendor: "", amount: 0, invoice_date: "", due_date: "" });
-  const [approval, setApproval] = useState<ApprovalInput>({ approver: "Sean (CEO)", comment: "" });
+  const [invoice, setInvoice] = useState<InvoiceInput>({ vendor: "", amount: 0, invoice_date: "", due_date: "", gl_code: "", asset_flag: false });
+  const [approval, setApproval] = useState<ApprovalInput>({ approver: "", comment: "" });
   const [tracking, setTracking] = useState<TrackingInput>({ tracking_number: "" });
+
+  useEffect(() => {
+    if (approvers && approvers.length > 0 && !approval.approver) {
+      setApproval(prev => ({ ...prev, approver: approvers[0].user_id }));
+    }
+  }, [approvers, approval.approver]);
 
   if (isLoading) {
     return <div className="p-8 text-sm text-muted-foreground">Loading request...</div>;
@@ -76,8 +92,9 @@ export default function RequestDetail() {
   }
 
   const { request, purchase_order, invoice: inv, approvals, notifications, available_actions } = data;
-  const flow = request.request_type === "SIMPLE" ? SIMPLE_FLOW : COMPLEX_FLOW;
-  const currentIndex = flow.indexOf(request.status);
+  let flow = SPEND_FLOW;
+  if (request.request_type === "ADMIN") flow = ADMIN_FLOW;
+  else if (request.request_type === "RECURRING") flow = RECURRING_FLOW;
 
   const dispatch = async (payload: TransitionInput) => {
     try {
@@ -97,7 +114,7 @@ export default function RequestDetail() {
     }
     // Prefill sensible defaults from existing data.
     if (meta.form === "invoice" && purchase_order) {
-      setInvoice({ vendor: purchase_order.vendor, amount: purchase_order.amount, invoice_date: "", due_date: "" });
+      setInvoice({ vendor: purchase_order.vendor, amount: purchase_order.amount, invoice_date: "", due_date: "", gl_code: "", asset_flag: false });
     }
     setActiveForm({ action, kind: meta.form });
   };
@@ -117,6 +134,8 @@ export default function RequestDetail() {
     } else if (kind === "tracking") {
       if (!tracking.tracking_number) return toast.error("Tracking number is required.");
       void dispatch({ action, tracking });
+    } else if (kind === "confirmGoods") {
+      void dispatch({ action });
     }
   };
 
@@ -130,10 +149,10 @@ export default function RequestDetail() {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs text-slate-500">{request.id}</span>
-              <Badge variant="outline" className={STATUS_BADGE[request.status]}>{STATUS_LABEL[request.status]}</Badge>
+              <Badge variant="outline" className={getStatusBadge(request.status)}>{getStatusLabel(request.status)}</Badge>
               <Badge variant="outline" className={PRIORITY_BADGE[request.priority]}>{request.priority}</Badge>
             </div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">{request.title}</h2>
+            <div className="flex items-center gap-2"><h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">{request.title}</h2><HelpIcon text="Detailed view of a single purchase request, including purchase order, invoices, and workflow approval logs." /></div>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -157,28 +176,14 @@ export default function RequestDetail() {
         </div>
       </div>
 
-      {/* Workflow stepper */}
-      <Card className="border border-slate-200 dark:border-zinc-800">
-        <CardContent className="p-4 overflow-x-auto">
-          <div className="flex items-center gap-1 min-w-max">
-            {flow.map((step, i) => {
-              const done = request.status !== "REJECTED" && i < currentIndex;
-              const current = i === currentIndex;
-              return (
-                <div key={step} className="flex items-center gap-1">
-                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
-                    current ? STATUS_BADGE[step] + " border" : done ? "text-green-600" : "text-slate-400"
-                  }`}>
-                    {done ? <CheckCircle2 className="h-4 w-4" /> : current ? <Circle className="h-4 w-4 fill-current" /> : <Circle className="h-4 w-4" />}
-                    {STATUS_LABEL[step]}
-                  </div>
-                  {i < flow.length - 1 && <div className={`h-px w-6 ${done ? "bg-green-500" : "bg-slate-200 dark:bg-zinc-700"}`} />}
-                </div>
-              );
-            })}
-          </div>
+      {/* Workflow Stepper */}
+      <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
+        <CardContent className="py-5 px-6">
+          <Stepper flow={flow} requestStatus={request.status} />
           {request.status === "REJECTED" && (
-            <p className="mt-3 text-sm font-medium text-red-600">This request was rejected.</p>
+            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm font-medium text-red-600 dark:text-red-400">
+              This request was rejected.
+            </div>
           )}
         </CardContent>
       </Card>
@@ -190,7 +195,7 @@ export default function RequestDetail() {
             <CardContent className="grid grid-cols-2 gap-4 text-sm">
               <Field label="Requester" value={request.requester} />
               <Field label="Department" value={request.department} />
-              <Field label="Type" value={request.request_type === "SIMPLE" ? "Simple Purchase" : "Complex / AP"} />
+              <Field label="Type" value={request.request_type} />
               <Field label="Assigned To" value={request.assigned_user ?? "—"} />
               <Field label="Requested" value={formatDate(request.request_date)} />
               <Field label="Last Updated" value={formatDate(request.updated_at)} />
@@ -212,6 +217,7 @@ export default function RequestDetail() {
                 <Field label="Approval" value={purchase_order.approval_status} />
                 <Field label="Expected Delivery" value={formatDate(purchase_order.expected_delivery_date)} />
                 <Field label="Tracking #" value={purchase_order.tracking_number ?? "—"} />
+                <Field label="Goods Received" value={purchase_order.goods_received ? `Yes, on ${formatDate(purchase_order.goods_received_at)}` : "No"} />
               </CardContent>
             </Card>
           )}
@@ -229,6 +235,8 @@ export default function RequestDetail() {
                   <Badge variant="outline" className={PAYMENT_BADGE[inv.payment_status]}>{PAYMENT_LABEL[inv.payment_status]}</Badge>
                 </div>
                 <Field label="Paid Date" value={formatDate(inv.paid_date)} />
+                <Field label="GL Code" value={inv.gl_code ?? "—"} />
+                <Field label="Asset Flag" value={inv.asset_flag ? "Yes" : "No"} />
               </CardContent>
             </Card>
           )}
@@ -306,11 +314,44 @@ export default function RequestDetail() {
                   <FieldInput label="Invoice Date" type="date" value={invoice.invoice_date} onChange={(v) => setInvoice({ ...invoice, invoice_date: v })} />
                   <FieldInput label="Due Date" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
                 </TwoUp>
+                <TwoUp>
+                  <FieldInput label="GL Code" value={invoice.gl_code ?? ""} onChange={(v) => setInvoice({ ...invoice, gl_code: v })} />
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Asset Flag</label>
+                    <div className="flex items-center h-10">
+                      <input type="checkbox" className="h-4 w-4" checked={invoice.asset_flag || false} onChange={(e) => setInvoice({ ...invoice, asset_flag: e.target.checked })} />
+                      <span className="ml-2 text-sm text-slate-700">Mark as Asset</span>
+                    </div>
+                  </div>
+                </TwoUp>
               </>
             )}
             {activeForm?.kind === "approval" && (
               <>
-                <FieldInput label="Approver" value={approval.approver} onChange={(v) => setApproval({ ...approval, approver: v })} />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Approver</label>
+                  <Select
+                    value={approval.approver}
+                    onValueChange={(v) => setApproval({ ...approval, approver: v })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select approver..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingApprovers ? (
+                        <SelectItem value="_loading" disabled>Loading approvers...</SelectItem>
+                      ) : approvers.length > 0 ? (
+                        approvers.map((appr) => (
+                          <SelectItem key={appr.user_id} value={appr.user_id}>
+                            {appr.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="_none" disabled>No assignees found</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Comment</label>
                   <Textarea value={approval.comment ?? ""} onChange={(e) => setApproval({ ...approval, comment: e.target.value })} rows={2} />
@@ -318,7 +359,19 @@ export default function RequestDetail() {
               </>
             )}
             {activeForm?.kind === "tracking" && (
-              <FieldInput label="Tracking Number" value={tracking.tracking_number} onChange={(v) => setTracking({ tracking_number: v })} />
+              <>
+                <FieldInput label="Tracking Number" value={tracking.tracking_number} onChange={(v) => setTracking({ ...tracking, tracking_number: v })} />
+                <label className="text-sm font-medium">Note</label>
+                <Textarea
+                  rows={3}
+                  placeholder="Add a note..."
+                  value={tracking.note ?? ''}
+                  onChange={(e) => setTracking({ ...tracking, note: e.target.value })}
+                />
+              </>
+            )}
+            {activeForm?.kind === "confirmGoods" && (
+              <p className="text-sm text-muted-foreground">Are you sure you want to confirm goods received?</p>
             )}
           </div>
           <DialogFooter>

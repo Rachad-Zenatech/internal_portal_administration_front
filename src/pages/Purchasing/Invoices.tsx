@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
@@ -86,7 +87,7 @@ export default function Invoices() {
     <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Accounts Payable</h2>
+          <div className="flex items-center gap-2"><h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Accounts Payable</h2><HelpIcon text="Track, record, and pay vendor invoices generated through the purchasing workflow." /></div>
           <p className="text-sm text-slate-500 dark:text-zinc-400">
             Invoices awaiting payment. Outstanding balance: <span className="font-semibold">{formatMoney(outstanding)}</span>
           </p>

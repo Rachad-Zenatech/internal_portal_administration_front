@@ -50,7 +50,14 @@ export function usePurchasingNotifications() {
 
 function useInvalidateAll() {
   const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: keys.all });
+  // Invalidate any query whose key starts with the purchasing namespace.
+  // `exact: false` ensures that queries like ['purchasing','requests',…] are refreshed.
+  // Also explicitly invalidate the summary to refresh open request count, and tasks queries.
+  return () => {
+    qc.invalidateQueries({ queryKey: keys.all, exact: false });
+    qc.invalidateQueries({ queryKey: keys.summary() });
+    qc.invalidateQueries({ queryKey: ["tasks"], exact: false });
+  };
 }
 
 export function useCreateRequest() {
@@ -74,5 +81,13 @@ export function usePayInvoice() {
   return useMutation({
     mutationFn: (invoiceId: string) => purchasing.payInvoice(invoiceId),
     onSuccess: invalidate,
+  });
+}
+
+export function usePossibleApprovers(requestId: string | undefined) {
+  return useQuery({
+    queryKey: [...keys.all, "possible-approvers", requestId ?? ""] as const,
+    queryFn: () => purchasing.getPossibleApprovers(requestId as string),
+    enabled: !!requestId,
   });
 }

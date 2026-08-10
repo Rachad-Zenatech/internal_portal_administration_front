@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import HelpIcon from "@/components/ui/HelpIcon";
 import {
   Archive,
   Download,
@@ -175,7 +176,10 @@ export default function UploadFiles() {
     <main className="w-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">Upload Files</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">Upload Files</h1>
+            <HelpIcon text="Allows administrators to upload document files (PDFs, spreadsheets, images, text files) for parsing, review, and system reference." />
+          </div>
           <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">
             Manage your uploaded archive files and processing context.
           </p>

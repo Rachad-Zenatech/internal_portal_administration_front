@@ -2,13 +2,15 @@
 // These mirror the backend Pydantic models in
 // internal_portal_administration_backend/models/purchasing_model.py
 
-export type RequestType = "SIMPLE" | "COMPLEX";
+export type RequestType = "ADMIN" | "SPEND" | "RECURRING";
 
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
 export type RequestStatus =
+  | "NEW_REQUEST"
   | "NEW"
   | "UNDER_REVIEW"
+  | "WAITING_APPROVAL"
   | "APPROVED"
   | "REJECTED"
   | "WAITING_PAYMENT"
@@ -40,6 +42,7 @@ export type WorkflowAction =
   | "RECORD_INVOICE"
   | "SEND_TO_AP"
   | "PAY_INVOICE"
+  | "CONFIRM_GOODS_RECEIVED"
   | "COMPLETE";
 
 export type PurchaseRequest = {
@@ -68,6 +71,9 @@ export type PurchaseOrder = {
   approval_status: ApprovalStatus;
   expected_delivery_date: string | null;
   tracking_number: string | null;
+  goods_received: boolean;
+  goods_received_at: string | null;
+  goods_received_by: string | null;
   created_at: string;
 };
 
@@ -81,6 +87,8 @@ export type Invoice = {
   due_date: string | null;
   payment_status: PaymentStatus;
   paid_date: string | null;
+  gl_code: string | null;
+  asset_flag: boolean;
   created_at: string;
 };
 
@@ -147,6 +155,8 @@ export type InvoiceInput = {
   amount: number;
   invoice_date: string;
   due_date?: string | null;
+  gl_code?: string | null;
+  asset_flag?: boolean;
 };
 
 export type ApprovalInput = {
@@ -156,6 +166,7 @@ export type ApprovalInput = {
 
 export type TrackingInput = {
   tracking_number: string;
+  note?: string;
 };
 
 export type TransitionInput = {
