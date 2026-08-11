@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   Bell,
+  ExternalLink,
   FileText,
   Package,
   ReceiptText,
@@ -46,6 +47,7 @@ import {
   ADMIN_FLOW,
   SPEND_FLOW,
   RECURRING_FLOW,
+  QUOTE_FLOW,
   PAYMENT_BADGE,
   PAYMENT_LABEL,
   PRIORITY_BADGE,
@@ -95,6 +97,7 @@ export default function RequestDetail() {
   let flow = SPEND_FLOW;
   if (request.request_type === "ADMIN") flow = ADMIN_FLOW;
   else if (request.request_type === "RECURRING") flow = RECURRING_FLOW;
+  else if (request.request_type === "QUOTE") flow = QUOTE_FLOW;
 
   const dispatch = async (payload: TransitionInput) => {
     try {
@@ -203,6 +206,20 @@ export default function RequestDetail() {
                 <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Description</div>
                 <div className="text-slate-800 dark:text-zinc-200">{request.description || "—"}</div>
               </div>
+              {(request.item_url || purchase_order?.item_url) && (
+                <div className="col-span-2">
+                  <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Product / Vendor Link</div>
+                  <a
+                    href={(request.item_url || purchase_order?.item_url || "").startsWith("http") ? (request.item_url || purchase_order?.item_url || "#") : `https://${request.item_url || purchase_order?.item_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 transition-colors"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Open Product Page ({request.item_url || purchase_order?.item_url})
+                  </a>
+                </div>
+              )}
             </CardContent>
           </Card>
 

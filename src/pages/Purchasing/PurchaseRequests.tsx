@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -32,9 +32,87 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { usePurchaseRequests, usePurchasingSummary, useCreateRequest } from "@/hooks/usePurchasing";
+import { usePurchaseRequests, usePurchasingSummary, useCreateRequest, useUsersList } from "@/hooks/usePurchasing";
 import type { Priority, RequestCreateInput, RequestType } from "@/types/purchasing";
 import { PRIORITY_BADGE, STATUS_LABEL, getStatusBadge, getStatusLabel, formatDate, formatMoney } from "./purchasingMeta";
+
+function RequesterAutocomplete({
+  value,
+  onChange,
+  users,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  users: Array<{ id: string; full_name?: string; email?: string }>;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    const q = (value || "").toLowerCase().trim();
+    if (!q) return users.slice(0, 8);
+    return users.filter(
+      (u) =>
+        (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q))
+    ).slice(0, 8);
+  }, [value, users]);
+
+  return (
+    <div ref={containerRef} className="relative space-y-2">
+      <label className="text-sm font-medium">Requester</label>
+      <div className="relative">
+        <Input
+          value={value}
+          onFocus={() => setIsOpen(true)}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setIsOpen(true);
+          }}
+          placeholder="Search requester (e.g. Rachad, Rachel)..."
+          className="w-full"
+        />
+        {isOpen && filteredUsers.length > 0 && (
+          <div className="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-md shadow-lg py-1 text-sm">
+            {filteredUsers.map((u) => {
+              const displayName = u.full_name || u.email || "Unknown User";
+              return (
+                <div
+                  key={u.id}
+                  className="px-3 py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChange(displayName);
+                    setIsOpen(false);
+                  }}
+                >
+                  <span className="font-medium text-slate-900 dark:text-zinc-100">
+                    {displayName}
+                  </span>
+                  {u.email && u.full_name && (
+                    <span className="text-xs text-slate-500 dark:text-zinc-400">
+                      {u.email}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const EMPTY_FORM: RequestCreateInput = {
   title: "",
@@ -43,6 +121,7 @@ const EMPTY_FORM: RequestCreateInput = {
   request_type: "SPEND",
   priority: "MEDIUM",
   description: "",
+  item_url: "",
 };
 
 export default function PurchaseRequests() {
@@ -52,6 +131,7 @@ export default function PurchaseRequests() {
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState<RequestCreateInput>(EMPTY_FORM);
+  const { data: usersList = [] } = useUsersList();
 
   const filters = useMemo(
     () => ({
@@ -145,6 +225,7 @@ export default function PurchaseRequests() {
             <SelectItem value="SPEND">Spend</SelectItem>
             <SelectItem value="ADMIN">Admin Triage</SelectItem>
             <SelectItem value="RECURRING">Recurring</SelectItem>
+            <SelectItem value="QUOTE">Quote Request</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -218,10 +299,11 @@ export default function PurchaseRequests() {
               <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Dell laptop for new hire" />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Requester</label>
-                <Input value={form.requester} onChange={(e) => setForm({ ...form, requester: e.target.value })} placeholder="Full name" />
-              </div>
+              <RequesterAutocomplete
+                value={form.requester}
+                onChange={(val) => setForm({ ...form, requester: val })}
+                users={usersList}
+              />
               <div className="space-y-2">
                 <label className="text-sm font-medium">Department</label>
                 <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="e.g. Production" />
@@ -234,6 +316,7 @@ export default function PurchaseRequests() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="SPEND">Spend Request</SelectItem>
+                      <SelectItem value="QUOTE">Quote Request (Estimate / RFQ)</SelectItem>
                       <SelectItem value="ADMIN">Admin Triage</SelectItem>
                       <SelectItem value="RECURRING">Recurring (Subscription)</SelectItem>
                     </SelectContent>
@@ -251,6 +334,14 @@ export default function PurchaseRequests() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Product / Website Link (e.g. Amazon URL)</label>
+              <Input
+                value={form.item_url ?? ""}
+                onChange={(e) => setForm({ ...form, item_url: e.target.value })}
+                placeholder="https://www.amazon.com/dp/..."
+              />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Description</label>

@@ -2,7 +2,7 @@
 // These mirror the backend Pydantic models in
 // internal_portal_administration_backend/models/purchasing_model.py
 
-export type RequestType = "ADMIN" | "SPEND" | "RECURRING";
+export type RequestType = "ADMIN" | "SPEND" | "RECURRING" | "QUOTE";
 
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
@@ -13,14 +13,16 @@ export type RequestStatus =
   | "WAITING_APPROVAL"
   | "APPROVED"
   | "REJECTED"
-  | "WAITING_PAYMENT"
+  | "ORDERED"
   | "PURCHASED"
   | "SHIPPED"
-  | "ORDERED"
+  | "GOODS_RECEIVED"
   | "INVOICE_RECEIVED"
   | "SENT_TO_AP"
+  | "WAITING_PAYMENT"
   | "PAID"
-  | "COMPLETED";
+  | "COMPLETED"
+  | "ON_HOLD";
 
 export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -37,13 +39,13 @@ export type WorkflowAction =
   | "APPROVE"
   | "REJECT"
   | "MARK_PURCHASED"
-  | "ADD_TRACKING"
   | "MARK_ORDERED"
+  | "ADD_TRACKING"
   | "MARK_SHIPPED"
+  | "CONFIRM_GOODS_RECEIVED"
   | "RECORD_INVOICE"
   | "SEND_TO_AP"
   | "PAY_INVOICE"
-  | "CONFIRM_GOODS_RECEIVED"
   | "PUT_ON_HOLD"
   | "RESUME_WORKFLOW"
   | "COMPLETE";
@@ -59,6 +61,7 @@ export type PurchaseRequest = {
   status: RequestStatus;
   assigned_user: string | null;
   description: string | null;
+  item_url?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -70,6 +73,7 @@ export type PurchaseOrder = {
   item: string;
   description: string | null;
   quote_number: string | null;
+  item_url?: string | null;
   amount: number;
   approval_status: ApprovalStatus;
   expected_delivery_date: string | null;
@@ -142,6 +146,7 @@ export type RequestCreateInput = {
   priority: Priority;
   description?: string | null;
   assigned_user?: string | null;
+  item_url?: string | null;
 };
 
 export type PurchaseOrderInput = {
@@ -149,6 +154,7 @@ export type PurchaseOrderInput = {
   item: string;
   description?: string | null;
   quote_number?: string | null;
+  item_url?: string | null;
   amount: number;
   expected_delivery_date?: string | null;
 };

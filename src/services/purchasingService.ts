@@ -64,3 +64,9 @@ export function listNotifications(limit = 50) {
 export function getPossibleApprovers(requestId: string) {
   return apiClient.get<Array<{ user_id: string; name: string }>>(`${BASE}/requests/${requestId}/approvers`);
 }
+
+export function getUsers() {
+  return apiClient.get<Array<{ id: string; full_name?: string; email?: string }>>("/api/configuration/users")
+    .catch(() => apiClient.get<Array<{ id: string; full_name?: string; email?: string }>>("/configuration/users"))
+    .catch(() => []);
+}

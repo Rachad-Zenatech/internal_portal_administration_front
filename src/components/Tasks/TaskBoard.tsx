@@ -8,12 +8,14 @@ const BOARD_COLUMNS = [
   { key: "UNDER_REVIEW", label: "Under Review" },
   { key: "WAITING_APPROVAL", label: "Waiting Approval" },
   { key: "APPROVED", label: "Approved" },
-  { key: "ORDERED", label: "Ordered" },
+  { key: "WAITING_PAYMENT", label: "Waiting Payment" },
+  { key: "PURCHASED", label: "Ordered / Purchased" },
   { key: "SHIPPED", label: "Shipped" },
+  { key: "GOODS_RECEIVED", label: "Goods Received" },
   { key: "INVOICE_RECEIVED", label: "Invoice Received" },
-  { key: "SENT_TO_AP", label: "Sent to AP" },
   { key: "PAID", label: "Paid" },
   { key: "COMPLETED", label: "Completed" },
+  { key: "ON_HOLD", label: "On Hold / Exception" },
   { key: "REJECTED", label: "Rejected" },
 ];
 
@@ -54,8 +56,11 @@ export default function TaskBoard({ tasks, onTaskClick, onTaskMoved, readOnly = 
       if (!t.status) return columnKey === "NEW";
       const raw = t.status.toUpperCase().trim().replace(/\s+/g, "_");
       if (columnKey === "NEW" && (raw === "NEW" || raw === "NEW_REQUEST")) return true;
-      if (columnKey === "WAITING_APPROVAL" && (raw === "WAITING_APPROVAL" || raw === "WAITING_PAYMENT")) return true;
-      if (columnKey === "ORDERED" && (raw === "ORDERED" || raw === "PURCHASED")) return true;
+      if (columnKey === "WAITING_APPROVAL" && raw === "WAITING_APPROVAL") return true;
+      if (columnKey === "PURCHASED" && (raw === "PURCHASED" || raw === "ORDERED")) return true;
+      if (columnKey === "GOODS_RECEIVED" && (raw === "GOODS_RECEIVED" || raw === "RECEIVED")) return true;
+      if (columnKey === "WAITING_PAYMENT" && (raw === "WAITING_PAYMENT" || raw === "SENT_TO_AP")) return true;
+      if (columnKey === "ON_HOLD" && (raw === "ON_HOLD" || raw === "HOLD")) return true;
       return raw === columnKey;
     });
   };
