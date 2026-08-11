@@ -39,10 +39,13 @@ export type WorkflowAction =
   | "MARK_PURCHASED"
   | "ADD_TRACKING"
   | "MARK_ORDERED"
+  | "MARK_SHIPPED"
   | "RECORD_INVOICE"
   | "SEND_TO_AP"
   | "PAY_INVOICE"
   | "CONFIRM_GOODS_RECEIVED"
+  | "PUT_ON_HOLD"
+  | "RESUME_WORKFLOW"
   | "COMPLETE";
 
 export type PurchaseRequest = {

@@ -108,10 +108,13 @@ export const ACTION_META: Record<WorkflowAction, { label: string; form?: "po" | 
   MARK_PURCHASED: { label: "Mark Purchased", variant: "default" },
   ADD_TRACKING: { label: "Add Tracking", form: "tracking", variant: "outline" },
   MARK_ORDERED: { label: "Mark Ordered", variant: "default" },
+  MARK_SHIPPED: { label: "Mark Shipped", variant: "default" },
   RECORD_INVOICE: { label: "Record Invoice", form: "invoice", variant: "default" },
   SEND_TO_AP: { label: "Send to AP", variant: "default" },
   PAY_INVOICE: { label: "Pay Invoice", variant: "default" },
   CONFIRM_GOODS_RECEIVED: { label: "Confirm Goods Received", form: "confirmGoods", variant: "default" },
+  PUT_ON_HOLD: { label: "Put on Hold", variant: "destructive" },
+  RESUME_WORKFLOW: { label: "Resume Workflow", variant: "default" },
   COMPLETE: { label: "Complete", variant: "default" },
 };
 
