@@ -26,11 +26,11 @@ import { STATUS_BADGE, formatDate, formatMoney } from "./purchasingMeta";
 import TaskDetailPanel from "@/components/Tasks/TaskDetailPanel";
 
 const getStatusKey = (status: string): keyof typeof STATUS_BADGE => {
-  const map: Record<string, keyof typeof STATUS_BADGE> = {
-    "Waiting Payment": "WAITING_PAYMENT",
-    "Paid": "PAID",
-  };
-  return map[status] || "NEW";
+  if (!status) return "NEW";
+  const key = status.toUpperCase().trim().replace(/\s+/g, "_");
+  if (key === "WAITING_PAYMENT" || key === "SENT_TO_AP") return "WAITING_PAYMENT";
+  if (key === "PAID") return "PAID";
+  return (STATUS_BADGE[key] ? key : "NEW") as keyof typeof STATUS_BADGE;
 };
 
 export default function Invoices() {
@@ -43,10 +43,10 @@ export default function Invoices() {
   const fetchTasks = async () => {
     setIsLoading(true);
     try {
-      // AP should see "Waiting Payment" and "Paid" statuses
-      let filter = "Waiting Payment,Paid";
-      if (statusFilter === "WAITING_PAYMENT") filter = "Waiting Payment";
-      if (statusFilter === "PAID") filter = "Paid";
+      // AP should see "Waiting Payment", "Sent to AP" and "Paid" statuses
+      let filter = "WAITING_PAYMENT,SENT_TO_AP,Waiting Payment,Sent to AP,PAID,Paid";
+      if (statusFilter === "WAITING_PAYMENT") filter = "WAITING_PAYMENT,SENT_TO_AP,Waiting Payment,Sent to AP";
+      if (statusFilter === "PAID") filter = "PAID,Paid";
       
       const res = await api.get<any>(`/tasks?status=${filter}`);
       setTasks(res.items || []);
@@ -74,7 +74,10 @@ export default function Invoices() {
   }, [selectedTaskId]);
 
   const outstanding = useMemo(
-    () => tasks.filter((t) => t.status === "Waiting Payment").reduce((sum, t) => sum + Number(t.amount || 0), 0),
+    () => tasks.filter((t) => {
+      const s = (t.status || "").toUpperCase().trim().replace(/\s+/g, "_");
+      return s === "WAITING_PAYMENT" || s === "SENT_TO_AP" || t.status === "Waiting Payment" || t.status === "Sent to AP";
+    }).reduce((sum, t) => sum + Number(t.amount || 0), 0),
     [tasks]
   );
 

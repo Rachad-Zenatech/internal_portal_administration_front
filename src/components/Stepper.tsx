@@ -31,22 +31,26 @@ const Stepper: React.FC<StepperProps> = ({ flow = SPEND_FLOW, requestStatus }) =
       currentIndex = normFlow.indexOf("NEW") !== -1 ? normFlow.indexOf("NEW") : normFlow.indexOf("NEW_REQUEST");
     } else if (normStatus === "UNDER_REVIEW" || normStatus === "UNDERREVIEW") {
       currentIndex = normFlow.indexOf("UNDER_REVIEW");
-    } else if (normStatus === "WAITING_APPROVAL" || normStatus === "WAITING_PAYMENT") {
-      currentIndex = normFlow.indexOf("WAITING_APPROVAL") !== -1 ? normFlow.indexOf("WAITING_APPROVAL") : normFlow.indexOf("WAITING_PAYMENT");
+    } else if (normStatus === "WAITING_APPROVAL") {
+      currentIndex = normFlow.indexOf("WAITING_APPROVAL");
     } else if (normStatus === "APPROVED") {
-      currentIndex = normFlow.indexOf("APPROVED") !== -1 ? normFlow.indexOf("APPROVED") : normFlow.indexOf("WAITING_PAYMENT");
+      currentIndex = normFlow.indexOf("APPROVED");
     } else if (normStatus === "ORDERED" || normStatus === "PURCHASED") {
-      currentIndex = normFlow.indexOf("ORDERED") !== -1 ? normFlow.indexOf("ORDERED") : normFlow.indexOf("PURCHASED");
+      currentIndex = normFlow.indexOf("PURCHASED") !== -1 ? normFlow.indexOf("PURCHASED") : normFlow.indexOf("ORDERED");
     } else if (normStatus === "SHIPPED") {
-      currentIndex = normFlow.indexOf("SHIPPED") !== -1 ? normFlow.indexOf("SHIPPED") : normFlow.indexOf("PURCHASED");
+      currentIndex = normFlow.indexOf("SHIPPED");
+    } else if (normStatus === "GOODS_RECEIVED" || normStatus === "RECEIVED") {
+      currentIndex = normFlow.indexOf("GOODS_RECEIVED") !== -1 ? normFlow.indexOf("GOODS_RECEIVED") : normFlow.indexOf("SHIPPED");
     } else if (normStatus === "INVOICE_RECEIVED") {
-      currentIndex = normFlow.indexOf("INVOICE_RECEIVED") !== -1 ? normFlow.indexOf("INVOICE_RECEIVED") : normFlow.indexOf("PURCHASED");
-    } else if (normStatus === "SENT_TO_AP") {
-      currentIndex = normFlow.indexOf("SENT_TO_AP") !== -1 ? normFlow.indexOf("SENT_TO_AP") : normFlow.indexOf("PURCHASED");
+      currentIndex = normFlow.indexOf("INVOICE_RECEIVED");
+    } else if (normStatus === "SENT_TO_AP" || normStatus === "WAITING_PAYMENT") {
+      currentIndex = normFlow.indexOf("WAITING_PAYMENT") !== -1 ? normFlow.indexOf("WAITING_PAYMENT") : normFlow.indexOf("APPROVED");
     } else if (normStatus === "PAID") {
-      currentIndex = normFlow.indexOf("PAID") !== -1 ? normFlow.indexOf("PAID") : normFlow.indexOf("PURCHASED");
+      currentIndex = normFlow.indexOf("PAID") !== -1 ? normFlow.indexOf("PAID") : normFlow.indexOf("WAITING_PAYMENT");
     } else if (normStatus === "COMPLETED") {
       currentIndex = normFlow.indexOf("COMPLETED");
+    } else if (normStatus === "ON_HOLD" || normStatus === "HOLD") {
+      currentIndex = normFlow.indexOf("UNDER_REVIEW");
     }
   }
 

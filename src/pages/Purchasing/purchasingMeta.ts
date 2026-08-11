@@ -8,19 +8,20 @@ import type {
 
 export const STATUS_LABEL: Record<string, string> = {
   NEW: "New Request",
-  NEW_REQUEST: "New Request",
   UNDER_REVIEW: "Under Review",
   WAITING_APPROVAL: "Waiting Approval",
   APPROVED: "Approved",
   REJECTED: "Rejected",
-  WAITING_PAYMENT: "Waiting Payment",
-  PURCHASED: "Purchased",
-  SHIPPED: "Shipped",
   ORDERED: "Ordered",
+  PURCHASED: "Ordered / Purchased",
+  SHIPPED: "Shipped",
+  GOODS_RECEIVED: "Goods Received",
   INVOICE_RECEIVED: "Invoice Received",
   SENT_TO_AP: "Sent to AP",
+  WAITING_PAYMENT: "Waiting Payment",
   PAID: "Paid",
   COMPLETED: "Completed",
+  ON_HOLD: "On Hold / Exception",
 };
 
 export const STATUS_BADGE: Record<string, string> = {
@@ -30,19 +31,22 @@ export const STATUS_BADGE: Record<string, string> = {
   WAITING_APPROVAL: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400",
   APPROVED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400",
   REJECTED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400",
-  WAITING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400",
+  ORDERED: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-400",
   PURCHASED: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-400",
   SHIPPED: "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-400",
-  ORDERED: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-400",
+  GOODS_RECEIVED: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-400",
   INVOICE_RECEIVED: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-400",
   SENT_TO_AP: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-950 dark:text-fuchsia-400",
+  WAITING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400",
   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400",
   COMPLETED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400",
+  ON_HOLD: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-400",
 };
 
 export function getStatusLabel(status: string | undefined | null): string {
   if (!status) return "New Request";
   const key = status.toUpperCase().trim().replace(/\s+/g, "_");
+  if (key === "NEW_REQUEST") return "New Request";
   return STATUS_LABEL[key] ?? status;
 }
 
@@ -82,10 +86,11 @@ export const SPEND_FLOW: RequestStatus[] = [
   "UNDER_REVIEW",
   "WAITING_APPROVAL",
   "APPROVED",
-  "ORDERED",
+  "WAITING_PAYMENT",
+  "PURCHASED",
   "SHIPPED",
+  "GOODS_RECEIVED",
   "INVOICE_RECEIVED",
-  "SENT_TO_AP",
   "PAID",
   "COMPLETED",
 ];
@@ -94,8 +99,16 @@ export const RECURRING_FLOW: RequestStatus[] = [
   "NEW",
   "UNDER_REVIEW",
   "INVOICE_RECEIVED",
-  "SENT_TO_AP",
+  "WAITING_PAYMENT",
   "PAID",
+  "COMPLETED",
+];
+
+export const QUOTE_FLOW: RequestStatus[] = [
+  "NEW",
+  "UNDER_REVIEW",
+  "WAITING_APPROVAL",
+  "APPROVED",
   "COMPLETED",
 ];
 
@@ -106,13 +119,16 @@ export const ACTION_META: Record<WorkflowAction, { label: string; form?: "po" | 
   APPROVE: { label: "Approve", form: "approval", variant: "default" },
   REJECT: { label: "Reject", form: "approval", variant: "destructive" },
   MARK_PURCHASED: { label: "Mark Purchased", variant: "default" },
-  ADD_TRACKING: { label: "Add Tracking", form: "tracking", variant: "outline" },
+  ADD_TRACKING: { label: "Add Tracking & Mark Shipped", form: "tracking", variant: "default" },
+  MARK_SHIPPED: { label: "Mark Shipped", variant: "default" },
   MARK_ORDERED: { label: "Mark Ordered", variant: "default" },
   RECORD_INVOICE: { label: "Record Invoice", form: "invoice", variant: "default" },
   SEND_TO_AP: { label: "Send to AP", variant: "default" },
   PAY_INVOICE: { label: "Pay Invoice", variant: "default" },
   CONFIRM_GOODS_RECEIVED: { label: "Confirm Goods Received", form: "confirmGoods", variant: "default" },
-  COMPLETE: { label: "Complete", variant: "default" },
+  PUT_ON_HOLD: { label: "Put on Hold", variant: "destructive" },
+  RESUME_WORKFLOW: { label: "Resume Request", variant: "default" },
+  COMPLETE: { label: "Complete (Paid & Notify)", variant: "default" },
 };
 
 export function formatDate(iso: string | null | undefined): string {

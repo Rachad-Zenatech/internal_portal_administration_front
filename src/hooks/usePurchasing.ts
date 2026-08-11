@@ -91,3 +91,10 @@ export function usePossibleApprovers(requestId: string | undefined) {
     enabled: !!requestId,
   });
 }
+
+export function useUsersList() {
+  return useQuery({
+    queryKey: ["users-autocomplete-list"],
+    queryFn: () => purchasing.getUsers(),
+  });
+}

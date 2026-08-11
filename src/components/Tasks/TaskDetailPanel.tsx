@@ -9,12 +9,13 @@ import { apiClient as api } from "@/services/apiClient";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trash2, UploadCloud, Edit2, Paperclip } from "lucide-react";
+import { Trash2, UploadCloud, Edit2, Paperclip, ExternalLink } from "lucide-react";
 import Stepper from "@/components/Stepper";
 import {
   SPEND_FLOW,
   ADMIN_FLOW,
   RECURRING_FLOW,
+  QUOTE_FLOW,
   getStatusBadge,
   getStatusLabel,
 } from "@/pages/Purchasing/purchasingMeta";
@@ -198,6 +199,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
           let flow = SPEND_FLOW;
           if (task.category === 'ADMIN' || task.request_type === 'ADMIN') flow = ADMIN_FLOW;
           else if (task.category === 'RECURRING' || task.request_type === 'RECURRING') flow = RECURRING_FLOW;
+          else if (task.category === 'QUOTE' || task.request_type === 'QUOTE') flow = QUOTE_FLOW;
 
           return (
             <Card className="border border-slate-200 dark:border-zinc-800 mb-8 mx-1">
@@ -215,6 +217,20 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
           <section>
             <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
             <p className="text-sm">{task.description}</p>
+            {task.item_url && (
+              <div className="mt-4">
+                <h3 className="text-sm font-medium text-muted-foreground mb-1">Product / Website Link</h3>
+                <a
+                  href={task.item_url.startsWith("http") ? task.item_url : `https://${task.item_url}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Open Product Page ({task.item_url})
+                </a>
+              </div>
+            )}
             {task.assignee_name && (
               <div className="mt-4">
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Assignee</h3>
