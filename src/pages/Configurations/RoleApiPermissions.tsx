@@ -232,7 +232,7 @@ export default function RoleApiPermissions() {
   const selectedRole = roles?.find(r => r.id === selectedRoleId);
 
   // We only allow editing if they have CONFIG_ROLE_API_PERMISSIONS EDIT
-  const canEdit = hasPermission("CONFIG_ROLE_API_PERMISSIONS_UPDATE") || true; // Fallback so we can test it immediately as superadmin
+  const canEdit = hasPermission("CONFIG_ROLE_API_PERMISSIONS_UPDATE");
 
   return (
     <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out p-6 w-full">
