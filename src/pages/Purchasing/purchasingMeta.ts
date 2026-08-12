@@ -12,14 +12,14 @@ export const STATUS_LABEL: Record<string, string> = {
   WAITING_APPROVAL: "Waiting Approval",
   APPROVED: "Approved",
   REJECTED: "Rejected",
-  ORDERED: "Ordered",
+  ORDERED: "Ordered / Purchased",
   PURCHASED: "Ordered / Purchased",
   SHIPPED: "Shipped",
   GOODS_RECEIVED: "Goods Received",
   INVOICE_RECEIVED: "Invoice Received",
   SENT_TO_AP: "Sent to AP",
   WAITING_PAYMENT: "Waiting Payment",
-  PAID: "Paid",
+
   COMPLETED: "Completed",
   ON_HOLD: "On Hold / Exception",
 };
@@ -38,7 +38,7 @@ export const STATUS_BADGE: Record<string, string> = {
   INVOICE_RECEIVED: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-400",
   SENT_TO_AP: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-950 dark:text-fuchsia-400",
   WAITING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400",
-  PAID: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400",
+
   COMPLETED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400",
   ON_HOLD: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-400",
 };
@@ -66,13 +66,11 @@ export const PRIORITY_BADGE: Record<Priority, string> = {
 export const PAYMENT_LABEL: Record<PaymentStatus, string> = {
   UNPAID: "Unpaid",
   WAITING_PAYMENT: "Waiting Payment",
-  PAID: "Paid",
 };
 
 export const PAYMENT_BADGE: Record<PaymentStatus, string> = {
   UNPAID: "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300",
   WAITING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400",
-  PAID: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400",
 };
 
 export const ADMIN_FLOW: RequestStatus[] = [
@@ -91,16 +89,16 @@ export const SPEND_FLOW: RequestStatus[] = [
   "SHIPPED",
   "GOODS_RECEIVED",
   "INVOICE_RECEIVED",
-  "PAID",
   "COMPLETED",
 ];
 
 export const RECURRING_FLOW: RequestStatus[] = [
   "NEW",
   "UNDER_REVIEW",
+  "WAITING_APPROVAL",
+  "APPROVED",
   "INVOICE_RECEIVED",
   "WAITING_PAYMENT",
-  "PAID",
   "COMPLETED",
 ];
 
@@ -109,26 +107,34 @@ export const QUOTE_FLOW: RequestStatus[] = [
   "UNDER_REVIEW",
   "WAITING_APPROVAL",
   "APPROVED",
+  "PURCHASED",
   "COMPLETED",
 ];
 
+/**
+ * Status values offered in filter dropdowns. Built from SPEND_FLOW because it is
+ * the superset pipeline, and deduplicated against STATUS_LABEL, which also carries
+ * legacy spellings (ORDERED, SENT_TO_AP) that render the same label as their
+ * canonical counterpart and would otherwise appear twice in the list.
+ */
+export const STATUS_FILTER_OPTIONS: RequestStatus[] = [...SPEND_FLOW, "REJECTED", "ON_HOLD"];
+
 export const ACTION_META: Record<WorkflowAction, { label: string; form?: "po" | "invoice" | "approval" | "tracking" | "confirmGoods"; variant?: "default" | "destructive" | "outline" }> = {
   START_REVIEW: { label: "Start Review", variant: "default" },
-  CREATE_PO: { label: "Add Quote / PO", form: "po", variant: "default" },
+  CREATE_PO: { label: "Quote / PO #", form: "po", variant: "default" },
   SUBMIT_FOR_APPROVAL: { label: "Submit for Approval", form: "approval", variant: "default" },
   APPROVE: { label: "Approve", form: "approval", variant: "default" },
   REJECT: { label: "Reject", form: "approval", variant: "destructive" },
   MARK_PURCHASED: { label: "Mark Purchased", variant: "default" },
   ADD_TRACKING: { label: "Add Tracking & Mark Shipped", form: "tracking", variant: "default" },
   MARK_SHIPPED: { label: "Mark Shipped", variant: "default" },
-  MARK_ORDERED: { label: "Mark Ordered", variant: "default" },
   RECORD_INVOICE: { label: "Record Invoice", form: "invoice", variant: "default" },
   SEND_TO_AP: { label: "Send to AP", variant: "default" },
   PAY_INVOICE: { label: "Pay Invoice", variant: "default" },
   CONFIRM_GOODS_RECEIVED: { label: "Confirm Goods Received", form: "confirmGoods", variant: "default" },
   PUT_ON_HOLD: { label: "Put on Hold", variant: "destructive" },
   RESUME_WORKFLOW: { label: "Resume Request", variant: "default" },
-  COMPLETE: { label: "Complete (Paid & Notify)", variant: "default" },
+  COMPLETE: { label: "Complete", variant: "default" },
 };
 
 export function formatDate(iso: string | null | undefined): string {

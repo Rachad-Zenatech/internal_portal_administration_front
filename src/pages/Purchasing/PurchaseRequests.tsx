@@ -34,7 +34,7 @@ import {
 
 import { usePurchaseRequests, usePurchasingSummary, useCreateRequest, useUsersList } from "@/hooks/usePurchasing";
 import type { Priority, RequestCreateInput, RequestType } from "@/types/purchasing";
-import { PRIORITY_BADGE, STATUS_LABEL, getStatusBadge, getStatusLabel, formatDate, formatMoney } from "./purchasingMeta";
+import { PRIORITY_BADGE, STATUS_LABEL, STATUS_FILTER_OPTIONS, getStatusBadge, getStatusLabel, formatDate, formatMoney } from "./purchasingMeta";
 
 function RequesterAutocomplete({
   value,
@@ -232,7 +232,7 @@ export default function PurchaseRequests() {
           <SelectTrigger className="w-full sm:w-52"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Statuses</SelectItem>
-            {(Object.keys(STATUS_LABEL) as Array<keyof typeof STATUS_LABEL>).map((s) => (
+            {STATUS_FILTER_OPTIONS.map((s) => (
               <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
             ))}
           </SelectContent>

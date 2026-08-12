@@ -29,7 +29,6 @@ const getStatusKey = (status: string): keyof typeof STATUS_BADGE => {
   if (!status) return "NEW";
   const key = status.toUpperCase().trim().replace(/\s+/g, "_");
   if (key === "WAITING_PAYMENT" || key === "SENT_TO_AP") return "WAITING_PAYMENT";
-  if (key === "PAID") return "PAID";
   return (STATUS_BADGE[key] ? key : "NEW") as keyof typeof STATUS_BADGE;
 };
 
@@ -43,11 +42,11 @@ export default function Invoices() {
   const fetchTasks = async () => {
     setIsLoading(true);
     try {
-      // AP should see "Waiting Payment", "Sent to AP" and "Paid" statuses
-      let filter = "WAITING_PAYMENT,SENT_TO_AP,Waiting Payment,Sent to AP,PAID,Paid";
+      // AP sees the "Waiting Payment" and "Completed" stages
+      let filter = "WAITING_PAYMENT,SENT_TO_AP,Waiting Payment,Sent to AP,COMPLETED,Completed";
       if (statusFilter === "WAITING_PAYMENT") filter = "WAITING_PAYMENT,SENT_TO_AP,Waiting Payment,Sent to AP";
-      if (statusFilter === "PAID") filter = "PAID,Paid";
-      
+      else if (statusFilter === "COMPLETED") filter = "COMPLETED,Completed";
+
       const res = await api.get<any>(`/tasks?status=${filter}`);
       setTasks(res.items || []);
     } catch (e: any) {
@@ -100,7 +99,7 @@ export default function Invoices() {
           <SelectContent>
             <SelectItem value="ALL">All Records</SelectItem>
             <SelectItem value="WAITING_PAYMENT">Waiting Payment</SelectItem>
-            <SelectItem value="PAID">Paid</SelectItem>
+            <SelectItem value="COMPLETED">Completed</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -124,7 +123,7 @@ export default function Invoices() {
               <TableRow><TableCell colSpan={8} className="text-center py-8 text-slate-500">Loading records...</TableCell></TableRow>
             ) : tasks.length ? (
               tasks.map((task) => {
-                const overdue = task.status !== "Paid" && isOverdue(task.due_date);
+                const overdue = isOverdue(task.due_date);
                 return (
                   <TableRow key={task.id} className="cursor-pointer hover:bg-slate-50/50 dark:hover:bg-zinc-800/50 transition-colors" onClick={() => setSelectedTaskId(task.id)}>
                     <TableCell className="font-mono text-xs">#{task.id}</TableCell>

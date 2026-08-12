@@ -71,7 +71,12 @@ export function useCreateRequest() {
 export function useTransitionRequest(id: string) {
   const invalidate = useInvalidateAll();
   return useMutation({
-    mutationFn: (payload: TransitionInput) => purchasing.transitionRequest(id, payload),
+    mutationFn: (payload: TransitionInput) => {
+      const cleanPayload = payload.purchase_order
+        ? { ...payload, purchase_order: (({ expected_delivery_date, ...rest }) => rest)(payload.purchase_order) }
+        : payload;
+      return purchasing.transitionRequest(id, cleanPayload);
+    },
     onSuccess: invalidate,
   });
 }

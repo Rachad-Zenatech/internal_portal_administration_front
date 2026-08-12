@@ -20,7 +20,7 @@ export type RequestStatus =
   | "INVOICE_RECEIVED"
   | "SENT_TO_AP"
   | "WAITING_PAYMENT"
-  | "PAID"
+
   | "COMPLETED"
   | "ON_HOLD";
 
@@ -28,7 +28,7 @@ export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export type ApprovalDecision = "APPROVED" | "REJECTED";
 
-export type PaymentStatus = "UNPAID" | "WAITING_PAYMENT" | "PAID";
+export type PaymentStatus = "UNPAID" | "WAITING_PAYMENT";
 
 export type NotificationStatus = "SENT" | "READ";
 
@@ -39,7 +39,6 @@ export type WorkflowAction =
   | "APPROVE"
   | "REJECT"
   | "MARK_PURCHASED"
-  | "MARK_ORDERED"
   | "ADD_TRACKING"
   | "MARK_SHIPPED"
   | "CONFIRM_GOODS_RECEIVED"
@@ -76,7 +75,8 @@ export type PurchaseOrder = {
   item_url?: string | null;
   amount: number;
   approval_status: ApprovalStatus;
-  expected_delivery_date: string | null;
+  expected_delivery_date?: string | null;
+
   tracking_number: string | null;
   goods_received: boolean;
   goods_received_at: string | null;
@@ -155,8 +155,9 @@ export type PurchaseOrderInput = {
   description?: string | null;
   quote_number?: string | null;
   item_url?: string | null;
-  amount: number;
   expected_delivery_date?: string | null;
+  amount: number;
+
 };
 
 export type InvoiceInput = {

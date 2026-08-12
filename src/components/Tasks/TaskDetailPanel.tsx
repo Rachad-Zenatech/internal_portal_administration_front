@@ -16,8 +16,6 @@ import {
   ADMIN_FLOW,
   RECURRING_FLOW,
   QUOTE_FLOW,
-  getStatusBadge,
-  getStatusLabel,
 } from "@/pages/Purchasing/purchasingMeta";
 
 interface TaskDetailPanelProps {
@@ -180,9 +178,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                 )}
               </div>
               <div className="flex gap-2 mt-2">
-                <Badge variant="outline" className={getStatusBadge(task.status)}>
-                  {getStatusLabel(task.status)}
-                </Badge>
+
                 <Badge variant={task.priority?.toLowerCase() === 'high' ? 'destructive' : 'default'}>
                   {task.priority || 'Medium'}
                 </Badge>
@@ -401,38 +397,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
               </div>
             )}
 
-            {canApprove && task.status === "Waiting Payment" && (
-              <div className="w-px h-8 bg-border hidden sm:block" />
-            )}
 
-            {task.status === "Waiting Payment" && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-muted-foreground mr-1">AP Action:</span>
-                <Button onClick={async () => {
-                  const reason = prompt("Enter rejection reason:");
-                  if (reason === null) return;
-                  try {
-                    await api.post(`/tasks/${task.id}/status`, { status: "Rejected", comment: `AP Rejected: ${reason}` });
-                    toast.success("Task rejected");
-                    onUpdate();
-                    onClose();
-                  } catch (e: any) {
-                    toast.error(e.message || "Failed to reject");
-                  }
-                }} variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10">Reject</Button>
-
-                <Button onClick={async () => {
-                  try {
-                    await api.post(`/tasks/${task.id}/status`, { status: "Paid", comment: "Marked as Paid by AP" });
-                    toast.success("Task marked as Paid");
-                    onUpdate();
-                    onClose();
-                  } catch (e: any) {
-                    toast.error(e.message || "Failed to mark as paid");
-                  }
-                }} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">Mark Paid</Button>
-              </div>
-            )}
           </SheetFooter>
         )}
       </SheetContent>

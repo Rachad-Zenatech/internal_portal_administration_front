@@ -13,7 +13,7 @@ const BOARD_COLUMNS = [
   { key: "SHIPPED", label: "Shipped" },
   { key: "GOODS_RECEIVED", label: "Goods Received" },
   { key: "INVOICE_RECEIVED", label: "Invoice Received" },
-  { key: "PAID", label: "Paid" },
+
   { key: "COMPLETED", label: "Completed" },
   { key: "ON_HOLD", label: "On Hold / Exception" },
   { key: "REJECTED", label: "Rejected" },

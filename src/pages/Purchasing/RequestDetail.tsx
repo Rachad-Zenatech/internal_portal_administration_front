@@ -229,10 +229,9 @@ export default function RequestDetail() {
               <CardContent className="grid grid-cols-2 gap-4 text-sm">
                 <Field label="Vendor" value={purchase_order.vendor} />
                 <Field label="Item" value={purchase_order.item} />
-                <Field label="Quote #" value={purchase_order.quote_number ?? "—"} />
+                <Field label="Quote / PO #" value={purchase_order.quote_number ?? "—"} />
                 <Field label="Amount" value={formatMoney(purchase_order.amount)} />
                 <Field label="Approval" value={purchase_order.approval_status} />
-                <Field label="Expected Delivery" value={formatDate(purchase_order.expected_delivery_date)} />
                 <Field label="Tracking #" value={purchase_order.tracking_number ?? "—"} />
                 <Field label="Goods Received" value={purchase_order.goods_received ? `Yes, on ${formatDate(purchase_order.goods_received_at)}` : "No"} />
               </CardContent>
@@ -249,9 +248,15 @@ export default function RequestDetail() {
                 <Field label="Due Date" value={formatDate(inv.due_date)} />
                 <div>
                   <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Payment Status</div>
-                  <Badge variant="outline" className={PAYMENT_BADGE[inv.payment_status]}>{PAYMENT_LABEL[inv.payment_status]}</Badge>
+                  {/* payment_status only tracks the pre-payment lifecycle; a settled
+                      invoice is identified by paid_date. */}
+                  {inv.paid_date ? (
+                    <Badge variant="outline" className={STATUS_BADGE.COMPLETED}>Settled · {formatDate(inv.paid_date)}</Badge>
+                  ) : (
+                    <Badge variant="outline" className={PAYMENT_BADGE[inv.payment_status]}>{PAYMENT_LABEL[inv.payment_status]}</Badge>
+                  )}
                 </div>
-                <Field label="Paid Date" value={formatDate(inv.paid_date)} />
+
                 <Field label="GL Code" value={inv.gl_code ?? "—"} />
                 <Field label="Asset Flag" value={inv.asset_flag ? "Yes" : "No"} />
               </CardContent>
@@ -315,10 +320,9 @@ export default function RequestDetail() {
                   <FieldInput label="Item" value={po.item} onChange={(v) => setPo({ ...po, item: v })} />
                 </TwoUp>
                 <TwoUp>
-                  <FieldInput label="Quote #" value={po.quote_number ?? ""} onChange={(v) => setPo({ ...po, quote_number: v })} />
+                  <FieldInput label="Quote / PO #" value={po.quote_number ?? ""} onChange={(v) => setPo({ ...po, quote_number: v })} />
                   <FieldInput label="Amount" type="number" value={String(po.amount)} onChange={(v) => setPo({ ...po, amount: Number(v) })} />
                 </TwoUp>
-                <FieldInput label="Expected Delivery" type="date" value={po.expected_delivery_date ?? ""} onChange={(v) => setPo({ ...po, expected_delivery_date: v })} />
               </>
             )}
             {activeForm?.kind === "invoice" && (

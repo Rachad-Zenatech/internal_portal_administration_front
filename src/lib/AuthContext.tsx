@@ -158,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to logout on backend', e);
     }
     
-    const authProvider = sessionStorage.getItem('auth_provider');
+
     
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
@@ -166,13 +166,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.removeItem('auth_provider');
     setPermissions(null);
     
-    if (authProvider === 'local') {
-      window.location.href = '/login';
-    } else {
-      // Redirect to Microsoft SSO logout to clear the Azure AD session.
-      const postLogoutUri = encodeURIComponent(window.location.origin + '/login');
-      window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=${postLogoutUri}`;
-    }
+    // Always perform SSO logout redirect
+    const postLogoutUri = encodeURIComponent(window.location.origin + '/login');
+    window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=${postLogoutUri}`;
   };
 
   return (
