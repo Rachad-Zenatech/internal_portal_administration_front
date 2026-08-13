@@ -6,23 +6,33 @@ export type RequestType = "ADMIN" | "SPEND" | "RECURRING" | "QUOTE";
 
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
-export type RequestStatus =
-  | "NEW_REQUEST"
-  | "NEW"
-  | "UNDER_REVIEW"
-  | "WAITING_APPROVAL"
-  | "APPROVED"
-  | "REJECTED"
-  | "ORDERED"
-  | "PURCHASED"
-  | "SHIPPED"
-  | "GOODS_RECEIVED"
-  | "INVOICE_RECEIVED"
-  | "SENT_TO_AP"
-  | "WAITING_PAYMENT"
+/**
+ * The closed set of workflow states a request can be in.
+ *
+ * Declared as a const object rather than a TS `enum` because the project builds
+ * with `erasableSyntaxOnly`, which forbids enum syntax. Values are the wire
+ * strings the API sends, so this stays assignment-compatible with the backend.
+ *
+ * Legacy and display spellings ("NEW_REQUEST", "ORDERED", "Sent to AP", ...) are
+ * deliberately NOT members: they are inputs, not states. Convert raw values with
+ * `parseRequestStatus` from `@/lib/requestStatus` and work with this type after.
+ */
+export const RequestStatus = {
+  New: "NEW",
+  UnderReview: "UNDER_REVIEW",
+  WaitingApproval: "WAITING_APPROVAL",
+  Approved: "APPROVED",
+  WaitingPayment: "WAITING_PAYMENT",
+  Purchased: "PURCHASED",
+  Shipped: "SHIPPED",
+  GoodsReceived: "GOODS_RECEIVED",
+  InvoiceReceived: "INVOICE_RECEIVED",
+  Completed: "COMPLETED",
+  Rejected: "REJECTED",
+  OnHold: "ON_HOLD",
+} as const;
 
-  | "COMPLETED"
-  | "ON_HOLD";
+export type RequestStatus = (typeof RequestStatus)[keyof typeof RequestStatus];
 
 export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -35,17 +45,14 @@ export type NotificationStatus = "SENT" | "READ";
 export type WorkflowAction =
   | "START_REVIEW"
   | "CREATE_PO"
-  | "SUBMIT_FOR_APPROVAL"
   | "APPROVE"
   | "REJECT"
   | "MARK_PURCHASED"
   | "ADD_TRACKING"
   | "MARK_SHIPPED"
-  | "MARK_ORDERED"
   | "CONFIRM_GOODS_RECEIVED"
   | "RECORD_INVOICE"
   | "SEND_TO_AP"
-  | "PAY_INVOICE"
   | "PUT_ON_HOLD"
   | "RESUME_WORKFLOW"
   | "COMPLETE";

@@ -2,22 +2,14 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Bookmark, ChevronsUp, ChevronUp, ChevronDown } from "lucide-react";
+import { RequestStatus } from "@/types/purchasing";
+import { parseRequestStatus } from "@/lib/requestStatus";
+import { STATUS_LABEL, STATUS_FILTER_OPTIONS } from "@/pages/Purchasing/purchasingMeta";
 
-const BOARD_COLUMNS = [
-  { key: "NEW", label: "New Request" },
-  { key: "UNDER_REVIEW", label: "Under Review" },
-  { key: "WAITING_APPROVAL", label: "Waiting Approval" },
-  { key: "APPROVED", label: "Approved" },
-  { key: "WAITING_PAYMENT", label: "Waiting Payment" },
-  { key: "PURCHASED", label: "Ordered / Purchased" },
-  { key: "SHIPPED", label: "Shipped" },
-  { key: "GOODS_RECEIVED", label: "Goods Received" },
-  { key: "INVOICE_RECEIVED", label: "Invoice Received" },
-
-  { key: "COMPLETED", label: "Completed" },
-  { key: "ON_HOLD", label: "On Hold / Exception" },
-  { key: "REJECTED", label: "Rejected" },
-];
+// One column per filterable state, labelled from the shared map so the board and
+// the rest of Purchasing cannot drift apart.
+const BOARD_COLUMNS: ReadonlyArray<{ key: RequestStatus; label: string }> =
+  STATUS_FILTER_OPTIONS.map((key) => ({ key, label: STATUS_LABEL[key] }));
 
 const getCategoryColor = (category: string) => {
   const cat = (category || "GENERAL").toUpperCase();
@@ -51,19 +43,10 @@ export default function TaskBoard({ tasks, onTaskClick, onTaskMoved, readOnly = 
     onTaskMoved(taskId, newStatus);
   };
 
-  const getTasksByStatus = (columnKey: string) => {
-    return tasks.filter((t) => {
-      if (!t.status) return columnKey === "NEW";
-      const raw = t.status.toUpperCase().trim().replace(/\s+/g, "_");
-      if (columnKey === "NEW" && (raw === "NEW" || raw === "NEW_REQUEST")) return true;
-      if (columnKey === "WAITING_APPROVAL" && raw === "WAITING_APPROVAL") return true;
-      if (columnKey === "PURCHASED" && (raw === "PURCHASED" || raw === "ORDERED")) return true;
-      if (columnKey === "GOODS_RECEIVED" && (raw === "GOODS_RECEIVED" || raw === "RECEIVED")) return true;
-      if (columnKey === "WAITING_PAYMENT" && (raw === "WAITING_PAYMENT" || raw === "SENT_TO_AP")) return true;
-      if (columnKey === "ON_HOLD" && (raw === "ON_HOLD" || raw === "HOLD")) return true;
-      return raw === columnKey;
-    });
-  };
+  // All spelling variants collapse in parseRequestStatus, so a column matches when
+  // the task's parsed state equals it. A task with no status sits in the first column.
+  const getTasksByStatus = (columnKey: RequestStatus) =>
+    tasks.filter((t) => (parseRequestStatus(t.status) ?? RequestStatus.New) === columnKey);
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>

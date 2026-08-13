@@ -1,59 +1,52 @@
 // Presentation metadata for Purchasing + Tasks.
-import type {
-  PaymentStatus,
-  Priority,
-  RequestStatus,
-  WorkflowAction,
-} from "@/types/purchasing";
+import { RequestStatus } from "@/types/purchasing";
+import type { PaymentStatus, Priority, WorkflowAction } from "@/types/purchasing";
+import { parseRequestStatus } from "@/lib/requestStatus";
 
-export const STATUS_LABEL: Record<string, string> = {
-  NEW: "New Request",
-  UNDER_REVIEW: "Under Review",
-  WAITING_APPROVAL: "Waiting Approval",
-  APPROVED: "Approved",
-  REJECTED: "Rejected",
-  ORDERED: "Ordered / Purchased",
-  PURCHASED: "Ordered / Purchased",
-  SHIPPED: "Shipped",
-  GOODS_RECEIVED: "Goods Received",
-  INVOICE_RECEIVED: "Invoice Received",
-  SENT_TO_AP: "Sent to AP",
-  WAITING_PAYMENT: "Waiting Payment",
-
-  COMPLETED: "Completed",
-  ON_HOLD: "On Hold / Exception",
+// Keyed by RequestStatus rather than string, so adding a state to the union turns
+// a missing label or badge into a compile error instead of a blank chip. Legacy
+// spellings are absent on purpose — parseRequestStatus resolves them first.
+export const STATUS_LABEL: Record<RequestStatus, string> = {
+  [RequestStatus.New]: "New Request",
+  [RequestStatus.UnderReview]: "Under Review",
+  [RequestStatus.WaitingApproval]: "Waiting Approval",
+  [RequestStatus.Approved]: "Approved",
+  [RequestStatus.WaitingPayment]: "Waiting Payment",
+  [RequestStatus.Purchased]: "Ordered / Purchased",
+  [RequestStatus.Shipped]: "Shipped",
+  [RequestStatus.GoodsReceived]: "Goods Received",
+  [RequestStatus.InvoiceReceived]: "Invoice Received",
+  [RequestStatus.Completed]: "Completed",
+  [RequestStatus.Rejected]: "Rejected",
+  [RequestStatus.OnHold]: "On Hold / Exception",
 };
 
-export const STATUS_BADGE: Record<string, string> = {
-  NEW: "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300",
-  NEW_REQUEST: "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300",
-  UNDER_REVIEW: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400",
-  WAITING_APPROVAL: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400",
-  APPROVED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400",
-  REJECTED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400",
-  ORDERED: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-400",
-  PURCHASED: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-400",
-  SHIPPED: "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-400",
-  GOODS_RECEIVED: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-400",
-  INVOICE_RECEIVED: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-400",
-  SENT_TO_AP: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-950 dark:text-fuchsia-400",
-  WAITING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400",
-
-  COMPLETED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400",
-  ON_HOLD: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-400",
+export const STATUS_BADGE: Record<RequestStatus, string> = {
+  [RequestStatus.New]: "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300",
+  [RequestStatus.UnderReview]: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400",
+  [RequestStatus.WaitingApproval]: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400",
+  [RequestStatus.Approved]: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400",
+  [RequestStatus.WaitingPayment]: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400",
+  [RequestStatus.Purchased]: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-400",
+  [RequestStatus.Shipped]: "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-400",
+  [RequestStatus.GoodsReceived]: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-400",
+  [RequestStatus.InvoiceReceived]: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-400",
+  [RequestStatus.Completed]: "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400",
+  [RequestStatus.Rejected]: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400",
+  [RequestStatus.OnHold]: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-400",
 };
 
+/** Display label for a raw API status. Unidentifiable values are shown verbatim. */
 export function getStatusLabel(status: string | undefined | null): string {
-  if (!status) return "New Request";
-  const key = status.toUpperCase().trim().replace(/\s+/g, "_");
-  if (key === "NEW_REQUEST") return "New Request";
-  return STATUS_LABEL[key] ?? status;
+  const parsed = parseRequestStatus(status);
+  if (parsed) return STATUS_LABEL[parsed];
+  return status ? String(status) : STATUS_LABEL[RequestStatus.New];
 }
 
+/** Badge classes for a raw API status. */
 export function getStatusBadge(status: string | undefined | null): string {
-  if (!status) return STATUS_BADGE.NEW;
-  const key = status.toUpperCase().trim().replace(/\s+/g, "_");
-  return STATUS_BADGE[key] ?? STATUS_BADGE.NEW;
+  const parsed = parseRequestStatus(status);
+  return STATUS_BADGE[parsed ?? RequestStatus.New];
 }
 
 export const PRIORITY_BADGE: Record<Priority, string> = {
@@ -73,65 +66,64 @@ export const PAYMENT_BADGE: Record<PaymentStatus, string> = {
   WAITING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400",
 };
 
-export const ADMIN_FLOW: RequestStatus[] = [
-  "NEW",
-  "UNDER_REVIEW",
-  "COMPLETED",
+export const ADMIN_FLOW: readonly RequestStatus[] = [
+  RequestStatus.New,
+  RequestStatus.UnderReview,
+  RequestStatus.Completed,
 ];
 
-export const SPEND_FLOW: RequestStatus[] = [
-  "NEW",
-  "UNDER_REVIEW",
-  "WAITING_APPROVAL",
-  "APPROVED",
-  "WAITING_PAYMENT",
-  "PURCHASED",
-  "SHIPPED",
-  "GOODS_RECEIVED",
-  "INVOICE_RECEIVED",
-  "COMPLETED",
+export const SPEND_FLOW: readonly RequestStatus[] = [
+  RequestStatus.New,
+  RequestStatus.UnderReview,
+  RequestStatus.WaitingApproval,
+  RequestStatus.Approved,
+  RequestStatus.WaitingPayment,
+  RequestStatus.Purchased,
+  RequestStatus.Shipped,
+  RequestStatus.GoodsReceived,
+  RequestStatus.InvoiceReceived,
+  RequestStatus.Completed,
 ];
 
-export const RECURRING_FLOW: RequestStatus[] = [
-  "NEW",
-  "UNDER_REVIEW",
-  "WAITING_APPROVAL",
-  "APPROVED",
-  "INVOICE_RECEIVED",
-  "WAITING_PAYMENT",
-  "COMPLETED",
+export const RECURRING_FLOW: readonly RequestStatus[] = [
+  RequestStatus.New,
+  RequestStatus.UnderReview,
+  RequestStatus.WaitingApproval,
+  RequestStatus.Approved,
+  RequestStatus.InvoiceReceived,
+  RequestStatus.WaitingPayment,
+  RequestStatus.Completed,
 ];
 
-export const QUOTE_FLOW: RequestStatus[] = [
-  "NEW",
-  "UNDER_REVIEW",
-  "WAITING_APPROVAL",
-  "APPROVED",
-  "PURCHASED",
-  "COMPLETED",
+export const QUOTE_FLOW: readonly RequestStatus[] = [
+  RequestStatus.New,
+  RequestStatus.UnderReview,
+  RequestStatus.WaitingApproval,
+  RequestStatus.Approved,
+  RequestStatus.Purchased,
+  RequestStatus.Completed,
 ];
 
 /**
- * Status values offered in filter dropdowns. Built from SPEND_FLOW because it is
- * the superset pipeline, and deduplicated against STATUS_LABEL, which also carries
- * legacy spellings (ORDERED, SENT_TO_AP) that render the same label as their
- * canonical counterpart and would otherwise appear twice in the list.
+ * States offered in filter dropdowns: the superset pipeline plus the two exception
+ * states. Duplicates are impossible now that the union carries no legacy spellings.
  */
-export const STATUS_FILTER_OPTIONS: RequestStatus[] = [...SPEND_FLOW, "REJECTED", "ON_HOLD"];
+export const STATUS_FILTER_OPTIONS: readonly RequestStatus[] = [
+  ...SPEND_FLOW,
+  RequestStatus.Rejected,
+  RequestStatus.OnHold,
+];
 
 export const ACTION_META: Record<WorkflowAction, { label: string; form?: "po" | "invoice" | "approval" | "tracking" | "confirmGoods"; variant?: "default" | "destructive" | "outline" }> = {
   START_REVIEW: { label: "Start Review", variant: "default" },
   CREATE_PO: { label: "Quote / PO #", form: "po", variant: "default" },
-  SUBMIT_FOR_APPROVAL: { label: "Submit for Approval", form: "approval", variant: "default" },
   APPROVE: { label: "Approve", form: "approval", variant: "default" },
   REJECT: { label: "Reject", form: "approval", variant: "destructive" },
   MARK_PURCHASED: { label: "Mark Purchased", variant: "default" },
   ADD_TRACKING: { label: "Add Tracking & Mark Shipped", form: "tracking", variant: "default" },
   MARK_SHIPPED: { label: "Mark Shipped", variant: "default" },
-  MARK_ORDERED: { label: "Mark Ordered", variant: "default" },
   RECORD_INVOICE: { label: "Record Invoice", form: "invoice", variant: "default" },
   SEND_TO_AP: { label: "Send to AP", variant: "default" },
-  PAY_INVOICE: { label: "Pay Invoice", variant: "default" },
   CONFIRM_GOODS_RECEIVED: { label: "Confirm Goods Received", form: "confirmGoods", variant: "default" },
   PUT_ON_HOLD: { label: "Put on Hold", variant: "destructive" },
   RESUME_WORKFLOW: { label: "Resume Request", variant: "default" },

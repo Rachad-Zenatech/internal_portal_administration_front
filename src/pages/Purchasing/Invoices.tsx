@@ -22,15 +22,10 @@ import {
 } from "@/components/ui/select";
 
 import { apiClient as api } from "@/services/apiClient";
-import { STATUS_BADGE, formatDate, formatMoney } from "./purchasingMeta";
+import { getStatusBadge, getStatusLabel, formatDate, formatMoney } from "./purchasingMeta";
+import { RequestStatus } from "@/types/purchasing";
+import { parseRequestStatus } from "@/lib/requestStatus";
 import TaskDetailPanel from "@/components/Tasks/TaskDetailPanel";
-
-const getStatusKey = (status: string): keyof typeof STATUS_BADGE => {
-  if (!status) return "NEW";
-  const key = status.toUpperCase().trim().replace(/\s+/g, "_");
-  if (key === "WAITING_PAYMENT" || key === "SENT_TO_AP") return "WAITING_PAYMENT";
-  return (STATUS_BADGE[key] ? key : "NEW") as keyof typeof STATUS_BADGE;
-};
 
 export default function Invoices() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -72,11 +67,11 @@ export default function Invoices() {
     }
   }, [selectedTaskId]);
 
+  // SENT_TO_AP and every display spelling collapse to WaitingPayment when parsed.
   const outstanding = useMemo(
-    () => tasks.filter((t) => {
-      const s = (t.status || "").toUpperCase().trim().replace(/\s+/g, "_");
-      return s === "WAITING_PAYMENT" || s === "SENT_TO_AP" || t.status === "Waiting Payment" || t.status === "Sent to AP";
-    }).reduce((sum, t) => sum + Number(t.amount || 0), 0),
+    () => tasks
+      .filter((t) => parseRequestStatus(t.status) === RequestStatus.WaitingPayment)
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0),
     [tasks]
   );
 
@@ -137,7 +132,7 @@ export default function Invoices() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={STATUS_BADGE[getStatusKey(task.status)]}>{task.status}</Badge>
+                      <Badge variant="outline" className={getStatusBadge(task.status)}>{getStatusLabel(task.status)}</Badge>
                     </TableCell>
                     <TableCell className="text-right text-sm">
                       {task.assignee_name || <span className="italic text-slate-400">Unassigned</span>}

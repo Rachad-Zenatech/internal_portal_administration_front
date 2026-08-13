@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, PanelRight } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { navigation } from "./Navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import zenatechLogo from "@/assets/zenatech_logo.png";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "../../lib/AuthContext";
@@ -39,6 +39,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const location = useLocation();
+  const navigate = useNavigate();
 
   const { hasPermission, hasRole, user } = useAuth();
   const isSuperAdmin = hasRole("SUPER_ADMIN") || user?.is_super_admin;
@@ -59,6 +60,12 @@ export default function Sidebar({
   });
   const unreadCount = unreadCountData?.count ?? 0;
 
+  useEffect(() => {
+    if (location.pathname.startsWith("/purchasing/requests")) {
+      setExpandedItems(prev => ({ ...prev, "Purchase Requests": true }));
+    }
+  }, [location.pathname]);
+
   const toggleExpand = (label: string) => {
     setExpandedItems(prev => ({ ...prev, [label]: !prev[label] }));
   };
@@ -67,7 +74,7 @@ export default function Sidebar({
     if (item.navigationCode && !hasPermission(`${item.navigationCode}_READ`)) return acc;
 
     const filteredSubItems = item.subItems 
-      ? item.subItems.filter(sub => !sub.navigationCode || hasPermission(`${sub.navigationCode}_READ`))
+      ? item.subItems.filter(sub => !('navigationCode' in sub && sub.navigationCode) || hasPermission(`${(sub as { navigationCode?: string }).navigationCode}_READ`))
       : undefined;
 
     // If it had subItems but now they are all filtered out, don't show the parent if it relies on subItems
@@ -133,6 +140,9 @@ export default function Sidebar({
                       onClick={() => {
                         if (!isOpen) onToggle();
                         toggleExpand(item.label);
+                        if (item.path) {
+                          navigate(item.path);
+                        }
                       }}
                       className={`
                         flex items-center justify-between h-12 overflow-hidden rounded-lg transition-all duration-300 ease-in-out hover:bg-sidebar-accent text-sidebar-foreground
@@ -159,24 +169,27 @@ export default function Sidebar({
                   </TooltipContent>
                 </Tooltip>
                 <div 
-                  className={`ml-9 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${
+                  className={`ml-6 pl-2 border-l border-sidebar-border/60 space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out ${
                     isOpen && isExpanded ? "max-h-[1000px] mt-1 opacity-100" : "max-h-0 opacity-0"
                   }`}
                 >
                   {item.subItems.map((sub) => {
-                    const isSubActive = location.pathname === sub.path || location.pathname.startsWith(sub.path + "/");
+                    const fullPath = location.pathname + location.search;
+                    const isSubActive = sub.path.includes("?")
+                      ? fullPath === sub.path
+                      : (location.pathname === sub.path && !location.search);
                     return (
                       <Link
                         key={sub.path}
                         to={sub.path}
                         className={`
-                          flex items-center justify-between h-10 px-3 rounded-lg text-sm transition-all duration-300
-                          ${isSubActive ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-semibold" : "text-muted-foreground hover:bg-sidebar-accent"}
+                          flex items-center justify-between h-7.5 px-2.5 rounded-md text-xs font-medium transition-all duration-200
+                          ${isSubActive ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-2xs font-semibold" : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/80"}
                         `}
                       >
                         <span className="truncate">{sub.label}</span>
                         {sub.label === "Role Assignments" && isSuperAdmin && pendingUsersCount > 0 && (
-                          <div className="flex-shrink-0 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ml-2">
+                          <div className="flex-shrink-0 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-1.5">
                             {pendingUsersCount}
                           </div>
                         )}

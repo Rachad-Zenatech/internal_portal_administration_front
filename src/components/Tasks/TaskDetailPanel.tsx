@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trash2, UploadCloud, Edit2, Paperclip, ExternalLink } from "lucide-react";
 import Stepper from "@/components/Stepper";
+import { RequestStatus } from "@/types/purchasing";
+import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   SPEND_FLOW,
   ADMIN_FLOW,
@@ -201,7 +203,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
             <Card className="border border-slate-200 dark:border-zinc-800 mb-8 mx-1">
               <CardContent className="p-4 sm:p-5">
                 <Stepper flow={flow} requestStatus={task.status} />
-                {task.status?.toUpperCase() === 'REJECTED' && (
+                {parseRequestStatus(task.status) === RequestStatus.Rejected && (
                   <p className="mt-3 text-sm font-medium text-red-600">This order was rejected.</p>
                 )}
               </CardContent>
@@ -387,7 +389,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
         </div>
         </div>
 
-        {(canApprove || task.status === "Waiting Payment") && (
+        {canApprove && (
           <SheetFooter className="px-6 py-4 border-t bg-muted/20 flex-row sm:flex-row justify-center flex-wrap gap-4 sm:gap-6 mt-0 shadow-sm z-10">
             {canApprove && (
               <div className="flex items-center gap-3">

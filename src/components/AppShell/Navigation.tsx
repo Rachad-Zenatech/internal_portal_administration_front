@@ -43,8 +43,21 @@ export const navigation = [
     path: "/purchasing/requests",
     icon: ShoppingCart,
     section: "PURCHASING & AP",
-    // No navigationCode: this is a new prototype feature not yet backed by
-    // RBAC seed data, so it stays visible to any authenticated user for testing.
+    subItems: [
+      { label: "All Requests", path: "/purchasing/requests" },
+      { label: "New Request", path: "/purchasing/requests?status=NEW" },
+      { label: "Under Review", path: "/purchasing/requests?status=UNDER_REVIEW" },
+      { label: "Waiting Approval", path: "/purchasing/requests?status=WAITING_APPROVAL" },
+      { label: "Approved", path: "/purchasing/requests?status=APPROVED" },
+      { label: "Waiting Payment", path: "/purchasing/requests?status=WAITING_PAYMENT" },
+      { label: "Ordered / Purchased", path: "/purchasing/requests?status=PURCHASED" },
+      { label: "Shipped", path: "/purchasing/requests?status=SHIPPED" },
+      { label: "Goods Received", path: "/purchasing/requests?status=GOODS_RECEIVED" },
+      { label: "Invoice Received", path: "/purchasing/requests?status=INVOICE_RECEIVED" },
+      { label: "Completed", path: "/purchasing/requests?status=COMPLETED" },
+      { label: "Rejected", path: "/purchasing/requests?status=REJECTED" },
+      { label: "On Hold", path: "/purchasing/requests?status=ON_HOLD" },
+    ],
   },
   {
     label: "Accounts Payable",

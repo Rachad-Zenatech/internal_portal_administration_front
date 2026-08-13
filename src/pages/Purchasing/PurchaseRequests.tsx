@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import HelpIcon from "@/components/ui/HelpIcon";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Plus, Search, ShoppingCart, Clock, FileWarning, CheckCircle2 } from "lucide-react";
 
@@ -126,12 +126,30 @@ const EMPTY_FORM: RequestCreateInput = {
 
 export default function PurchaseRequests() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlStatus = searchParams.get("status");
+
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>(urlStatus || "ALL");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState<RequestCreateInput>(EMPTY_FORM);
   const { data: usersList = [] } = useUsersList();
+
+  useEffect(() => {
+    setStatusFilter(urlStatus || "ALL");
+  }, [urlStatus]);
+
+  const handleStatusFilterChange = (val: string) => {
+    setStatusFilter(val);
+    const newParams = new URLSearchParams(searchParams);
+    if (val === "ALL") {
+      newParams.delete("status");
+    } else {
+      newParams.set("status", val);
+    }
+    setSearchParams(newParams);
+  };
 
   const filters = useMemo(
     () => ({
@@ -228,7 +246,7 @@ export default function PurchaseRequests() {
             <SelectItem value="QUOTE">Quote Request</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
           <SelectTrigger className="w-full sm:w-52"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Statuses</SelectItem>
