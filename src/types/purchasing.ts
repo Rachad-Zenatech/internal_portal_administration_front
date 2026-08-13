@@ -41,6 +41,7 @@ export type WorkflowAction =
   | "MARK_PURCHASED"
   | "ADD_TRACKING"
   | "MARK_SHIPPED"
+  | "MARK_ORDERED"
   | "CONFIRM_GOODS_RECEIVED"
   | "RECORD_INVOICE"
   | "SEND_TO_AP"
