@@ -154,7 +154,7 @@ export default function PurchaseRequests() {
   const filters = useMemo(
     () => ({
       search: search || undefined,
-      status: statusFilter === "ALL" ? undefined : (statusFilter === "WAITING_PAYMENT" ? "WAITING_PAYMENT,INVOICE_RECEIVED" : statusFilter),
+      status: statusFilter === "ALL" ? undefined : statusFilter,
       request_type: typeFilter === "ALL" ? undefined : typeFilter,
     }),
     [search, statusFilter, typeFilter],
@@ -185,11 +185,6 @@ export default function PurchaseRequests() {
     }
   };
 
-  const waitingPaymentCount = summary?.status_counts?.WAITING_PAYMENT ?? 0;
-  const waitingPaymentAmount = summary?.status_amounts?.WAITING_PAYMENT ?? 0;
-  const invoiceReceivedCount = summary?.status_counts?.INVOICE_RECEIVED ?? 0;
-  const invoiceReceivedAmount = summary?.status_amounts?.INVOICE_RECEIVED ?? 0;
-
   const cards = [
     { label: "Open Requests", value: summary?.open_requests ?? 0, icon: ShoppingCart, tint: "text-blue-600", statusKey: "ALL" },
     { label: "Awaiting Approval", value: summary?.awaiting_approval ?? 0, icon: Clock, tint: "text-orange-600", statusKey: "WAITING_APPROVAL" },
@@ -200,10 +195,6 @@ export default function PurchaseRequests() {
       icon: FileWarning,
       tint: "text-fuchsia-600",
       statusKey: "WAITING_PAYMENT",
-      breakdown: [
-        { label: "Waiting Payment", count: waitingPaymentCount, amount: waitingPaymentAmount },
-        { label: "Invoice Received", count: invoiceReceivedCount, amount: invoiceReceivedAmount },
-      ]
     },
     { label: "Completed", value: summary?.completed ?? 0, icon: CheckCircle2, tint: "text-green-600", statusKey: "COMPLETED" },
   ];
@@ -247,19 +238,6 @@ export default function PurchaseRequests() {
                     {c.sub && <div className="text-xs font-semibold text-slate-700 dark:text-zinc-200 mt-0.5">{c.sub}</div>}
                   </div>
                 </div>
-
-                {c.breakdown && (
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 text-[11px] space-y-1">
-                    {c.breakdown.map((b) => (
-                      <div key={b.label} className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
-                        <span className="font-medium">{b.label}:</span>
-                        <span className="font-semibold text-slate-800 dark:text-zinc-200">
-                          {b.count} {b.count === 1 ? "item" : "items"} ({formatMoney(b.amount)})
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </CardContent>
             </Card>
           );
