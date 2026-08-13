@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/services/apiClient";
 import type { LucideIcon } from "lucide-react";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
+import { usePurchasingSummary } from "@/hooks/usePurchasing";
 
 interface SidebarUser {
   is_super_admin?: boolean;
@@ -59,6 +60,20 @@ export default function Sidebar({
     refetchInterval: 10000, // Poll every 10 seconds to keep counts fresh
   });
   const unreadCount = unreadCountData?.count ?? 0;
+
+  const { data: purchasingSummary } = usePurchasingSummary();
+
+  const getSubItemCount = (path: string): number | undefined => {
+    if (!purchasingSummary) return undefined;
+    if (path === "/purchasing/requests") return purchasingSummary.total_requests;
+    const searchParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
+    const statusKey = searchParams.get("status")?.toUpperCase();
+    if (!statusKey) return undefined;
+    if (statusKey === "PURCHASED") {
+      return (purchasingSummary.status_counts?.PURCHASED ?? 0) + (purchasingSummary.status_counts?.ORDERED ?? 0);
+    }
+    return purchasingSummary.status_counts?.[statusKey] ?? 0;
+  };
 
   useEffect(() => {
     if (location.pathname.startsWith("/purchasing/requests")) {
@@ -178,6 +193,7 @@ export default function Sidebar({
                     const isSubActive = sub.path.includes("?")
                       ? fullPath === sub.path
                       : (location.pathname === sub.path && !location.search);
+                    const subCount = sub.path.startsWith("/purchasing/requests") ? getSubItemCount(sub.path) : undefined;
                     return (
                       <Link
                         key={sub.path}
@@ -191,6 +207,15 @@ export default function Sidebar({
                         {sub.label === "Role Assignments" && isSuperAdmin && pendingUsersCount > 0 && (
                           <div className="flex-shrink-0 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-1.5">
                             {pendingUsersCount}
+                          </div>
+                        )}
+                        {subCount !== undefined && (
+                          <div className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1.5 transition-colors ${
+                            isSubActive 
+                              ? "bg-white/20 text-sidebar-primary-foreground" 
+                              : "bg-slate-200/80 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-300/60 dark:border-zinc-700/60"
+                          }`}>
+                            {subCount}
                           </div>
                         )}
                       </Link>

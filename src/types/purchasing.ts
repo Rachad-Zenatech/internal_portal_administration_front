@@ -142,6 +142,7 @@ export type PurchasingSummary = {
   unpaid_amount: number;
   completed: number;
   status_counts: Record<string, number>;
+  status_amounts?: Record<string, number>;
 };
 
 // ─── Request payloads ────────────────────────────────────────────────────────
