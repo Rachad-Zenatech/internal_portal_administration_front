@@ -79,6 +79,19 @@ export default function RequestDetail() {
     }
   }, [approvers, approval.approver]);
 
+  useEffect(() => {
+    if (data?.request) {
+      document.dispatchEvent(
+        new CustomEvent("set-breadcrumb-title", {
+          detail: {
+            path: `/purchasing/requests/${data.request.id}`,
+            title: `${data.request.title} (${data.request.id})`,
+          },
+        })
+      );
+    }
+  }, [data?.request]);
+
   if (isLoading) {
     return <div className="p-8 text-sm text-muted-foreground">Loading request...</div>;
   }
@@ -145,17 +158,24 @@ export default function RequestDetail() {
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/purchasing/requests")}>
-            <ArrowLeft className="h-5 w-5" />
+        <div className="flex items-start gap-4">
+          <Button variant="outline" size="icon" className="mt-1 shrink-0 h-8 w-8 rounded-full" onClick={() => navigate("/purchasing/requests")}>
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-slate-500">{request.id}</span>
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
+                {request.title}
+              </h2>
+              <span className="text-sm font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                #{request.id}
+              </span>
+              <HelpIcon text="Detailed view of a single purchase request, including purchase order, invoices, and workflow approval logs." />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={getStatusBadge(request.status)}>{getStatusLabel(request.status)}</Badge>
               <Badge variant="outline" className={PRIORITY_BADGE[request.priority]}>{request.priority}</Badge>
             </div>
-            <div className="flex items-center gap-2"><h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">{request.title}</h2><HelpIcon text="Detailed view of a single purchase request, including purchase order, invoices, and workflow approval logs." /></div>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -436,3 +456,6 @@ function FieldInput({
     </div>
   );
 }
+
+// Test
+

@@ -192,14 +192,14 @@ const Stepper: React.FC<StepperProps> = ({ flow = SPEND_FLOW, requestStatus }) =
               {/* Equal-sized step container */}
               <div
                 ref={isActive ? activeStepRef : null}
-                className="flex-1 min-w-[95px] sm:min-w-[115px] max-w-[160px] flex items-center shrink-0"
+                className="flex items-center shrink-0"
               >
                 <div
                   title={step.label}
-                  className={`w-full h-8 sm:h-9 inline-flex items-center justify-center gap-1.5 px-2 rounded-lg text-[11px] sm:text-xs font-medium whitespace-nowrap shrink-0 box-border transition-all duration-200 ${STEP_STYLES[step.state]}`}
+                  className={`w-max px-3 h-8 sm:h-9 inline-flex items-center justify-center gap-1.5 px-2 rounded-lg text-[11px] sm:text-xs font-medium whitespace-nowrap shrink-0 box-border transition-all duration-200 ${STEP_STYLES[step.state]}`}
                 >
                   <StepIcon state={step.state} />
-                  <span className="truncate text-center">{step.label}</span>
+                  <span className="text-center">{step.label}</span>
                 </div>
               </div>
 
@@ -239,3 +239,5 @@ const Stepper: React.FC<StepperProps> = ({ flow = SPEND_FLOW, requestStatus }) =
 };
 
 export default Stepper;
+
+
