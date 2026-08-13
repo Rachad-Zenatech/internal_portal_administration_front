@@ -154,7 +154,7 @@ export default function PurchaseRequests() {
   const filters = useMemo(
     () => ({
       search: search || undefined,
-      status: statusFilter === "ALL" ? undefined : statusFilter,
+      status: statusFilter === "ALL" ? undefined : (statusFilter === "WAITING_PAYMENT" ? "WAITING_PAYMENT,INVOICE_RECEIVED" : statusFilter),
       request_type: typeFilter === "ALL" ? undefined : typeFilter,
     }),
     [search, statusFilter, typeFilter],
@@ -185,11 +185,27 @@ export default function PurchaseRequests() {
     }
   };
 
+  const waitingPaymentCount = summary?.status_counts?.WAITING_PAYMENT ?? 0;
+  const waitingPaymentAmount = summary?.status_amounts?.WAITING_PAYMENT ?? 0;
+  const invoiceReceivedCount = summary?.status_counts?.INVOICE_RECEIVED ?? 0;
+  const invoiceReceivedAmount = summary?.status_amounts?.INVOICE_RECEIVED ?? 0;
+
   const cards = [
-    { label: "Open Requests", value: summary?.open_requests ?? 0, icon: ShoppingCart, tint: "text-blue-600" },
-    { label: "Awaiting Approval", value: summary?.awaiting_approval ?? 0, icon: Clock, tint: "text-orange-600" },
-    { label: "Unpaid Invoices", value: summary?.unpaid_invoices ?? 0, sub: summary ? formatMoney(summary.unpaid_amount) : undefined, icon: FileWarning, tint: "text-fuchsia-600" },
-    { label: "Completed", value: summary?.completed ?? 0, icon: CheckCircle2, tint: "text-green-600" },
+    { label: "Open Requests", value: summary?.open_requests ?? 0, icon: ShoppingCart, tint: "text-blue-600", statusKey: "ALL" },
+    { label: "Awaiting Approval", value: summary?.awaiting_approval ?? 0, icon: Clock, tint: "text-orange-600", statusKey: "WAITING_APPROVAL" },
+    {
+      label: "Unpaid Invoices",
+      value: summary?.unpaid_invoices ?? 0,
+      sub: summary ? formatMoney(summary.unpaid_amount) : undefined,
+      icon: FileWarning,
+      tint: "text-fuchsia-600",
+      statusKey: "WAITING_PAYMENT",
+      breakdown: [
+        { label: "Waiting Payment", count: waitingPaymentCount, amount: waitingPaymentAmount },
+        { label: "Invoice Received", count: invoiceReceivedCount, amount: invoiceReceivedAmount },
+      ]
+    },
+    { label: "Completed", value: summary?.completed ?? 0, icon: CheckCircle2, tint: "text-green-600", statusKey: "COMPLETED" },
   ];
 
   return (
@@ -209,17 +225,41 @@ export default function PurchaseRequests() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c) => {
           const Icon = c.icon;
+          const isSelected = statusFilter === c.statusKey;
           return (
-            <Card key={c.label} className="border border-slate-200 dark:border-zinc-800">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`rounded-lg bg-slate-100 dark:bg-zinc-800 p-2 ${c.tint}`}>
-                  <Icon className="h-5 w-5" />
+            <Card
+              key={c.label}
+              onClick={() => handleStatusFilterChange(c.statusKey)}
+              className={`border transition-all cursor-pointer ${
+                isSelected
+                  ? "border-blue-500/80 ring-2 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-950/20 shadow-md"
+                  : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-md"
+              }`}
+            >
+              <CardContent className="p-4 flex flex-col justify-between h-full">
+                <div className="flex items-center gap-3">
+                  <div className={`rounded-lg bg-slate-100 dark:bg-zinc-800 p-2 shrink-0 ${c.tint}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-2xl font-bold text-slate-900 dark:text-zinc-100 leading-tight">{c.value}</div>
+                    <div className="text-xs text-slate-500 dark:text-zinc-400 font-medium truncate">{c.label}</div>
+                    {c.sub && <div className="text-xs font-semibold text-slate-700 dark:text-zinc-200 mt-0.5">{c.sub}</div>}
+                  </div>
                 </div>
-                <div>
-                  <div className="text-2xl font-bold text-slate-900 dark:text-zinc-100">{c.value}</div>
-                  <div className="text-xs text-slate-500 dark:text-zinc-400">{c.label}</div>
-                  {c.sub && <div className="text-xs font-medium text-slate-600 dark:text-zinc-300">{c.sub}</div>}
-                </div>
+
+                {c.breakdown && (
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 text-[11px] space-y-1">
+                    {c.breakdown.map((b) => (
+                      <div key={b.label} className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
+                        <span className="font-medium">{b.label}:</span>
+                        <span className="font-semibold text-slate-800 dark:text-zinc-200">
+                          {b.count} {b.count === 1 ? "item" : "items"} ({formatMoney(b.amount)})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           );

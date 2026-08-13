@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { usePurchasingSummary } from "@/hooks/usePurchasing";
 import { useTasks } from "@/hooks/useTasks";
@@ -14,6 +15,7 @@ import TaskDetailPanel from "@/components/Tasks/TaskDetailPanel";
 import { apiClient as api } from "@/services/apiClient";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { data: summary } = usePurchasingSummary();
   const { data: tasks = [], refetch: fetchTasks } = useTasks();
@@ -56,7 +58,7 @@ export default function Dashboard() {
       {/* Summary KPI Cards */}
       {summary && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="shadow-sm">
+          <Card onClick={() => navigate("/purchasing/requests")} className="shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-blue-300">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
                 <ShoppingCart className="w-6 h-6" />
@@ -68,7 +70,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm">
+          <Card onClick={() => navigate("/purchasing/requests?status=WAITING_APPROVAL")} className="shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-orange-300">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400">
                 <Clock className="w-6 h-6" />
@@ -80,7 +82,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm">
+          <Card onClick={() => navigate("/purchasing/requests?status=WAITING_PAYMENT")} className="shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-fuchsia-300">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 rounded-xl bg-fuchsia-50 text-fuchsia-600 dark:bg-fuchsia-900/20 dark:text-fuchsia-400">
                 <FileWarning className="w-6 h-6" />
@@ -92,7 +94,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm">
+          <Card onClick={() => navigate("/purchasing/requests?status=COMPLETED")} className="shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-emerald-300">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
                 <CheckCircle2 className="w-6 h-6" />
