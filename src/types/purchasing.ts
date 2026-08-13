@@ -57,6 +57,15 @@ export type WorkflowAction =
   | "RESUME_WORKFLOW"
   | "COMPLETE";
 
+
+export type ProductInfo = {
+  name: string;
+  price: string;
+  category: string;
+  brand: string;
+  description: string;
+};
+
 export type PurchaseRequest = {
   id: string;
   title: string;
@@ -69,6 +78,7 @@ export type PurchaseRequest = {
   assigned_user: string | null;
   description: string | null;
   item_url?: string | null;
+  product_info?: ProductInfo | null;
   created_at: string;
   updated_at: string;
 };
@@ -81,6 +91,7 @@ export type PurchaseOrder = {
   description: string | null;
   quote_number: string | null;
   item_url?: string | null;
+  product_info?: ProductInfo | null;
   amount: number;
   approval_status: ApprovalStatus;
   expected_delivery_date?: string | null;
@@ -156,6 +167,7 @@ export type RequestCreateInput = {
   description?: string | null;
   assigned_user?: string | null;
   item_url?: string | null;
+  product_info?: ProductInfo | null;
 };
 
 export type PurchaseOrderInput = {
@@ -164,6 +176,7 @@ export type PurchaseOrderInput = {
   description?: string | null;
   quote_number?: string | null;
   item_url?: string | null;
+  product_info?: ProductInfo | null;
   expected_delivery_date?: string | null;
   amount: number;
 

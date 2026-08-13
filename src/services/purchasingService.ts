@@ -44,6 +44,10 @@ export function createRequest(payload: RequestCreateInput) {
   return apiClient.post<RequestDetail>(`${BASE}/requests`, payload);
 }
 
+export function extractProductInfo(id: string) {
+  return apiClient.post<RequestDetail>(`${BASE}/requests/${id}/extract-product-info`, {});
+}
+
 export function transitionRequest(id: string, payload: TransitionInput) {
   return apiClient.post<RequestDetail>(`${BASE}/requests/${id}/transition`, payload);
 }

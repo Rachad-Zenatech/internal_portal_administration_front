@@ -103,3 +103,11 @@ export function useUsersList() {
     queryFn: () => purchasing.getUsers(),
   });
 }
+
+export function useExtractProductInfo(id: string) {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: () => purchasing.extractProductInfo(id),
+    onSuccess: invalidate,
+  });
+}

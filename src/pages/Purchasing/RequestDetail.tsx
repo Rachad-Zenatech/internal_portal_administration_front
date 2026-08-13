@@ -10,6 +10,8 @@ import {
   Package,
   ReceiptText,
   Stamp,
+  RefreshCw,
+  Search,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -63,8 +65,22 @@ type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods";
 export default function RequestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data, isLoading, isError } = usePurchaseRequest(id);
+  const { data, isLoading, isError, refetch } = usePurchaseRequest(id);
+
+  // Poll for product_info extraction result if it's missing but we have an item_url
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (data?.request?.item_url && !data?.request?.product_info) {
+      interval = setInterval(() => {
+        refetch();
+      }, 3000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [data?.request?.item_url, data?.request?.product_info, refetch]);
   const transition = useTransitionRequest(id ?? "");
+
   const { data: approvers = [], isLoading: isLoadingApprovers } = usePossibleApprovers(id);
 
   const [activeForm, setActiveForm] = useState<{ action: WorkflowAction; kind: FormKind } | null>(null);
@@ -229,15 +245,59 @@ export default function RequestDetail() {
               {(request.item_url || purchase_order?.item_url) && (
                 <div className="col-span-2">
                   <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Product / Vendor Link</div>
-                  <a
-                    href={(request.item_url || purchase_order?.item_url || "").startsWith("http") ? (request.item_url || purchase_order?.item_url || "#") : `https://${request.item_url || purchase_order?.item_url}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 transition-colors"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Open Product Page ({request.item_url || purchase_order?.item_url})
-                  </a>
+                  <div className="flex flex-col gap-3">
+                    <a
+                      href={(request.item_url || purchase_order?.item_url || "").startsWith("http") ? (request.item_url || purchase_order?.item_url || "#") : `https://${request.item_url || purchase_order?.item_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 w-fit text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 transition-colors"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Open Product Page ({request.item_url || purchase_order?.item_url})
+                    </a>
+
+                    {request.product_info ? (
+                      <Card className="border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/50 dark:bg-indigo-950/20 shadow-sm mt-2">
+                        <CardHeader className="py-3 px-4 border-b border-indigo-100 dark:border-indigo-900/50">
+                          <CardTitle className="text-sm font-semibold flex items-center gap-2 text-indigo-900 dark:text-indigo-100">
+                            <Package className="h-4 w-4" /> AI Product Analysis
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4 grid grid-cols-2 gap-4 text-sm">
+                          <div className="col-span-2">
+                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Product Name</div>
+                            <div className="font-medium text-slate-900 dark:text-slate-100">{request.product_info.name}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Price</div>
+                            <div className="font-semibold text-emerald-600 dark:text-emerald-400">{request.product_info.price}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Brand</div>
+                            <div className="text-slate-700 dark:text-slate-300">{request.product_info.brand}</div>
+                          </div>
+                          <div className="col-span-2">
+                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Category</div>
+                            <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">{request.product_info.category}</Badge>
+                          </div>
+                          <div className="col-span-2">
+                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Description</div>
+                            <div className="text-slate-600 dark:text-slate-400 leading-relaxed text-xs">{request.product_info.description}</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="flex items-center gap-3 p-3 mt-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                        <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+                          <RefreshCw className="h-4 w-4 text-indigo-600 dark:text-indigo-400 animate-spin" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">Automatically Extracting...</h4>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Please wait while the AI extracts the product details from the URL. This may take up to 15 seconds.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </CardContent>
