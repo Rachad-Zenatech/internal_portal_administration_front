@@ -2,6 +2,8 @@
 // Services contain API calls only; React Query orchestration lives in hooks.
 import { apiClient } from "./apiClient";
 import type {
+  AttachmentInfo,
+  Currency,
   Invoice,
   PurchaseRequest,
   PurchasingNotification,
@@ -65,12 +67,42 @@ export function listNotifications(limit = 50) {
   return apiClient.get<PurchasingNotification[]>(`${BASE}/notifications?limit=${limit}`);
 }
 
+import type { Role } from "@/lib/AuthContext";
+
 export function getPossibleApprovers(requestId: string) {
   return apiClient.get<Array<{ user_id: string; name: string }>>(`${BASE}/requests/${requestId}/approvers`);
 }
 
 export function getUsers() {
-  return apiClient.get<Array<{ id: string; full_name?: string; email?: string }>>("/api/configuration/users")
-    .catch(() => apiClient.get<Array<{ id: string; full_name?: string; email?: string }>>("/configuration/users"))
+  return apiClient.get<Array<{ id: string; full_name?: string; email?: string; department?: string; [key: string]: any }>>("/api/configuration/users")
+    .catch(() => apiClient.get<Array<{ id: string; full_name?: string; email?: string; department?: string; [key: string]: any }>>("/configuration/users"))
     .catch(() => []);
+}
+
+export function getRoles() {
+  return apiClient.get<Role[]>("/api/configuration/roles")
+    .catch(() => apiClient.get<Role[]>("/configuration/roles"))
+    .catch(() => []);
+}
+
+export function getCurrencies() {
+  return apiClient.get<Currency[]>(`${BASE}/currencies`).catch(() => []);
+}
+
+export function listAttachments(requestId: string) {
+  return apiClient.get<AttachmentInfo[]>(`${BASE}/requests/${requestId}/attachments`);
+}
+
+export function uploadAttachments(requestId: string, files: File[]) {
+  const form = new FormData();
+  files.forEach((file) => form.append("files", file));
+  return apiClient.post<AttachmentInfo[]>(`${BASE}/requests/${requestId}/attachments`, form);
+}
+
+export function deleteAttachment(requestId: string, fileId: string) {
+  return apiClient.delete<void>(`${BASE}/requests/${requestId}/attachments/${fileId}`);
+}
+
+export function downloadAttachment(requestId: string, fileId: string, filename: string) {
+  return apiClient.downloadFile(`${BASE}/requests/${requestId}/attachments/${fileId}/download`, filename);
 }

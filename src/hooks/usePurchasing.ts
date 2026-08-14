@@ -104,10 +104,41 @@ export function useUsersList() {
   });
 }
 
+export function useRolesList() {
+  return useQuery({
+    queryKey: ["roles"],
+    queryFn: () => purchasing.getRoles(),
+  });
+}
+
+export function useCurrencies() {
+  return useQuery({
+    queryKey: ["purchasing-currencies"],
+    queryFn: () => purchasing.getCurrencies(),
+    staleTime: Infinity,
+  });
+}
+
 export function useExtractProductInfo(id: string) {
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: () => purchasing.extractProductInfo(id),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUploadAttachments(id: string) {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: (files: File[]) => purchasing.uploadAttachments(id, files),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteAttachment(id: string) {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: (fileId: string) => purchasing.deleteAttachment(id, fileId),
     onSuccess: invalidate,
   });
 }

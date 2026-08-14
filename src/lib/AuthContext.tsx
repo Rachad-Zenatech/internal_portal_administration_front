@@ -7,6 +7,8 @@ export interface User {
   full_name: string;
   is_super_admin: boolean;
   is_active?: boolean;
+  department?: string;
+  job_title?: string;
 }
 
 export interface Role {

@@ -32,18 +32,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { usePurchaseRequests, usePurchasingSummary, useCreateRequest, useUsersList } from "@/hooks/usePurchasing";
+import { usePurchaseRequests, usePurchasingSummary, useCreateRequest, useUsersList, useRolesList } from "@/hooks/usePurchasing";
 import type { Priority, RequestCreateInput, RequestType } from "@/types/purchasing";
 import { PRIORITY_BADGE, STATUS_LABEL, STATUS_FILTER_OPTIONS, getStatusBadge, getStatusLabel, formatDate, formatMoney } from "./purchasingMeta";
+import { useAuth, type Role } from "@/lib/AuthContext";
+import { resolveUserDepartment } from "@/lib/userDepartment";
 
 function RequesterAutocomplete({
   value,
   onChange,
+  onSelectUser,
   users,
+  roles = [],
 }: {
   value: string;
   onChange: (val: string) => void;
-  users: Array<{ id: string; full_name?: string; email?: string }>;
+  onSelectUser?: (user: any) => void;
+  users: Array<{ id: string; full_name?: string; email?: string; department?: string; [key: string]: any }>;
+  roles?: Role[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -60,13 +66,16 @@ function RequesterAutocomplete({
 
   const filteredUsers = useMemo(() => {
     const q = (value || "").toLowerCase().trim();
-    if (!q) return users.slice(0, 8);
-    return users.filter(
-      (u) =>
-        (u.full_name && u.full_name.toLowerCase().includes(q)) ||
-        (u.email && u.email.toLowerCase().includes(q))
-    ).slice(0, 8);
-  }, [value, users]);
+    if (!q) return users.slice(0, 10);
+    return users
+      .filter((u) => {
+        const name = (u.full_name || "").toLowerCase();
+        const email = (u.email || "").toLowerCase();
+        const dept = resolveUserDepartment(u, roles).toLowerCase();
+        return name.includes(q) || email.includes(q) || dept.includes(q);
+      })
+      .slice(0, 10);
+  }, [value, users, roles]);
 
   return (
     <div ref={containerRef} className="relative space-y-2">
@@ -83,26 +92,47 @@ function RequesterAutocomplete({
           className="w-full"
         />
         {isOpen && filteredUsers.length > 0 && (
-          <div className="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-md shadow-lg py-1 text-sm">
+          <div className="absolute z-50 left-0 mt-1.5 w-[320px] sm:w-[360px] max-w-[calc(100vw-2rem)] max-h-64 overflow-y-auto overflow-x-hidden bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg shadow-xl py-1 text-sm divide-y divide-slate-100 dark:divide-zinc-800/60">
             {filteredUsers.map((u) => {
               const displayName = u.full_name || u.email || "Unknown User";
+              const email = u.email;
+              const dept = resolveUserDepartment(u, roles);
+
               return (
                 <div
                   key={u.id}
-                  className="px-3 py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors"
+                  className="px-3.5 py-2.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/80 flex flex-col gap-0.5 transition-colors text-left"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     onChange(displayName);
+                    if (onSelectUser) {
+                      onSelectUser(u);
+                    }
                     setIsOpen(false);
                   }}
                 >
-                  <span className="font-medium text-slate-900 dark:text-zinc-100">
+                  {/* Top: Name */}
+                  <div className="font-semibold text-slate-900 dark:text-zinc-100 text-sm leading-snug">
                     {displayName}
-                  </span>
-                  {u.email && u.full_name && (
-                    <span className="text-xs text-slate-500 dark:text-zinc-400">
-                      {u.email}
-                    </span>
+                  </div>
+
+                  {/* Middle: Email */}
+                  {email && (
+                    <div className="text-xs text-slate-500 dark:text-zinc-400 truncate leading-snug">
+                      {email}
+                    </div>
+                  )}
+
+                  {/* Bottom: Department */}
+                  {dept ? (
+                    <div className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 flex items-center gap-1 mt-0.5">
+                      <span className="text-slate-400 dark:text-zinc-500 font-normal">Dept:</span>
+                      <span className="text-indigo-600 dark:text-indigo-400">{dept}</span>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-slate-400 dark:text-zinc-500 italic mt-0.5">
+                      No department
+                    </div>
                   )}
                 </div>
               );
@@ -126,6 +156,7 @@ const EMPTY_FORM: RequestCreateInput = {
 
 export default function PurchaseRequests() {
   const navigate = useNavigate();
+  const { user, roles } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlStatus = searchParams.get("status");
 
@@ -135,6 +166,7 @@ export default function PurchaseRequests() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState<RequestCreateInput>(EMPTY_FORM);
   const { data: usersList = [] } = useUsersList();
+  const { data: rolesList = [] } = useRolesList();
 
   useEffect(() => {
     setStatusFilter(urlStatus || "ALL");
@@ -165,9 +197,45 @@ export default function PurchaseRequests() {
   const createMutation = useCreateRequest();
 
   const openCreate = () => {
-    setForm(EMPTY_FORM);
+    const defaultRequester = user?.full_name || user?.email || "";
+    const matchedUser = usersList.find(
+      (u) =>
+        u.id === user?.id ||
+        (u.email && user?.email && u.email.toLowerCase() === user.email.toLowerCase()) ||
+        (u.full_name && user?.full_name && u.full_name.toLowerCase() === user.full_name.toLowerCase())
+    );
+    const defaultDept =
+      resolveUserDepartment({ ...user, roles }, rolesList) ||
+      resolveUserDepartment(matchedUser, rolesList) ||
+      roles.map((r) => r.department).filter(Boolean).join(", ") ||
+      "";
+
+    setForm({
+      ...EMPTY_FORM,
+      requester: defaultRequester,
+      department: defaultDept,
+    });
     setIsDialogOpen(true);
   };
+
+  // If dialog is open and department is not yet filled, try to auto-fill once usersList/rolesList loads
+  useEffect(() => {
+    if (isDialogOpen && !form.department && (usersList.length > 0 || rolesList.length > 0)) {
+      const matchedUser = usersList.find(
+        (u) =>
+          u.id === user?.id ||
+          (u.email && user?.email && u.email.toLowerCase() === user.email.toLowerCase()) ||
+          (u.full_name && user?.full_name && u.full_name.toLowerCase() === user.full_name.toLowerCase()) ||
+          (u.full_name && form.requester && u.full_name.toLowerCase() === form.requester.toLowerCase())
+      );
+      const dept =
+        resolveUserDepartment({ ...user, roles }, rolesList) ||
+        resolveUserDepartment(matchedUser, rolesList);
+      if (dept) {
+        setForm((prev) => ({ ...prev, department: dept }));
+      }
+    }
+  }, [isDialogOpen, usersList, rolesList, user, roles, form.department, form.requester]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,7 +393,7 @@ export default function PurchaseRequests() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New Purchase Request</DialogTitle>
           </DialogHeader>
@@ -337,8 +405,15 @@ export default function PurchaseRequests() {
             <div className="grid grid-cols-2 gap-4">
               <RequesterAutocomplete
                 value={form.requester}
-                onChange={(val) => setForm({ ...form, requester: val })}
+                onChange={(val) => setForm((prev) => ({ ...prev, requester: val }))}
+                onSelectUser={(selectedUser) => {
+                  const dept = resolveUserDepartment(selectedUser, rolesList);
+                  if (dept) {
+                    setForm((prev) => ({ ...prev, department: dept }));
+                  }
+                }}
                 users={usersList}
+                roles={rolesList}
               />
               <div className="space-y-2">
                 <label className="text-sm font-medium">Department</label>

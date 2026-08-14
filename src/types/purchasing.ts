@@ -40,6 +40,20 @@ export type ApprovalDecision = "APPROVED" | "REJECTED";
 
 export type PaymentStatus = "UNPAID" | "WAITING_PAYMENT";
 
+export type PaymentMethod = "CC" | "DC" | "W";
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  CC: "Credit Card",
+  DC: "Debit Card",
+  W: "Wire",
+};
+
+export type Currency = {
+  code: string;
+  name: string;
+  symbol: string;
+};
+
 export type NotificationStatus = "SENT" | "READ";
 
 export type WorkflowAction =
@@ -64,6 +78,8 @@ export type ProductInfo = {
   category: string;
   brand: string;
   description: string;
+  vendor: string;
+  currency: string;
 };
 
 export type PurchaseRequest = {
@@ -93,6 +109,9 @@ export type PurchaseOrder = {
   item_url?: string | null;
   product_info?: ProductInfo | null;
   amount: number;
+  currency?: string | null;
+  payment_method?: PaymentMethod | null;
+  shipped_to_location?: string | null;
   approval_status: ApprovalStatus;
   expected_delivery_date?: string | null;
 
@@ -136,6 +155,14 @@ export type PurchasingNotification = {
   status: NotificationStatus;
 };
 
+export type AttachmentInfo = {
+  id: string;
+  filename: string;
+  content_type: string | null;
+  size: number;
+  uploaded_at: string;
+};
+
 export type RequestDetail = {
   request: PurchaseRequest;
   purchase_order: PurchaseOrder | null;
@@ -143,6 +170,8 @@ export type RequestDetail = {
   approvals: Approval[];
   notifications: PurchasingNotification[];
   available_actions: WorkflowAction[];
+  ordered_date: string | null;
+  attachments: AttachmentInfo[];
 };
 
 export type PurchasingSummary = {
@@ -179,7 +208,9 @@ export type PurchaseOrderInput = {
   product_info?: ProductInfo | null;
   expected_delivery_date?: string | null;
   amount: number;
-
+  currency?: string | null;
+  payment_method?: PaymentMethod | null;
+  shipped_to_location?: string | null;
 };
 
 export type InvoiceInput = {

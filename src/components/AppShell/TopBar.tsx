@@ -21,9 +21,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/services/apiClient";
 import ThemeSwitch from "./ThemeSwitch";
 import { useGlobalSearch } from "@/hooks/useSearch";
-import { useAuth } from "@/lib/AuthContext";
+import { useAuth, type Role } from "@/lib/AuthContext";
+import { resolveUserDepartment } from "@/lib/userDepartment";
 import { useNotifications, useUnreadNotificationCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, useClearReadNotifications } from "@/hooks/useNotifications";
 
 
@@ -69,6 +72,17 @@ export default function TopBar() {
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { user, roles, logout } = useAuth();
+
+  const { data: allRoles = [] } = useQuery({
+    queryKey: ["roles"],
+    queryFn: () => apiClient.get<Role[]>("/api/configuration/roles").catch(() => []),
+  });
+
+  const profileDepartment =
+    resolveUserDepartment({ ...user, roles }, allRoles) ||
+    roles.map((r) => r.department).filter(Boolean).join(", ") ||
+    user?.department ||
+    (roles.length > 0 ? roles.map((r) => r.name).join(", ") : "General");
   // Debounce input
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -334,7 +348,7 @@ export default function TopBar() {
             <div>
               <DialogTitle className="text-2xl font-bold">{user?.full_name || "User"}</DialogTitle>
               <DialogDescription className="text-sm mt-1">
-                {user?.email} • {user?.is_super_admin ? "Super Admin" : roles.length > 0 ? roles.map(r => r.name).join(", ") : "Standard User"}
+                {user?.email} • {profileDepartment} • {user?.is_super_admin ? "Super Admin" : roles.length > 0 ? roles.map(r => r.name).join(", ") : "Standard User"}
               </DialogDescription>
             </div>
           </div>
@@ -358,13 +372,24 @@ export default function TopBar() {
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Department</Label>
-                      <Input readOnly defaultValue="Finance & Operations" className="bg-muted/30 border-border text-muted-foreground h-11" />
+                      <Input
+                        readOnly
+                        value={profileDepartment}
+                        className="bg-muted/30 border-border text-muted-foreground h-11"
+                      />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Roles</Label>
                       <Input readOnly value={user?.is_super_admin ? "Super Admin" : roles.length > 0 ? roles.map(r => r.name).join(", ") : "Standard User"} className="bg-muted/30 border-border text-muted-foreground h-11" />
                     </div>
                   </div>
+
+                  {user?.job_title && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Job Title</Label>
+                      <Input readOnly value={user.job_title} className="bg-muted/30 border-border text-muted-foreground h-11" />
+                    </div>
+                  )}
 
                   <div className="space-y-1.5">
                     <Label htmlFor="email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email Address</Label>
