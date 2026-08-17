@@ -74,11 +74,17 @@ export function resolveSteps(
     activeIndex = -1;
   }
 
-  const rendered: DisplayStep[] = steps.map((step, i) => ({
-    status: step,
-    label: STATUS_LABEL[step],
-    state: exception ? "pending" : stepStateFor(i, activeIndex),
-  }));
+  const rendered: DisplayStep[] = steps.map((step, i) => {
+    let state: StepState = exception ? "pending" : stepStateFor(i, activeIndex);
+    if (step === RequestStatus.Completed && state === "current") {
+      state = "done";
+    }
+    return {
+      status: step,
+      label: STATUS_LABEL[step],
+      state,
+    };
+  });
 
   if (exception) rendered.push(exception);
   return rendered;

@@ -96,7 +96,7 @@ export default function Login() {
               Sign in with your @zenatech.com account
             </CardDescription>
           </CardHeader>
-          <CardContent>
+                    <CardContent>
             <Button
               onClick={handleLogin}
               className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all mb-3"
@@ -110,6 +110,19 @@ export default function Login() {
               ) : (
                 "Sign in with Microsoft"
               )}
+            </Button>
+            
+            <Button
+              onClick={() => {
+                const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
+                const baseUrl = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+                window.location.href = `${baseUrl}/api/auth/dev-login?email=testa@zenatech.com`;
+              }}
+              variant="outline"
+              className="w-full h-12 rounded-xl border-slate-200 dark:border-zinc-800 font-semibold shadow-sm hover:shadow transition-all"
+              disabled={isLoading}
+            >
+              Login as Test A
             </Button>
           </CardContent>
           <CardFooter className="flex justify-center pb-8 pt-4 border-t border-slate-100 dark:border-zinc-800/50 mt-2 bg-slate-50/50 dark:bg-zinc-950/30">

@@ -1,3 +1,15 @@
+export interface TaskHistoryItem {
+  id: number;
+  task_id: number;
+  changed_by: string;
+  changed_by_name: string;
+  action: string;
+  old_value?: string;
+  new_value?: string;
+  comment?: string;
+  created_at: string;
+}
+
 // Shared API/domain types for the Purchasing + Accounts Payable workflow.
 // These mirror the backend Pydantic models in
 // internal_portal_administration_backend/models/purchasing_model.py
@@ -91,10 +103,16 @@ export type PurchaseRequest = {
   request_type: RequestType;
   priority: Priority;
   status: RequestStatus;
+  hold_reason?: string | null;
+  hold_date?: string | null;
   assigned_user: string | null;
   description: string | null;
   item_url?: string | null;
   product_info?: ProductInfo | null;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  currency?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -108,6 +126,8 @@ export type PurchaseOrder = {
   quote_number: string | null;
   item_url?: string | null;
   product_info?: ProductInfo | null;
+  quantity?: number;
+  unit_price?: number;
   amount: number;
   currency?: string | null;
   payment_method?: PaymentMethod | null;
@@ -147,12 +167,20 @@ export type Approval = {
 };
 
 export type PurchasingNotification = {
-  id: string;
-  request_id: string | null;
-  recipient: string;
+  id: number;
+  user_id: string;
+  type: string;
+  title: string;
   message: string;
-  sent_date: string;
-  status: NotificationStatus;
+  link_url?: string;
+  entity_type?: string;
+  entity_id?: string;
+  sender_name?: string;
+  sender_avatar?: string;
+  attachments?: any[];
+  is_read: boolean;
+  created_at: string;
+  read_at?: string;
 };
 
 export type AttachmentInfo = {
@@ -172,6 +200,7 @@ export type RequestDetail = {
   available_actions: WorkflowAction[];
   ordered_date: string | null;
   attachments: AttachmentInfo[];
+  history: TaskHistoryItem[];
 };
 
 export type PurchasingSummary = {
@@ -197,6 +226,9 @@ export type RequestCreateInput = {
   assigned_user?: string | null;
   item_url?: string | null;
   product_info?: ProductInfo | null;
+  quantity?: number;
+  unit_price?: number;
+  amount?: number;
 };
 
 export type PurchaseOrderInput = {
@@ -207,6 +239,8 @@ export type PurchaseOrderInput = {
   item_url?: string | null;
   product_info?: ProductInfo | null;
   expected_delivery_date?: string | null;
+  quantity?: number;
+  unit_price?: number;
   amount: number;
   currency?: string | null;
   payment_method?: PaymentMethod | null;
@@ -232,10 +266,15 @@ export type TrackingInput = {
   note?: string;
 };
 
+export type HoldInput = {
+  reason: string;
+};
+
 export type TransitionInput = {
   action: WorkflowAction;
   purchase_order?: PurchaseOrderInput;
   invoice?: InvoiceInput;
   approval?: ApprovalInput;
   tracking?: TrackingInput;
+  hold?: HoldInput;
 };

@@ -290,27 +290,28 @@ export default function FloatingChat() {
         </SheetContent>
       </Sheet>
 
-      {/* Floating Action Button (to trigger Sheet) */}
-      <div data-onboarding="ai-assistant" className={`fixed bottom-6 right-6 z-[100] flex flex-col items-end ${isOpen ? "hidden" : ""}`}>
-        <button
-          onClick={() => {
-            const nextOpen = !isOpen;
-            setIsOpen(nextOpen);
-            if (nextOpen) {
-              setHasUnread(false);
-            }
-          }}
-          className="h-14 w-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-[0_4px_20px_rgba(79,70,229,0.4)] hover:shadow-[0_8px_25px_rgba(79,70,229,0.5)] flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 relative group"
-        >
-          <Bot className="h-6 w-6 group-hover:animate-pulse" />
-          {!isOpen && hasUnread && (
-            <span className="absolute -top-1 -right-1 flex h-5 w-5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 border-2 border-background"></span>
-            </span>
-          )}
-        </button>
-      </div>
+      {/* Chat Trigger Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        data-onboarding="ai-assistant"
+        onClick={() => {
+          const nextOpen = !isOpen;
+          setIsOpen(nextOpen);
+          if (nextOpen) {
+            setHasUnread(false);
+          }
+        }}
+        className={`relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-full h-10 w-10 outline-none focus-visible:ring-0 ${isOpen ? "hidden" : ""}`}
+      >
+        <Bot className={`h-5 w-5 ${hasUnread ? "animate-pulse text-blue-600" : ""}`} />
+        {!isOpen && hasUnread && (
+          <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 ring-2 ring-card"></span>
+          </span>
+        )}
+      </Button>
     </>
   );
 }

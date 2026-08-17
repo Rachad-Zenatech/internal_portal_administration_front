@@ -143,7 +143,7 @@ export default function WorkflowAssignments() {
             </PopoverTrigger>
             <PopoverContent className="w-auto p-3 max-w-[300px]" align="start">
               <div className="text-xs font-semibold text-slate-500 mb-2">Additional Users</div>
-              <div className="flex flex-wrap gap-1.5 max-h-[200px] overflow-y-auto">
+              <div className="flex flex-wrap gap-1.5 max-h-[200px] overflow-y-auto" onWheelCapture={(e) => e.stopPropagation()}>
                 {hiddenIds.map(id => {
                   const user = users.find(u => u.id === id);
                   return (
@@ -324,7 +324,7 @@ export default function WorkflowAssignments() {
                           onChange={(e) => setUserSearch(e.target.value)}
                         />
                       </div>
-                      <div className="max-h-[250px] overflow-y-auto p-1">
+                      <div className="max-h-[250px] overflow-y-auto p-1" onWheelCapture={(e) => e.stopPropagation()}>
                         {users.filter(u => (u.full_name || u.email).toLowerCase().includes(userSearch.toLowerCase())).length === 0 ? (
                           <div className="p-4 text-center text-sm text-muted-foreground">No users found.</div>
                         ) : (

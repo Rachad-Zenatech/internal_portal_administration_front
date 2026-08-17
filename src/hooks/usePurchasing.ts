@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as purchasing from "@/services/purchasingService";
 import type { RequestListFilters } from "@/services/purchasingService";
@@ -140,5 +141,30 @@ export function useDeleteAttachment(id: string) {
   return useMutation({
     mutationFn: (fileId: string) => purchasing.deleteAttachment(id, fileId),
     onSuccess: invalidate,
+  });
+}
+
+export function useUpdateRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => purchasing.updateRequest(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: keys.request(variables.id) });
+      queryClient.invalidateQueries({ queryKey: keys.requests({}) });
+    },
+  });
+}
+
+export function useManualPrice(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { unit_price: number, currency: string }) => purchasing.manualPrice(id, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: keys.request(id) });
+      toast.success("Manual price set successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || "Failed to set manual price");
+    },
   });
 }

@@ -454,6 +454,43 @@ export default function PurchaseRequests() {
                 placeholder="https://www.amazon.com/dp/..."
               />
             </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Quantity</label>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.quantity ?? 1}
+                  onChange={(e) => {
+                    const q = Number(e.target.value);
+                    setForm({ ...form, quantity: q, amount: Math.round(q * (form.unit_price || 0) * 100) / 100 });
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Unit Price</label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.unit_price ?? 0}
+                  onChange={(e) => {
+                    const p = Number(e.target.value);
+                    setForm({ ...form, unit_price: p, amount: Math.round((form.quantity || 1) * p * 100) / 100 });
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Est. Amount</label>
+                <Input
+                  type="number"
+                  value={form.amount ?? 0}
+                  disabled
+                  className="bg-slate-50 dark:bg-zinc-800 text-slate-500"
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Description</label>
               <Textarea

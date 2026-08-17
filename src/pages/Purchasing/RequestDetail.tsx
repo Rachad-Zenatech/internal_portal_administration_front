@@ -1,3 +1,5 @@
+import { ManualPriceDialog } from "./ManualPriceDialog";
+import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { useState, useEffect, useMemo, useRef } from "react";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { useNavigate, useParams } from "react-router-dom";
@@ -15,6 +17,7 @@ import {
   RefreshCw,
   Upload,
   X,
+  AlertTriangle,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -23,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -42,12 +46,11 @@ import {
   usePurchaseRequest,
   useTransitionRequest,
   usePossibleApprovers,
-  useCurrencies,
   useExtractProductInfo,
   useUploadAttachments,
-  useDeleteAttachment,
-} from "@/hooks/usePurchasing";
+  } from "@/hooks/usePurchasing";
 import * as purchasingService from "@/services/purchasingService";
+import { EditRequestDialog } from "./EditRequestDialog";
 import Stepper from "@/components/Stepper";
 import { RequestStatus, PAYMENT_METHOD_LABEL } from "@/types/purchasing";
 import type {
@@ -55,6 +58,7 @@ import type {
   InvoiceInput,
   ApprovalInput,
   TrackingInput,
+  HoldInput,
   TransitionInput,
   WorkflowAction,
   PaymentMethod,
@@ -79,9 +83,10 @@ import {
   getStatusLabel,
   formatDate,
   formatMoney,
+  SHIPPED_TO_LOCATIONS,
 } from "./purchasingMeta";
 
-type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods";
+type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "hold";
 
 export default function RequestDetail() {
   const { id } = useParams<{ id: string }>();
@@ -96,12 +101,23 @@ export default function RequestDetail() {
     setExtractionTimedOut(false);
   }, [id]);
 
+  const [isManualPriceOpen, setIsManualPriceOpen] = useState(false);
+  const [hasShownManualPrice, setHasShownManualPrice] = useState(false);
+
   const isExtracting =
     extractProductMutation.isPending ||
     (data?.request?.status === RequestStatus.New &&
       !!data?.request?.item_url &&
       !data?.request?.product_info &&
       !extractionTimedOut);
+
+  const needsManualPrice = data?.request?.product_info?.price === "N/A" || extractionTimedOut;
+  useEffect(() => {
+    if (needsManualPrice && !hasShownManualPrice) {
+      setIsManualPriceOpen(true);
+      setHasShownManualPrice(true);
+    }
+  }, [needsManualPrice, hasShownManualPrice]);
 
   // Poll for the extraction result while it may still be in flight; give up
   // (and stop blocking the workflow) after EXTRACTION_TIMEOUT_MS.
@@ -117,7 +133,7 @@ export default function RequestDetail() {
 
   const transition = useTransitionRequest(id ?? "");
   const uploadAttachments = useUploadAttachments(id ?? "");
-  const deleteAttachment = useDeleteAttachment(id ?? "");
+
 
   const { data: approvers = [], isLoading: isLoadingApprovers } = usePossibleApprovers(id);
 
@@ -137,6 +153,9 @@ export default function RequestDetail() {
   const [invoice, setInvoice] = useState<InvoiceInput>({ vendor: "", amount: 0, invoice_date: "", due_date: "", gl_code: "", asset_flag: false });
   const [approval, setApproval] = useState<ApprovalInput>({ approver: "", comment: "" });
   const [tracking, setTracking] = useState<TrackingInput>({ tracking_number: "" });
+  const [hold, setHold] = useState<HoldInput>({ reason: "" });
+  const [isActivityLogsOpen, setIsActivityLogsOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
     if (approvers && approvers.length > 0 && !approval.approver) {
@@ -237,7 +256,7 @@ export default function RequestDetail() {
       if (!po.vendor || !po.item) return toast.error("Vendor and item are required.");
       if (!po.payment_method) return toast.error("Payment format is required.");
       if (!po.shipped_to_location || !po.shipped_to_location.trim()) return toast.error("Shipped to location is required.");
-      void dispatch({ action, purchase_order: { ...po, amount: Number(po.amount) || 0 } });
+      void dispatch({ action, purchase_order: { ...po, amount: Number(po.amount) || 0, quantity: Number(po.quantity) || 1, unit_price: Number(po.unit_price) || 0 } });
     } else if (kind === "invoice") {
       if (!invoice.vendor || !invoice.invoice_date) return toast.error("Vendor and bill date are required.");
       void (async () => {
@@ -259,6 +278,9 @@ export default function RequestDetail() {
       void dispatch({ action, tracking });
     } else if (kind === "confirmGoods") {
       void dispatch({ action });
+    } else if (kind === "hold") {
+      if (!hold.reason || !hold.reason.trim()) return toast.error("Hold reason is required.");
+      void dispatch({ action, hold });
     }
   };
 
@@ -285,25 +307,21 @@ export default function RequestDetail() {
               <Badge variant="outline" className={PRIORITY_BADGE[request.priority]}>{request.priority}</Badge>
             </div>
           </div>
+          {request.status === RequestStatus.New && (
+            <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)} className="ml-auto">
+              Edit Request
+            </Button>
+          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {available_actions.length === 0 ? (
-            request.status === RequestStatus.Completed ? (
-              <Badge variant="outline" className="gap-1.5 px-3 py-1 bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400">
-                <Clock className="h-3.5 w-3.5" /> Completed
-              </Badge>
-            ) : (
-              <span className="text-sm text-slate-500 self-center">No further actions.</span>
-            )
-          ) : (
-            <>
-              <span className="text-xs font-medium text-slate-500 dark:text-zinc-400">Move to:</span>
-              {isExtracting && (
-                <span className="text-xs text-slate-500 dark:text-zinc-400 self-center italic">
-                  Waiting for product details...
-                </span>
-              )}
-              {available_actions.map((action) => {
+        {available_actions.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-slate-500 dark:text-zinc-400">Move to:</span>
+            {isExtracting && (
+              <span className="text-xs text-slate-500 dark:text-zinc-400 self-center italic">
+                Waiting for product details...
+              </span>
+            )}
+            {available_actions.map((action) => {
                 const meta = ACTION_META[action];
                 return (
                   <Button
@@ -316,9 +334,8 @@ export default function RequestDetail() {
                   </Button>
                 );
               })}
-            </>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Workflow Stepper */}
@@ -333,6 +350,19 @@ export default function RequestDetail() {
         </CardContent>
       </Card>
 
+      {request.status === RequestStatus.OnHold && request.hold_reason && (
+        <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300">
+          <AlertTriangle className="h-4 w-4 !text-amber-600 dark:!text-amber-400" />
+          <AlertTitle className="flex items-center justify-between font-semibold">
+            <span>On Hold</span>
+            {request.hold_date && <span className="text-xs font-normal opacity-75">{formatDate(request.hold_date)}</span>}
+          </AlertTitle>
+          <AlertDescription className="mt-2 whitespace-pre-wrap">
+            {request.hold_reason}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card className="border border-slate-200 dark:border-zinc-800">
@@ -344,6 +374,10 @@ export default function RequestDetail() {
               <Field label="Assigned To" value={request.assigned_user ?? "—"} />
               <Field label="Requested" value={formatDate(request.request_date)} />
               <Field label="Last Updated" value={formatDate(request.updated_at)} />
+              <Field label="Quantity" value={String(request.quantity ?? 1)} />
+              <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />
+              <Field label="Est. Total Amount" value={formatMoney(request.amount ?? 0)} />
+              <Field label="Currency" value={request.currency || "USD"} />
               <div className="col-span-2">
                 <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Description</div>
                 <div className="text-slate-800 dark:text-zinc-200">{request.description || "—"}</div>
@@ -459,7 +493,9 @@ export default function RequestDetail() {
                 <Field label="Vendor" value={purchase_order.vendor} />
                 <Field label="Item" value={purchase_order.item} />
                 <Field label="Quote / PO #" value={purchase_order.quote_number ?? "—"} />
-                <Field label="Amount" value={`${formatMoney(purchase_order.amount)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
+                <Field label="Quantity" value={String(purchase_order.quantity ?? 1)} />
+                <Field label="Unit Price" value={formatMoney(purchase_order.unit_price ?? 0)} />
+                <Field label="Total Amount" value={`${formatMoney(purchase_order.amount)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
                 <Field label="Payment Format" value={purchase_order.payment_method ? PAYMENT_METHOD_LABEL[purchase_order.payment_method] : "—"} />
                 <Field label="Shipped To" value={purchase_order.shipped_to_location ?? "—"} />
                 <Field label="Approval" value={purchase_order.approval_status} />
@@ -514,13 +550,7 @@ export default function RequestDetail() {
                             >
                               Download
                             </button>
-                            <button
-                              type="button"
-                              className="text-slate-400 hover:text-red-500"
-                              onClick={() => deleteAttachment.mutate(att.id)}
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
+
                           </div>
                         </li>
                       ))}
@@ -534,8 +564,48 @@ export default function RequestDetail() {
 
         {/* Activity: approvals + notifications */}
         <div className="space-y-6">
+          <div className="flex items-center justify-end">
+            <Button variant="outline" size="sm" onClick={() => setIsActivityLogsOpen(true)}>
+              <Clock className="h-4 w-4 mr-2" />
+              Activity Logs
+            </Button>
+          </div>
+          
+<EditRequestDialog request={request} open={isEditOpen} onOpenChange={setIsEditOpen} />
+          <Dialog open={isActivityLogsOpen} onOpenChange={setIsActivityLogsOpen}>
+            <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Activity Logs</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                {data.history && data.history.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No activity logs found.</p>
+                ) : (
+                  <div className="relative border-l border-muted pl-5 ml-2 space-y-6 pb-2">
+                    {data.history?.map((h) => (
+                      <div key={h.id} className="relative">
+                        <div className="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full bg-primary ring-4 ring-background" />
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-sm font-medium">{h.changed_by_name} <span className="font-normal text-muted-foreground">({h.action})</span></span>
+                          <span className="text-xs text-muted-foreground">{formatDate(h.created_at)}</span>
+                          {(h.old_value || h.new_value) && (
+                            <div className="text-xs bg-muted/50 p-2 rounded mt-1 border">
+                              {h.old_value && <span className="line-through text-muted-foreground mr-2">{h.old_value}</span>}
+                              {h.new_value && <span>{h.new_value}</span>}
+                            </div>
+                          )}
+                          {h.comment && <p className="text-sm mt-1">{h.comment}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Card className="border border-slate-200 dark:border-zinc-800">
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Stamp className="h-4 w-4" /> Approvals</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base flex items-center justify-between"><div className="flex items-center gap-2"><Stamp className="h-4 w-4" /> Approvals</div></CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
               {approvals.length === 0 ? (
                 <p className="text-slate-500">No approval activity yet.</p>
@@ -565,7 +635,7 @@ export default function RequestDetail() {
                 notifications.map((n) => (
                   <div key={n.id} className="border-l-2 pl-3 border-blue-200 dark:border-blue-900">
                     <div className="text-slate-800 dark:text-zinc-200">{n.message}</div>
-                    <div className="text-xs text-slate-500">To {n.recipient} · {formatDate(n.sent_date)}</div>
+                    <div className="text-xs text-slate-500">To {n.user_id} · {formatDate(n.created_at)}</div>
                   </div>
                 ))
               )}
@@ -606,15 +676,40 @@ export default function RequestDetail() {
                     </Select>
                   </div>
                 </TwoUp>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-2 space-y-2">
-                    <label className="text-sm font-medium">Amount</label>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Quantity</label>
                     <Input
                       type="number"
+                      min="1"
+                      step="1"
+                      value={String(po.quantity ?? 1)}
+                      onChange={(e) => {
+                        const q = Number(e.target.value);
+                        setPo({ ...po, quantity: q, amount: Math.round(q * (po.unit_price || 0) * 100) / 100 });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Unit Price</label>
+                    <Input
+                      type="number"
+                      min="0"
                       step="0.01"
+                      value={String(po.unit_price ?? 0)}
+                      onChange={(e) => {
+                        const p = Number(e.target.value);
+                        setPo({ ...po, unit_price: p, amount: Math.round((po.quantity || 1) * p * 100) / 100 });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Total Amount</label>
+                    <Input
+                      type="number"
                       value={String(po.amount)}
-                      onChange={(e) => setPo({ ...po, amount: Number(e.target.value) })}
-                      onBlur={() => setPo((prev) => ({ ...prev, amount: Math.round((Number(prev.amount) || 0) * 100) / 100 }))}
+                      disabled
+                      className="bg-slate-50 dark:bg-zinc-800 text-slate-500"
                     />
                   </div>
                   <div className="space-y-2">
@@ -622,11 +717,10 @@ export default function RequestDetail() {
                     <CurrencyAutocomplete value={po.currency ?? ""} onChange={(v) => setPo({ ...po, currency: v })} />
                   </div>
                 </div>
-                <FieldInput
-                  label={<>Shipped to Location <span className="text-red-500">*</span></>}
-                  value={po.shipped_to_location ?? ""}
-                  onChange={(v) => setPo({ ...po, shipped_to_location: v })}
-                />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Shipped to Location <span className="text-red-500">*</span></label>
+                  <LocationAutocomplete value={po.shipped_to_location ?? ""} onChange={(v) => setPo({ ...po, shipped_to_location: v })} />
+                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Description</label>
                   <Textarea
@@ -712,6 +806,17 @@ export default function RequestDetail() {
             {activeForm?.kind === "confirmGoods" && (
               <p className="text-sm text-muted-foreground">Are you sure you want to confirm goods received?</p>
             )}
+            {activeForm?.kind === "hold" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Hold Reason <span className="text-red-500">*</span></label>
+                <Textarea
+                  rows={3}
+                  placeholder="Why is this being put on hold?"
+                  value={hold.reason}
+                  onChange={(e) => setHold({ reason: e.target.value })}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActiveForm(null)}>Cancel</Button>
@@ -719,6 +824,13 @@ export default function RequestDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {id && (
+        <ManualPriceDialog
+          requestId={id}
+          isOpen={isManualPriceOpen}
+          onOpenChange={setIsManualPriceOpen}
+        />
+      )}
     </div>
   );
 }
@@ -728,7 +840,7 @@ function Field({ label, value }: { label: string; value: string }) {
     <div>
       <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">{label}</div>
       <div className="text-slate-800 dark:text-zinc-200">{value}</div>
-    </div>
+</div>
   );
 }
 
@@ -736,68 +848,6 @@ function TwoUp({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-2 gap-4">{children}</div>;
 }
 
-function CurrencyAutocomplete({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const { data: currencies = [] } = useCurrencies();
-  const [query, setQuery] = useState(value);
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setQuery(value);
-  }, [value]);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    if (!q) return currencies;
-    return currencies.filter((c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
-  }, [query, currencies]);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <Input
-        value={query}
-        onFocus={() => setIsOpen(true)}
-        onChange={(e) => {
-          const next = e.target.value.toUpperCase();
-          setQuery(next);
-          onChange(next);
-          setIsOpen(true);
-        }}
-        placeholder="USD"
-        maxLength={10}
-      />
-      {isOpen && filtered.length > 0 && (
-        <div className="absolute z-50 right-0 mt-1.5 w-72 max-w-[calc(100vw-2rem)] max-h-72 overflow-y-auto bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg shadow-xl py-1 text-sm">
-          {filtered.map((c) => (
-            <div
-              key={c.code}
-              className="px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/80 flex items-center justify-between gap-2"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setQuery(c.code);
-                onChange(c.code);
-                setIsOpen(false);
-              }}
-            >
-              <span className="font-medium">{c.code}</span>
-              <span className="text-xs text-slate-500 dark:text-zinc-400 truncate">{c.name}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 const ATTACHMENT_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.rtf,.odt,.ods";
 
@@ -884,7 +934,7 @@ function AttachmentDropzone({
           ))}
         </ul>
       )}
-    </div>
+</div>
   );
 }
 
@@ -903,9 +953,71 @@ function FieldInput({
     <div className="space-y-2">
       <label className="text-sm font-medium">{label}</label>
       <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
-    </div>
+</div>
   );
 }
 
 // Test
 
+
+
+function LocationAutocomplete({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [query, setQuery] = useState(value);
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q) return SHIPPED_TO_LOCATIONS;
+    return SHIPPED_TO_LOCATIONS.filter((c) => c.toLowerCase().includes(q));
+  }, [query]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <Input
+        value={query}
+        onFocus={() => setIsOpen(true)}
+        onChange={(e) => {
+          const next = e.target.value;
+          setQuery(next);
+          onChange(next);
+          setIsOpen(true);
+        }}
+        placeholder="Enter location"
+        maxLength={200}
+      />
+      {isOpen && filtered.length > 0 && (
+        <div className="absolute z-50 right-0 left-0 mt-1.5 w-full max-h-72 overflow-y-auto bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg shadow-xl py-1 text-sm">
+          {filtered.map((loc) => (
+            <div
+              key={loc}
+              className="px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/80 flex items-center gap-2"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setQuery(loc);
+                onChange(loc);
+                setIsOpen(false);
+              }}
+            >
+              <span className="font-medium">{loc}</span>
+            </div>
+          ))}
+        </div>
+      )}
+</div>
+  );
+}

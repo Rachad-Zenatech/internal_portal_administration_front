@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
-import FloatingChat from "./FloatingChat";
+
 import Breadcrumbs from "./Breadcrumbs";
 import SessionTimeout from "./SessionTimeout";
 
@@ -48,7 +48,7 @@ export default function AppShell({ children }: Props) {
             {children}
           </div>
         </main>
-        <FloatingChat />
+        
 
       </div>
 
