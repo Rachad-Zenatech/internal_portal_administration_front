@@ -43,6 +43,7 @@ import {
   useTransitionRequest,
   usePossibleApprovers,
   useCurrencies,
+  useExtractProductInfo,
   useUploadAttachments,
   useDeleteAttachment,
 } from "@/hooks/usePurchasing";
@@ -63,7 +64,7 @@ import type {
 // the request is still NEW. If it hasn't produced product_info by this point,
 // treat it as failed rather than polling/blocking forever — the backend has
 // no explicit success/failure signal, only the presence of product_info.
-const EXTRACTION_TIMEOUT_MS = 20000;
+const EXTRACTION_TIMEOUT_MS = 60000;
 import {
   ACTION_META,
   ADMIN_FLOW,
@@ -86,6 +87,7 @@ export default function RequestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = usePurchaseRequest(id);
+  const extractProductMutation = useExtractProductInfo(id ?? "");
 
   // Extraction only ever runs automatically right after creation (NEW status).
   // Reset the "gave up" flag whenever we land on a different request.
@@ -95,22 +97,23 @@ export default function RequestDetail() {
   }, [id]);
 
   const isExtracting =
-    data?.request?.status === RequestStatus.New &&
-    !!data?.request?.item_url &&
-    !data?.request?.product_info &&
-    !extractionTimedOut;
+    extractProductMutation.isPending ||
+    (data?.request?.status === RequestStatus.New &&
+      !!data?.request?.item_url &&
+      !data?.request?.product_info &&
+      !extractionTimedOut);
 
   // Poll for the extraction result while it may still be in flight; give up
   // (and stop blocking the workflow) after EXTRACTION_TIMEOUT_MS.
   useEffect(() => {
-    if (!isExtracting) return;
+    if (!isExtracting || extractProductMutation.isPending) return;
     const pollInterval = setInterval(() => refetch(), 3000);
     const giveUp = setTimeout(() => setExtractionTimedOut(true), EXTRACTION_TIMEOUT_MS);
     return () => {
       clearInterval(pollInterval);
       clearTimeout(giveUp);
     };
-  }, [isExtracting, refetch]);
+  }, [isExtracting, extractProductMutation.isPending, refetch]);
 
   const transition = useTransitionRequest(id ?? "");
   const uploadAttachments = useUploadAttachments(id ?? "");
@@ -408,14 +411,39 @@ export default function RequestDetail() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-3 p-3 mt-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                        <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                          <Package className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 mt-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                            <Package className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">Product details unavailable</h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Automatic extraction couldn't retrieve details from this link. You can retry or continue without it.</p>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">Product details unavailable</h4>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">Automatic extraction couldn't retrieve details from this link. You can continue without it.</p>
-                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 gap-1.5 text-xs shrink-0 self-start sm:self-auto bg-white dark:bg-slate-800"
+                          disabled={extractProductMutation.isPending}
+                          onClick={() => {
+                            setExtractionTimedOut(false);
+                            extractProductMutation.mutate(undefined, {
+                              onSuccess: () => {
+                                refetch();
+                                toast.success("Product details extracted successfully");
+                              },
+                              onError: (err: any) => {
+                                refetch();
+                                toast.error(err?.message || "Failed to extract product details");
+                              },
+                            });
+                          }}
+                        >
+                          <RefreshCw className={cn("h-3.5 w-3.5", extractProductMutation.isPending && "animate-spin")} />
+                          Retry Extraction
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -556,11 +584,11 @@ export default function RequestDetail() {
             {activeForm?.kind === "po" && (
               <>
                 <TwoUp>
+                  <FieldInput label="Quote / PO #" value={po.quote_number ?? ""} onChange={(v) => setPo({ ...po, quote_number: v })} />
                   <FieldInput label="Vendor" value={po.vendor} onChange={(v) => setPo({ ...po, vendor: v })} />
-                  <FieldInput label="Item" value={po.item} onChange={(v) => setPo({ ...po, item: v })} />
                 </TwoUp>
                 <TwoUp>
-                  <FieldInput label="Quote / PO #" value={po.quote_number ?? ""} onChange={(v) => setPo({ ...po, quote_number: v })} />
+                  <FieldInput label="Item" value={po.item} onChange={(v) => setPo({ ...po, item: v })} />
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Payment Format <span className="text-red-500">*</span></label>
                     <Select

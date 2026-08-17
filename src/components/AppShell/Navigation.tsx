@@ -47,7 +47,6 @@ export const navigation = [
       { label: "All Requests", path: "/purchasing/requests" },
       { label: "New Request", path: "/purchasing/requests?status=NEW" },
       { label: "Under Review", path: "/purchasing/requests?status=UNDER_REVIEW" },
-      { label: "Waiting Approval", path: "/purchasing/requests?status=WAITING_APPROVAL" },
       { label: "Approved", path: "/purchasing/requests?status=APPROVED" },
       { label: "Waiting Payment", path: "/purchasing/requests?status=WAITING_PAYMENT" },
       { label: "Ordered / Purchased", path: "/purchasing/requests?status=PURCHASED" },

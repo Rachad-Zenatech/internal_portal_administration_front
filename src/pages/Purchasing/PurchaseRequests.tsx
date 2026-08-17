@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Search, ShoppingCart, Clock, FileWarning, CheckCircle2 } from "lucide-react";
+import { Clock, Plus, Search, ShoppingCart, FileWarning, CheckCircle2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -255,7 +255,7 @@ export default function PurchaseRequests() {
 
   const cards = [
     { label: "Open Requests", value: summary?.open_requests ?? 0, icon: ShoppingCart, tint: "text-blue-600", statusKey: "ALL" },
-    { label: "Awaiting Approval", value: summary?.awaiting_approval ?? 0, icon: Clock, tint: "text-orange-600", statusKey: "WAITING_APPROVAL" },
+    { label: "Waiting for Review", value: summary?.status_counts?.UNDER_REVIEW ?? 0, icon: Clock, tint: "text-orange-600", statusKey: "UNDER_REVIEW" },
     {
       label: "Unpaid Invoices",
       value: summary?.unpaid_invoices ?? 0,

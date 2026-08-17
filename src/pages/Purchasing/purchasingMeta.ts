@@ -133,6 +133,11 @@ export const ACTION_META: Record<WorkflowAction, { label: string; form?: "po" | 
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {
+    if (typeof iso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      const [year, month, day] = iso.split("-").map(Number);
+      const d = new Date(year, month - 1, day);
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    }
     const d = new Date(iso);
     if (isNaN(d.getTime())) return String(iso);
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });

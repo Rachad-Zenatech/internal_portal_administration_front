@@ -253,7 +253,7 @@ export default function Sidebar({
                       </span>
                     )}
                   </div>
-                  <div className="flex-1 flex items-center justify-between min-w-0">
+                  <div className={`flex items-center justify-between min-w-0 ${isOpen ? 'flex-1' : 'w-0'}`}>
                     <span
                       className={`text-sm font-medium transition-all duration-300 ease-in-out truncate ${
                         isOpen ? "opacity-100 ml-3 translate-x-0 w-auto" : "opacity-0 ml-0 -translate-x-4 w-0 overflow-hidden"

@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { usePurchasingSummary } from "@/hooks/usePurchasing";
 import { useTasks } from "@/hooks/useTasks";
 import { formatMoney } from "@/pages/Purchasing/purchasingMeta";
-import { ShoppingCart, Clock, FileWarning, CheckCircle2, Search } from "lucide-react";
+import { Clock, ShoppingCart, FileWarning, CheckCircle2, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -70,14 +70,14 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card onClick={() => navigate("/purchasing/requests?status=WAITING_APPROVAL")} className="shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-orange-300">
+          <Card onClick={() => navigate("/purchasing/requests?status=UNDER_REVIEW")} className="shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-orange-300">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400">
                 <Clock className="w-6 h-6" />
               </div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold leading-none mb-1">{summary.awaiting_approval}</span>
-                <span className="text-xs text-muted-foreground font-medium">Awaiting Approval</span>
+                <span className="text-2xl font-bold leading-none mb-1">{summary.status_counts?.UNDER_REVIEW ?? 0}</span>
+                <span className="text-xs text-muted-foreground font-medium">Waiting for Review</span>
               </div>
             </CardContent>
           </Card>
