@@ -1,3 +1,5 @@
+export type { GLCodeOption } from "./chartOfAccount";
+
 export interface TaskHistoryItem {
   id: number;
   task_id: number;
@@ -10,25 +12,10 @@ export interface TaskHistoryItem {
   created_at: string;
 }
 
-// Shared API/domain types for the Purchasing + Accounts Payable workflow.
-// These mirror the backend Pydantic models in
-// internal_portal_administration_backend/models/purchasing_model.py
-
 export type RequestType = "ADMIN" | "SPEND" | "RECURRING" | "QUOTE";
 
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
-/**
- * The closed set of workflow states a request can be in.
- *
- * Declared as a const object rather than a TS `enum` because the project builds
- * with `erasableSyntaxOnly`, which forbids enum syntax. Values are the wire
- * strings the API sends, so this stays assignment-compatible with the backend.
- *
- * Legacy and display spellings ("NEW_REQUEST", "ORDERED", "Sent to AP", ...) are
- * deliberately NOT members: they are inputs, not states. Convert raw values with
- * `parseRequestStatus` from `@/lib/requestStatus` and work with this type after.
- */
 export const RequestStatus = {
   Initial: "INITIAL",
   New: "NEW",
@@ -86,7 +73,6 @@ export type WorkflowAction =
   | "RESUME_WORKFLOW"
   | "COMPLETE";
 
-
 export type ProductInfo = {
   name: string;
   price: string;
@@ -116,6 +102,7 @@ export type PurchaseRequest = {
   unit_price: number;
   amount: number;
   currency?: string | null;
+  gl_code?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -133,11 +120,11 @@ export type PurchaseOrder = {
   unit_price?: number;
   amount: number;
   currency?: string | null;
+  gl_code?: string | null;
   payment_method?: PaymentMethod | null;
   shipped_to_location?: string | null;
   approval_status: ApprovalStatus;
   expected_delivery_date?: string | null;
-
   tracking_number: string | null;
   goods_received: boolean;
   goods_received_at: string | null;
@@ -219,8 +206,6 @@ export type PurchasingSummary = {
   status_amounts?: Record<string, number>;
 };
 
-// ─── Request payloads ────────────────────────────────────────────────────────
-
 export type RequestCreateInput = {
   title: string;
   requester: string;
@@ -234,6 +219,7 @@ export type RequestCreateInput = {
   quantity?: number;
   unit_price?: number;
   amount?: number;
+  gl_code?: string | null;
 };
 
 export type PurchaseOrderInput = {
@@ -250,6 +236,7 @@ export type PurchaseOrderInput = {
   currency?: string | null;
   payment_method?: PaymentMethod | null;
   shipped_to_location?: string | null;
+  gl_code?: string | null;
 };
 
 export type InvoiceInput = {

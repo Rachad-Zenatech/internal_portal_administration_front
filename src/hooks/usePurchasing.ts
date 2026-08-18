@@ -27,11 +27,55 @@ export function usePurchaseRequests(filters: RequestListFilters = {}) {
   });
 }
 
-export function usePurchaseRequest(id: string | undefined) {
+export function useRequestDetail(id: string | undefined) {
   return useQuery({
-    queryKey: keys.request(id ?? ""),
-    queryFn: () => purchasing.getRequest(id as string),
-    enabled: !!id,
+    queryKey: id ? keys.request(id) : keys.all,
+    queryFn: () => (id ? purchasing.getRequest(id) : Promise.reject("no id")),
+    enabled: Boolean(id),
+  });
+}
+
+export function useCreateRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: RequestCreateInput) => purchasing.createRequest(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.all });
+      toast.success("Purchase request created");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Failed to create request");
+    },
+  });
+}
+
+export function useExtractProductInfo(requestId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id?: string | void) => purchasing.extractProductInfo(typeof id === 'string' && id ? id : (requestId || "")),
+    onSuccess: (data) => {
+      qc.setQueryData(keys.request(data.request.id), data);
+      qc.invalidateQueries({ queryKey: keys.all });
+      toast.success("Product info refreshed");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Extraction failed");
+    },
+  });
+}
+
+export function useTransitionRequest(requestId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: TransitionInput) => purchasing.transitionRequest(requestId, payload),
+    onSuccess: (data) => {
+      qc.setQueryData(keys.request(requestId), data);
+      qc.invalidateQueries({ queryKey: keys.all });
+      toast.success("Request updated");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Action failed");
+    },
   });
 }
 
@@ -42,129 +86,130 @@ export function useInvoices(paymentStatus?: string) {
   });
 }
 
+export function usePayInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => purchasing.payInvoice(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.all });
+      toast.success("Invoice marked as paid");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Failed to update invoice");
+    },
+  });
+}
+
 export function usePurchasingNotifications() {
   return useQuery({
     queryKey: keys.notifications(),
     queryFn: () => purchasing.listNotifications(),
-  });
-}
-
-function useInvalidateAll() {
-  const qc = useQueryClient();
-  // Invalidate any query whose key starts with the purchasing namespace.
-  // `exact: false` ensures that queries like ['purchasing','requests',…] are refreshed.
-  // Also explicitly invalidate the summary to refresh open request count, and tasks queries.
-  return () => {
-    qc.invalidateQueries({ queryKey: keys.all, exact: false });
-    qc.invalidateQueries({ queryKey: keys.summary() });
-    qc.invalidateQueries({ queryKey: ["tasks"], exact: false });
-  };
-}
-
-export function useCreateRequest() {
-  const invalidate = useInvalidateAll();
-  return useMutation({
-    mutationFn: (payload: RequestCreateInput) => purchasing.createRequest(payload),
-    onSuccess: invalidate,
-  });
-}
-
-export function useTransitionRequest(id: string) {
-  const invalidate = useInvalidateAll();
-  return useMutation({
-    mutationFn: (payload: TransitionInput) => {
-      const cleanPayload = payload.purchase_order
-        ? { ...payload, purchase_order: (({ expected_delivery_date, ...rest }) => rest)(payload.purchase_order) }
-        : payload;
-      return purchasing.transitionRequest(id, cleanPayload);
-    },
-    onSuccess: invalidate,
-  });
-}
-
-export function usePayInvoice() {
-  const invalidate = useInvalidateAll();
-  return useMutation({
-    mutationFn: (invoiceId: string) => purchasing.payInvoice(invoiceId),
-    onSuccess: invalidate,
+    refetchInterval: 15_000,
   });
 }
 
 export function usePossibleApprovers(requestId: string | undefined) {
   return useQuery({
-    queryKey: [...keys.all, "possible-approvers", requestId ?? ""] as const,
-    queryFn: () => purchasing.getPossibleApprovers(requestId as string),
-    enabled: !!requestId,
+    queryKey: ["purchasing", "approvers", requestId],
+    queryFn: () => (requestId ? purchasing.getPossibleApprovers(requestId) : Promise.resolve([])),
+    enabled: Boolean(requestId),
   });
 }
 
 export function useUsersList() {
   return useQuery({
-    queryKey: ["users-autocomplete-list"],
-    queryFn: () => purchasing.getUsers(),
+    queryKey: ["configuration", "users"],
+    queryFn: purchasing.getUsers,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useRolesList() {
   return useQuery({
-    queryKey: ["roles"],
-    queryFn: () => purchasing.getRoles(),
+    queryKey: ["configuration", "roles"],
+    queryFn: purchasing.getRoles,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useCurrencies() {
   return useQuery({
-    queryKey: ["purchasing-currencies"],
-    queryFn: () => purchasing.getCurrencies(),
-    staleTime: Infinity,
+    queryKey: ["purchasing", "currencies"],
+    queryFn: purchasing.getCurrencies,
+    staleTime: 60 * 60 * 1000,
   });
 }
 
-export function useExtractProductInfo(id: string) {
-  const invalidate = useInvalidateAll();
-  return useMutation({
-    mutationFn: () => purchasing.extractProductInfo(id),
-    onSuccess: invalidate,
+export function useGLCodes(search?: string) {
+  return useQuery({
+    queryKey: ["purchasing", "gl-codes", search],
+    queryFn: () => purchasing.getGLCodes(search),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useUploadAttachments(id: string) {
-  const invalidate = useInvalidateAll();
-  return useMutation({
-    mutationFn: (files: File[]) => purchasing.uploadAttachments(id, files),
-    onSuccess: invalidate,
+export function useAttachments(requestId: string | undefined) {
+  return useQuery({
+    queryKey: ["purchasing", "attachments", requestId],
+    queryFn: () => (requestId ? purchasing.listAttachments(requestId) : Promise.resolve([])),
+    enabled: Boolean(requestId),
   });
 }
 
-export function useDeleteAttachment(id: string) {
-  const invalidate = useInvalidateAll();
+export function useUploadAttachments(requestId: string) {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (fileId: string) => purchasing.deleteAttachment(id, fileId),
-    onSuccess: invalidate,
+    mutationFn: (files: File[]) => purchasing.uploadAttachments(requestId, files),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchasing", "attachments", requestId] });
+      qc.invalidateQueries({ queryKey: keys.request(requestId) });
+      toast.success("Files attached");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Upload failed");
+    },
+  });
+}
+
+export function useDeleteAttachment(requestId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (fileId: string) => purchasing.deleteAttachment(requestId, fileId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchasing", "attachments", requestId] });
+      qc.invalidateQueries({ queryKey: keys.request(requestId) });
+      toast.success("Attachment deleted");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Delete failed");
+    },
   });
 }
 
 export function useUpdateRequest() {
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => purchasing.updateRequest(id, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: keys.request(variables.id) });
-      queryClient.invalidateQueries({ queryKey: keys.requests({}) });
+      qc.invalidateQueries({ queryKey: keys.request(variables.id) });
+      qc.invalidateQueries({ queryKey: keys.all });
     },
   });
 }
 
-export function useManualPrice(id: string) {
-  const queryClient = useQueryClient();
+export function useManualPrice(requestId: string) {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { unit_price: number, currency: string }) => purchasing.manualPrice(id, payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: keys.request(id) });
-      toast.success("Manual price set successfully");
+    mutationFn: (payload: { unit_price: number; currency: string }) => purchasing.manualPrice(requestId, payload),
+    onSuccess: (data) => {
+      qc.setQueryData(keys.request(requestId), data);
+      qc.invalidateQueries({ queryKey: keys.all });
+      toast.success("Manual price updated");
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || "Failed to set manual price");
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Failed to update price");
     },
   });
 }
+
+export const usePurchaseRequest = useRequestDetail;

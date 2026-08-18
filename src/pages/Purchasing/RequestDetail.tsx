@@ -1,3 +1,4 @@
+import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { ManualPriceDialog } from "./ManualPriceDialog";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -89,6 +90,8 @@ import {
   getStatusLabel,
   formatDate,
   formatMoney,
+  formatActivityAction,
+  formatActivityValue,
   SHIPPED_TO_LOCATIONS,
   TAX_RATE,
 } from "./purchasingMeta";
@@ -161,6 +164,7 @@ export default function RequestDetail() {
   const [approval, setApproval] = useState<ApprovalInput>({ approver: "", comment: "" });
   const [tracking, setTracking] = useState<TrackingInput>({ tracking_number: "" });
   const [hold, setHold] = useState<HoldInput>({ reason: "" });
+  const [isActivityLogsOpen, setIsActivityLogsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
@@ -432,7 +436,7 @@ export default function RequestDetail() {
                                 variant="outline"
                                 size="sm"
                                 className="h-7 text-xs px-2"
-                                onClick={() => extractProductMutation.mutate()}
+                                onClick={() => extractProductMutation.mutate(undefined)}
                                 disabled={extractProductMutation.isPending}
                               >
                                 <RefreshCw className={cn("h-3 w-3 mr-1", extractProductMutation.isPending && "animate-spin")} />
@@ -604,10 +608,46 @@ export default function RequestDetail() {
 
         {/* Activity: approvals + notifications */}
         <div className="space-y-6">
-          
-          
-<EditRequestDialog request={request} open={isEditOpen} onOpenChange={setIsEditOpen} />
-          
+          <div className="flex items-center justify-end">
+            <Button variant="outline" size="sm" onClick={() => setIsActivityLogsOpen(true)}>
+              <Clock className="h-4 w-4 mr-2" />
+              Activity Logs
+            </Button>
+          </div>
+
+          <EditRequestDialog request={request} open={isEditOpen} onOpenChange={setIsEditOpen} />
+
+          <Dialog open={isActivityLogsOpen} onOpenChange={setIsActivityLogsOpen}>
+            <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Activity Logs</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                {data.history && data.history.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No activity logs found.</p>
+                ) : (
+                  <div className="relative border-l border-muted pl-5 ml-2 space-y-6 pb-2">
+                    {data.history?.map((h) => (
+                      <div key={h.id} className="relative">
+                        <div className="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full bg-primary ring-4 ring-background" />
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-sm font-medium">{h.changed_by_name || "System"} <Badge variant="secondary" className="ml-1 text-xs font-normal">{formatActivityAction(h.action)}</Badge></span>
+                          <span className="text-xs text-muted-foreground">{formatDate(h.created_at)}</span>
+                          {(h.old_value || h.new_value) && (
+                            <div className="text-xs bg-muted/50 p-2 rounded mt-1 border">
+                              {h.old_value && <span className="line-through text-muted-foreground mr-2">{formatActivityValue(h.old_value)}</span>}
+                              {h.new_value && <span className="font-medium text-slate-800 dark:text-zinc-200">{formatActivityValue(h.new_value)}</span>}
+                            </div>
+                          )}
+                          {h.comment && <p className="text-sm mt-1">{h.comment}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <Card className="border border-slate-200 dark:border-zinc-800">
             <CardHeader><CardTitle className="text-base flex items-center justify-between"><div className="flex items-center gap-2"><Stamp className="h-4 w-4" /> Approvals</div></CardTitle></CardHeader>
@@ -644,36 +684,6 @@ export default function RequestDetail() {
                   </div>
                 ))
               )}
-            </CardContent>
-          </Card>
-
-          <Card className="border border-slate-200 dark:border-zinc-800">
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" /> System Logs</CardTitle></CardHeader>
-            <CardContent>
-              <div className="space-y-4 pt-2">
-                {data.history && data.history.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No system logs found.</p>
-                ) : (
-                  <div className="relative border-l border-muted pl-5 ml-2 space-y-6 pb-2">
-                    {data.history?.map((h) => (
-                      <div key={h.id} className="relative">
-                        <div className="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full bg-primary ring-4 ring-background" />
-                        <div className="flex flex-col space-y-1">
-                          <span className="text-sm font-medium">{h.changed_by_name} <span className="font-normal text-muted-foreground">({h.action})</span></span>
-                          <span className="text-xs text-muted-foreground">{formatDate(h.created_at)}</span>
-                          {(h.old_value || h.new_value) && (
-                            <div className="text-xs bg-muted/50 p-2 rounded mt-1 border">
-                              {h.old_value && <span className="line-through text-muted-foreground mr-2">{h.old_value}</span>}
-                              {h.new_value && <span>{h.new_value}</span>}
-                            </div>
-                          )}
-                          {h.comment && <p className="text-sm mt-1">{h.comment}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -800,7 +810,13 @@ export default function RequestDetail() {
                   <FieldInput label="Expected Delivery Date" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
                 </TwoUp>
                 <TwoUp>
-                  <FieldInput label="GL Code" value={invoice.gl_code ?? ""} onChange={(v) => setInvoice({ ...invoice, gl_code: v })} />
+                  <div className="space-y-2">
+                      <label className="text-sm font-medium">GL Code / Account</label>
+                      <GLCodeAutocomplete
+                        value={invoice.gl_code ?? data?.purchase_order?.gl_code ?? data?.request.gl_code ?? ""}
+                        onChange={(v) => setInvoice({ ...invoice, gl_code: v })}
+                      />
+                    </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Asset Flag</label>
                     <div className="flex items-center h-10">

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useUpdateRequest } from "@/hooks/usePurchasing";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 
 export function EditRequestDialog({ request, open, onOpenChange }: { request: any, open: boolean, onOpenChange: (open: boolean) => void }) {
   const [formData, setFormData] = useState({
@@ -17,7 +18,8 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
     item_url: "",
     unit_price: "",
     quantity: "1",
-    description: ""
+    description: "",
+    gl_code: ""
   });
 
   useEffect(() => {
@@ -30,7 +32,8 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
         item_url: request.item_url || "",
         unit_price: request.unit_price ? request.unit_price.toString() : "",
         quantity: request.quantity ? request.quantity.toString() : "1",
-        description: request.description || ""
+        description: request.description || "",
+        gl_code: request.gl_code || ""
       });
     }
   }, [request, open]);
@@ -53,7 +56,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
         quantity: quantity,
         amount: unitPrice * quantity,
       };
-      
+
       await updateMutation.mutateAsync({ id: request.id, data: payload });
       toast.success("Request updated successfully.");
       onOpenChange(false);
@@ -78,7 +81,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Type <span className="text-red-500">*</span></label>
               <Select value={formData.request_type} onValueChange={(val) => setFormData({ ...formData, request_type: val })}>
@@ -93,7 +96,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Priority <span className="text-red-500">*</span></label>
               <Select value={formData.priority} onValueChange={(val) => setFormData({ ...formData, priority: val })}>
@@ -108,7 +111,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Department <span className="text-red-500">*</span></label>
               <Input
@@ -117,7 +120,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Quantity</label>
               <Input
@@ -127,7 +130,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
               />
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Unit Price</label>
               <Input
@@ -138,14 +141,14 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
               />
             </div>
-            
+
             <div className="space-y-2 col-span-2">
               <label className="text-sm font-medium">Est. Amount (Pre-tax)</label>
               <div className="h-10 px-3 py-2 rounded-md border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50 flex items-center text-sm text-slate-500 font-medium">
                 ${((formData.unit_price ? parseFloat(formData.unit_price) : 0) * (formData.quantity ? parseInt(formData.quantity) : 1)).toFixed(2)}
               </div>
             </div>
-            
+
             <div className="space-y-2 col-span-2">
               <label className="text-sm font-medium">Link / URL</label>
               <Input
@@ -155,7 +158,15 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 placeholder="https://..."
               />
             </div>
-            
+
+            <div className="space-y-2 col-span-2">
+              <label className="text-sm font-medium">GL Code / Account</label>
+              <GLCodeAutocomplete
+                value={formData.gl_code}
+                onChange={(val) => setFormData({ ...formData, gl_code: val })}
+              />
+            </div>
+
             <div className="space-y-2 col-span-2">
               <label className="text-sm font-medium">Description</label>
               <Textarea
@@ -165,7 +176,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

@@ -1,3 +1,4 @@
+import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { useMemo, useState, useEffect, useRef } from "react";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -152,6 +153,7 @@ const EMPTY_FORM: RequestCreateInput = {
   priority: "MEDIUM",
   description: "",
   item_url: "",
+  gl_code: "",
 };
 
 export default function PurchaseRequests() {
@@ -464,6 +466,14 @@ export default function PurchaseRequests() {
                 onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
               />
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">GL Code / Account</label>
+              <GLCodeAutocomplete
+                value={form.gl_code}
+                onChange={(val) => setForm((prev) => ({ ...prev, gl_code: val }))}
+              />
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Description</label>
               <Textarea

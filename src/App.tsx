@@ -14,6 +14,7 @@ const RoleGroupPermissions = lazy(() => import("./pages/Configurations/RoleGroup
 const RoleApiPermissions = lazy(() => import("./pages/Configurations/RoleApiPermissions"));
 const RoleMcpToolPermissions = lazy(() => import("./pages/Configurations/RoleMcpToolPermissions"));
 const WorkflowAssignments = lazy(() => import("./pages/Configurations/WorkflowAssignments"));
+const ChartOfAccounts = lazy(() => import("./pages/Configurations/ChartOfAccounts"));
 
 const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
 const PurchaseRequests = lazy(() => import("./pages/Purchasing/PurchaseRequests"));
@@ -61,6 +62,7 @@ function App() {
             <Route path="/configurations/role-api-permissions" element={<ProtectedRoute navigationCode="CONFIG_ROLE_API_PERMISSIONS"><RoleApiPermissions /></ProtectedRoute>} />
             <Route path="/configurations/role-mcp-tool-permissions" element={<ProtectedRoute navigationCode="CONFIG_ROLE_MCP_TOOL_PERMISSIONS"><RoleMcpToolPermissions /></ProtectedRoute>} />
             <Route path="/configurations/workflow-assignments" element={<ProtectedRoute navigationCode="CONFIG_USER_ROLE_ASSIGNMENT"><WorkflowAssignments /></ProtectedRoute>} />
+            <Route path="/configurations/chart-of-accounts" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><ChartOfAccounts /></ProtectedRoute>} />
 
 
 
