@@ -419,7 +419,7 @@ export default function Users() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>{editingUser ? "Edit User" : "Add New User"}</DialogTitle>
           </DialogHeader>

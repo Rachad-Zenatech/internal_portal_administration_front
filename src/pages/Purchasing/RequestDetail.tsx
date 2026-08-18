@@ -18,6 +18,7 @@ import {
   Upload,
   X,
   AlertTriangle,
+  ChevronDown,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -41,6 +42,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import {
   usePurchaseRequest,
@@ -155,7 +161,6 @@ export default function RequestDetail() {
   const [approval, setApproval] = useState<ApprovalInput>({ approver: "", comment: "" });
   const [tracking, setTracking] = useState<TrackingInput>({ tracking_number: "" });
   const [hold, setHold] = useState<HoldInput>({ reason: "" });
-  const [isActivityLogsOpen, setIsActivityLogsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
@@ -388,7 +393,7 @@ export default function RequestDetail() {
               <Field label="Requester" value={request.requester} />
               <Field label="Department" value={request.department} />
               <Field label="Type" value={request.request_type} />
-              <Field label="Assigned To" value={request.assigned_user ?? "—"} />
+              <AssignedUsersField label="Assigned To" value={request.assigned_user ?? "—"} />
               <Field label="Requested" value={formatDate(request.request_date)} />
               <Field label="Last Updated" value={formatDate(request.updated_at)} />
               <Field label="Quantity" value={String(request.quantity ?? 1)} />
@@ -599,45 +604,10 @@ export default function RequestDetail() {
 
         {/* Activity: approvals + notifications */}
         <div className="space-y-6">
-          <div className="flex items-center justify-end">
-            <Button variant="outline" size="sm" onClick={() => setIsActivityLogsOpen(true)}>
-              <Clock className="h-4 w-4 mr-2" />
-              Activity Logs
-            </Button>
-          </div>
+          
           
 <EditRequestDialog request={request} open={isEditOpen} onOpenChange={setIsEditOpen} />
-          <Dialog open={isActivityLogsOpen} onOpenChange={setIsActivityLogsOpen}>
-            <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Activity Logs</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                {data.history && data.history.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No activity logs found.</p>
-                ) : (
-                  <div className="relative border-l border-muted pl-5 ml-2 space-y-6 pb-2">
-                    {data.history?.map((h) => (
-                      <div key={h.id} className="relative">
-                        <div className="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full bg-primary ring-4 ring-background" />
-                        <div className="flex flex-col space-y-1">
-                          <span className="text-sm font-medium">{h.changed_by_name} <span className="font-normal text-muted-foreground">({h.action})</span></span>
-                          <span className="text-xs text-muted-foreground">{formatDate(h.created_at)}</span>
-                          {(h.old_value || h.new_value) && (
-                            <div className="text-xs bg-muted/50 p-2 rounded mt-1 border">
-                              {h.old_value && <span className="line-through text-muted-foreground mr-2">{h.old_value}</span>}
-                              {h.new_value && <span>{h.new_value}</span>}
-                            </div>
-                          )}
-                          {h.comment && <p className="text-sm mt-1">{h.comment}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
+          
 
           <Card className="border border-slate-200 dark:border-zinc-800">
             <CardHeader><CardTitle className="text-base flex items-center justify-between"><div className="flex items-center gap-2"><Stamp className="h-4 w-4" /> Approvals</div></CardTitle></CardHeader>
@@ -674,6 +644,36 @@ export default function RequestDetail() {
                   </div>
                 ))
               )}
+            </CardContent>
+          </Card>
+
+          <Card className="border border-slate-200 dark:border-zinc-800">
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" /> System Logs</CardTitle></CardHeader>
+            <CardContent>
+              <div className="space-y-4 pt-2">
+                {data.history && data.history.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No system logs found.</p>
+                ) : (
+                  <div className="relative border-l border-muted pl-5 ml-2 space-y-6 pb-2">
+                    {data.history?.map((h) => (
+                      <div key={h.id} className="relative">
+                        <div className="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full bg-primary ring-4 ring-background" />
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-sm font-medium">{h.changed_by_name} <span className="font-normal text-muted-foreground">({h.action})</span></span>
+                          <span className="text-xs text-muted-foreground">{formatDate(h.created_at)}</span>
+                          {(h.old_value || h.new_value) && (
+                            <div className="text-xs bg-muted/50 p-2 rounded mt-1 border">
+                              {h.old_value && <span className="line-through text-muted-foreground mr-2">{h.old_value}</span>}
+                              {h.new_value && <span>{h.new_value}</span>}
+                            </div>
+                          )}
+                          {h.comment && <p className="text-sm mt-1">{h.comment}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -907,6 +907,47 @@ function Field({ label, value }: { label: string; value: string }) {
       <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">{label}</div>
       <div className="text-slate-800 dark:text-zinc-200">{value}</div>
 </div>
+  );
+}
+
+function AssignedUsersField({ label, value }: { label: string; value: string }) {
+  if (!value || value === "—") return <Field label={label} value="—" />;
+
+  const users = value.split(", ").map(u => u.trim()).filter(Boolean);
+  const displayedUsers = users.slice(0, 2);
+  const hiddenUsers = users.slice(2);
+  
+  const chipClass = "inline-flex items-center px-3 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 shadow-sm whitespace-nowrap";
+
+  return (
+    <div className="flex flex-col">
+      <div className="text-xs text-slate-500 dark:text-zinc-400 mb-2">{label}</div>
+      <div className="flex flex-wrap items-center gap-2">
+        {displayedUsers.map((u, i) => (
+          <span key={i} className={chipClass}>{u}</span>
+        ))}
+        
+        {hiddenUsers.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={`${chipClass} hover:bg-slate-50 dark:hover:bg-zinc-700 cursor-pointer focus:outline-none transition-colors`}>
+                +{hiddenUsers.length} more... <ChevronDown className="ml-1 h-3.5 w-3.5 text-slate-400" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-80 p-4 shadow-lg rounded-xl">
+              <div className="text-sm font-semibold text-slate-500 dark:text-zinc-400 mb-3">
+                Additional Users
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {hiddenUsers.map((u, i) => (
+                  <span key={i} className={chipClass}>{u}</span>
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </div>
   );
 }
 

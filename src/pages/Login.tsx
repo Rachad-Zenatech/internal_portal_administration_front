@@ -49,10 +49,14 @@ export default function Login() {
           if (token) {
             sessionStorage.setItem("token", token);
           }
-          await refreshPermissions();
+          const perms = await refreshPermissions();
           toast.success("Successfully logged in");
           window.history.replaceState({}, document.title, window.location.pathname);
-          navigate("/");
+          if (perms?.roles?.some(r => r.code === "REQUESTER")) {
+            navigate("/purchasing/requests");
+          } else {
+            navigate("/");
+          }
         } catch (error) {
           console.error("Failed to process SSO login", error);
           toast.error("Failed to process login");
