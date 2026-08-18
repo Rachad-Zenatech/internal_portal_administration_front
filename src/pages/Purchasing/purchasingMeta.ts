@@ -7,6 +7,7 @@ import { parseRequestStatus } from "@/lib/requestStatus";
 // a missing label or badge into a compile error instead of a blank chip. Legacy
 // spellings are absent on purpose — parseRequestStatus resolves them first.
 export const STATUS_LABEL: Record<RequestStatus, string> = {
+  [RequestStatus.Initial]: "Draft",
   [RequestStatus.New]: "New Request",
   [RequestStatus.UnderReview]: "Under Review",
   [RequestStatus.WaitingApproval]: "Waiting Approval",
@@ -22,6 +23,7 @@ export const STATUS_LABEL: Record<RequestStatus, string> = {
 };
 
 export const STATUS_BADGE: Record<RequestStatus, string> = {
+  [RequestStatus.Initial]: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 border-dashed",
   [RequestStatus.New]: "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300",
   [RequestStatus.UnderReview]: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400",
   [RequestStatus.WaitingApproval]: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400",
@@ -115,7 +117,9 @@ export const STATUS_FILTER_OPTIONS: readonly RequestStatus[] = [
 ];
 
 export const ACTION_META: Record<WorkflowAction, { label: string; form?: "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "hold"; variant?: "default" | "destructive" | "outline" }> = {
-  START_REVIEW: { label: "Submit Request", variant: "default" },
+  SUBMIT_REQUEST: { label: "Submit Request", variant: "default" },
+  DELETE_REQUEST: { label: "Delete Request", variant: "destructive" },
+  START_REVIEW: { label: "Start Review", variant: "default" },
   CREATE_PO: { label: "Quote / PO #", form: "po", variant: "default" },
   APPROVE: { label: "Approve", form: "approval", variant: "default" },
   REJECT: { label: "Reject", form: "approval", variant: "destructive" },
@@ -234,3 +238,5 @@ export const SHIPPED_TO_LOCATIONS = [
   "Ketchum, ID",
   "McDonough, GA",
 ];
+
+export const TAX_RATE = 0.08;

@@ -22,7 +22,7 @@ export function useNotifications(options?: { refetchInterval?: number | false })
   return useQuery({
     queryKey: ["notifications"],
     queryFn: () => apiClient.get<Notification[]>("/api/notifications"),
-    refetchInterval: options?.refetchInterval ?? 5000, // Poll every 5 seconds by default
+    refetchInterval: options?.refetchInterval ?? false, // Polling disabled by default, replaced by SSE
   });
 }
 
@@ -30,7 +30,7 @@ export function useUnreadNotificationCount(options?: { refetchInterval?: number 
   return useQuery({
     queryKey: ["notifications", "unread-count"],
     queryFn: () => apiClient.get<{ count: number }>("/api/notifications/unread-count"),
-    refetchInterval: options?.refetchInterval ?? 5000, // Poll every 5 seconds by default
+    refetchInterval: options?.refetchInterval ?? false, // Polling disabled by default, replaced by SSE
   });
 }
 

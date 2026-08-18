@@ -115,7 +115,7 @@ export default function SessionTimeout() {
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-[425px] [&>button]:hidden outline-none">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-[425px] [&>button]:hidden outline-none">
         <DialogHeader className="flex flex-col items-center space-y-4 pt-4">
           <div className="h-16 w-16 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center">
             <AlertTriangle className="h-8 w-8" />

@@ -31,7 +31,7 @@ export function ManualPriceDialog({ requestId, isOpen, onOpenChange }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Extraction Failed</DialogTitle>
           <DialogDescription>

@@ -15,7 +15,8 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
     priority: "",
     department: "",
     item_url: "",
-    amount: "",
+    unit_price: "",
+    quantity: "1",
     description: ""
   });
 
@@ -27,7 +28,8 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
         priority: request.priority || "MEDIUM",
         department: request.department || "",
         item_url: request.item_url || "",
-        amount: request.amount ? request.amount.toString() : "",
+        unit_price: request.unit_price ? request.unit_price.toString() : "",
+        quantity: request.quantity ? request.quantity.toString() : "1",
         description: request.description || ""
       });
     }
@@ -43,9 +45,13 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
     }
 
     try {
+      const unitPrice = formData.unit_price ? parseFloat(formData.unit_price) : 0;
+      const quantity = formData.quantity ? parseInt(formData.quantity) : 1;
       const payload = {
         ...formData,
-        amount: formData.amount ? parseFloat(formData.amount) : 0,
+        unit_price: unitPrice,
+        quantity: quantity,
+        amount: unitPrice * quantity,
       };
       
       await updateMutation.mutateAsync({ id: request.id, data: payload });
@@ -58,7 +64,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Edit Request</DialogTitle>
         </DialogHeader>
@@ -80,10 +86,10 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                   <SelectValue placeholder="Select Type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="SPEND">Spend</SelectItem>
+                  <SelectItem value="SPEND">Spend Request</SelectItem>
+                  <SelectItem value="QUOTE">Quote Request (Estimate / RFQ)</SelectItem>
                   <SelectItem value="ADMIN">Admin Triage</SelectItem>
-                  <SelectItem value="RECURRING">Recurring</SelectItem>
-                  <SelectItem value="QUOTE">Quote Request</SelectItem>
+                  <SelectItem value="RECURRING">Recurring (Subscription)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -113,14 +119,31 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
             </div>
             
             <div className="space-y-2">
-              <label className="text-sm font-medium">Est. Amount</label>
+              <label className="text-sm font-medium">Quantity</label>
+              <Input
+                type="number"
+                min="1"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Unit Price</label>
               <Input
                 type="number"
                 step="0.01"
                 min="0"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                value={formData.unit_price}
+                onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
               />
+            </div>
+            
+            <div className="space-y-2 col-span-2">
+              <label className="text-sm font-medium">Est. Amount (Pre-tax)</label>
+              <div className="h-10 px-3 py-2 rounded-md border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50 flex items-center text-sm text-slate-500 font-medium">
+                ${((formData.unit_price ? parseFloat(formData.unit_price) : 0) * (formData.quantity ? parseInt(formData.quantity) : 1)).toFixed(2)}
+              </div>
             </div>
             
             <div className="space-y-2 col-span-2">

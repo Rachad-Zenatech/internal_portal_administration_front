@@ -21,7 +21,7 @@ type Assignment = {
 };
 
 const ROLE_STATES_MAP: Record<string, string[]> = {
-  "PURCHASING": ["Under Review"],
+  "PURCHASING": ["New Request", "Under Review"],
   "MANAGER": ["Waiting Approval"],
   "DIRECTOR": ["Waiting Approval"],
   "VP": ["Waiting Approval"],

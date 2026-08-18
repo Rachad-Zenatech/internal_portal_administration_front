@@ -100,6 +100,7 @@ export function parseRequestStatus(raw: unknown): RequestStatus | null {
  * Exception states are absent by design: they have no position.
  */
 export const PIPELINE_ORDER: readonly RequestStatus[] = [
+  RequestStatus.Initial,
   RequestStatus.New,
   RequestStatus.UnderReview,
   RequestStatus.WaitingApproval,

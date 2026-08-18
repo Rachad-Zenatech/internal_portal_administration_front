@@ -438,7 +438,7 @@ export default function UploadFiles() {
         }}
       >
         {previewFile && (
-          <DialogContent className="h-[88vh] max-w-[min(1100px,calc(100vw-2rem))] grid-rows-[auto_1fr]">
+          <DialogContent aria-describedby={undefined} className="h-[88vh] max-w-[min(1100px,calc(100vw-2rem))] grid-rows-[auto_1fr]">
             <DialogHeader>
               <DialogTitle className="truncate pr-8">
                 {previewFile.filename}
