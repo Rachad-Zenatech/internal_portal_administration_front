@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Bell, Building2, BookText, FileText, Banknote, Loader2, LogOut, User, Sparkles, Mail, BellRing, Settings2, CheckCheck } from "lucide-react";
+import { toast } from "sonner";
+import { Search, Bell, Building2, BookText, FileText, Banknote, Loader2, LogOut, User, Sparkles, Mail, BellRing, Settings2, CheckCheck, X, CloudDownload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -21,13 +22,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/services/apiClient";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient, BASE_URL } from "@/services/apiClient";
 import ThemeSwitch from "./ThemeSwitch";
 import { useGlobalSearch } from "@/hooks/useSearch";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 import { useNotifications, useUnreadNotificationCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, useClearReadNotifications } from "@/hooks/useNotifications";
+import FloatingChat from "./FloatingChat";
 
 
 function TopBarClock() {
@@ -98,7 +100,52 @@ export default function TopBar() {
   const { mutate: markAllAsRead, isPending: isMarkingAll } = useMarkAllNotificationsAsRead();
   const { mutate: clearRead } = useClearReadNotifications();
   const unreadCount = unreadCountData?.count ?? 0;
-  const hasReadNotifications = notifications.some(n => n.is_read);
+
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Connect to SSE stream
+    const token = sessionStorage.getItem("token") || "";
+    const eventSource = new EventSource(`${BASE_URL || ""}/api/notifications/stream?token=${token}`, { withCredentials: true });
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const newNotif = JSON.parse(event.data);
+        // Invalidate queries so that the notification list and count fetch the latest state
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+        
+        if (inAppAlerts) {
+          const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "";
+          toast(
+            <div 
+              className="cursor-pointer w-full flex flex-col gap-1"
+              onClick={() => newNotif.link_url && navigate(newNotif.link_url)}
+            >
+              <div className="font-medium">{capitalizedTitle}</div>
+              <div className="text-sm text-slate-500 dark:text-zinc-400">{newNotif.message}</div>
+            </div>, 
+            {
+              position: "bottom-right",
+              duration: 5000,
+              closeButton: true,
+            }
+          );
+        }
+      } catch (err) {
+        console.error("Failed to parse SSE notification:", err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("EventSource failed:", err);
+      // Browser handles reconnection automatically for SSE
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [inAppAlerts, navigate, queryClient]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -243,70 +290,145 @@ export default function TopBar() {
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[420px] p-0 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">Notifications</span>
-                  {unreadCount > 0 && (
-                    <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full whitespace-nowrap">{unreadCount} new</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {unreadCount > 0 && (
-                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors whitespace-nowrap" onClick={(e) => { e.preventDefault(); e.stopPropagation(); markAllAsRead(); }} disabled={isMarkingAll}>
-                      <CheckCheck className={`h-3.5 w-3.5 mr-1 ${isMarkingAll ? "animate-pulse" : ""}`} />
-                      Mark all as read
-                    </Button>
-                  )}
-                  {hasReadNotifications && (
-                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors whitespace-nowrap" onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearRead(); }}>
-                      Clear
-                    </Button>
-                  )}
-                </div>
+            <DropdownMenuContent align="end" className="w-[480px] p-0 rounded-2xl overflow-hidden bg-white dark:bg-zinc-950 shadow-2xl border border-slate-200 dark:border-zinc-800">
+              {/* Header */}
+              <div className="flex items-center justify-between pt-5 px-5 pb-3">
+                <span className="text-2xl font-bold text-slate-900 dark:text-zinc-100 tracking-tight">Notifications</span>
+                <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg border-slate-200 dark:border-zinc-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800" onClick={() => setIsNotificationsOpen(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
-              <div className="max-h-[300px] overflow-y-auto">
+
+              {/* Tabs */}
+              <div className="px-5 border-b border-slate-100 dark:border-zinc-800 flex gap-6">
+                <button className="text-sm font-semibold text-slate-900 dark:text-zinc-100 border-b-2 border-slate-900 dark:border-zinc-100 pb-3">View all</button>
+              </div>
+
+              {/* List */}
+              <div className="max-h-[400px] overflow-y-auto py-2">
                 {notifications.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">
+                  <div className="p-8 text-center text-sm text-slate-500 dark:text-zinc-400">
                     You have no notifications.
                   </div>
                 ) : (
-                  notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      onClick={() => {
-                        if (!notification.is_read) {
-                          markAsRead(notification.id);
-                        }
-                        if (notification.link_url) {
-                          setIsNotificationsOpen(false);
-                          navigate(notification.link_url);
-                        }
-                      }}
-                      className={`p-4 border-b last:border-0 cursor-pointer transition-colors duration-500 ${
-                        !notification.is_read ? "bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20" : "hover:bg-muted/50"
-                      }`}
-                    >
-                      <div className="flex gap-3">
-                        <div className="flex-1 space-y-1">
-                          <p className={`text-sm leading-snug transition-colors duration-500 ${!notification.is_read ? "font-semibold text-foreground" : "font-medium text-muted-foreground"}`}>
-                            {notification.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {notification.message}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-1.5 font-medium uppercase tracking-wider">
-                            {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
+                  notifications.map((notification) => {
+                    const isUnread = !notification.is_read;
+                    const dateObj = new Date(notification.created_at);
+                    const dayString = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                    const timeString = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                    const fullDateString = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const capitalizedTitle = notification.title ? notification.title.charAt(0).toUpperCase() + notification.title.slice(1) : "";
+
+                    return (
+                      <div
+                        key={notification.id}
+                        onClick={() => {
+                          if (!notification.is_read) {
+                            markAsRead(notification.id);
+                          }
+                          if (notification.link_url) {
+                            setIsNotificationsOpen(false);
+                            navigate(notification.link_url);
+                          }
+                        }}
+                        className={`px-5 py-5 cursor-pointer transition-colors duration-200 flex gap-4 group ${
+                          isUnread ? "bg-slate-50/50 hover:bg-slate-50 dark:bg-zinc-900/30 dark:hover:bg-zinc-900/50" : "hover:bg-slate-50 dark:hover:bg-zinc-900/30"
+                        }`}
+                      >
+                        {/* Avatar */}
+                        <div className="shrink-0 relative">
+                           {notification.sender_avatar ? (
+                            <div className="h-10 w-10 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden shadow-sm">
+                              <img src={notification.sender_avatar} alt={notification.sender_name || "Sender"} className="h-full w-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200 dark:border-blue-800 shadow-sm">
+                              <Bell className="h-5 w-5" />
+                            </div>
+                          )}
                         </div>
-                        <div className={`w-2 h-2 rounded-full bg-blue-500 mt-1 shrink-0 shadow-sm transition-all duration-500 ${!notification.is_read ? "opacity-100 scale-100" : "opacity-0 scale-0"}`} />
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Sender name + action */}
+                          <div className="flex justify-between items-start">
+                            <p className="text-sm font-medium text-slate-900 dark:text-zinc-100 leading-snug pr-4">
+                              {notification.sender_name ? (
+                                <><span className="font-semibold">{notification.sender_name}</span> {capitalizedTitle}</>
+                              ) : (
+                                capitalizedTitle
+                              )}
+                            </p>
+                            {/* Unread Dot */}
+                            {isUnread && <div className="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-500 shrink-0 mt-1 shadow-sm" />}
+                          </div>
+
+                          {/* Message box if present */}
+                          {notification.message && (!notification.attachments || notification.attachments.length === 0) && (
+                            <div className="mt-2.5 p-3.5 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 shadow-sm leading-relaxed">
+                              {notification.message}
+                            </div>
+                          )}
+
+                          {/* Attachments if present */}
+                          {notification.attachments && notification.attachments.length > 0 && (
+                            <div className="mt-3 flex flex-col gap-2">
+                              {notification.attachments.map((att: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 shadow-sm hover:border-slate-300 dark:hover:border-zinc-700 transition-colors">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-12 h-10 bg-slate-50 dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-lg flex items-center justify-center shrink-0">
+                                      <FileText className="h-5 w-5 text-slate-400" />
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-sm font-semibold text-slate-900 dark:text-zinc-100 truncate">{att.filename || 'Attachment'}</span>
+                                      <span className="text-xs font-medium text-slate-500 dark:text-zinc-400 mt-0.5">{att.size ? `${Math.round(att.size / 1024 / 1024)} MB` : '14 MB'}</span>
+                                    </div>
+                                  </div>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-slate-900 dark:hover:text-zinc-100 shrink-0">
+                                    <CloudDownload className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Footer times */}
+                          <div className="flex items-center justify-between mt-3 text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                            <span>{dayString} {timeString}</span>
+                            <span>{fullDateString}</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-950">
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    className="h-9 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-bold tracking-tight transition-colors gap-2" 
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); markAllAsRead(); }} 
+                    disabled={isMarkingAll}
+                  >
+                    <CheckCheck className={`h-4 w-4 ${isMarkingAll ? "animate-pulse" : ""}`} />
+                    Mark all as read
+                  </Button>
+                </div>
+                <Button 
+                  className="h-9 px-5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition-colors"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearRead(); }}
+                  disabled={notifications.length === 0}
+                >
+                  Clear All
+                </Button>
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <FloatingChat />
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -340,7 +462,7 @@ export default function TopBar() {
       </div>
 
       <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[600px] p-0 overflow-hidden border-border/50 shadow-2xl rounded-2xl flex flex-col">
+        <DialogContent aria-describedby={undefined} className="w-[95vw] sm:max-w-[600px] p-0 overflow-hidden border-border/50 shadow-2xl rounded-2xl flex flex-col">
           <div className="bg-muted/30 border-b px-8 py-8 flex items-center gap-5">
             <div className="h-20 w-20 rounded-full border-2 border-border bg-muted overflow-hidden shadow-sm relative group">
               <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || user?.email || "User")}&background=eff6ff&color=2563eb&rounded=true&bold=true`} alt="User avatar" className="h-full w-full object-cover" />
@@ -448,7 +570,7 @@ export default function TopBar() {
       </Dialog>
 
       <Dialog open={isLogoutOpen} onOpenChange={setIsLogoutOpen}>
-        <DialogContent className="sm:max-w-[425px] outline-none">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-[425px] outline-none">
           <DialogHeader className="flex flex-col items-center space-y-4 pt-4">
             <div className="h-16 w-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center">
               <LogOut className="h-8 w-8 ml-1" />

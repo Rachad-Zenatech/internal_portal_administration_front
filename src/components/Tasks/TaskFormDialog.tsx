@@ -75,7 +75,7 @@ export default function TaskFormDialog({ open, onOpenChange, onSuccess }: TaskFo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Create New Task</DialogTitle>
         </DialogHeader>

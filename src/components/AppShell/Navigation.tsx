@@ -45,6 +45,7 @@ export const navigation = [
     section: "PURCHASING & AP",
     subItems: [
       { label: "All Requests", path: "/purchasing/requests" },
+      { label: "Draft", path: "/purchasing/requests?status=INITIAL" },
       { label: "New Request", path: "/purchasing/requests?status=NEW" },
       { label: "Under Review", path: "/purchasing/requests?status=UNDER_REVIEW" },
       { label: "Approved", path: "/purchasing/requests?status=APPROVED" },

@@ -85,6 +85,7 @@ import {
   formatDate,
   formatMoney,
   SHIPPED_TO_LOCATIONS,
+  TAX_RATE,
 } from "./purchasingMeta";
 
 type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "hold";
@@ -107,7 +108,7 @@ export default function RequestDetail() {
 
   const isExtracting =
     extractProductMutation.isPending ||
-    (data?.request?.status === RequestStatus.New &&
+    ((data?.request?.status === RequestStatus.New || data?.request?.status === RequestStatus.Initial) &&
       !!data?.request?.item_url &&
       !data?.request?.product_info &&
       !extractionTimedOut);
@@ -202,6 +203,9 @@ export default function RequestDetail() {
       await transition.mutateAsync(payload);
       toast.success(`${ACTION_META[payload.action].label} done`);
       setActiveForm(null);
+      if (payload.action === "DELETE_REQUEST") {
+        navigate("/purchasing/requests");
+      }
       return true;
     } catch (err) {
       toast.error((err as Error).message || "Action failed");
@@ -234,14 +238,15 @@ export default function RequestDetail() {
       // as unknown and leave the field empty for the user to fill in.
       const info = request.product_info;
       const isUsable = (v: string | undefined | null) => !!v && !!v.trim() && v.trim().toUpperCase() !== "N/A";
-      const parsedAmount = info && isUsable(info.price) ? Number(info.price.replace(/[^0-9.]/g, "")) : NaN;
       setPo({
         vendor: info && isUsable(info.vendor) ? info.vendor : "",
         item: info && isUsable(info.name) ? info.name : "",
-        amount: Number.isFinite(parsedAmount) ? Math.round(parsedAmount * 100) / 100 : 0,
+        quantity: request.quantity ?? 1,
+        unit_price: request.unit_price ?? 0,
+        amount: request.amount ?? 0,
         quote_number: "",
         description: info && isUsable(info.description) ? info.description : "",
-        currency: info && isUsable(info.currency) ? info.currency.toUpperCase() : "",
+        currency: request.currency ?? (info && isUsable(info.currency) ? info.currency.toUpperCase() : "USD"),
         payment_method: undefined,
         shipped_to_location: "",
         expected_delivery_date: "",
@@ -259,7 +264,7 @@ export default function RequestDetail() {
       if (!po.shipped_to_location || !po.shipped_to_location.trim()) return toast.error("Shipped to location is required.");
       void dispatch({ action, purchase_order: { ...po, amount: Number(po.amount) || 0, quantity: Number(po.quantity) || 1, unit_price: Number(po.unit_price) || 0 } });
     } else if (kind === "invoice") {
-      if (!invoice.vendor || !invoice.invoice_date) return toast.error("Vendor and bill date are required.");
+      if (!invoice.vendor || !invoice.invoice_date || !invoice.invoice_type) return toast.error("Vendor, bill date, and invoice type are required.");
       void (async () => {
         const ok = await dispatch({ action, invoice: { ...invoice, amount: Number(invoice.amount) || 0 } });
         if (ok && pendingFiles.length > 0 && id) {
@@ -308,13 +313,25 @@ export default function RequestDetail() {
               <Badge variant="outline" className={PRIORITY_BADGE[request.priority]}>{request.priority}</Badge>
             </div>
           </div>
-          {request.status === RequestStatus.New && (
-            <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)} className="ml-auto">
-              Edit Request
-            </Button>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {(request.status === RequestStatus.Initial || available_actions.length > 0) && (
+              <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
+                Edit Request
+              </Button>
+            )}
+            {available_actions.includes("DELETE_REQUEST") && (
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={transition.isPending || isExtracting}
+                onClick={() => onAction("DELETE_REQUEST")}
+              >
+                {ACTION_META["DELETE_REQUEST"].label}
+              </Button>
+            )}
+          </div>
         </div>
-        {available_actions.length > 0 && (
+        {available_actions.filter(a => a !== "DELETE_REQUEST").length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-slate-500 dark:text-zinc-400">Move to:</span>
             {isExtracting && (
@@ -322,7 +339,7 @@ export default function RequestDetail() {
                 Waiting for product details...
               </span>
             )}
-            {available_actions.map((action) => {
+            {available_actions.filter(a => a !== "DELETE_REQUEST").map((action) => {
                 const meta = ACTION_META[action];
                 return (
                   <Button
@@ -377,7 +394,8 @@ export default function RequestDetail() {
               <Field label="Last Updated" value={formatDate(request.updated_at)} />
               <Field label="Quantity" value={String(request.quantity ?? 1)} />
               <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />
-              <Field label="Est. Total Amount" value={formatMoney(request.amount ?? 0)} />
+              <Field label="Total Amount (Pre-Tax)" value={formatMoney(request.amount ?? 0)} />
+              <Field label="Total Amount (After-Tax)" value={formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} />
               <Field label="Currency" value={request.currency || "USD"} />
               <div className="col-span-2">
                 <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Description</div>
@@ -401,8 +419,22 @@ export default function RequestDetail() {
                     {request.product_info ? (
                       <Card className="border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/50 dark:bg-indigo-950/20 shadow-sm mt-2">
                         <CardHeader className="py-3 px-4 border-b border-indigo-100 dark:border-indigo-900/50">
-                          <CardTitle className="text-sm font-semibold flex items-center gap-2 text-indigo-900 dark:text-indigo-100">
-                            <Package className="h-4 w-4" /> AI Product Analysis
+                          <CardTitle className="text-sm font-semibold flex items-center justify-between text-indigo-900 dark:text-indigo-100">
+                            <div className="flex items-center gap-2">
+                              <Package className="h-4 w-4" /> AI Product Analysis
+                            </div>
+                            {(request.product_info.price === "N/A" || request.product_info.name === "N/A") && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs px-2"
+                                onClick={() => extractProductMutation.mutate()}
+                                disabled={extractProductMutation.isPending}
+                              >
+                                <RefreshCw className={cn("h-3 w-3 mr-1", extractProductMutation.isPending && "animate-spin")} />
+                                Re-run Analysis
+                              </Button>
+                            )}
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="p-4 grid grid-cols-2 gap-4 text-sm">
@@ -494,9 +526,10 @@ export default function RequestDetail() {
                 <Field label="Vendor" value={purchase_order.vendor} />
                 <Field label="Item" value={purchase_order.item} />
                 <Field label="Quote / PO #" value={purchase_order.quote_number ?? "—"} />
-                <Field label="Quantity" value={String(purchase_order.quantity ?? 1)} />
-                <Field label="Unit Price" value={formatMoney(purchase_order.unit_price ?? 0)} />
-                <Field label="Total Amount" value={`${formatMoney(purchase_order.amount)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
+                <Field label="Quantity" value={String(request.quantity ?? 1)} />
+                <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />
+                <Field label="Total Amount (Pre-Tax)" value={`${formatMoney(request.amount)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
+                <Field label="Total Amount (After-Tax)" value={`${formatMoney(request.amount * (1 + TAX_RATE))}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
                 <Field label="Payment Format" value={purchase_order.payment_method ? PAYMENT_METHOD_LABEL[purchase_order.payment_method] : "—"} />
                 <Field label="Shipped To" value={purchase_order.shipped_to_location ?? "—"} />
                 <Field label="Approval" value={purchase_order.approval_status} />
@@ -518,8 +551,10 @@ export default function RequestDetail() {
               <CardContent className="grid grid-cols-2 gap-4 text-sm">
                 <Field label="Vendor" value={inv.vendor} />
                 <Field label="Amount" value={formatMoney(inv.amount)} />
+                <Field label="Invoice Type" value={inv.invoice_type ?? "—"} />
+                <Field label="Description" value={inv.description ?? "—"} />
                 <Field label="Bill Date" value={formatDate(inv.invoice_date)} />
-                <Field label="Arrived Date" value={formatDate(inv.due_date)} />
+                <Field label="Expected Delivery Date" value={formatDate(inv.due_date)} />
                 <div>
                   <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Payment Status</div>
                   {/* payment_status only tracks the pre-payment lifecycle; a settled
@@ -647,7 +682,7 @@ export default function RequestDetail() {
 
       {/* Action dialog */}
       <Dialog open={!!activeForm} onOpenChange={(open) => !open && setActiveForm(null)}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{activeForm ? ACTION_META[activeForm.action].label : ""}</DialogTitle>
           </DialogHeader>
@@ -677,7 +712,7 @@ export default function RequestDetail() {
                     </Select>
                   </div>
                 </TwoUp>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-5 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Quantity</label>
                     <Input
@@ -705,12 +740,21 @@ export default function RequestDetail() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Total Amount</label>
+                    <label className="text-sm font-medium">Total (Pre-Tax)</label>
                     <Input
                       type="number"
                       value={String(po.amount)}
                       disabled
                       className="bg-slate-50 dark:bg-zinc-800 text-slate-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Total (After-Tax)</label>
+                    <Input
+                      type="number"
+                      value={String(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100)}
+                      disabled
+                      className="bg-slate-50 dark:bg-zinc-800 text-slate-500 font-semibold"
                     />
                   </div>
                   <div className="space-y-2">
@@ -740,8 +784,21 @@ export default function RequestDetail() {
                   <FieldInput label="Amount" type="number" value={String(invoice.amount)} onChange={(v) => setInvoice({ ...invoice, amount: Number(v) })} />
                 </TwoUp>
                 <TwoUp>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Invoice Type <span className="text-red-500">*</span></label>
+                    <Select value={invoice.invoice_type || undefined} onValueChange={(v) => setInvoice({ ...invoice, invoice_type: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Purchase">Purchase</SelectItem>
+                        <SelectItem value="Quote">Quote</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div />
+                </TwoUp>
+                <TwoUp>
                   <FieldInput label="Bill Date" type="date" value={invoice.invoice_date} onChange={(v) => setInvoice({ ...invoice, invoice_date: v })} />
-                  <FieldInput label="Arrived Date" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
+                  <FieldInput label="Expected Delivery Date" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
                 </TwoUp>
                 <TwoUp>
                   <div className="space-y-2">
@@ -759,6 +816,15 @@ export default function RequestDetail() {
                     </div>
                   </div>
                 </TwoUp>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Description</label>
+                  <Textarea
+                    rows={2}
+                    placeholder="Additional details..."
+                    value={invoice.description ?? ""}
+                    onChange={(e) => setInvoice({ ...invoice, description: e.target.value })}
+                  />
+                </div>
                 <AttachmentDropzone
                   files={pendingFiles}
                   onFilesSelected={(files) => setPendingFiles((prev) => [...prev, ...files])}

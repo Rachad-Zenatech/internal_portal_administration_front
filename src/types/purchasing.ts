@@ -17,6 +17,7 @@ export type RequestType = "ADMIN" | "SPEND" | "RECURRING" | "QUOTE";
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
 export const RequestStatus = {
+  Initial: "INITIAL",
   New: "NEW",
   UnderReview: "UNDER_REVIEW",
   WaitingApproval: "WAITING_APPROVAL",
@@ -56,6 +57,8 @@ export type Currency = {
 export type NotificationStatus = "SENT" | "READ";
 
 export type WorkflowAction =
+  | "SUBMIT_REQUEST"
+  | "DELETE_REQUEST"
   | "START_REVIEW"
   | "CREATE_PO"
   | "APPROVE"
@@ -141,6 +144,8 @@ export type Invoice = {
   paid_date: string | null;
   gl_code: string | null;
   asset_flag: boolean;
+  invoice_type?: string | null;
+  description?: string | null;
   created_at: string;
 };
 
@@ -241,6 +246,8 @@ export type InvoiceInput = {
   due_date?: string | null;
   gl_code?: string | null;
   asset_flag?: boolean;
+  invoice_type?: string | null;
+  description?: string | null;
 };
 
 export type ApprovalInput = {

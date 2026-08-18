@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/select";
 
 import { usePurchaseRequests, usePurchasingSummary, useCreateRequest, useUsersList, useRolesList } from "@/hooks/usePurchasing";
-import type { Priority, RequestCreateInput, RequestType } from "@/types/purchasing";
+import { RequestStatus, type Priority, type RequestCreateInput, type RequestType } from "@/types/purchasing";
 import { PRIORITY_BADGE, STATUS_LABEL, STATUS_FILTER_OPTIONS, getStatusBadge, getStatusLabel, formatDate, formatMoney } from "./purchasingMeta";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
@@ -338,7 +338,7 @@ export default function PurchaseRequests() {
           <SelectTrigger className="w-full sm:w-52"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Statuses</SelectItem>
-            {STATUS_FILTER_OPTIONS.map((s) => (
+            {(roles.some(r => r.name === "Requester" || r.code === "REQUESTER") ? [RequestStatus.Initial, ...STATUS_FILTER_OPTIONS] : STATUS_FILTER_OPTIONS).map((s) => (
               <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
             ))}
           </SelectContent>
@@ -395,7 +395,7 @@ export default function PurchaseRequests() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New Purchase Request</DialogTitle>
           </DialogHeader>
@@ -456,42 +456,15 @@ export default function PurchaseRequests() {
                 placeholder="https://www.amazon.com/dp/..."
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Quantity</label>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={form.quantity ?? 1}
-                  onChange={(e) => {
-                    const q = Number(e.target.value);
-                    setForm({ ...form, quantity: q, amount: Math.round(q * (form.unit_price || 0) * 100) / 100 });
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Unit Price</label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.unit_price ?? 0}
-                  onChange={(e) => {
-                    const p = Number(e.target.value);
-                    setForm({ ...form, unit_price: p, amount: Math.round((form.quantity || 1) * p * 100) / 100 });
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Est. Amount</label>
-                <Input
-                  type="number"
-                  value={form.amount ?? 0}
-                  disabled
-                  className="bg-slate-50 dark:bg-zinc-800 text-slate-500"
-                />
-              </div>
+                        <div className="space-y-2">
+              <label className="text-sm font-medium">Quantity</label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                value={form.quantity ?? 1}
+                onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
+              />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">GL Code / Account</label>

@@ -42,7 +42,7 @@ export default function Sidebar({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { hasPermission, hasRole, user } = useAuth();
+  const { hasPermission, roles, hasRole, user } = useAuth();
   const isSuperAdmin = hasRole("SUPER_ADMIN") || user?.is_super_admin;
 
   const { data: users } = useQuery({
@@ -88,8 +88,13 @@ export default function Sidebar({
   const groupedNavigation = navigation.reduce<Record<string, SidebarNavigationItem[]>>((acc, item) => {
     if (item.navigationCode && !hasPermission(`${item.navigationCode}_READ`)) return acc;
 
+    const isRequester = roles.some(r => r.name === "Requester" || r.code === "REQUESTER");
     const filteredSubItems = item.subItems 
-      ? item.subItems.filter(sub => !('navigationCode' in sub && sub.navigationCode) || hasPermission(`${(sub as { navigationCode?: string }).navigationCode}_READ`))
+      ? item.subItems.filter(sub => {
+          if ('navigationCode' in sub && sub.navigationCode && !hasPermission(`${(sub as { navigationCode?: string }).navigationCode}_READ`)) return false;
+          if (sub.path === "/purchasing/requests?status=INITIAL" && !isRequester) return false;
+          return true;
+        })
       : undefined;
 
     // If it had subItems but now they are all filtered out, don't show the parent if it relies on subItems
