@@ -114,3 +114,10 @@ export function updateRequest(id: string, payload: any) {
 export function manualPrice(id: string, payload: { unit_price: number, currency: string }) {
   return apiClient.put<RequestDetail>(`${BASE}/requests/${id}/manual-price`, payload);
 }
+
+import type { GLCodeOption } from "@/types/chartOfAccount";
+
+export function getGLCodes(search?: string) {
+  const qs = search ? `?search=${encodeURIComponent(search)}` : "";
+  return apiClient.get<GLCodeOption[]>(`${BASE}/gl-codes${qs}`);
+}

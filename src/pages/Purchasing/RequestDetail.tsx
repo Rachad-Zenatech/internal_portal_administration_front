@@ -1,3 +1,4 @@
+import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { ManualPriceDialog } from "./ManualPriceDialog";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -743,7 +744,13 @@ export default function RequestDetail() {
                   <FieldInput label="Arrived Date" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
                 </TwoUp>
                 <TwoUp>
-                  <FieldInput label="GL Code" value={invoice.gl_code ?? ""} onChange={(v) => setInvoice({ ...invoice, gl_code: v })} />
+                  <div className="space-y-2">
+                      <label className="text-sm font-medium">GL Code / Account</label>
+                      <GLCodeAutocomplete
+                        value={invoice.gl_code ?? data?.purchase_order?.gl_code ?? data?.request.gl_code ?? ""}
+                        onChange={(v) => setInvoice({ ...invoice, gl_code: v })}
+                      />
+                    </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Asset Flag</label>
                     <div className="flex items-center h-10">

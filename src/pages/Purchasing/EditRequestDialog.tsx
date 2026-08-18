@@ -1,3 +1,4 @@
+import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,8 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
     department: "",
     item_url: "",
     amount: "",
-    description: ""
+    description: "",
+    gl_code: ""
   });
 
   useEffect(() => {
@@ -28,7 +30,8 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
         department: request.department || "",
         item_url: request.item_url || "",
         amount: request.amount ? request.amount.toString() : "",
-        description: request.description || ""
+        description: request.description || "",
+        gl_code: request.gl_code || ""
       });
     }
   }, [request, open]);
@@ -47,7 +50,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
         ...formData,
         amount: formData.amount ? parseFloat(formData.amount) : 0,
       };
-      
+
       await updateMutation.mutateAsync({ id: request.id, data: payload });
       toast.success("Request updated successfully.");
       onOpenChange(false);
@@ -72,7 +75,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Type <span className="text-red-500">*</span></label>
               <Select value={formData.request_type} onValueChange={(val) => setFormData({ ...formData, request_type: val })}>
@@ -87,7 +90,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Priority <span className="text-red-500">*</span></label>
               <Select value={formData.priority} onValueChange={(val) => setFormData({ ...formData, priority: val })}>
@@ -102,7 +105,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Department <span className="text-red-500">*</span></label>
               <Input
@@ -111,7 +114,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Est. Amount</label>
               <Input
@@ -122,7 +125,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               />
             </div>
-            
+
             <div className="space-y-2 col-span-2">
               <label className="text-sm font-medium">Link / URL</label>
               <Input
@@ -132,7 +135,15 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
                 placeholder="https://..."
               />
             </div>
-            
+
+            <div className="space-y-2 col-span-2">
+              <label className="text-sm font-medium">GL Code / Account</label>
+              <GLCodeAutocomplete
+                value={formData.gl_code}
+                onChange={(val) => setFormData({ ...formData, gl_code: val })}
+              />
+            </div>
+
             <div className="space-y-2 col-span-2">
               <label className="text-sm font-medium">Description</label>
               <Textarea
@@ -142,7 +153,7 @@ export function EditRequestDialog({ request, open, onOpenChange }: { request: an
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
