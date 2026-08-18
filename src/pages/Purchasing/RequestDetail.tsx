@@ -84,6 +84,8 @@ import {
   getStatusLabel,
   formatDate,
   formatMoney,
+  formatActivityAction,
+  formatActivityValue,
   SHIPPED_TO_LOCATIONS,
   TAX_RATE,
 } from "./purchasingMeta";
@@ -428,7 +430,7 @@ export default function RequestDetail() {
                                 variant="outline"
                                 size="sm"
                                 className="h-7 text-xs px-2"
-                                onClick={() => extractProductMutation.mutate()}
+                                onClick={() => extractProductMutation.mutate(undefined)}
                                 disabled={extractProductMutation.isPending}
                               >
                                 <RefreshCw className={cn("h-3 w-3 mr-1", extractProductMutation.isPending && "animate-spin")} />
@@ -622,12 +624,12 @@ export default function RequestDetail() {
                       <div key={h.id} className="relative">
                         <div className="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full bg-primary ring-4 ring-background" />
                         <div className="flex flex-col space-y-1">
-                          <span className="text-sm font-medium">{h.changed_by_name} <span className="font-normal text-muted-foreground">({h.action})</span></span>
+                          <span className="text-sm font-medium">{h.changed_by_name || "System"} <Badge variant="secondary" className="ml-1 text-xs font-normal">{formatActivityAction(h.action)}</Badge></span>
                           <span className="text-xs text-muted-foreground">{formatDate(h.created_at)}</span>
                           {(h.old_value || h.new_value) && (
                             <div className="text-xs bg-muted/50 p-2 rounded mt-1 border">
-                              {h.old_value && <span className="line-through text-muted-foreground mr-2">{h.old_value}</span>}
-                              {h.new_value && <span>{h.new_value}</span>}
+                              {h.old_value && <span className="line-through text-muted-foreground mr-2">{formatActivityValue(h.old_value)}</span>}
+                              {h.new_value && <span className="font-medium text-slate-800 dark:text-zinc-200">{formatActivityValue(h.new_value)}</span>}
                             </div>
                           )}
                           {h.comment && <p className="text-sm mt-1">{h.comment}</p>}

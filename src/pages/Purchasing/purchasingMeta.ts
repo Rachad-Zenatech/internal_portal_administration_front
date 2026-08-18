@@ -240,3 +240,47 @@ export const SHIPPED_TO_LOCATIONS = [
 ];
 
 export const TAX_RATE = 0.08;
+
+export function formatActivityAction(action: string | null | undefined): string {
+  if (!action) return "Activity";
+  const clean = action.trim().toUpperCase();
+  const map: Record<string, string> = {
+    STATUS_CHANGED: "Status Updated",
+    CREATED: "Request Created",
+    SUBMIT_REQUEST: "Request Submitted",
+    REQUEST_SUBMITTED: "Request Submitted",
+    START_REVIEW: "Review Started",
+    CREATE_PO: "Purchase Order Created",
+    PO_CREATED: "Purchase Order Created",
+    SUBMITTED_FOR_APPROVAL: "Submitted for Approval",
+    APPROVE: "Approved",
+    APPROVED: "Approved",
+    REJECT: "Rejected",
+    REJECTED: "Rejected",
+    RECORD_INVOICE: "Invoice Recorded",
+    INVOICE_RECORDED: "Invoice Recorded",
+    INVOICE_PAID: "Invoice Paid",
+    SEND_TO_AP: "Sent to Accounts Payable",
+    ADD_TRACKING: "Tracking Added",
+    TRACKING_ADDED: "Tracking Added",
+    MARK_SHIPPED: "Marked as Shipped",
+    SHIPPED: "Marked as Shipped",
+    CONFIRM_GOODS_RECEIVED: "Goods Received Confirmed",
+    GOODS_RECEIVED: "Goods Received",
+    PUT_ON_HOLD: "Placed on Hold",
+    ON_HOLD: "Placed on Hold",
+    RESUME_WORKFLOW: "Workflow Resumed",
+    REQUEST_EDITED: "Request Edited",
+    DELETE_REQUEST: "Request Deleted",
+  };
+  if (map[clean]) return map[clean];
+  return action
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function formatActivityValue(val: string | null | undefined): string {
+  if (!val) return "";
+  return getStatusLabel(val);
+}

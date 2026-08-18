@@ -52,7 +52,7 @@ export function useCreateRequest() {
 export function useExtractProductInfo(requestId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id?: string) => purchasing.extractProductInfo(id || requestId || ""),
+    mutationFn: (id?: string | void) => purchasing.extractProductInfo(typeof id === 'string' && id ? id : (requestId || "")),
     onSuccess: (data) => {
       qc.setQueryData(keys.request(data.request.id), data);
       qc.invalidateQueries({ queryKey: keys.all });
