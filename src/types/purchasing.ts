@@ -92,6 +92,7 @@ export type PurchaseRequest = {
   request_type: RequestType;
   priority: Priority;
   status: RequestStatus;
+  item_mode?: ItemMode;
   hold_reason?: string | null;
   hold_date?: string | null;
   assigned_user: string | null;
@@ -103,6 +104,8 @@ export type PurchaseRequest = {
   amount: number;
   currency?: string | null;
   gl_code?: string | null;
+  items?: PurchaseRequestItem[];
+  quote_data?: any;
   created_at: string;
   updated_at: string;
 };
@@ -212,6 +215,7 @@ export type RequestCreateInput = {
   department: string;
   request_type: RequestType;
   priority: Priority;
+  item_mode?: ItemMode;
   description?: string | null;
   assigned_user?: string | null;
   item_url?: string | null;
@@ -220,6 +224,9 @@ export type RequestCreateInput = {
   unit_price?: number;
   amount?: number;
   gl_code?: string | null;
+  items?: PurchaseRequestItem[];
+  quote_file_id?: string | null;
+  quote_data?: any;
 };
 
 export type PurchaseOrderInput = {
@@ -272,3 +279,81 @@ export type TransitionInput = {
   tracking?: TrackingInput;
   hold?: HoldInput;
 };
+
+
+export type ItemMode = "SINGLE" | "MULTIPLE";
+
+export interface PurchaseRequestItem {
+  id?: string;
+  request_id?: string;
+  item_order?: number;
+  sku?: string | null;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  discount?: number;
+  tax?: number;
+  total: number;
+}
+
+export interface QuoteItem {
+  description: string;
+  sku?: string | null;
+  quantity: number;
+  unit_price: number;
+  discount?: number;
+  tax?: number;
+  total: number;
+}
+
+export interface QuoteVendor {
+  name?: string | null;
+  address?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+export interface QuoteCustomer {
+  name?: string | null;
+  address?: string | null;
+}
+
+export interface QuoteTotals {
+  subtotal?: number;
+  discount?: number;
+  shipping?: number;
+  tax?: number;
+  total: number;
+}
+
+export interface QuoteExtractionResult {
+  vendor?: QuoteVendor | null;
+  quote_number?: string | null;
+  quote_date?: string | null;
+  valid_until?: string | null;
+  currency?: string | null;
+  customer?: QuoteCustomer | null;
+  items: QuoteItem[];
+  totals?: QuoteTotals | null;
+  payment_terms?: string | null;
+  delivery_terms?: string | null;
+  notes?: string | null;
+}
+
+export interface QuoteValidationResult {
+  status: "passed" | "warning" | "failed";
+  warnings: string[];
+  line_items_valid: boolean;
+  subtotal_valid: boolean;
+  total_valid: boolean;
+}
+
+export interface QuoteExtractionResponse {
+  file_id?: string | null;
+  file_name?: string | null;
+  ocr_used: boolean;
+  page_count: number;
+  confidence_score: number;
+  extraction: QuoteExtractionResult;
+  validation: QuoteValidationResult;
+}

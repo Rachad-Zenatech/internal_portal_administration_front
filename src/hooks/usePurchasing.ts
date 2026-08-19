@@ -213,3 +213,10 @@ export function useManualPrice(requestId: string) {
 }
 
 export const usePurchaseRequest = useRequestDetail;
+
+
+export function useExtractQuote() {
+  return useMutation({
+    mutationFn: (file: File) => purchasing.extractQuote(file),
+  });
+}

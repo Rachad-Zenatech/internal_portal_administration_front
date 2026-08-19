@@ -42,6 +42,12 @@ export function getRequest(id: string) {
   return apiClient.get<RequestDetail>(`${BASE}/requests/${id}`);
 }
 
+export function extractQuote(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiClient.post<any>(`${BASE}/quotes/extract`, formData);
+}
+
 export function createRequest(payload: RequestCreateInput) {
   return apiClient.post<RequestDetail>(`${BASE}/requests`, payload);
 }

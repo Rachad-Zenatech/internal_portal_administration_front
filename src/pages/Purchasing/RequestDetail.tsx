@@ -1,3 +1,4 @@
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { ManualPriceDialog } from "./ManualPriceDialog";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
@@ -20,6 +21,9 @@ import {
   X,
   AlertTriangle,
   ChevronDown,
+  Building2,
+  CheckCircle2,
+  Truck,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -246,14 +250,16 @@ export default function RequestDetail() {
       // as unknown and leave the field empty for the user to fill in.
       const info = request.product_info;
       const isUsable = (v: string | undefined | null) => !!v && !!v.trim() && v.trim().toUpperCase() !== "N/A";
+      const quoteVendor = request.quote_data?.vendor?.name;
+      const quoteNum = request.quote_data?.quote_number;
       setPo({
-        vendor: info && isUsable(info.vendor) ? info.vendor : "",
-        item: info && isUsable(info.name) ? info.name : "",
+        vendor: quoteVendor || (info && isUsable(info.vendor) ? info.vendor : ""),
+        item: request.title || (info && isUsable(info.name) ? info.name : ""),
         quantity: request.quantity ?? 1,
         unit_price: request.unit_price ?? 0,
         amount: request.amount ?? 0,
-        quote_number: "",
-        description: info && isUsable(info.description) ? info.description : "",
+        quote_number: quoteNum || "",
+        description: (info && isUsable(info.description) ? info.description : (request.description || "")),
         currency: request.currency ?? (info && isUsable(info.currency) ? info.currency.toUpperCase() : "USD"),
         payment_method: undefined,
         shipped_to_location: "",
@@ -297,6 +303,21 @@ export default function RequestDetail() {
       void dispatch({ action, hold });
     }
   };
+
+  const quoteCurrency = request.currency || request.quote_data?.currency || "USD";
+  const itemsSum = request.items && request.items.length > 0
+    ? request.items.reduce((acc, itm) => acc + (Number(itm.total) || 0), 0)
+    : 0;
+
+  const quoteShipping = Number(request.quote_data?.totals?.shipping) || 0;
+  const quoteTax = Number(request.quote_data?.totals?.tax) || 0;
+  const quoteDiscount = Number(request.quote_data?.totals?.discount) || 0;
+
+  const calculatedQuoteTotal = Math.round((itemsSum + quoteShipping + quoteTax - quoteDiscount) * 100) / 100;
+  const statedGrandTotal = Math.round(Number(request.amount || request.quote_data?.totals?.total || 0) * 100) / 100;
+  const totalsMatch = Math.abs(calculatedQuoteTotal - statedGrandTotal) < 0.05;
+  const vendorCompanyName = request.quote_data?.vendor?.name || (request.title?.includes(" - ") ? request.title.split(" - ")[0] : "");
+  const customerCompanyName = request.quote_data?.customer?.name;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
@@ -397,11 +418,24 @@ export default function RequestDetail() {
               <Field label="Requester" value={request.requester} />
               <Field label="Department" value={request.department} />
               <Field label="Type" value={request.request_type} />
+              <Field
+                label="Configuration"
+                value={
+                  request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)
+                    ? `Multiple Parts (${request.items?.length || 0} parts)`
+                    : "Single Item"
+                }
+              />
               <AssignedUsersField label="Assigned To" value={request.assigned_user ?? "—"} />
+              <Field label="GL Code / Account" value={request.gl_code ?? "—"} />
               <Field label="Requested" value={formatDate(request.request_date)} />
               <Field label="Last Updated" value={formatDate(request.updated_at)} />
-              <Field label="Quantity" value={String(request.quantity ?? 1)} />
-              <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />
+              {!(request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)) && (
+                <>
+                  <Field label="Quantity" value={String(request.quantity ?? 1)} />
+                  <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />
+                </>
+              )}
               <Field label="Total Amount (Pre-Tax)" value={formatMoney(request.amount ?? 0)} />
               <Field label="Total Amount (After-Tax)" value={formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} />
               <Field label="Currency" value={request.currency || "USD"} />
@@ -526,6 +560,121 @@ export default function RequestDetail() {
               )}
             </CardContent>
           </Card>
+
+
+          {request.items && request.items.length > 0 && (
+            <Card className="border border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-b from-indigo-50/20 to-transparent shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-indigo-950 dark:text-indigo-200">
+                    <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    <span className="font-semibold text-base">Quotation Items &amp; Parts Breakdown ({request.items.length})</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 font-mono text-xs font-semibold">
+                      Currency: {quoteCurrency}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Company & Quote Metadata */}
+                <div className="text-xs text-slate-600 dark:text-zinc-400 flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 border-t border-indigo-100 dark:border-indigo-900/40 mt-1">
+                  {vendorCompanyName && (
+                    <span className="flex items-center gap-1">
+                      <Building2 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                      <strong>Company / Vendor:</strong>
+                      <span className="font-medium text-slate-900 dark:text-zinc-100">{vendorCompanyName}</span>
+                    </span>
+                  )}
+                  {customerCompanyName && (
+                    <span><strong>Customer / Bill To:</strong> {customerCompanyName}</span>
+                  )}
+                  {request.quote_data?.quote_number && (
+                    <span><strong>Quote Ref:</strong> <span className="font-mono">{request.quote_data.quote_number}</span></span>
+                  )}
+                  {request.quote_data?.quote_date && (
+                    <span><strong>Date:</strong> {request.quote_data.quote_date}</span>
+                  )}
+                  {request.quote_data?.valid_until && (
+                    <span><strong>Valid Until:</strong> {request.quote_data.valid_until}</span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-slate-50 dark:bg-zinc-800/60">
+                      <TableRow>
+                        <TableHead className="w-10 text-center">#</TableHead>
+                        <TableHead className="font-semibold">Description</TableHead>
+                        <TableHead className="w-20 text-right font-semibold">Qty</TableHead>
+                        <TableHead className="w-28 text-right font-semibold">Unit Price ({quoteCurrency})</TableHead>
+                        <TableHead className="w-28 text-right font-semibold">Total ({quoteCurrency})</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {request.items.map((itm, idx) => (
+                        <TableRow key={itm.id || idx}>
+                          <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
+                          <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-sm">{itm.description}</TableCell>
+                          <TableCell className="text-right text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
+                          <TableCell className="text-right text-slate-600 dark:text-zinc-400">{formatMoney(itm.unit_price)}</TableCell>
+                          <TableCell className="text-right font-semibold font-mono text-slate-900 dark:text-zinc-100">{formatMoney(itm.total)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                  {/* Math Matching Status Indicator */}
+                  <div className="text-xs">
+                    {totalsMatch ? (
+                      <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 bg-emerald-50/80 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-900/60 font-medium">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                        <span>Calculated sum (items + shipping) matches Grand Total ({formatMoney(statedGrandTotal)} {quoteCurrency})</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md border border-amber-200 dark:border-amber-900/60">
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                        <span>Discrepancy: Calculated sum is {formatMoney(calculatedQuoteTotal)} vs stated Grand Total of {formatMoney(statedGrandTotal)} {quoteCurrency}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Summary Totals Breakdown */}
+                  <div className="text-right space-y-1 text-xs min-w-[220px]">
+                    <div className="text-slate-500 flex justify-between gap-4">
+                      <span>Items Subtotal:</span>
+                      <span className="font-medium font-mono text-slate-700 dark:text-zinc-300">{formatMoney(itemsSum)} {quoteCurrency}</span>
+                    </div>
+                    {quoteShipping > 0 && (
+                      <div className="text-slate-600 dark:text-zinc-300 flex justify-between gap-4 font-medium">
+                        <span className="flex items-center gap-1"><Truck className="h-3 w-3 text-indigo-500" /> Shipping Fee:</span>
+                        <span className="font-mono">{formatMoney(quoteShipping)} {quoteCurrency}</span>
+                      </div>
+                    )}
+                    {quoteTax > 0 && (
+                      <div className="text-slate-500 flex justify-between gap-4">
+                        <span>Tax:</span>
+                        <span className="font-medium font-mono">{formatMoney(quoteTax)} {quoteCurrency}</span>
+                      </div>
+                    )}
+                    {quoteDiscount > 0 && (
+                      <div className="text-emerald-600 flex justify-between gap-4">
+                        <span>Discount:</span>
+                        <span className="font-medium font-mono">-{formatMoney(quoteDiscount)} {quoteCurrency}</span>
+                      </div>
+                    )}
+                    <div className="pt-1.5 border-t border-slate-200 dark:border-zinc-800 text-sm flex justify-between gap-4">
+                      <span className="text-slate-900 dark:text-zinc-100 font-semibold">Grand Total:</span>
+                      <span className="font-bold text-slate-900 dark:text-zinc-100 text-base font-mono">{formatMoney(statedGrandTotal)} {quoteCurrency}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {purchase_order && (
             <Card className="border border-slate-200 dark:border-zinc-800">
@@ -913,7 +1062,8 @@ export default function RequestDetail() {
           onOpenChange={setIsManualPriceOpen}
         />
       )}
-    </div>
+
+          </div>
   );
 }
 
@@ -932,7 +1082,7 @@ function AssignedUsersField({ label, value }: { label: string; value: string }) 
   const users = value.split(", ").map(u => u.trim()).filter(Boolean);
   const displayedUsers = users.slice(0, 2);
   const hiddenUsers = users.slice(2);
-  
+
   const chipClass = "inline-flex items-center px-3 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 shadow-sm whitespace-nowrap";
 
   return (
@@ -942,7 +1092,7 @@ function AssignedUsersField({ label, value }: { label: string; value: string }) 
         {displayedUsers.map((u, i) => (
           <span key={i} className={chipClass}>{u}</span>
         ))}
-        
+
         {hiddenUsers.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
