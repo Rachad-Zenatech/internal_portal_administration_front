@@ -102,7 +102,11 @@ export const QUOTE_FLOW: readonly RequestStatus[] = [
   RequestStatus.UnderReview,
   RequestStatus.WaitingApproval,
   RequestStatus.Approved,
+  RequestStatus.WaitingPayment,
   RequestStatus.Purchased,
+  RequestStatus.Shipped,
+  RequestStatus.GoodsReceived,
+  RequestStatus.InvoiceReceived,
   RequestStatus.Completed,
 ];
 
