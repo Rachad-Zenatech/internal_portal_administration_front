@@ -1,4 +1,4 @@
-export type UploadType = "general-ledger" | "bank-statement";
+export type UploadType = "general-ledger" | "bank-statement" | "purchase-attachment";
 
 export type UploadTypeOption = {
   value: UploadType;

@@ -1,3 +1,5 @@
+import { useGLCodes } from "@/hooks/usePurchasing";
+import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { ManualPriceDialog } from "./ManualPriceDialog";
@@ -106,6 +108,19 @@ type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "h
 
 export default function RequestDetail() {
   const { id } = useParams<{ id: string }>();
+  const { data: glCodes = [] } = useGLCodes();
+
+  const formatGLCode = (code: string | null | undefined) => {
+    if (!code) return "—";
+    const trimmed = String(code).trim();
+    const found = glCodes.find(
+      (c) => c.account_number === trimmed || c.display_label === trimmed || c.account_name.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (found) {
+      return found.display_label || `${found.account_number} - ${found.account_name}`;
+    }
+    return trimmed;
+  };
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = usePurchaseRequest(id);
   const extractProductMutation = useExtractProductInfo(id ?? "");
@@ -242,7 +257,9 @@ export default function RequestDetail() {
         vendor: purchase_order?.vendor ?? "",
         amount: purchase_order?.amount ?? 0,
         // Bill Date defaults to the date the request was marked Ordered/Purchased, if known.
-        invoice_date: data.ordered_date ?? "",
+        invoice_date: data.invoice?.paid_date
+          ? format(new Date(data.invoice.paid_date), "yyyy-MM-dd")
+          : (data.ordered_date ? format(new Date(data.ordered_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")),
         due_date: "",
         gl_code: "",
         asset_flag: false,
@@ -447,7 +464,7 @@ export default function RequestDetail() {
                 }
               />
               <AssignedUsersField label="Assigned To" value={request.assigned_user ?? "—"} />
-              <Field label="GL Code / Account" value={request.gl_code ?? "—"} />
+              <Field label="GL Code / Account" value={formatGLCode(request.gl_code)} />
               <Field label="Requested" value={formatDate(request.request_date)} />
               <Field label="Last Updated" value={formatDate(request.updated_at)} />
               {!(request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)) && (
@@ -772,8 +789,8 @@ export default function RequestDetail() {
                 <Field label="Amount" value={formatMoney(inv.amount)} />
                 <Field label="Invoice Type" value={inv.invoice_type ?? "—"} />
                 <Field label="Description" value={inv.description ?? "—"} />
-                <Field label="Bill Date" value={formatDate(inv.invoice_date)} />
-                <Field label="Expected Delivery Date" value={formatDate(inv.due_date)} />
+                <Field label="Bill Date" value={formatDate(inv.paid_date || inv.invoice_date)} />
+                <Field label="Date Arrived" value={formatDate(inv.due_date)} />
                 <div>
                   <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Payment Status</div>
                   {/* payment_status only tracks the pre-payment lifecycle; a settled
@@ -785,7 +802,7 @@ export default function RequestDetail() {
                   )}
                 </div>
 
-                <Field label="GL Code" value={inv.gl_code ?? "—"} />
+                <Field label="GL Code" value={formatGLCode(inv.gl_code || request.gl_code)} />
                 <Field label="Asset Flag" value={inv.asset_flag ? "Yes" : "No"} />
                 {data.attachments.length > 0 && (
                   <div className="col-span-2">
@@ -1267,7 +1284,7 @@ export default function RequestDetail() {
                 </TwoUp>
                 <TwoUp>
                   <FieldInput label="Bill Date" type="date" value={invoice.invoice_date} onChange={(v) => setInvoice({ ...invoice, invoice_date: v })} />
-                  <FieldInput label="Expected Delivery Date" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
+                  <FieldInput label="Date Arrived" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
                 </TwoUp>
                 <TwoUp>
                   <div className="space-y-2">

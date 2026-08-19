@@ -38,7 +38,7 @@ export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export type ApprovalDecision = "APPROVED" | "REJECTED";
 
-export type PaymentStatus = "UNPAID" | "WAITING_PAYMENT";
+export type PaymentStatus = "UNPAID" | "WAITING_PAYMENT" | "PAID";
 
 export type PaymentMethod = "CC" | "DC" | "W";
 

@@ -61,11 +61,13 @@ export const PRIORITY_BADGE: Record<Priority, string> = {
 export const PAYMENT_LABEL: Record<PaymentStatus, string> = {
   UNPAID: "Unpaid",
   WAITING_PAYMENT: "Waiting Payment",
+  PAID: "Paid",
 };
 
 export const PAYMENT_BADGE: Record<PaymentStatus, string> = {
   UNPAID: "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300",
   WAITING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400",
+  PAID: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400",
 };
 
 export const ADMIN_FLOW: readonly RequestStatus[] = [

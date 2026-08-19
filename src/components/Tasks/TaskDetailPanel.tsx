@@ -1,3 +1,4 @@
+import { useGLCodes } from "@/hooks/usePurchasing";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "../../components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -9,6 +10,7 @@ import { apiClient as api } from "@/services/apiClient";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Trash2, Edit2, Paperclip, ExternalLink, FileText, Package, ReceiptText, AlertTriangle, User, Building2, Tag, Layers } from "lucide-react";
 import Stepper from "@/components/Stepper";
@@ -53,7 +55,20 @@ function DetailField({ label, value, icon: Icon, badge }: { label: string; value
 }
 
 export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = false }: TaskDetailPanelProps) {
+  const { data: glCodes = [] } = useGLCodes();
   const [note, setNote] = useState("");
+
+  const formatGLCode = (code: string | null | undefined) => {
+    if (!code) return null;
+    const trimmed = String(code).trim();
+    const found = glCodes.find(
+      (c) => c.account_number === trimmed || c.display_label === trimmed || c.account_name.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (found) {
+      return found.display_label || `${found.account_number} - ${found.account_name}`;
+    }
+    return trimmed;
+  };
   const [isDragging, setIsDragging] = useState(false);
   const [deleteNoteId, setDeleteNoteId] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
@@ -71,6 +86,20 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
         parsedProductInfo = JSON.parse(task.product_info);
       } catch (e) {
         parsedProductInfo = null;
+      }
+    }
+  }
+
+  // Parse quote data if JSON string
+  let parsedQuoteData: any = null;
+  if (task.quote_data) {
+    if (typeof task.quote_data === "object") {
+      parsedQuoteData = task.quote_data;
+    } else if (typeof task.quote_data === "string") {
+      try {
+        parsedQuoteData = JSON.parse(task.quote_data);
+      } catch (e) {
+        parsedQuoteData = null;
       }
     }
   }
@@ -243,7 +272,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                   </Badge>
                   {task.gl_code && (
                     <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800 font-mono text-xs">
-                      GL: {task.gl_code}
+                      GL: {formatGLCode(task.gl_code)}
                     </Badge>
                   )}
                 </div>
@@ -308,7 +337,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                   <DetailField label="Total (Pre-Tax)" value={`$${totalAmount.toFixed(2)}`} />
                   <DetailField label="Total (After-Tax)" value={`$${afterTaxAmount.toFixed(2)}`} />
                   <DetailField label="Currency" value={task.currency || "USD"} />
-                  <DetailField label="GL Code" value={task.gl_code} icon={Tag} badge />
+                  <DetailField label="GL Code" value={formatGLCode(task.gl_code)} icon={Tag} badge />
 
                   {task.description && (
                     <div className="col-span-2 sm:col-span-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
@@ -378,32 +407,95 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
               )}
 
               {/* Purchase Order Card */}
-              {task.purchase_order && (
-                <Card className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-                  <CardHeader className="py-3 px-4 border-b border-slate-100 dark:border-zinc-800">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-800 dark:text-zinc-200">
-                      <Package className="h-4 w-4 text-emerald-600" /> Purchase Order #{task.purchase_order.id}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                    <DetailField label="Vendor" value={task.purchase_order.vendor} />
-                    <DetailField label="Item" value={task.purchase_order.item} />
-                    <DetailField label="Quote / PO #" value={task.purchase_order.quote_number} />
-                    <DetailField label="Quantity" value={task.purchase_order.quantity || quantity} />
-                    <DetailField label="Unit Price" value={`$${Number(task.purchase_order.unit_price || unitPrice).toFixed(2)}`} />
-                    <DetailField label="PO Amount" value={`$${Number(task.purchase_order.amount || totalAmount).toFixed(2)}`} />
-                    <DetailField label="Payment Format" value={task.purchase_order.payment_method} />
-                    <DetailField label="GL Code" value={task.purchase_order.gl_code || task.gl_code} badge />
-                    <DetailField label="Shipped To" value={task.purchase_order.shipped_to_location} />
-                    <DetailField label="Approval" value={task.purchase_order.approval_status} />
-                    <DetailField label="Tracking #" value={task.purchase_order.tracking_number} />
-                    <DetailField
-                      label="Goods Received"
-                      value={task.purchase_order.goods_received ? `Yes (${task.purchase_order.goods_received_at ? format(new Date(task.purchase_order.goods_received_at), "MMM d") : "Received"})` : "No"}
-                    />
-                  </CardContent>
-                </Card>
-              )}
+              {task.purchase_order && (() => {
+                const po = task.purchase_order;
+                const rawItems = (task.items && task.items.length > 0)
+                  ? task.items
+                  : (parsedQuoteData?.items || parsedQuoteData?.line_items || []);
+                const isMultiPO = task.item_mode === "MULTIPLE" || rawItems.length > 0;
+                const poItemsSum = rawItems.reduce((acc: number, itm: any) => acc + (Number(itm.total) || 0), 0);
+                const poShipping = Number(parsedQuoteData?.totals?.shipping || 0) || (Number(po.amount || totalAmount) > poItemsSum && poItemsSum > 0 ? Math.round((Number(po.amount || totalAmount) - poItemsSum) * 100) / 100 : 0);
+
+                return (
+                  <Card className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+                    <CardHeader className="py-3 px-4 border-b border-slate-100 dark:border-zinc-800">
+                      <CardTitle className="text-sm font-semibold flex items-center justify-between gap-2 text-slate-800 dark:text-zinc-200">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4 w-4 text-emerald-600" /> Purchase Order #{po.id}
+                        </div>
+                        {isMultiPO && (
+                          <Badge variant="outline" className="text-xs bg-indigo-50/50 text-indigo-700 border-indigo-200">
+                            Multi Parts ({rawItems.length} parts)
+                          </Badge>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 space-y-4 text-sm">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <DetailField label="Vendor" value={po.vendor} />
+                        <DetailField label="Item" value={po.item} />
+                        <DetailField label="Quote / PO #" value={po.quote_number} />
+                        {!isMultiPO && (
+                          <>
+                            <DetailField label="Quantity" value={po.quantity || quantity} />
+                            <DetailField label="Unit Price" value={`$${Number(po.unit_price || unitPrice).toFixed(2)}`} />
+                          </>
+                        )}
+                        <DetailField label="PO Amount" value={`$${Number(po.amount || totalAmount).toFixed(2)}`} />
+                        {poShipping > 0 && (
+                          <DetailField label="Shipping Fee" value={`$${Number(poShipping).toFixed(2)}`} />
+                        )}
+                        <DetailField label="Payment Format" value={po.payment_method} />
+                        <DetailField label="GL Code" value={formatGLCode(po.gl_code || task.gl_code)} badge />
+                        <DetailField label="Shipped To" value={po.shipped_to_location} />
+                        <DetailField label="Approval" value={po.approval_status} />
+                        <DetailField label="Tracking #" value={po.tracking_number} />
+                        <DetailField
+                          label="Goods Received"
+                          value={po.goods_received ? `Yes (${po.goods_received_at ? format(new Date(po.goods_received_at), "MMM d") : "Received"})` : "No"}
+                        />
+                      </div>
+
+                      {/* Embedded Line Items Table for Multiple Parts */}
+                      {isMultiPO && rawItems.length > 0 && (
+                        <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 space-y-2">
+                          <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                            Line Items &amp; Parts Breakdown ({rawItems.length})
+                          </div>
+                          <div className="overflow-hidden rounded-md border border-slate-200 dark:border-zinc-700">
+                            <Table>
+                              <TableHeader className="bg-slate-50 dark:bg-zinc-800/80">
+                                <TableRow>
+                                  <TableHead className="w-10 text-xs font-semibold text-center">#</TableHead>
+                                  <TableHead className="w-28 text-xs font-semibold">SKU</TableHead>
+                                  <TableHead className="text-xs font-semibold">Description</TableHead>
+                                  <TableHead className="w-16 text-xs font-semibold text-right">Qty</TableHead>
+                                  <TableHead className="w-24 text-xs font-semibold text-right">Unit Price</TableHead>
+                                  <TableHead className="w-24 text-xs font-semibold text-right">Total</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody className="divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
+                                {rawItems.map((itm: any, idx: number) => (
+                                  <TableRow key={idx}>
+                                    <TableCell className="text-center text-slate-400 font-mono text-[11px]">{idx + 1}</TableCell>
+                                    <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
+                                    <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">{itm.description}</TableCell>
+                                    <TableCell className="text-right text-xs">{itm.quantity ?? 1}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs">${Number(itm.unit_price || 0).toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-semibold font-mono text-xs text-slate-900 dark:text-zinc-100">
+                                      ${Number(itm.total ?? ((itm.quantity || 1) * (itm.unit_price || 0))).toFixed(2)}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
 
               {/* Invoice Card */}
               {task.invoice && (
@@ -416,11 +508,21 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                   <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                     <DetailField label="Vendor" value={task.invoice.vendor} />
                     <DetailField label="Amount" value={`$${Number(task.invoice.amount || 0).toFixed(2)}`} />
-                    <DetailField label="Payment Status" value={task.invoice.payment_status} />
-                    <DetailField label="Invoice Date" value={task.invoice.invoice_date ? format(new Date(task.invoice.invoice_date), "MMM d, yyyy") : null} />
-                    <DetailField label="Due Date" value={task.invoice.due_date ? format(new Date(task.invoice.due_date), "MMM d, yyyy") : null} />
-                    <DetailField label="Paid Date" value={task.invoice.paid_date ? format(new Date(task.invoice.paid_date), "MMM d, yyyy") : null} />
-                    <DetailField label="GL Code" value={task.invoice.gl_code || task.gl_code} badge />
+                    <DetailField
+                      label="Payment Status"
+                      value={
+                        task.invoice.paid_date || task.status === "COMPLETED" || task.invoice.payment_status === "PAID"
+                          ? "PAID"
+                          : task.invoice.payment_status === "WAITING_PAYMENT"
+                          ? "WAITING_PAYMENT"
+                          : task.invoice.payment_status || "UNPAID"
+                      }
+                      badge
+                    />
+                    <DetailField label="Bill Date" value={task.invoice.paid_date ? format(new Date(task.invoice.paid_date), "MMM d, yyyy") : (task.invoice.invoice_date ? format(new Date(task.invoice.invoice_date), "MMM d, yyyy") : null)} />
+                    <DetailField label="Date Arrived" value={task.invoice.due_date ? format(new Date(task.invoice.due_date), "MMM d, yyyy") : (task.purchase_order?.goods_received_at ? format(new Date(task.purchase_order.goods_received_at), "MMM d, yyyy") : null)} />
+                    <DetailField label="Paid Date" value={task.invoice.paid_date ? format(new Date(task.invoice.paid_date), "MMM d, yyyy") : (task.invoice.invoice_date ? format(new Date(task.invoice.invoice_date), "MMM d, yyyy") : null)} />
+                    <DetailField label="GL Code" value={formatGLCode(task.invoice.gl_code || task.gl_code)} badge />
                     <DetailField label="Asset Flag" value={task.invoice.asset_flag ? "Yes" : "No"} />
                   </CardContent>
                 </Card>

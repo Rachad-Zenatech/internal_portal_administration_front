@@ -108,7 +108,7 @@ export default function Invoices() {
               <TableHead>Category</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Request Date</TableHead>
-              <TableHead>Due Date</TableHead>
+              <TableHead>Date Arrived</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Assignee</TableHead>
             </TableRow>
@@ -128,7 +128,7 @@ export default function Invoices() {
                     <TableCell className="text-slate-500 text-sm">{formatDate(task.created_at)}</TableCell>
                     <TableCell className="text-sm">
                       <span className={overdue ? "text-red-600 font-medium" : "text-slate-500"}>
-                        {formatDate(task.due_date)}{overdue ? " · overdue" : ""}
+                        {formatDate(task.goods_received_at || task.due_date || task.invoice_date)}{overdue ? " · overdue" : ""}
                       </span>
                     </TableCell>
                     <TableCell>
