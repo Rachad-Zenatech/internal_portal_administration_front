@@ -354,6 +354,7 @@ export function EditRequestDialog({
                     <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-[11px] font-semibold sticky top-0 z-10 shadow-xs">
                       <tr>
                         <th className="p-2 w-10 text-center text-slate-400">#</th>
+                        <th className="p-2 w-28">SKU</th>
                         <th className="p-2">Description</th>
                         <th className="p-2 w-20 text-right">Qty</th>
                         <th className="p-2 w-28 text-right">Price ($)</th>
@@ -366,6 +367,14 @@ export function EditRequestDialog({
                         <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 transition-colors">
                           <td className="p-2 text-center text-xs font-mono text-slate-400">
                             {idx + 1}
+                          </td>
+                          <td className="p-2 w-28">
+                            <Input
+                              value={itm.sku || ""}
+                              onChange={(e) => handleItemChange(idx, "sku", e.target.value)}
+                              placeholder="SKU / Part #"
+                              className="h-8 text-sm font-mono"
+                            />
                           </td>
                           <td className="p-2">
                             <Input
@@ -650,6 +659,7 @@ export function EditRequestDialog({
                 <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-xs font-semibold sticky top-0 z-10 shadow-xs">
                   <tr>
                     <th className="p-3 w-12 text-center text-slate-400">#</th>
+                    <th className="p-3 w-36 font-semibold">SKU</th>
                     <th className="p-3 font-semibold">Description</th>
                     <th className="p-3 w-28 text-right font-semibold">Qty</th>
                     <th className="p-3 w-36 text-right font-semibold">Unit Price ($)</th>
@@ -662,6 +672,14 @@ export function EditRequestDialog({
                     <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 transition-colors">
                       <td className="p-3 text-center text-xs font-mono text-slate-400">
                         {idx + 1}
+                      </td>
+                      <td className="p-3 w-36">
+                        <Input
+                          value={itm.sku || ""}
+                          onChange={(e) => handleItemChange(idx, "sku", e.target.value)}
+                          placeholder="SKU / Part #"
+                          className="h-10 text-sm font-mono"
+                        />
                       </td>
                       <td className="p-3">
                         <Input
@@ -811,7 +829,7 @@ export function EditRequestDialog({
               onClick={() => setShowUnsavedConfirm(false)}
               className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300"
             >
-              Keep Changes
+              Stay
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"

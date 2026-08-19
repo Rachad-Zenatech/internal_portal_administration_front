@@ -20,10 +20,10 @@ import {
   ShoppingCart,
   FileWarning,
   CheckCircle2,
-  UploadCloud,
   FileText,
   Sparkles,
   Trash2,
+  FileSpreadsheet,
   Maximize2,
   AlertCircle,
   Loader2,
@@ -86,6 +86,7 @@ import {
 } from "./purchasingMeta";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
+import { exportQuickBooksXlsx } from "@/services/purchasingService";
 
 function RequesterAutocomplete({
   value,
@@ -476,9 +477,27 @@ export function PurchaseRequests() {
             Capture, review, approve and track purchasing &amp; accounts payable requests.
           </p>
         </div>
-        <Button onClick={openCreate} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" /> New Request
-        </Button>
+<div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                toast.loading("Generating QuickBooks export...", { id: "qb-export" });
+                await exportQuickBooksXlsx(undefined, statusFilter);
+                toast.success("QuickBooks export downloaded", { id: "qb-export" });
+              } catch (err: any) {
+                toast.error(err.message || "Failed to export QuickBooks file", { id: "qb-export" });
+              }
+            }}
+            className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Export to QuickBooks (.xlsx)</span>
+          </Button>
+          <Button onClick={openCreate} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" /> New Request
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -700,44 +719,53 @@ export function PurchaseRequests() {
               </div>
             </div>
 
-            {/* Multiple Parts PDF Dropzone & AI Extraction */}
+                        {/* Multiple Parts PDF Dropzone & AI Extraction + Always-Visible Line Items Table */}
             {itemMode === "MULTIPLE" && (
-              <div className="space-y-3 p-3.5 rounded-lg border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-950/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <UploadCloud className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-                        Upload Quote / Quotation PDF
-                      </h4>
-                      <p className="text-xs text-slate-500 dark:text-zinc-400">
-                        Local AI extraction detects vendor, quote #, multi-page line items, and totals.
-                      </p>
-                    </div>
+              <div className="space-y-4 p-4 rounded-xl bg-gradient-to-b from-indigo-50/50 to-transparent dark:from-indigo-950/20 dark:to-transparent border border-indigo-200/80 dark:border-indigo-900/60 shadow-xs">
+                {/* PDF Upload (Optional) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                      <FileSpreadsheet className="h-4 w-4 text-indigo-600" />
+                      <span>Upload Quote / Quotation PDF (Optional — auto-extracts line items)</span>
+                    </label>
+                    {quoteExtraction && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setQuoteExtraction(null);
+                          setQuoteFile(null);
+                        }}
+                        className="h-6 text-[11px] text-slate-500 hover:text-red-600 px-2"
+                      >
+                        Clear Upload
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <Input
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleQuoteFileUpload(f);
+                      }}
+                      className="bg-white dark:bg-zinc-900 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                    />
+                    {extractQuoteMutation.isPending && (
+                      <div className="flex items-center gap-2 text-xs text-indigo-600 font-medium whitespace-nowrap">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Analyzing PDF layout &amp; line items...
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <Input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleQuoteFileUpload(f);
-                    }}
-                    className="bg-white dark:bg-zinc-900 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-                  />
-                  {extractQuoteMutation.isPending && (
-                    <div className="flex items-center gap-2 text-xs text-indigo-600 font-medium whitespace-nowrap">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Analyzing PDF layout &amp; line items...
-                    </div>
-                  )}
-                </div>
-
-                {/* Extraction Summary Preview */}
+                {/* Extraction Summary Preview (if PDF was uploaded & analyzed) */}
                 {quoteExtraction && (
-                  <div className="mt-3 space-y-3 pt-3 border-t border-indigo-100 dark:border-indigo-900/50">
+                  <div className="space-y-3 pt-3 border-t border-indigo-100 dark:border-indigo-900/50">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="text-xs text-slate-600 dark:text-zinc-300 flex items-center gap-2">
                         {quoteExtraction.extraction.vendor?.name && (
@@ -789,153 +817,192 @@ export function PurchaseRequests() {
                         </ul>
                       </div>
                     )}
+                  </div>
+                )}
 
-                    {/* Interactive Line Items Breakdown Table */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                          Line Items &amp; Parts Breakdown ({quoteItems.length})
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsFullScreenTable(true)}
-                            className="h-7 text-xs flex items-center gap-1.5 bg-white dark:bg-zinc-900 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800"
-                          >
-                            <Maximize2 className="h-3.5 w-3.5" />
-                            <span>Full Screen Table</span>
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={handleAddItem}
-                            className="h-7 text-xs flex items-center gap-1"
-                          >
-                            <Plus className="h-3 w-3 mr-1" /> Add Part
-                          </Button>
+                {/* Interactive Line Items Breakdown Table - ALWAYS VISIBLE in Multiple Parts mode */}
+                <div className="space-y-2 pt-3 border-t border-indigo-100 dark:border-indigo-900/50">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Line Items &amp; Parts Breakdown ({quoteItems.length})
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsFullScreenTable(true)}
+                        className="h-7 text-xs flex items-center gap-1.5 bg-white dark:bg-zinc-900 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800"
+                      >
+                        <Maximize2 className="h-3.5 w-3.5" />
+                        <span>Full Screen Table</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddItem}
+                        className="h-7 text-xs flex items-center gap-1 bg-white dark:bg-zinc-900"
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> Add Part
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-zinc-700 shadow-xs">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-[11px] font-semibold sticky top-0 z-10 shadow-xs">
+                        <tr>
+                          <th className="p-2 w-10 text-center text-slate-400">#</th>
+                          <th className="p-2 w-28">SKU</th>
+                          <th className="p-2">Description</th>
+                          <th className="p-2 w-20 text-right">Qty</th>
+                          <th className="p-2 w-28 text-right">Price ({quoteExtraction?.extraction?.currency || form.currency || "USD"})</th>
+                          <th className="p-2 w-28 text-right">Total ({quoteExtraction?.extraction?.currency || form.currency || "USD"})</th>
+                          <th className="p-2 w-10 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                        {quoteItems.map((itm, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 transition-colors">
+                            <td className="p-2 text-center text-xs font-mono text-slate-400">
+                              {idx + 1}
+                            </td>
+                            <td className="p-2 w-28">
+                              <Input
+                                value={itm.sku || ""}
+                                onChange={(e) => handleItemChange(idx, "sku", e.target.value)}
+                                placeholder="SKU / Part #"
+                                className="h-8 text-sm font-mono"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <Input
+                                value={itm.description}
+                                onChange={(e) => handleItemChange(idx, "description", e.target.value)}
+                                placeholder="Item description..."
+                                className="h-8 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
+                              />
+                            </td>
+                            <td className="p-2 w-20">
+                              <Input
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={itm.quantity}
+                                onChange={(e) => handleItemChange(idx, "quantity", Number(e.target.value))}
+                                className="h-8 text-sm text-right font-medium"
+                              />
+                            </td>
+                            <td className="p-2 w-28">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={itm.unit_price}
+                                onChange={(e) => handleItemChange(idx, "unit_price", Number(e.target.value))}
+                                className="h-8 text-sm text-right font-mono"
+                              />
+                            </td>
+                            <td className="p-2 w-28 text-right font-semibold font-mono text-sm text-slate-900 dark:text-zinc-100">
+                              {formatMoney(itm.total)}
+                            </td>
+                            <td className="p-2 text-center w-10">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                onClick={() => handleRemoveItem(idx)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                        {quoteItems.length === 0 && (
+                          <tr>
+                            <td colSpan={7} className="text-center py-8 text-slate-400 text-xs">
+                              No line items added yet. Click &quot;+ Add Part&quot; above to create parts manually, or upload a quote PDF above.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Bottom breakdown and calculations */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
+                    <div className="text-[11px]">
+                      {quoteExtraction && (
+                        Math.abs(totalCalculatedAmount - Number(quoteExtraction.extraction.totals?.total || totalCalculatedAmount)) < 0.05 ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Calculated items sum + shipping matches quote total
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            Stated total ({formatMoney(quoteExtraction.extraction.totals?.total || 0)}) differs from calculated ({formatMoney(totalCalculatedAmount)})
+                          </span>
+                        )
+                      )}
+                    </div>
+
+                    <div className="text-right text-xs space-y-2 min-w-[260px]">
+                      <div className="text-slate-500 flex items-center justify-between gap-4">
+                        <span>Items Subtotal:</span>
+                        <span className="font-medium font-mono text-slate-800 dark:text-zinc-200">
+                          {formatMoney(itemsSubtotal)} {quoteExtraction?.extraction?.currency || form.currency || "USD"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-slate-700 dark:text-zinc-300 font-medium flex items-center gap-1.5">
+                          <Truck className="h-3.5 w-3.5 text-indigo-500" />
+                          <span>Shipping Fee:</span>
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-400 font-mono text-xs">$</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={shippingFee}
+                            onChange={(e) => setShippingFee(Math.max(0, Number(e.target.value) || 0))}
+                            placeholder="0.00"
+                            className="h-7 w-28 text-right text-xs font-mono bg-white dark:bg-zinc-900 font-semibold"
+                          />
                         </div>
                       </div>
 
-                      <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-zinc-700 shadow-xs">
-                        <table className="w-full text-left">
-                          <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-[11px] font-semibold sticky top-0 z-10 shadow-xs">
-                            <tr>
-                              <th className="p-2 w-10 text-center text-slate-400">#</th>
-                              <th className="p-2">Description</th>
-                              <th className="p-2 w-20 text-right">Qty</th>
-                              <th className="p-2 w-28 text-right">Price ({quoteExtraction.extraction.currency || "USD"})</th>
-                              <th className="p-2 w-28 text-right">Total ({quoteExtraction.extraction.currency || "USD"})</th>
-                              <th className="p-2 w-10 text-center"></th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
-                            {quoteItems.map((itm, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 transition-colors">
-                                <td className="p-2 text-center text-xs font-mono text-slate-400">
-                                  {idx + 1}
-                                </td>
-                                <td className="p-2">
-                                  <Input
-                                    value={itm.description}
-                                    onChange={(e) => handleItemChange(idx, "description", e.target.value)}
-                                    placeholder="Item description..."
-                                    className="h-8 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
-                                  />
-                                </td>
-                                <td className="p-2 w-20">
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    step="1"
-                                    value={itm.quantity}
-                                    onChange={(e) => handleItemChange(idx, "quantity", Number(e.target.value))}
-                                    className="h-8 text-sm text-right font-medium"
-                                  />
-                                </td>
-                                <td className="p-2 w-28">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={itm.unit_price}
-                                    onChange={(e) => handleItemChange(idx, "unit_price", Number(e.target.value))}
-                                    className="h-8 text-sm text-right font-mono"
-                                  />
-                                </td>
-                                <td className="p-2 w-28 text-right font-semibold font-mono text-sm text-slate-900 dark:text-zinc-100">
-                                  {formatMoney(itm.total)}
-                                </td>
-                                <td className="p-2 text-center w-10">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                    onClick={() => handleRemoveItem(idx)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-slate-600 dark:text-zinc-400 font-medium">
+                          <span>Tax Fee:</span>
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-400 font-mono text-xs">$</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={taxFee}
+                            onChange={(e) => setTaxFee(Math.max(0, Number(e.target.value) || 0))}
+                            placeholder="0.00"
+                            className="h-7 w-28 text-right text-xs font-mono bg-white dark:bg-zinc-900"
+                          />
+                        </div>
                       </div>
 
-                      {/* Bottom breakdown and math matching */}
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
-                        <div className="text-[11px]">
-                          {Math.abs(totalCalculatedAmount - Number(quoteExtraction.extraction.totals?.total || totalCalculatedAmount)) < 0.05 ? (
-                            <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              Calculated items sum + shipping matches quote total
-                            </span>
-                          ) : (
-                            <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                              <AlertTriangle className="h-3.5 w-3.5" />
-                              Stated total ({formatMoney(quoteExtraction.extraction.totals?.total || 0)}) differs from calculated ({formatMoney(totalCalculatedAmount)})
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="text-right text-xs space-y-1">
-                          <div className="text-slate-500">
-                            <span className="mr-2">Items Subtotal:</span>
-                            <span className="font-medium font-mono">
-                              {formatMoney(quoteItems.reduce((acc, itm) => acc + (Number(itm.total) || 0), 0))} {quoteExtraction.extraction.currency || "USD"}
-                            </span>
-                          </div>
-                          {(Number(quoteExtraction.extraction.totals?.shipping) || 0) > 0 && (
-                            <div className="text-slate-600 dark:text-zinc-300 font-medium flex items-center justify-end gap-1">
-                              <Truck className="h-3 w-3 text-indigo-500" />
-                              <span className="mr-2">Shipping Fee:</span>
-                              <span className="font-mono">
-                                {formatMoney(Number(quoteExtraction.extraction.totals?.shipping) || 0)} {quoteExtraction.extraction.currency || "USD"}
-                              </span>
-                            </div>
-                          )}
-                          {(Number(quoteExtraction.extraction.totals?.tax) || 0) > 0 && (
-                            <div className="text-slate-500">
-                              <span className="mr-2">Tax:</span>
-                              <span className="font-mono">
-                                {formatMoney(Number(quoteExtraction.extraction.totals?.tax) || 0)} {quoteExtraction.extraction.currency || "USD"}
-                              </span>
-                            </div>
-                          )}
-                          <div className="pt-1 border-t border-slate-200 dark:border-zinc-700">
-                            <span className="text-slate-700 dark:text-zinc-300 font-semibold mr-2">Grand Total:</span>
-                            <span className="font-bold text-base text-slate-900 dark:text-zinc-100 font-mono">
-                              {formatMoney(totalCalculatedAmount)} {quoteExtraction.extraction.currency || "USD"}
-                            </span>
-                          </div>
-                        </div>
+                      <div className="pt-2 border-t border-slate-200 dark:border-zinc-700 flex items-center justify-between gap-4">
+                        <span className="text-slate-900 dark:text-zinc-100 font-semibold">Grand Total:</span>
+                        <span className="font-bold text-base text-slate-900 dark:text-zinc-100 font-mono">
+                          {formatMoney(totalCalculatedAmount)} {quoteExtraction?.extraction?.currency || form.currency || "USD"}
+                        </span>
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
@@ -1106,6 +1173,7 @@ export function PurchaseRequests() {
                 <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-xs font-semibold sticky top-0 z-10 shadow-xs">
                   <tr>
                     <th className="p-3 w-12 text-center text-slate-400">#</th>
+                    <th className="p-3 w-36 font-semibold">SKU</th>
                     <th className="p-3 font-semibold">Description</th>
                     <th className="p-3 w-24 text-right font-semibold">Qty</th>
                     <th className="p-3 w-36 text-right font-semibold">Price ({quoteExtraction?.extraction?.currency || "USD"})</th>
@@ -1118,6 +1186,14 @@ export function PurchaseRequests() {
                     <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 transition-colors">
                       <td className="p-3 text-center text-xs font-mono text-slate-400">
                         {idx + 1}
+                      </td>
+                      <td className="p-3 w-36">
+                        <Input
+                          value={itm.sku || ""}
+                          onChange={(e) => handleItemChange(idx, "sku", e.target.value)}
+                          placeholder="SKU / Part #"
+                          className="h-9 text-sm font-mono"
+                        />
                       </td>
                       <td className="p-3">
                         <Input
@@ -1212,7 +1288,7 @@ export function PurchaseRequests() {
               onClick={() => setShowUnsavedConfirm(false)}
               className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300"
             >
-              Keep Changes
+              Stay
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"

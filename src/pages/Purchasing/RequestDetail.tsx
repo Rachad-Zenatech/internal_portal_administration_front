@@ -24,6 +24,8 @@ import {
   Building2,
   CheckCircle2,
   Truck,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -153,6 +155,8 @@ export default function RequestDetail() {
 
   const [activeForm, setActiveForm] = useState<{ action: WorkflowAction; kind: FormKind } | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [poItems, setPoItems] = useState<any[]>([]);
+  const [poShippingFee, setPoShippingFee] = useState<number>(0);
   const [po, setPo] = useState<PurchaseOrderInput>({
     vendor: "",
     item: "",
@@ -205,6 +209,7 @@ export default function RequestDetail() {
   }
 
   const { request, purchase_order, invoice: inv, approvals, notifications, available_actions } = data;
+  const isMulti = request.item_mode === "MULTIPLE" || Boolean(request.items && request.items.length > 0);
   let flow = SPEND_FLOW;
   if (request.request_type === "ADMIN") flow = ADMIN_FLOW;
   else if (request.request_type === "RECURRING") flow = RECURRING_FLOW;
@@ -245,18 +250,33 @@ export default function RequestDetail() {
       setPendingFiles([]);
     }
     if (meta.form === "po") {
-      // Map whatever the automatic extraction found onto the PO form. Fields
-      // it couldn't determine come back as "N/A" — treat those (and blanks)
-      // as unknown and leave the field empty for the user to fill in.
       const info = request.product_info;
       const isUsable = (v: string | undefined | null) => !!v && !!v.trim() && v.trim().toUpperCase() !== "N/A";
       const quoteVendor = request.quote_data?.vendor?.name;
       const quoteNum = request.quote_data?.quote_number;
+
+      const rawItems = (request.items && request.items.length > 0)
+        ? request.items
+        : (request.quote_data?.items || request.quote_data?.line_items || []);
+
+      const parsedPoItems = rawItems.map((i: any, idx: number) => ({
+        id: i.id,
+        sku: i.sku || "",
+        description: i.description || `Part ${idx + 1}`,
+        quantity: Number(i.quantity) || 1,
+        unit_price: Number(i.unit_price) || 0,
+        total: Number(i.total) || (Math.round((Number(i.quantity) || 1) * Number(i.unit_price || 0) * 100) / 100),
+      }));
+      setPoItems(parsedPoItems);
+      const initShipping = Number(request.quote_data?.totals?.shipping) || 0;
+      setPoShippingFee(initShipping);
+
+      const isMultiReq = request.item_mode === "MULTIPLE" || parsedPoItems.length > 0;
       setPo({
         vendor: quoteVendor || (info && isUsable(info.vendor) ? info.vendor : ""),
-        item: request.title || (info && isUsable(info.name) ? info.name : ""),
-        quantity: request.quantity ?? 1,
-        unit_price: request.unit_price ?? 0,
+        item: isMultiReq ? (parsedPoItems.length ? `Multi Parts (${parsedPoItems.length} parts)` : (request.title || "Multi Parts")) : (request.title || (info && isUsable(info.name) ? info.name : "")),
+        quantity: isMultiReq ? (parsedPoItems.length || 1) : (request.quantity ?? 1),
+        unit_price: isMultiReq ? 0 : (request.unit_price ?? 0),
         amount: request.amount ?? 0,
         quote_number: quoteNum || "",
         description: (info && isUsable(info.description) ? info.description : (request.description || "")),
@@ -432,6 +452,7 @@ export default function RequestDetail() {
               <Field label="Last Updated" value={formatDate(request.updated_at)} />
               {!(request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)) && (
                 <>
+                  <Field label="SKU / Part #" value={request.sku || request.items?.[0]?.sku || "—"} />
                   <Field label="Quantity" value={String(request.quantity ?? 1)} />
                   <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />
                 </>
@@ -562,13 +583,13 @@ export default function RequestDetail() {
           </Card>
 
 
-          {request.items && request.items.length > 0 && (
+          {Boolean((request.items && request.items.length > 0) || (request.quote_data?.items && request.quote_data.items.length > 0)) && (
             <Card className="border border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-b from-indigo-50/20 to-transparent shadow-sm">
               <CardHeader className="pb-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-indigo-950 dark:text-indigo-200">
                     <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                    <span className="font-semibold text-base">Quotation Items &amp; Parts Breakdown ({request.items.length})</span>
+                    <span className="font-semibold text-base">Quotation Items &amp; Parts Breakdown ({(request.items?.length || request.quote_data?.items?.length || 0)})</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 font-mono text-xs font-semibold">
@@ -606,6 +627,7 @@ export default function RequestDetail() {
                     <TableHeader className="bg-slate-50 dark:bg-zinc-800/60">
                       <TableRow>
                         <TableHead className="w-10 text-center">#</TableHead>
+                        <TableHead className="w-28 font-semibold">SKU</TableHead>
                         <TableHead className="font-semibold">Description</TableHead>
                         <TableHead className="w-20 text-right font-semibold">Qty</TableHead>
                         <TableHead className="w-28 text-right font-semibold">Unit Price ({quoteCurrency})</TableHead>
@@ -613,9 +635,10 @@ export default function RequestDetail() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {request.items.map((itm, idx) => (
+                      {(request.items?.length ? request.items : (request.quote_data?.items || [])).map((itm: any, idx: number) => (
                         <TableRow key={itm.id || idx}>
                           <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
+                          <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
                           <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-sm">{itm.description}</TableCell>
                           <TableCell className="text-right text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
                           <TableCell className="text-right text-slate-600 dark:text-zinc-400">{formatMoney(itm.unit_price)}</TableCell>
@@ -679,23 +702,62 @@ export default function RequestDetail() {
           {purchase_order && (
             <Card className="border border-slate-200 dark:border-zinc-800">
               <CardHeader><CardTitle className="text-base flex items-center gap-2"><Package className="h-4 w-4" /> Purchase Order · {purchase_order.id}</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                <Field label="Vendor" value={purchase_order.vendor} />
-                <Field label="Item" value={purchase_order.item} />
-                <Field label="Quote / PO #" value={purchase_order.quote_number ?? "—"} />
-                <Field label="Quantity" value={String(request.quantity ?? 1)} />
-                <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />
-                <Field label="Total Amount (Pre-Tax)" value={`${formatMoney(request.amount)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
-                <Field label="Total Amount (After-Tax)" value={`${formatMoney(request.amount * (1 + TAX_RATE))}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
-                <Field label="Payment Format" value={purchase_order.payment_method ? PAYMENT_METHOD_LABEL[purchase_order.payment_method] : "—"} />
-                <Field label="Shipped To" value={purchase_order.shipped_to_location ?? "—"} />
-                <Field label="Approval" value={purchase_order.approval_status} />
-                <Field label="Tracking #" value={purchase_order.tracking_number ?? "—"} />
-                <Field label="Goods Received" value={purchase_order.goods_received ? `Yes, on ${formatDate(purchase_order.goods_received_at)}` : "No"} />
-                {purchase_order.description && (
-                  <div className="col-span-2">
-                    <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Description</div>
-                    <div className="text-slate-800 dark:text-zinc-200">{purchase_order.description}</div>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <Field label="Vendor" value={purchase_order.vendor} />
+                  <Field label="Item" value={purchase_order.item} />
+                  <Field label="Quote / PO #" value={purchase_order.quote_number ?? "—"} />
+                  {!isMulti && <Field label="Quantity" value={String(request.quantity ?? 1)} />}
+                  {!isMulti && <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />}
+                  {isMulti && quoteShipping > 0 && (
+                    <Field label="Shipping Fee" value={`${formatMoney(quoteShipping)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
+                  )}
+                  <Field label="Total Amount (Pre-Tax)" value={`${formatMoney(purchase_order.amount || request.amount)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
+                  <Field label="Total Amount (After-Tax)" value={`${formatMoney((purchase_order.amount || request.amount) * (1 + TAX_RATE))}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
+                  <Field label="Payment Format" value={purchase_order.payment_method ? PAYMENT_METHOD_LABEL[purchase_order.payment_method] : "—"} />
+                  <Field label="Shipped To" value={purchase_order.shipped_to_location ?? "—"} />
+                  <Field label="Approval" value={purchase_order.approval_status} />
+                  <Field label="Tracking #" value={purchase_order.tracking_number ?? "—"} />
+                  <Field label="Goods Received" value={purchase_order.goods_received ? `Yes, on ${formatDate(purchase_order.goods_received_at)}` : "No"} />
+                  {purchase_order.description && (
+                    <div className="col-span-2">
+                      <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Description</div>
+                      <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{purchase_order.description}</div>
+                    </div>
+                  )}
+                </div>
+
+                {isMulti && Boolean((request.items && request.items.length > 0) || (request.quote_data?.items && request.quote_data.items.length > 0)) && (
+                  <div className="pt-3 border-t border-slate-200 dark:border-zinc-800 space-y-2">
+                    <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Line Items &amp; Parts Breakdown ({(request.items?.length || request.quote_data?.items?.length)} items)
+                    </div>
+                    <div className="rounded-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
+                      <Table>
+                        <TableHeader className="bg-slate-50 dark:bg-zinc-800/60">
+                          <TableRow>
+                            <TableHead className="w-10 text-center text-xs">#</TableHead>
+                            <TableHead className="w-28 text-xs font-semibold">SKU</TableHead>
+                            <TableHead className="text-xs font-semibold">Description</TableHead>
+                            <TableHead className="w-20 text-right text-xs font-semibold">Qty</TableHead>
+                            <TableHead className="w-28 text-right text-xs font-semibold">Unit Price ({purchase_order.currency || "USD"})</TableHead>
+                            <TableHead className="w-28 text-right text-xs font-semibold">Total ({purchase_order.currency || "USD"})</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(request.items?.length ? request.items : (request.quote_data?.items || [])).map((itm: any, idx: number) => (
+                            <TableRow key={itm.id || idx}>
+                              <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
+                              <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
+                              <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">{itm.description}</TableCell>
+                              <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
+                              <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">{formatMoney(itm.unit_price)}</TableCell>
+                              <TableCell className="text-right text-xs font-semibold font-mono text-slate-900 dark:text-zinc-100">{formatMoney(itm.total)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -852,7 +914,12 @@ export default function RequestDetail() {
                   <FieldInput label="Vendor" value={po.vendor} onChange={(v) => setPo({ ...po, vendor: v })} />
                 </TwoUp>
                 <TwoUp>
-                  <FieldInput label="Item" value={po.item} onChange={(v) => setPo({ ...po, item: v })} />
+                  <FieldInput
+                    label="Item"
+                    value={po.item}
+                    onChange={(v) => setPo({ ...po, item: v })}
+                    placeholder={isMulti ? "Multiple Parts / Items" : "Product or Item name"}
+                  />
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Payment Format <span className="text-red-500">*</span></label>
                     <Select
@@ -870,56 +937,300 @@ export default function RequestDetail() {
                     </Select>
                   </div>
                 </TwoUp>
-                <div className="grid grid-cols-5 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Quantity</label>
-                    <Input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={String(po.quantity ?? 1)}
-                      onChange={(e) => {
-                        const q = Number(e.target.value);
-                        setPo({ ...po, quantity: q, amount: Math.round(q * (po.unit_price || 0) * 100) / 100 });
-                      }}
-                    />
+
+                {!isMulti ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Quantity</label>
+                      <Input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={String(po.quantity ?? 1)}
+                        onChange={(e) => {
+                          const q = Math.max(1, Number(e.target.value) || 1);
+                          const itemsCost = Math.round(q * (po.unit_price || 0) * 100) / 100;
+                          setPo({ ...po, quantity: q, amount: Math.round((itemsCost + poShippingFee) * 100) / 100 });
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Unit Price</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={String(po.unit_price ?? 0)}
+                        onChange={(e) => {
+                          const p = Math.max(0, Number(e.target.value) || 0);
+                          const itemsCost = Math.round((po.quantity || 1) * p * 100) / 100;
+                          setPo({ ...po, unit_price: p, amount: Math.round((itemsCost + poShippingFee) * 100) / 100 });
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium flex items-center gap-1">
+                        <Truck className="h-3 w-3 text-indigo-500" />
+                        <span>Shipping</span>
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={String(poShippingFee)}
+                        onChange={(e) => {
+                          const sf = Math.max(0, Number(e.target.value) || 0);
+                          setPoShippingFee(sf);
+                          const itemsCost = Math.round((po.quantity || 1) * (po.unit_price || 0) * 100) / 100;
+                          setPo({ ...po, amount: Math.round((itemsCost + sf) * 100) / 100 });
+                        }}
+                        className="font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Total (Pre-Tax)</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={String(po.amount)}
+                        onChange={(e) => {
+                          const amt = Math.max(0, Number(e.target.value) || 0);
+                          setPo({ ...po, amount: amt });
+                        }}
+                        className="font-mono bg-white dark:bg-zinc-900 font-semibold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Total (After-Tax)</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={String(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100)}
+                        onChange={(e) => {
+                          const afterTax = Math.max(0, Number(e.target.value) || 0);
+                          const preTax = Math.round((afterTax / (1 + TAX_RATE)) * 100) / 100;
+                          setPo({ ...po, amount: preTax });
+                        }}
+                        className="font-semibold font-mono bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Currency</label>
+                      <CurrencyAutocomplete value={po.currency ?? ""} onChange={(v) => setPo({ ...po, currency: v })} />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Unit Price</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={String(po.unit_price ?? 0)}
-                      onChange={(e) => {
-                        const p = Number(e.target.value);
-                        setPo({ ...po, unit_price: p, amount: Math.round((po.quantity || 1) * p * 100) / 100 });
-                      }}
-                    />
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Items Subtotal</label>
+                      <Input
+                        type="number"
+                        value={String(Math.round(poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0) * 100) / 100)}
+                        disabled
+                        className="font-mono bg-slate-50 dark:bg-zinc-800 text-slate-500"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium flex items-center gap-1">
+                        <Truck className="h-3.5 w-3.5 text-indigo-500" />
+                        <span>Shipping Fee</span>
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={String(poShippingFee)}
+                        onChange={(e) => {
+                          const sf = Math.max(0, Number(e.target.value) || 0);
+                          setPoShippingFee(sf);
+                          const itemsSum = poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
+                          setPo((prev) => ({ ...prev, amount: Math.round((itemsSum + sf) * 100) / 100 }));
+                        }}
+                        className="font-mono bg-white dark:bg-zinc-900"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Total (Pre-Tax)</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={String(po.amount)}
+                        onChange={(e) => {
+                          const amt = Math.max(0, Number(e.target.value) || 0);
+                          setPo({ ...po, amount: amt });
+                        }}
+                        className="font-mono bg-white dark:bg-zinc-900 font-semibold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Total (After-Tax)</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={String(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100)}
+                        onChange={(e) => {
+                          const afterTax = Math.max(0, Number(e.target.value) || 0);
+                          const preTax = Math.round((afterTax / (1 + TAX_RATE)) * 100) / 100;
+                          setPo({ ...po, amount: preTax });
+                        }}
+                        className="font-semibold font-mono bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Currency</label>
+                      <CurrencyAutocomplete value={po.currency ?? ""} onChange={(v) => setPo({ ...po, currency: v })} />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Total (Pre-Tax)</label>
-                    <Input
-                      type="number"
-                      value={String(po.amount)}
-                      disabled
-                      className="bg-slate-50 dark:bg-zinc-800 text-slate-500"
-                    />
+                )}
+
+                {/* Multiple Parts Interactive Editable Table */}
+                {isMulti && (
+                  <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Line Items &amp; Parts Breakdown ({poItems.length})
+                      </label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const next = [
+                            ...poItems,
+                            {
+                              id: undefined,
+                              sku: "",
+                              description: `Part ${poItems.length + 1}`,
+                              quantity: 1,
+                              unit_price: 0,
+                              total: 0,
+                            },
+                          ];
+                          setPoItems(next);
+                          const sum = next.reduce((acc, itm) => acc + (Number(itm.total) || 0), 0);
+                          setPo((prev) => ({ ...prev, amount: Math.round(sum * 100) / 100 }));
+                        }}
+                        className="h-7 text-xs flex items-center gap-1"
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> Add Part
+                      </Button>
+                    </div>
+
+                    <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-200 dark:border-zinc-700 shadow-xs">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-[11px] font-semibold sticky top-0 z-10">
+                          <tr>
+                            <th className="p-2 w-8 text-center text-slate-400">#</th>
+                            <th className="p-2 w-24">SKU</th>
+                            <th className="p-2">Description</th>
+                            <th className="p-2 w-20 text-right">Qty</th>
+                            <th className="p-2 w-24 text-right">Unit Price</th>
+                            <th className="p-2 w-24 text-right">Total</th>
+                            <th className="p-2 w-8 text-center"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                          {poItems.map((itm, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/50">
+                              <td className="p-2 text-center font-mono text-slate-400">{idx + 1}</td>
+                              <td className="p-2 w-24">
+                                <Input
+                                  value={itm.sku || ""}
+                                  onChange={(e) => {
+                                    const next = [...poItems];
+                                    next[idx] = { ...next[idx], sku: e.target.value };
+                                    setPoItems(next);
+                                  }}
+                                  placeholder="SKU / Part #"
+                                  className="h-7 text-xs font-mono"
+                                />
+                              </td>
+                              <td className="p-2">
+                                <Input
+                                  value={itm.description}
+                                  onChange={(e) => {
+                                    const next = [...poItems];
+                                    next[idx] = { ...next[idx], description: e.target.value };
+                                    setPoItems(next);
+                                  }}
+                                  placeholder="Part description..."
+                                  className="h-7 text-xs font-medium"
+                                />
+                              </td>
+                              <td className="p-2 w-20">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={itm.quantity}
+                                  onChange={(e) => {
+                                    const q = Math.max(1, Number(e.target.value) || 1);
+                                    const next = [...poItems];
+                                    const tot = Math.round(q * Number(next[idx].unit_price || 0) * 100) / 100;
+                                    next[idx] = { ...next[idx], quantity: q, total: tot };
+                                    setPoItems(next);
+                                    const sum = next.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
+                                    setPo((prev) => ({ ...prev, amount: Math.round(sum * 100) / 100 }));
+                                  }}
+                                  className="h-7 text-xs text-right"
+                                />
+                              </td>
+                              <td className="p-2 w-24">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={itm.unit_price}
+                                  onChange={(e) => {
+                                    const p = Math.max(0, Number(e.target.value) || 0);
+                                    const next = [...poItems];
+                                    const tot = Math.round(Number(next[idx].quantity || 1) * p * 100) / 100;
+                                    next[idx] = { ...next[idx], unit_price: p, total: tot };
+                                    setPoItems(next);
+                                    const sum = next.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
+                                    setPo((prev) => ({ ...prev, amount: Math.round(sum * 100) / 100 }));
+                                  }}
+                                  className="h-7 text-xs text-right font-mono"
+                                />
+                              </td>
+                              <td className="p-2 w-24 text-right font-mono font-semibold text-slate-800 dark:text-zinc-200">
+                                {formatMoney(itm.total || 0)}
+                              </td>
+                              <td className="p-2 text-center w-8">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                  onClick={() => {
+                                    const next = poItems.filter((_, i) => i !== idx);
+                                    setPoItems(next);
+                                    const sum = next.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
+                                    setPo((prev) => ({ ...prev, amount: Math.round(sum * 100) / 100 }));
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                          {poItems.length === 0 && (
+                            <tr>
+                              <td colSpan={6} className="text-center py-4 text-slate-400 text-xs">
+                                No line items added. Click &quot;Add Part&quot; above to add part lines.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Total (After-Tax)</label>
-                    <Input
-                      type="number"
-                      value={String(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100)}
-                      disabled
-                      className="bg-slate-50 dark:bg-zinc-800 text-slate-500 font-semibold"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Currency</label>
-                    <CurrencyAutocomplete value={po.currency ?? ""} onChange={(v) => setPo({ ...po, currency: v })} />
-                  </div>
-                </div>
+                )}
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Shipped to Location <span className="text-red-500">*</span></label>
                   <LocationAutocomplete value={po.shipped_to_location ?? ""} onChange={(v) => setPo({ ...po, shipped_to_location: v })} />
@@ -1216,17 +1527,19 @@ function FieldInput({
   value,
   onChange,
   type = "text",
+  placeholder,
 }: {
   label: React.ReactNode;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  placeholder?: string;
 }) {
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">{label}</label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
-</div>
+      <Input type={type} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
   );
 }
 

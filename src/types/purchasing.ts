@@ -93,6 +93,7 @@ export type PurchaseRequest = {
   priority: Priority;
   status: RequestStatus;
   item_mode?: ItemMode;
+  sku?: string | null;
   hold_reason?: string | null;
   hold_date?: string | null;
   assigned_user: string | null;
@@ -117,6 +118,7 @@ export type PurchaseOrder = {
   item: string;
   description: string | null;
   quote_number: string | null;
+  sku?: string | null;
   item_url?: string | null;
   product_info?: ProductInfo | null;
   quantity?: number;
@@ -223,6 +225,7 @@ export type RequestCreateInput = {
   quantity?: number;
   unit_price?: number;
   amount?: number;
+  currency?: string | null;
   gl_code?: string | null;
   items?: PurchaseRequestItem[];
   quote_file_id?: string | null;

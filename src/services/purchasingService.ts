@@ -127,3 +127,20 @@ export function getGLCodes(search?: string) {
   const qs = search ? `?search=${encodeURIComponent(search)}` : "";
   return apiClient.get<GLCodeOption[]>(`${BASE}/gl-codes${qs}`);
 }
+
+export function exportQuickBooksXlsx(ids?: string[], status?: string) {
+  const params = new URLSearchParams();
+  if (ids && ids.length > 0) {
+    params.set("ids", ids.join(","));
+  }
+  if (status && status !== "ALL") {
+    params.set("status", status);
+  }
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const filename = status && status !== "ALL" ? `QuickBooks_Export_${status}.xlsx` : "QuickBooks_Export.xlsx";
+  return apiClient.downloadFile(`${BASE}/export/quickbooks/xlsx${qs}`, filename);
+}
+
+export function exportSingleRequestQuickBooksXlsx(requestId: string) {
+  return apiClient.downloadFile(`${BASE}/requests/${requestId}/export/quickbooks/xlsx`, `QuickBooks_Export_REQ_${requestId}.xlsx`);
+}
