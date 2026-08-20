@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
-import { usePurchaseRequests, usePurchasingSummary } from "@/hooks/usePurchasing";
+import { usePurchaseRequests } from "@/hooks/usePurchasing";
 import { formatMoney } from "@/pages/Purchasing/purchasingMeta";
 import { RequestStatus } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
@@ -20,19 +20,47 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: requests = [], refetch: fetchRequests } = usePurchaseRequests();
-  const { data: summary } = usePurchasingSummary();
-  const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
   const [filterTodayOnly, setFilterTodayOnly] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
 
+  const isTaskOwnedByUser = (task: any, currentUser: any) => {
+    if (!currentUser) return false;
+    const userFull = (currentUser.full_name || "").trim().toLowerCase();
+    const userEmail = (currentUser.email || "").trim().toLowerCase();
+    const userName = (currentUser.username || "").trim().toLowerCase();
+    const userId = String(currentUser.id || "").trim();
+
+    const reqStr = String(task.requester || task.requester_name || "").trim().toLowerCase();
+    const createdByStr = String(task.created_by || task.created_by_name || task.created_by_user_id || task.user_id || "").trim().toLowerCase();
+    const reqIdStr = String(task.requester_id || "").trim();
+
+    return Boolean(
+      (userFull && reqStr === userFull) ||
+      (userEmail && reqStr === userEmail) ||
+      (userName && reqStr === userName) ||
+      (userId && (userId === reqIdStr || userId === createdByStr || userId === reqStr)) ||
+      (userFull && createdByStr === userFull) ||
+      (userEmail && createdByStr === userEmail)
+    );
+  };
+
   const tasks = useMemo(() => {
-    return requests.map((req) => ({
-      ...req,
-      product_name: req.title,
-      category: req.request_type || "SPEND",
-      assignee_name: req.assigned_user || req.requester,
-    }));
-  }, [requests]);
+    return requests
+      .filter((req: any) => {
+        const isDraft = parseRequestStatus(req.status) === RequestStatus.Initial;
+        if (isDraft) {
+          return isTaskOwnedByUser(req, user);
+        }
+        return true;
+      })
+      .map((req) => ({
+        ...req,
+        product_name: req.title,
+        category: req.request_type || "SPEND",
+        assignee_name: req.assigned_user || req.requester,
+      }));
+  }, [requests, user]);
 
   const handleTaskClick = async (taskId: number | string) => {
     try {
@@ -75,8 +103,8 @@ export default function Dashboard() {
     return activeTasks.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
   }, [activeTasks]);
 
-  const totalCount = summary?.total_requests ?? tasks.length;
-  const activeCount = summary?.open_requests ?? activeTasks.length;
+  const totalCount = tasks.length;
+  const activeCount = activeTasks.length;
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task: any) => {

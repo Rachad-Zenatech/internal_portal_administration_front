@@ -68,6 +68,7 @@ import {
   useExtractQuote,
 } from "@/hooks/usePurchasing";
 import {
+  RequestStatus,
   type Priority,
   type RequestCreateInput,
   type RequestType,
@@ -75,6 +76,7 @@ import {
   type PurchaseRequestItem,
   type QuoteExtractionResponse,
 } from "@/types/purchasing";
+import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   PRIORITY_BADGE,
   STATUS_FILTER_OPTIONS,
@@ -248,6 +250,37 @@ export function PurchaseRequests() {
 
   const { data: requests = [], isLoading } = usePurchaseRequests(filters);
   const { data: summary } = usePurchasingSummary();
+
+  const isTaskOwnedByUser = (task: any, currentUser: any) => {
+    if (!currentUser) return false;
+    const userFull = (currentUser.full_name || "").trim().toLowerCase();
+    const userEmail = (currentUser.email || "").trim().toLowerCase();
+    const userName = (currentUser.username || "").trim().toLowerCase();
+    const userId = String(currentUser.id || "").trim();
+
+    const reqStr = String(task.requester || task.requester_name || "").trim().toLowerCase();
+    const createdByStr = String(task.created_by || task.created_by_name || task.created_by_user_id || task.user_id || "").trim().toLowerCase();
+    const reqIdStr = String(task.requester_id || "").trim();
+
+    return Boolean(
+      (userFull && reqStr === userFull) ||
+      (userEmail && reqStr === userEmail) ||
+      (userName && reqStr === userName) ||
+      (userId && (userId === reqIdStr || userId === createdByStr || userId === reqStr)) ||
+      (userFull && createdByStr === userFull) ||
+      (userEmail && createdByStr === userEmail)
+    );
+  };
+
+  const visibleRequests = useMemo(() => {
+    return requests.filter((r) => {
+      const isDraft = parseRequestStatus(r.status) === RequestStatus.Initial;
+      if (isDraft) {
+        return isTaskOwnedByUser(r, user);
+      }
+      return true;
+    });
+  }, [requests, user]);
   const createMutation = useCreateRequest();
   const extractQuoteMutation = useExtractQuote();
 
@@ -599,8 +632,8 @@ export function PurchaseRequests() {
                   Loading requests...
                 </TableCell>
               </TableRow>
-            ) : requests.length > 0 ? (
-              requests.map((r) => (
+            ) : visibleRequests.length > 0 ? (
+              visibleRequests.map((r) => (
                 <TableRow
                   key={r.id}
                   className="cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/50"
