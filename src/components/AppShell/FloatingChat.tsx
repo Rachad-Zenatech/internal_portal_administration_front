@@ -1,25 +1,40 @@
-import { useEffect, useRef, useState } from "react";
-import { Send, Bot, Sparkles, Square, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  Send,
+  Bot,
+  Sparkles,
+  Square,
+  Loader2,
+  Copy,
+  Check,
+  HelpCircle,
+  RotateCcw,
+  ShoppingBag,
+  BookOpen,
+  FileSpreadsheet,
+  Compass,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Message, MessageAvatar, MessageContent, MessageGroup } from "@/components/ui/message";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageScrollerProvider,
   MessageScroller,
   MessageScrollerViewport,
   MessageScrollerContent,
   MessageScrollerItem,
-  MessageScrollerButton
+  MessageScrollerButton,
 } from "@/components/ui/message-scroller";
-
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-
+import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
 
@@ -30,12 +45,35 @@ type WindowWithWebkitAudio = Window &
     webkitAudioContext?: typeof AudioContext;
   };
 
-const SUGGESTIONS = [];
+const SUGGESTIONS = [
+  {
+    icon: ShoppingBag,
+    label: "Pending Requests",
+    query: "What purchase requests are currently pending approval?",
+  },
+  {
+    icon: BookOpen,
+    label: "Submit a Request",
+    query: "How do I create and submit a new purchase request in this portal?",
+  },
+  {
+    icon: FileSpreadsheet,
+    label: "GL Codes & Categories",
+    query: "How do I search for and assign GL codes to purchase line items?",
+  },
+  {
+    icon: Compass,
+    label: "Approval Workflow",
+    query: "Explain the approval levels and thresholds for purchase requests.",
+  },
+];
 
 export default function FloatingChat() {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   const { messages, setMessages, isStreaming, sendMessage, stopStreaming } = useStreamingChat();
 
@@ -52,7 +90,7 @@ export default function FloatingChat() {
     const resize = (e: MouseEvent) => {
       if (isResizing.current) {
         const newWidth = window.innerWidth - e.clientX;
-        setPanelWidth(Math.max(300, Math.min(newWidth, window.innerWidth - 50)));
+        setPanelWidth(Math.max(320, Math.min(newWidth, window.innerWidth - 50)));
       }
     };
 
@@ -78,7 +116,7 @@ export default function FloatingChat() {
       setMessages([
         {
           role: "assistant",
-          content: "Hello, I’m ZenaBot 🤖. How can I assist you today?",
+          content: "Hello! I’m ZenaBot 🤖, your AI Assistant. How can I assist you with portal tasks, purchase requests, or accounting lookups today?",
         },
       ]);
     }
@@ -98,7 +136,7 @@ export default function FloatingChat() {
       const osc = ctx.createOscillator();
       const gainNode = ctx.createGain();
 
-      osc.type = 'sine';
+      osc.type = "sine";
       osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
       osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
 
@@ -128,7 +166,16 @@ export default function FloatingChat() {
       setHasUnread(true);
       playNotificationSound();
     }
-  }, [isStreaming]);
+  }, [isStreaming, messages.length]);
+
+  const handleSend = useCallback(
+    async (text: string) => {
+      if (isStreaming) return;
+      setInput("");
+      sendMessage(text);
+    },
+    [isStreaming, sendMessage]
+  );
 
   useEffect(() => {
     const handleAskAi = (e: Event) => {
@@ -139,26 +186,51 @@ export default function FloatingChat() {
       setIsOpen(true);
       setHasUnread(false);
 
-      handleSend(query);
+      void handleSend(query);
     };
 
     window.addEventListener("ask-ai", handleAskAi);
     return () => window.removeEventListener("ask-ai", handleAskAi);
-  }, [messages, isStreaming]);
+  }, [handleSend]);
 
-  async function handleSend(text: string) {
-    if (isStreaming) return;
-    setInput("");
-    sendMessage(text);
-  }
+  const handleCopy = async (text: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIndex(index);
+      toast.success("Message copied to clipboard");
+      setTimeout(() => {
+        setCopiedIndex((prev) => (prev === index ? null : prev));
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to copy", err);
+      toast.error("Failed to copy message");
+    }
+  };
+
+  const handleResetChat = () => {
+    setMessages([
+      {
+        role: "assistant",
+        content: "Hello! I’m ZenaBot 🤖, your AI Assistant. How can I assist you with portal tasks, purchase requests, or accounting lookups today?",
+      },
+    ]);
+    toast.success("Chat history cleared");
+  };
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={(open) => {
-        setIsOpen(open);
-        if (open) setHasUnread(false);
-      }}>
-        <SheetContent side="right" style={{ width: panelWidth }} className="!max-w-none flex flex-col p-0 border-l border-border h-screen bg-background/95 backdrop-blur-xl">
+      <Sheet
+        open={isOpen}
+        onOpenChange={(open) => {
+          setIsOpen(open);
+          if (open) setHasUnread(false);
+        }}
+      >
+        <SheetContent
+          side="right"
+          style={{ width: panelWidth }}
+          className="!max-w-none flex flex-col p-0 border-l border-border h-screen bg-background/95 backdrop-blur-xl"
+        >
           {/* Resize Handle */}
           <div
             onMouseDown={startResizing}
@@ -167,18 +239,88 @@ export default function FloatingChat() {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-8 bg-border rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
 
-          <SheetHeader className="gap-1 border-b border-border/30 pb-3 px-5 pt-5 shrink-0 bg-gradient-to-b from-background/50 to-transparent">
-            <SheetTitle className="flex items-center gap-2 text-base font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
-              <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400 filter drop-shadow-[0_0_8px_rgba(37,99,235,0.5)]" />
-              ZenaBot
-            </SheetTitle>
+          {/* Header */}
+          <SheetHeader className="gap-1 border-b border-border/40 pb-3 pl-5 pr-12 pt-4 shrink-0 bg-background/50 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-2">
+              <SheetTitle className="flex items-center gap-2 text-base font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+                <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400 filter drop-shadow-[0_0_8px_rgba(37,99,235,0.5)]" />
+                ZenaBot
+              </SheetTitle>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowGuide((prev) => !prev)}
+                  className={`h-7 px-2 text-xs font-normal gap-1 transition-colors ${
+                    showGuide
+                      ? "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Show how to use ZenaBot"
+                >
+                  <HelpCircle className="h-3.5 w-3.5" />
+                  <span>Hints & Guide</span>
+                  {showGuide ? (
+                    <ChevronUp className="h-3 w-3 opacity-60" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  )}
+                </Button>
+                {messages.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleResetChat}
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    title="Clear conversation"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span className="sr-only">Clear chat</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Collapsible Hints / Guide Box */}
+            <AnimatePresence>
+              {showGuide && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-2.5 p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/50 text-xs space-y-2 text-foreground">
+                    <div className="font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5" /> How to use ZenaBot
+                    </div>
+                    <ul className="space-y-1 text-slate-600 dark:text-slate-300 list-disc list-inside">
+                      <li>
+                        <strong className="font-medium text-slate-800 dark:text-slate-100">Purchasing & PRs:</strong> Ask about status, approvals, items, or how to submit requests.
+                      </li>
+                      <li>
+                        <strong className="font-medium text-slate-800 dark:text-slate-100">Accounting & GL:</strong> Inquire about GL codes, descriptions, and expense categories.
+                      </li>
+                      <li>
+                        <strong className="font-medium text-slate-800 dark:text-slate-100">Copy Answers:</strong> Click the copy icon below any response to copy text.
+                      </li>
+                      <li>
+                        <strong className="font-medium text-slate-800 dark:text-slate-100">Shortcuts:</strong> Press <kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">Enter</kbd> to send, <kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">Shift + Enter</kbd> for a new line.
+                      </li>
+                    </ul>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </SheetHeader>
 
+          {/* Messages Area */}
           <div className="flex-1 overflow-hidden relative flex flex-col">
             <MessageScrollerProvider>
               <MessageScroller className="h-full">
                 <MessageScrollerViewport className="custom-scrollbar">
-                  <MessageScrollerContent className="p-4">
+                  <MessageScrollerContent className="p-4 space-y-4">
                     <MessageGroup>
                       {messages.map((message, index) => (
                         <MotionMessageScrollerItem
@@ -189,9 +331,21 @@ export default function FloatingChat() {
                           scrollAnchor={index === messages.length - 1 && !isStreaming}
                         >
                           <Message align={message.role === "user" ? "end" : "start"}>
-                            <MessageAvatar className={message.role === "user" ? "h-8 w-8 min-w-8 shrink-0 overflow-hidden rounded-full border border-blue-100 dark:border-blue-900 shadow-sm ring-2 ring-blue-50 dark:ring-blue-950" : "h-8 w-8 min-w-8 shrink-0 bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600 dark:from-blue-900 dark:to-indigo-900 dark:text-blue-400 overflow-hidden rounded-full shadow-sm"}>
+                            <MessageAvatar
+                              className={
+                                message.role === "user"
+                                  ? "h-8 w-8 min-w-8 shrink-0 overflow-hidden rounded-full border border-blue-100 dark:border-blue-900 shadow-sm ring-2 ring-blue-50 dark:ring-blue-950"
+                                  : "h-8 w-8 min-w-8 shrink-0 bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600 dark:from-blue-900 dark:to-indigo-900 dark:text-blue-400 overflow-hidden rounded-full shadow-sm"
+                              }
+                            >
                               {message.role === "user" ? (
-                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || user?.email || "User")}&background=eff6ff&color=2563eb&rounded=true&bold=true`} alt="User avatar" className="h-full w-full object-cover" />
+                                <img
+                                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                    user?.full_name || user?.email || "User"
+                                  )}&background=eff6ff&color=2563eb&rounded=true&bold=true`}
+                                  alt="User avatar"
+                                  className="h-full w-full object-cover"
+                                />
                               ) : (
                                 <Bot size={18} />
                               )}
@@ -200,7 +354,11 @@ export default function FloatingChat() {
                               {message.content && (
                                 <Bubble
                                   variant={message.role === "user" ? "default" : "muted"}
-                                  className={message.role === "user" ? "[&>[data-slot=bubble-content]]:bg-gradient-to-br [&>[data-slot=bubble-content]]:from-blue-600 [&>[data-slot=bubble-content]]:to-indigo-600 [&>[data-slot=bubble-content]]:text-white [&>[data-slot=bubble-content]]:shadow-md [&>[data-slot=bubble-content]]:border-none" : "[&>[data-slot=bubble-content]]:bg-muted/50 [&>[data-slot=bubble-content]]:shadow-sm [&>[data-slot=bubble-content]]:border [&>[data-slot=bubble-content]]:border-border/50"}
+                                  className={
+                                    message.role === "user"
+                                      ? "[&>[data-slot=bubble-content]]:bg-gradient-to-br [&>[data-slot=bubble-content]]:from-blue-600 [&>[data-slot=bubble-content]]:to-indigo-600 [&>[data-slot=bubble-content]]:text-white [&>[data-slot=bubble-content]]:shadow-md [&>[data-slot=bubble-content]]:border-none"
+                                      : "[&>[data-slot=bubble-content]]:bg-muted/50 [&>[data-slot=bubble-content]]:shadow-sm [&>[data-slot=bubble-content]]:border [&>[data-slot=bubble-content]]:border-border/50"
+                                  }
                                 >
                                   <BubbleContent>
                                     {message.content}
@@ -210,16 +368,87 @@ export default function FloatingChat() {
                                   </BubbleContent>
                                 </Bubble>
                               )}
+
+                              {/* Tool status loader */}
                               {message.toolStatus && (
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 ml-1 animate-in fade-in slide-in-from-top-1">
                                   <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
                                   {message.toolStatus}
                                 </div>
                               )}
+
+                              {/* Copy Action Button below message */}
+                              {message.content && !(isStreaming && index === messages.length - 1 && message.role === "assistant") && (
+                                <div
+                                  className={`flex items-center gap-1 mt-1 px-1 ${
+                                    message.role === "user" ? "justify-end" : "justify-start"
+                                  }`}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopy(message.content, index)}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/80 active:bg-muted transition-colors"
+                                    title="Copy message"
+                                  >
+                                    {copiedIndex === index ? (
+                                      <>
+                                        <Check className="h-3 w-3 text-green-500" />
+                                        <span className="text-[11px] text-green-600 dark:text-green-400 font-medium">Copied</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="h-3 w-3 opacity-70" />
+                                        <span className="text-[11px]">Copy</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              )}
                             </MessageContent>
                           </Message>
                         </MotionMessageScrollerItem>
                       ))}
+
+                      {/* Welcome Starter Guide & Hints when starting */}
+                      {messages.length === 1 && !isStreaming && (
+                        <div className="pt-2 pb-4 space-y-3 animate-in fade-in-50 duration-300">
+                          <div className="rounded-xl border border-border/60 bg-gradient-to-br from-blue-50/40 via-muted/30 to-indigo-50/30 dark:from-blue-950/20 dark:via-muted/20 dark:to-indigo-950/20 p-4 space-y-3">
+                            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                              <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              <span>Quick Suggestions & Hints</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Click any question below to get started, or type your own question into the box below.
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                              {SUGGESTIONS.map((item, idx) => {
+                                const Icon = item.icon;
+                                return (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => handleSend(item.query)}
+                                    className="flex items-start gap-2.5 p-2.5 text-left rounded-lg border border-border/60 bg-background/80 hover:bg-blue-50/80 dark:hover:bg-blue-950/50 hover:border-blue-300 dark:hover:border-blue-800 transition-all group shadow-sm"
+                                  >
+                                    <div className="p-1.5 rounded-md bg-blue-100/60 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform shrink-0 mt-0.5">
+                                      <Icon className="h-3.5 w-3.5" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="text-xs font-medium text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
+                                        {item.label}
+                                      </div>
+                                      <div className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+                                        {item.query}
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div ref={endRef} />
                     </MessageGroup>
                   </MessageScrollerContent>
@@ -227,23 +456,9 @@ export default function FloatingChat() {
                 <MessageScrollerButton />
               </MessageScroller>
             </MessageScrollerProvider>
-
-            {messages.length === 1 && (
-              <div className="absolute bottom-4 left-0 right-0 px-4 flex flex-wrap gap-2 pointer-events-none justify-start">
-                {SUGGESTIONS.map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => handleSend(item)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium border border-border/50 bg-background/80 backdrop-blur-sm shadow-sm rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/50 text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 pointer-events-auto"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {item}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
+          {/* Input & Helper footer */}
           <div className="flex-col gap-2 p-4 shrink-0 bg-gradient-to-t from-background via-background to-transparent border-t-0 relative z-20">
             <form
               onSubmit={(e) => {
@@ -255,7 +470,7 @@ export default function FloatingChat() {
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask anything..."
+                placeholder="Ask ZenaBot anything (e.g. PR status, GL code lookup, workflow guide)..."
                 className="w-full resize-none bg-transparent px-4 py-3 outline-none text-sm min-h-[60px] custom-scrollbar"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -264,26 +479,31 @@ export default function FloatingChat() {
                   }
                 }}
               />
-              <div className="flex items-center justify-end p-2 pt-0">
-                {isStreaming ? (
-                  <Button
-                    type="button"
-                    onClick={stopStreaming}
-                    className="h-9 w-9 rounded-full p-0 shrink-0 bg-gradient-to-tr from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-md mr-1 transition-all hover:scale-105 active:scale-95 animate-in zoom-in"
-                  >
-                    <Square className="w-4 h-4 fill-current" />
-                    <span className="sr-only">Stop</span>
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    disabled={!input.trim() || isStreaming}
-                    className="h-9 w-9 rounded-full p-0 shrink-0 bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md disabled:opacity-50 mr-1 transition-all hover:scale-105 active:scale-95 animate-in zoom-in"
-                  >
-                    <Send className="w-4 h-4" />
-                    <span className="sr-only">Send</span>
-                  </Button>
-                )}
+              <div className="flex items-center justify-between px-3 pb-2 pt-0">
+                <span className="text-[11px] text-muted-foreground hidden sm:inline-flex items-center gap-1">
+                  <span>Press <kbd className="px-1 py-0.2 bg-muted rounded border border-border text-[10px]">Enter</kbd> to send, <kbd className="px-1 py-0.2 bg-muted rounded border border-border text-[10px]">Shift+Enter</kbd> for newline</span>
+                </span>
+                <div className="flex items-center ml-auto">
+                  {isStreaming ? (
+                    <Button
+                      type="button"
+                      onClick={stopStreaming}
+                      className="h-9 w-9 rounded-full p-0 shrink-0 bg-gradient-to-tr from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-md mr-1 transition-all hover:scale-105 active:scale-95 animate-in zoom-in"
+                    >
+                      <Square className="w-4 h-4 fill-current" />
+                      <span className="sr-only">Stop</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      disabled={!input.trim() || isStreaming}
+                      className="h-9 w-9 rounded-full p-0 shrink-0 bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md disabled:opacity-50 mr-1 transition-all hover:scale-105 active:scale-95 animate-in zoom-in"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span className="sr-only">Send</span>
+                    </Button>
+                  )}
+                </div>
               </div>
             </form>
           </div>
@@ -302,7 +522,9 @@ export default function FloatingChat() {
             setHasUnread(false);
           }
         }}
-        className={`relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-full h-10 w-10 outline-none focus-visible:ring-0 ${isOpen ? "hidden" : ""}`}
+        className={`relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-full h-10 w-10 outline-none focus-visible:ring-0 ${
+          isOpen ? "hidden" : ""
+        }`}
       >
         <Bot className={`h-5 w-5 ${hasUnread ? "animate-pulse text-blue-600" : ""}`} />
         {!isOpen && hasUnread && (
@@ -315,3 +537,4 @@ export default function FloatingChat() {
     </>
   );
 }
+

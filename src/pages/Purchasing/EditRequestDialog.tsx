@@ -18,7 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { useUpdateRequest } from "@/hooks/usePurchasing";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Maximize2, FileText, Truck, DollarSign, AlertTriangle } from "lucide-react";
-import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { formatMoney } from "./purchasingMeta";
 import type { ItemMode, PurchaseRequestItem } from "@/types/purchasing";
 

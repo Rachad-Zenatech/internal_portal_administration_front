@@ -10,7 +10,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowLeft,
-  Bell,
   Clock,
   ExternalLink,
   FileText,
@@ -223,7 +222,7 @@ export default function RequestDetail() {
     );
   }
 
-  const { request, purchase_order, invoice: inv, approvals, notifications, available_actions } = data;
+  const { request, purchase_order, invoice: inv, approvals, available_actions } = data;
   const isMulti = request.item_mode === "MULTIPLE" || Boolean(request.items && request.items.length > 0);
   let flow = SPEND_FLOW;
   if (request.request_type === "ADMIN") flow = ADMIN_FLOW;
@@ -898,21 +897,7 @@ export default function RequestDetail() {
             </CardContent>
           </Card>
 
-          <Card className="border border-slate-200 dark:border-zinc-800">
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4" /> Notifications</CardTitle></CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              {notifications.length === 0 ? (
-                <p className="text-slate-500">No notifications sent yet.</p>
-              ) : (
-                notifications.map((n) => (
-                  <div key={n.id} className="border-l-2 pl-3 border-blue-200 dark:border-blue-900">
-                    <div className="text-slate-800 dark:text-zinc-200">{n.message}</div>
-                    <div className="text-xs text-slate-500">To {n.user_id} · {formatDate(n.created_at)}</div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+
         </div>
       </div>
 

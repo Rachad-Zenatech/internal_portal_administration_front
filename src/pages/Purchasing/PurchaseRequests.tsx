@@ -1,4 +1,4 @@
-﻿import {
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -8,7 +8,6 @@
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { useMemo, useState, useEffect, useRef } from "react";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { useNavigate, useSearchParams } from "react-router-dom";
