@@ -3,8 +3,6 @@ import {
   Upload,
   ShieldCheck,
   FileClock,
-  GitMerge,
-  BellRing,
   ShoppingCart,
   ReceiptText,
 } from "lucide-react";
@@ -23,20 +21,6 @@ export const navigation = [
     icon: Upload,
     section: "MAIN",
     navigationCode: "UPLOAD_FILES",
-  },
-  {
-    label: "Workflows",
-    path: "/workflows",
-    icon: GitMerge,
-    section: "ORDER SYSTEM",
-    navigationCode: "WORKFLOWS_MANAGE",
-  },
-  {
-    label: "Notification Plans",
-    path: "/notifications",
-    icon: BellRing,
-    section: "ORDER SYSTEM",
-    navigationCode: "NOTIFICATIONS_MANAGE",
   },
   {
     label: "Purchase Requests",

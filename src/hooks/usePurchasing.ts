@@ -41,7 +41,7 @@ export function useCreateRequest() {
     mutationFn: (payload: RequestCreateInput) => purchasing.createRequest(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.all });
-      toast.success("Purchase request created");
+      
     },
     onError: (err: any) => {
       toast.error(err?.message ?? "Failed to create request");
@@ -71,8 +71,7 @@ export function useTransitionRequest(requestId: string) {
     onSuccess: (data) => {
       qc.setQueryData(keys.request(requestId), data);
       qc.invalidateQueries({ queryKey: keys.all });
-      toast.success("Request updated");
-    },
+      },
     onError: (err: any) => {
       toast.error(err?.message ?? "Action failed");
     },

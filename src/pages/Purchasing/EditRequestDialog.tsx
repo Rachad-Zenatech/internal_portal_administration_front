@@ -301,6 +301,7 @@ export function EditRequestDialog({
                   variant={itemMode === "SINGLE" ? "default" : "outline"}
                   className="w-full text-xs font-medium justify-center h-9"
                   onClick={() => setItemMode("SINGLE")}
+                  disabled={isMulti}
                 >
                   Single Item (Direct entry)
                 </Button>
@@ -309,6 +310,7 @@ export function EditRequestDialog({
                   variant={itemMode === "MULTIPLE" ? "default" : "outline"}
                   className="w-full text-xs font-medium justify-center h-9"
                   onClick={() => setItemMode("MULTIPLE")}
+                  disabled={!isMulti}
                 >
                   <FileText className="h-3.5 w-3.5 mr-1.5" /> Multiple Parts ({items.length} parts)
                 </Button>
@@ -599,13 +601,7 @@ export function EditRequestDialog({
                 </>
               )}
 
-              <div className="space-y-2 col-span-2">
-                <label className="text-sm font-medium">GL Code / Account</label>
-                <GLCodeAutocomplete
-                  value={formData.gl_code}
-                  onChange={(val) => setFormData({ ...formData, gl_code: val })}
-                />
-              </div>
+              
 
               <div className="space-y-2 col-span-2">
                 <label className="text-sm font-medium">Description</label>

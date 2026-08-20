@@ -476,10 +476,9 @@ export default function UploadFiles() {
 }
 
 function FileTypeIcon({ file }: { file: ArchivedUpload }) {
-  if (file.upload_type === "general-ledger") {
+  if (file.filename.endsWith(".xlsx") || file.filename.endsWith(".csv") || file.filename.endsWith(".xls")) {
     return <FileSpreadsheet className="h-4 w-4 text-emerald-700" />;
   }
-
   return <FileText className="h-4 w-4 text-sky-700" />;
 }
 

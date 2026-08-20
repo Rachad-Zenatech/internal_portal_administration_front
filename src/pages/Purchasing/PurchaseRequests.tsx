@@ -1,4 +1,4 @@
-import {
+﻿import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -727,7 +727,7 @@ export function PurchaseRequests() {
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
                       <FileSpreadsheet className="h-4 w-4 text-indigo-600" />
-                      <span>Upload Quote / Quotation PDF (Optional — auto-extracts line items)</span>
+                      <span>Upload Quote / Quotation PDF (Optional â€” auto-extracts line items)</span>
                     </label>
                     {quoteExtraction && (
                       <Button
@@ -1100,27 +1100,12 @@ export function PurchaseRequests() {
                       onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Estimated Amount ($)</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.amount ?? 0}
-                      onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
-                    />
-                  </div>
+                  
                 </div>
               </>
             )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">GL Code / Account</label>
-              <GLCodeAutocomplete
-                value={form.gl_code}
-                onChange={(val) => setForm((prev) => ({ ...prev, gl_code: val }))}
-              />
-            </div>
+            
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Description</label>
@@ -1307,3 +1292,4 @@ export function PurchaseRequests() {
 }
 
 export default PurchaseRequests;
+

@@ -104,7 +104,7 @@ export default function RecentTransactionsTable({
   return (
     <Card className="w-full h-full flex flex-col rounded-2xl border-slate-200/60 shadow-sm overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-lg">Recent Bank Statement Transactions</CardTitle>
+        <CardTitle className="text-lg">Recent Transactions</CardTitle>
       </CardHeader>
       <CardContent className="p-0 flex-1 flex flex-col min-h-0">
         <div className="flex-1 overflow-auto">

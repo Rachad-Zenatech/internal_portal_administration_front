@@ -315,9 +315,9 @@ export default function RequestDetail() {
       if (!po.shipped_to_location || !po.shipped_to_location.trim()) return toast.error("Shipped to location is required.");
       void dispatch({ action, purchase_order: { ...po, amount: Number(po.amount) || 0, quantity: Number(po.quantity) || 1, unit_price: Number(po.unit_price) || 0 } });
     } else if (kind === "invoice") {
-      if (!invoice.vendor || !invoice.invoice_date || !invoice.invoice_type) return toast.error("Vendor, bill date, and invoice type are required.");
+      if (!invoice.vendor || !invoice.invoice_date) return toast.error("Vendor and bill date are required.");
       void (async () => {
-        const ok = await dispatch({ action, invoice: { ...invoice, amount: Number(invoice.amount) || 0 } });
+        const ok = await dispatch({ action, invoice: { ...invoice, invoice_type: "Purchase", amount: Number(invoice.amount) || 0 } });
         if (ok && pendingFiles.length > 0 && id) {
           try {
             await uploadAttachments.mutateAsync(pendingFiles);
@@ -537,10 +537,10 @@ export default function RequestDetail() {
                             <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Vendor</div>
                             <div className="text-slate-700 dark:text-slate-300">{request.product_info.vendor}</div>
                           </div>
-                          <div>
-                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Category</div>
-                            <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">{request.product_info.category}</Badge>
-                          </div>
+                          <div className="min-w-0">
+                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Category</div>
+                              <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 max-w-full truncate block" title={request.product_info.category}>{request.product_info.category}</Badge>
+                            </div>
                           <div className="col-span-2">
                             <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Description</div>
                             <div className="text-slate-600 dark:text-slate-400 leading-relaxed text-xs">{request.product_info.description}</div>
@@ -787,7 +787,6 @@ export default function RequestDetail() {
               <CardContent className="grid grid-cols-2 gap-4 text-sm">
                 <Field label="Vendor" value={inv.vendor} />
                 <Field label="Amount" value={formatMoney(inv.amount)} />
-                <Field label="Invoice Type" value={inv.invoice_type ?? "—"} />
                 <Field label="Description" value={inv.description ?? "—"} />
                 <Field label="Bill Date" value={formatDate(inv.paid_date || inv.invoice_date)} />
                 <Field label="Date Arrived" value={formatDate(inv.due_date)} />
@@ -1268,19 +1267,6 @@ export default function RequestDetail() {
                 <TwoUp>
                   <FieldInput label="Vendor" value={invoice.vendor} onChange={(v) => setInvoice({ ...invoice, vendor: v })} />
                   <FieldInput label="Amount" type="number" value={String(invoice.amount)} onChange={(v) => setInvoice({ ...invoice, amount: Number(v) })} />
-                </TwoUp>
-                <TwoUp>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Invoice Type <span className="text-red-500">*</span></label>
-                    <Select value={invoice.invoice_type || undefined} onValueChange={(v) => setInvoice({ ...invoice, invoice_type: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Purchase">Purchase</SelectItem>
-                        <SelectItem value="Quote">Quote</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div />
                 </TwoUp>
                 <TwoUp>
                   <FieldInput label="Bill Date" type="date" value={invoice.invoice_date} onChange={(v) => setInvoice({ ...invoice, invoice_date: v })} />

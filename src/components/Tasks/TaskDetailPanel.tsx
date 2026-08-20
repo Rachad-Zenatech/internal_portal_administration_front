@@ -390,9 +390,9 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                       <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Vendor</div>
                       <div className="text-slate-700 dark:text-slate-300">{parsedProductInfo.vendor}</div>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Category</div>
-                      <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">
+                      <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 max-w-full truncate block" title={parsedProductInfo.category}>
                         {parsedProductInfo.category}
                       </Badge>
                     </div>
