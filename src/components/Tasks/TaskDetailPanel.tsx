@@ -452,7 +452,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                         <DetailField label="Tracking #" value={po.tracking_number} />
                         <DetailField
                           label="Goods Received"
-                          value={po.goods_received ? `Yes (${po.goods_received_at ? format(new Date(po.goods_received_at), "MMM d") : "Received"})` : "No"}
+                          value={po.goods_received ? `Yes (${po.goods_received_at ? format(new Date(po.goods_received_at), "MMM d, yyyy") : "Received"})` : "No"}
                         />
                       </div>
 

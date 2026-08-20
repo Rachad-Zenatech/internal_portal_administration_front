@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
-import { usePurchasingSummary } from "@/hooks/usePurchasing";
-import { useTasks } from "@/hooks/useTasks";
+import { usePurchaseRequests, usePurchasingSummary } from "@/hooks/usePurchasing";
 import { formatMoney } from "@/pages/Purchasing/purchasingMeta";
-import { Clock, ShoppingCart, FileWarning, CheckCircle2, Search } from "lucide-react";
+import { RequestStatus } from "@/types/purchasing";
+import { parseRequestStatus } from "@/lib/requestStatus";
+import { isToday } from "date-fns";
+import { Activity, AlertTriangle, TrendingUp, CalendarPlus, Search, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -17,12 +19,22 @@ import { apiClient as api } from "@/services/apiClient";
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { data: requests = [], refetch: fetchRequests } = usePurchaseRequests();
   const { data: summary } = usePurchasingSummary();
-  const { data: tasks = [], refetch: fetchTasks } = useTasks();
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterTodayOnly, setFilterTodayOnly] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
 
-  const handleTaskClick = async (taskId: number) => {
+  const tasks = useMemo(() => {
+    return requests.map((req) => ({
+      ...req,
+      product_name: req.title,
+      category: req.request_type || "SPEND",
+      assignee_name: req.assigned_user || req.requester,
+    }));
+  }, [requests]);
+
+  const handleTaskClick = async (taskId: number | string) => {
     try {
       const res = await api.get<any>(`/tasks/${taskId}`);
       setSelectedTask(res);
@@ -31,15 +43,53 @@ export default function Dashboard() {
     }
   };
 
-  const filteredTasks = tasks.filter((task: any) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return Object.values(task).some((value) =>
-      value !== null &&
-      value !== undefined &&
-      String(value).toLowerCase().includes(query)
-    );
-  });
+  const isTaskCreatedToday = (task: any) => {
+    const d = task.created_at || task.request_date;
+    if (!d) return false;
+    try {
+      return isToday(new Date(d));
+    } catch {
+      return false;
+    }
+  };
+
+  const tasksCreatedToday = useMemo(() => {
+    return tasks.filter((t: any) => isTaskCreatedToday(t));
+  }, [tasks]);
+
+  const activeTasks = useMemo(() => {
+    return tasks.filter((t: any) => {
+      const s = parseRequestStatus(t.status);
+      return s !== RequestStatus.Completed && s !== RequestStatus.Rejected;
+    });
+  }, [tasks]);
+
+  const urgentTasks = useMemo(() => {
+    return activeTasks.filter((t: any) => {
+      const p = (t.priority || "").toUpperCase();
+      return p === "HIGH" || p === "URGENT";
+    });
+  }, [activeTasks]);
+
+  const pipelineValue = useMemo(() => {
+    return activeTasks.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+  }, [activeTasks]);
+
+  const totalCount = summary?.total_requests ?? tasks.length;
+  const activeCount = summary?.open_requests ?? activeTasks.length;
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task: any) => {
+      if (filterTodayOnly && !isTaskCreatedToday(task)) return false;
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return Object.values(task).some((value) =>
+        value !== null &&
+        value !== undefined &&
+        String(value).toLowerCase().includes(query)
+      );
+    });
+  }, [tasks, searchQuery, filterTodayOnly]);
 
   return (
     <div className="w-full space-y-6 flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out p-6 lg:p-8">
@@ -56,57 +106,83 @@ export default function Dashboard() {
       </header>
 
       {/* Summary KPI Cards */}
-      {summary && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card onClick={() => navigate("/purchasing/requests")} className="shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-blue-300">
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
-                <ShoppingCart className="w-6 h-6" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold leading-none mb-1">{summary.open_requests}</span>
-                <span className="text-xs text-muted-foreground font-medium">Open Requests</span>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* 1. Task Created Today */}
+        <Card
+          onClick={() => setFilterTodayOnly((prev) => !prev)}
+          className={`shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-violet-300 ${filterTodayOnly ? "ring-2 ring-violet-500" : ""}`}
+        >
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
+              <CalendarPlus className="w-6 h-6" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold leading-none mb-1">{tasksCreatedToday.length}</span>
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Task Created Today</span>
+              <span className="text-[11px] text-muted-foreground mt-0.5">
+                {tasksCreatedToday.length === 1 ? "1 task" : `${tasksCreatedToday.length} tasks`} today
+              </span>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card onClick={() => navigate("/purchasing/requests?status=UNDER_REVIEW")} className="shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-orange-300">
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400">
-                <Clock className="w-6 h-6" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold leading-none mb-1">{summary.status_counts?.UNDER_REVIEW ?? 0}</span>
-                <span className="text-xs text-muted-foreground font-medium">Waiting for Review</span>
-              </div>
-            </CardContent>
-          </Card>
+        {/* 2. Active Workflows */}
+        <Card
+          onClick={() => {
+            setSearchQuery("");
+            setFilterTodayOnly(false);
+          }}
+          className={`shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-blue-300 ${!searchQuery && !filterTodayOnly ? "ring-1 ring-blue-500/20" : ""}`}
+        >
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+              <Activity className="w-6 h-6" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold leading-none mb-1">{activeCount}</span>
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Active Workflows</span>
+              <span className="text-[11px] text-muted-foreground mt-0.5">{totalCount} total tasks</span>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card onClick={() => navigate("/purchasing/requests?status=WAITING_PAYMENT")} className="shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-fuchsia-300">
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-fuchsia-50 text-fuchsia-600 dark:bg-fuchsia-900/20 dark:text-fuchsia-400">
-                <FileWarning className="w-6 h-6" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold leading-none mb-1">{summary.unpaid_invoices}</span>
-                <span className="text-xs text-muted-foreground font-medium">Unpaid Invoices<br />{formatMoney(summary.unpaid_amount)}</span>
-              </div>
-            </CardContent>
-          </Card>
+        {/* 3. Priority Attention */}
+        <Card
+          onClick={() => {
+            setFilterTodayOnly(false);
+            setSearchQuery(searchQuery.toLowerCase() === "high" ? "" : "HIGH");
+          }}
+          className={`shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-amber-300 ${searchQuery.toLowerCase() === "high" ? "ring-2 ring-amber-500" : ""}`}
+        >
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold leading-none mb-1">{urgentTasks.length}</span>
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Priority Attention</span>
+              <span className="text-[11px] text-muted-foreground mt-0.5">High &amp; urgent tasks</span>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card onClick={() => navigate("/purchasing/requests?status=COMPLETED")} className="shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-emerald-300">
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold leading-none mb-1">{summary.completed}</span>
-                <span className="text-xs text-muted-foreground font-medium">Completed</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        {/* 4. Active Pipeline Value */}
+        <Card
+          onClick={() => navigate("/purchasing/requests")}
+          className="shadow-sm cursor-pointer hover:shadow-md transition-all hover:border-emerald-300"
+        >
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold leading-none mb-1">{formatMoney(pipelineValue)}</span>
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Active Pipeline Value</span>
+              <span className="text-[11px] text-muted-foreground mt-0.5">{activeCount} active requests</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Read-Only Tasks Board & Overview Section */}
       <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden mt-6 min-h-[calc(100vh-7rem)] flex flex-col">
@@ -131,10 +207,22 @@ export default function Dashboard() {
                 <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search tasks..."
-                  className="pl-9 bg-background h-8"
+                  className="pl-9 pr-8 bg-background h-8"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
+                {(searchQuery || filterTodayOnly) && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setFilterTodayOnly(false);
+                    }}
+                    className="absolute right-2.5 top-2 text-muted-foreground hover:text-foreground transition-colors"
+                    title="Clear filter"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -161,7 +249,7 @@ export default function Dashboard() {
         task={selectedTask}
         onClose={() => setSelectedTask(null)}
         onUpdate={() => {
-          fetchTasks();
+          fetchRequests();
           if (selectedTask?.id) handleTaskClick(selectedTask.id);
         }}
         readOnly={true}
