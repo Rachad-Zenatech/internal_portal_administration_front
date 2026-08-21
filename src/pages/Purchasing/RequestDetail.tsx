@@ -1,5 +1,4 @@
 import { useGLCodes } from "@/hooks/usePurchasing";
-import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { ManualPriceDialog } from "./ManualPriceDialog";
@@ -186,6 +185,7 @@ export default function RequestDetail() {
   const [approval, setApproval] = useState<ApprovalInput>({ approver: "", comment: "" });
   const [tracking, setTracking] = useState<TrackingInput>({ tracking_number: "" });
   const [hold, setHold] = useState<HoldInput>({ reason: "" });
+  const [confirmGoods, setConfirmGoods] = useState({ description: "" });
   const [isActivityLogsOpen, setIsActivityLogsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
@@ -255,10 +255,7 @@ export default function RequestDetail() {
       setInvoice({
         vendor: purchase_order?.vendor ?? "",
         amount: purchase_order?.amount ?? 0,
-        // Bill Date defaults to the date the request was marked Ordered/Purchased, if known.
-        invoice_date: data.invoice?.paid_date
-          ? format(new Date(data.invoice.paid_date), "yyyy-MM-dd")
-          : (data.ordered_date ? format(new Date(data.ordered_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")),
+        invoice_date: "",
         due_date: "",
         gl_code: "",
         asset_flag: false,
@@ -302,6 +299,7 @@ export default function RequestDetail() {
         expected_delivery_date: "",
       });
     }
+    setConfirmGoods({ description: "" });
     setActiveForm({ action, kind: meta.form });
   };
 
@@ -333,7 +331,7 @@ export default function RequestDetail() {
       if (!tracking.tracking_number) return toast.error("Tracking number is required.");
       void dispatch({ action, tracking });
     } else if (kind === "confirmGoods") {
-      void dispatch({ action });
+      void dispatch({ action, confirm_goods: { description: confirmGoods.description.trim() } });
     } else if (kind === "hold") {
       if (!hold.reason || !hold.reason.trim()) return toast.error("Hold reason is required.");
       void dispatch({ action, hold });
@@ -1334,7 +1332,20 @@ export default function RequestDetail() {
               </>
             )}
             {activeForm?.kind === "confirmGoods" && (
-              <p className="text-sm text-muted-foreground">Are you sure you want to confirm goods received?</p>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">Are you sure you want to confirm goods received?</p>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Description / Notes <span className="text-muted-foreground text-xs font-normal">(Optional)</span>
+                  </label>
+                  <Textarea
+                    rows={3}
+                    placeholder="Add optional notes (e.g. packages received, item condition, storage location)..."
+                    value={confirmGoods.description}
+                    onChange={(e) => setConfirmGoods({ description: e.target.value })}
+                  />
+                </div>
+              </div>
             )}
             {activeForm?.kind === "hold" && (
               <div className="space-y-2">

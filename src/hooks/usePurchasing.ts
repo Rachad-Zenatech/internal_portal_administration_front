@@ -17,6 +17,8 @@ export function usePurchasingSummary() {
   return useQuery({
     queryKey: keys.summary(),
     queryFn: purchasing.getSummary,
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -24,6 +26,8 @@ export function usePurchaseRequests(filters: RequestListFilters = {}) {
   return useQuery({
     queryKey: keys.requests(filters),
     queryFn: () => purchasing.listRequests(filters),
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -32,6 +36,8 @@ export function useRequestDetail(id: string | undefined) {
     queryKey: id ? keys.request(id) : keys.all,
     queryFn: () => (id ? purchasing.getRequest(id) : Promise.reject("no id")),
     enabled: Boolean(id),
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
   });
 }
 

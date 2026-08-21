@@ -274,6 +274,11 @@ export type HoldInput = {
   reason: string;
 };
 
+export type ConfirmGoodsInput = {
+  description?: string;
+  note?: string;
+};
+
 export type TransitionInput = {
   action: WorkflowAction;
   purchase_order?: PurchaseOrderInput;
@@ -281,6 +286,9 @@ export type TransitionInput = {
   approval?: ApprovalInput;
   tracking?: TrackingInput;
   hold?: HoldInput;
+  confirm_goods?: ConfirmGoodsInput;
+  description?: string;
+  comment?: string;
 };
 
 

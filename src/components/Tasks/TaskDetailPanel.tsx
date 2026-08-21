@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Trash2, Edit2, Paperclip, ExternalLink, FileText, Package, ReceiptText, AlertTriangle, User, Building2, Tag, Layers } from "lucide-react";
 import Stepper from "@/components/Stepper";
-import { RequestStatus } from "@/types/purchasing";
+import { RequestStatus, PAYMENT_METHOD_LABEL } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   SPEND_FLOW,
@@ -25,6 +25,7 @@ import {
   getStatusLabel,
   PRIORITY_BADGE,
   TAX_RATE,
+  formatDate,
   formatActivityAction,
   formatActivityValue,
 } from "@/pages/Purchasing/purchasingMeta";
@@ -233,6 +234,11 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
   const quantity = Number(task.quantity || 1);
   const afterTaxAmount = totalAmount * (1 + TAX_RATE);
 
+  const rawItems = (task.items && task.items.length > 0)
+    ? task.items
+    : (parsedQuoteData?.items || parsedQuoteData?.line_items || []);
+  const isMulti = task.item_mode === "MULTIPLE" || rawItems.length > 0;
+
   return (
     <Sheet open={!!task} onOpenChange={(open) => !open && onClose()}>
       <SheetContent aria-describedby={undefined} className="!max-w-[80vw] !w-[80vw] flex flex-col p-0 bg-slate-50/50 dark:bg-zinc-950">
@@ -329,15 +335,31 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                   <DetailField label="Requester" value={task.requester_name || task.requester} icon={User} />
                   <DetailField label="Department" value={task.department} icon={Building2} />
                   <DetailField label="Type" value={task.category || task.request_type} icon={Layers} />
+                  <DetailField
+                    label="Configuration"
+                    value={
+                      isMulti ? (
+                        <Badge variant="outline" className="text-xs bg-indigo-50/50 text-indigo-700 border-indigo-200">
+                          Multi Parts ({rawItems.length} parts)
+                        </Badge>
+                      ) : (
+                        "Single Item"
+                      )
+                    }
+                  />
                   <DetailField label="Assigned To" value={task.assignee_name} icon={User} />
-                  <DetailField label="Requested Date" value={task.created_at ? format(new Date(task.created_at), "MMM d, yyyy") : null} />
-                  <DetailField label="Last Updated" value={task.updated_at ? format(new Date(task.updated_at), "MMM d, yyyy") : null} />
-                  <DetailField label="Quantity" value={quantity} />
-                  <DetailField label="Unit Price" value={`$${unitPrice.toFixed(2)}`} />
+                  <DetailField label="GL Code" value={formatGLCode(task.gl_code)} icon={Tag} badge />
+                  <DetailField label="Requested Date" value={task.created_at ? formatDate(task.created_at) : null} />
+                  <DetailField label="Last Updated" value={task.updated_at ? formatDate(task.updated_at) : null} />
+                  {!isMulti && (
+                    <>
+                      <DetailField label="Quantity" value={quantity} />
+                      <DetailField label="Unit Price" value={`$${unitPrice.toFixed(2)}`} />
+                    </>
+                  )}
                   <DetailField label="Total (Pre-Tax)" value={`$${totalAmount.toFixed(2)}`} />
                   <DetailField label="Total (After-Tax)" value={`$${afterTaxAmount.toFixed(2)}`} />
                   <DetailField label="Currency" value={task.currency || "USD"} />
-                  <DetailField label="GL Code" value={formatGLCode(task.gl_code)} icon={Tag} badge />
 
                   {task.description && (
                     <div className="col-span-2 sm:col-span-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
@@ -445,14 +467,14 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                         {poShipping > 0 && (
                           <DetailField label="Shipping Fee" value={`$${Number(poShipping).toFixed(2)}`} />
                         )}
-                        <DetailField label="Payment Format" value={po.payment_method} />
+                        <DetailField label="Payment Format" value={po.payment_method ? (PAYMENT_METHOD_LABEL[po.payment_method as keyof typeof PAYMENT_METHOD_LABEL] || po.payment_method) : "—"} />
                         <DetailField label="GL Code" value={formatGLCode(po.gl_code || task.gl_code)} badge />
                         <DetailField label="Shipped To" value={po.shipped_to_location} />
                         <DetailField label="Approval" value={po.approval_status} />
                         <DetailField label="Tracking #" value={po.tracking_number} />
                         <DetailField
                           label="Goods Received"
-                          value={po.goods_received ? `Yes (${po.goods_received_at ? format(new Date(po.goods_received_at), "MMM d, yyyy") : "Received"})` : "No"}
+                          value={po.goods_received ? `Yes (${po.goods_received_at ? formatDate(po.goods_received_at) : "Received"})` : "No"}
                         />
                       </div>
 
@@ -519,9 +541,9 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                       }
                       badge
                     />
-                    <DetailField label="Bill Date" value={task.invoice.paid_date ? format(new Date(task.invoice.paid_date), "MMM d, yyyy") : (task.invoice.invoice_date ? format(new Date(task.invoice.invoice_date), "MMM d, yyyy") : null)} />
-                    <DetailField label="Date Arrived" value={task.invoice.due_date ? format(new Date(task.invoice.due_date), "MMM d, yyyy") : (task.purchase_order?.goods_received_at ? format(new Date(task.purchase_order.goods_received_at), "MMM d, yyyy") : null)} />
-                    <DetailField label="Paid Date" value={task.invoice.paid_date ? format(new Date(task.invoice.paid_date), "MMM d, yyyy") : (task.invoice.invoice_date ? format(new Date(task.invoice.invoice_date), "MMM d, yyyy") : null)} />
+                    <DetailField label="Bill Date" value={formatDate(task.invoice.invoice_date || task.invoice.paid_date)} />
+                    <DetailField label="Date Arrived" value={formatDate(task.invoice.due_date || task.purchase_order?.goods_received_at)} />
+                    <DetailField label="Paid Date" value={formatDate(task.invoice.paid_date)} />
                     <DetailField label="GL Code" value={formatGLCode(task.invoice.gl_code || task.gl_code)} badge />
                     <DetailField label="Asset Flag" value={task.invoice.asset_flag ? "Yes" : "No"} />
                   </CardContent>

@@ -128,7 +128,7 @@ export default function Invoices() {
                     <TableCell className="text-slate-500 text-sm">{formatDate(task.created_at)}</TableCell>
                     <TableCell className="text-sm">
                       <span className={overdue ? "text-red-600 font-medium" : "text-slate-500"}>
-                        {formatDate(task.goods_received_at || task.due_date || task.invoice_date)}{overdue ? " · overdue" : ""}
+                        {formatDate(task.due_date || task.goods_received_at) || "—"}{overdue ? " · overdue" : ""}
                       </span>
                     </TableCell>
                     <TableCell>

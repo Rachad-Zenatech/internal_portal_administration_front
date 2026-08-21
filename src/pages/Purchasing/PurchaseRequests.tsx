@@ -99,7 +99,7 @@ function RequesterAutocomplete({
   value: string;
   onChange: (val: string) => void;
   onSelectUser?: (user: any) => void;
-  users: Array<{ id: string; full_name?: string; email?: string; department?: string; [key: string]: any }>;
+  users: Array<{ id: string; full_name?: string; email?: string; department?: string;[key: string]: any }>;
   roles?: Role[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -509,13 +509,13 @@ export function PurchaseRequests() {
             Capture, review, approve and track purchasing &amp; accounts payable requests.
           </p>
         </div>
-<div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
             variant="outline"
             onClick={async () => {
               try {
                 toast.loading("Generating QuickBooks export...", { id: "qb-export" });
-                await exportQuickBooksXlsx(undefined, statusFilter);
+                await exportQuickBooksXlsx(undefined, "COMPLETED");
                 toast.success("QuickBooks export downloaded", { id: "qb-export" });
               } catch (err: any) {
                 toast.error(err.message || "Failed to export QuickBooks file", { id: "qb-export" });
@@ -540,11 +540,10 @@ export function PurchaseRequests() {
             <Card
               key={c.label}
               onClick={() => handleStatusFilterChange(c.statusKey)}
-              className={`border transition-all cursor-pointer ${
-                isSelected
+              className={`border transition-all cursor-pointer ${isSelected
                   ? "border-blue-500/80 ring-2 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-950/20 shadow-md"
                   : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-md"
-              }`}
+                }`}
             >
               <CardContent className="p-4 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between">
@@ -751,7 +750,7 @@ export function PurchaseRequests() {
               </div>
             </div>
 
-                        {/* Multiple Parts PDF Dropzone & AI Extraction + Always-Visible Line Items Table */}
+            {/* Multiple Parts PDF Dropzone & AI Extraction + Always-Visible Line Items Table */}
             {itemMode === "MULTIPLE" && (
               <div className="space-y-4 p-4 rounded-xl bg-gradient-to-b from-indigo-50/50 to-transparent dark:from-indigo-950/20 dark:to-transparent border border-indigo-200/80 dark:border-indigo-900/60 shadow-xs">
                 {/* PDF Upload (Optional) */}
@@ -759,7 +758,7 @@ export function PurchaseRequests() {
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
                       <FileSpreadsheet className="h-4 w-4 text-indigo-600" />
-                      <span>Upload Quote / Quotation PDF (Optional â€” auto-extracts line items)</span>
+                      <span>Upload Quote / Quotation PDF ([Optional] auto-extracts line items)</span>
                     </label>
                     {quoteExtraction && (
                       <Button
@@ -1132,12 +1131,12 @@ export function PurchaseRequests() {
                       onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
                     />
                   </div>
-                  
+
                 </div>
               </>
             )}
 
-            
+
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Description</label>

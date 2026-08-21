@@ -117,6 +117,8 @@ export default function TopBar() {
         // Invalidate queries so that the notification list and count fetch the latest state
         queryClient.invalidateQueries({ queryKey: ["notifications"] });
         queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+        queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+        queryClient.invalidateQueries({ queryKey: ["tasks"] });
         
         if (inAppAlerts) {
           const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "";
@@ -126,7 +128,7 @@ export default function TopBar() {
               onClick={() => newNotif.link_url && navigate(newNotif.link_url)}
             >
               <div className="font-medium">{capitalizedTitle}</div>
-              <div className="text-sm text-slate-500 dark:text-zinc-400">{newNotif.message}</div>
+              <div className="text-sm text-slate-500 dark:text-zinc-400 whitespace-pre-line">{newNotif.message}</div>
             </div>, 
             {
               position: "bottom-right",
@@ -368,7 +370,7 @@ export default function TopBar() {
 
                           {/* Message box if present */}
                           {notification.message && (!notification.attachments || notification.attachments.length === 0) && (
-                            <div className="mt-2.5 p-3.5 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 shadow-sm leading-relaxed">
+                            <div className="mt-2.5 p-3.5 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 shadow-sm leading-relaxed whitespace-pre-line">
                               {notification.message}
                             </div>
                           )}

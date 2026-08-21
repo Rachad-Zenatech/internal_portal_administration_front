@@ -19,7 +19,8 @@ import { useUpdateRequest } from "@/hooks/usePurchasing";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Maximize2, FileText, Truck, DollarSign, AlertTriangle } from "lucide-react";
 import { formatMoney } from "./purchasingMeta";
-import type { ItemMode, PurchaseRequestItem } from "@/types/purchasing";
+import { RequestStatus, type ItemMode, type PurchaseRequestItem } from "@/types/purchasing";
+import { parseRequestStatus } from "@/lib/requestStatus";
 
 export function EditRequestDialog({
   request,
@@ -31,6 +32,8 @@ export function EditRequestDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const isMulti = request?.item_mode === "MULTIPLE" || (request?.items && request.items.length > 0);
+  const parsedStatus = parseRequestStatus(request?.status);
+  const isLinkEditable = parsedStatus === RequestStatus.Initial || parsedStatus === RequestStatus.New || parsedStatus === RequestStatus.UnderReview;
   const [itemMode, setItemMode] = useState<ItemMode>(isMulti ? "MULTIPLE" : "SINGLE");
   const [formData, setFormData] = useState({
     title: "",
@@ -589,12 +592,21 @@ export function EditRequestDialog({
                   </div>
 
                   <div className="space-y-2 col-span-2">
-                    <label className="text-sm font-medium">Link / URL</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Link / URL</label>
+                      {!isLinkEditable && (
+                        <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-normal">
+                          Locked (not editable from Waiting Approval onward)
+                        </span>
+                      )}
+                    </div>
                     <Input
                       type="url"
                       value={formData.item_url}
                       onChange={(e) => setFormData({ ...formData, item_url: e.target.value })}
                       placeholder="https://..."
+                      disabled={!isLinkEditable}
+                      className={!isLinkEditable ? "bg-slate-100 dark:bg-zinc-800/60 cursor-not-allowed text-slate-500 dark:text-zinc-400" : ""}
                     />
                   </div>
                 </>
