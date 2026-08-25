@@ -118,7 +118,9 @@ export default function TopBar() {
         queryClient.invalidateQueries({ queryKey: ["notifications"] });
         queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
         queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+        queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
+        queryClient.invalidateQueries({ queryKey: ["invoices"] });
         
         if (inAppAlerts) {
           const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "";
@@ -358,11 +360,7 @@ export default function TopBar() {
                           {/* Sender name + action */}
                           <div className="flex justify-between items-start">
                             <p className="text-sm font-medium text-slate-900 dark:text-zinc-100 leading-snug pr-4">
-                              {notification.sender_name ? (
-                                <><span className="font-semibold">{notification.sender_name}</span> {capitalizedTitle}</>
-                              ) : (
-                                capitalizedTitle
-                              )}
+                              {capitalizedTitle}
                             </p>
                             {/* Unread Dot */}
                             {isUnread && <div className="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-500 shrink-0 mt-1 shadow-sm" />}

@@ -4,7 +4,7 @@ import { Badge } from "../../components/ui/badge";
 import { Bookmark, ChevronsUp, ChevronUp, ChevronDown } from "lucide-react";
 import { RequestStatus } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
-import { STATUS_LABEL, STATUS_FILTER_OPTIONS } from "@/pages/Purchasing/purchasingMeta";
+import { STATUS_LABEL, STATUS_FILTER_OPTIONS, formatRequestType } from "@/pages/Purchasing/purchasingMeta";
 
 // One column per filterable state, labelled from the shared map so the board and
 // the rest of Purchasing cannot drift apart.
@@ -79,7 +79,7 @@ export default function TaskBoard({ tasks, onTaskClick, onTaskMoved, readOnly = 
                               {/* Category Badge */}
                               <div>
                                 <Badge className={`${getCategoryColor(task.category)} text-white border-0 text-[10px] uppercase font-bold tracking-wider rounded-[3px] px-1.5 py-0.5 shadow-none`}>
-                                  {task.category || "GENERAL"}
+                                  {formatRequestType(task.category || task.request_type || "GENERAL")}
                                 </Badge>
                               </div>
 

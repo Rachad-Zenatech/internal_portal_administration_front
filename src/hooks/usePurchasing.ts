@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/services/apiClient";
 import * as purchasing from "@/services/purchasingService";
 import type { RequestListFilters } from "@/services/purchasingService";
 import type { RequestCreateInput, TransitionInput } from "@/types/purchasing";
@@ -17,7 +18,6 @@ export function usePurchasingSummary() {
   return useQuery({
     queryKey: keys.summary(),
     queryFn: purchasing.getSummary,
-    refetchInterval: 3000,
     refetchOnWindowFocus: true,
   });
 }
@@ -26,7 +26,6 @@ export function usePurchaseRequests(filters: RequestListFilters = {}) {
   return useQuery({
     queryKey: keys.requests(filters),
     queryFn: () => purchasing.listRequests(filters),
-    refetchInterval: 3000,
     refetchOnWindowFocus: true,
   });
 }
@@ -36,7 +35,6 @@ export function useRequestDetail(id: string | undefined) {
     queryKey: id ? keys.request(id) : keys.all,
     queryFn: () => (id ? purchasing.getRequest(id) : Promise.reject("no id")),
     enabled: Boolean(id),
-    refetchInterval: 3000,
     refetchOnWindowFocus: true,
   });
 }
@@ -47,7 +45,9 @@ export function useCreateRequest() {
     mutationFn: (payload: RequestCreateInput) => purchasing.createRequest(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.all });
-      
+      qc.invalidateQueries({ queryKey: ["recurring-requests"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
     },
     onError: (err: any) => {
       toast.error(err?.message ?? "Failed to create request");
@@ -77,7 +77,10 @@ export function useTransitionRequest(requestId: string) {
     onSuccess: (data) => {
       qc.setQueryData(keys.request(requestId), data);
       qc.invalidateQueries({ queryKey: keys.all });
-      },
+      qc.invalidateQueries({ queryKey: ["recurring-requests"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+    },
     onError: (err: any) => {
       toast.error(err?.message ?? "Action failed");
     },
@@ -109,7 +112,6 @@ export function usePurchasingNotifications() {
   return useQuery({
     queryKey: keys.notifications(),
     queryFn: () => purchasing.listNotifications(),
-    refetchInterval: 15_000,
   });
 }
 
@@ -123,8 +125,11 @@ export function usePossibleApprovers(requestId: string | undefined) {
 
 export function useUsersList() {
   return useQuery({
-    queryKey: ["configuration", "users"],
-    queryFn: purchasing.getUsers,
+    queryKey: ["configuration", "users", "active"],
+    queryFn: async () => {
+      const res = await purchasing.getUsers();
+      return (Array.isArray(res) ? res : []).filter((u: any) => u.is_active !== false);
+    },
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -195,9 +200,13 @@ export function useUpdateRequest() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => purchasing.updateRequest(id, data),
-    onSuccess: (_, variables) => {
+    onSuccess: (res, variables) => {
+      qc.setQueryData(keys.request(variables.id), res);
       qc.invalidateQueries({ queryKey: keys.request(variables.id) });
       qc.invalidateQueries({ queryKey: keys.all });
+      qc.invalidateQueries({ queryKey: ["recurring-requests"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 }
@@ -223,5 +232,36 @@ export const usePurchaseRequest = useRequestDetail;
 export function useExtractQuote() {
   return useMutation({
     mutationFn: (file: File) => purchasing.extractQuote(file),
+  });
+}
+
+export function useUpdateReviewStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, review_status }: { id: string | number; review_status: string }) =>
+      apiClient.patch(`/api/purchasing/requests/${id}/review-status`, { review_status }),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ["purchasing", "request", String(variables.id)] });
+      qc.invalidateQueries({ queryKey: ["purchasing"] });
+      qc.invalidateQueries({ queryKey: ["recurring-requests"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success(
+        `Request #${variables.id} marked as ${
+          variables.review_status === "REVIEWED" ? "Reviewed" : "Waiting for Review"
+        }`
+      );
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to update review status");
+    },
+  });
+}
+
+
+export function useWorkflowAssignments() {
+  return useQuery({
+    queryKey: ["purchasing", "assignments"],
+    queryFn: () => apiClient.get<any[]>("/api/purchasing/assignments").catch(() => apiClient.get<any[]>("/purchasing/assignments")).catch(() => []),
+    staleTime: 5 * 60 * 1000,
   });
 }

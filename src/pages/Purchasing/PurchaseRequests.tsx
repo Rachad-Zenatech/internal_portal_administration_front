@@ -84,6 +84,7 @@ import {
   getStatusLabel,
   formatDate,
   formatMoney,
+  formatRequestType,
 } from "./purchasingMeta";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
@@ -95,12 +96,16 @@ function RequesterAutocomplete({
   onSelectUser,
   users,
   roles = [],
+  label = "Requester",
+  required = false,
 }: {
   value: string;
   onChange: (val: string) => void;
   onSelectUser?: (user: any) => void;
   users: Array<{ id: string; full_name?: string; email?: string; department?: string;[key: string]: any }>;
   roles?: Role[];
+  label?: string;
+  required?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -116,9 +121,10 @@ function RequesterAutocomplete({
   }, []);
 
   const filteredUsers = useMemo(() => {
+    const activeUsers = users.filter((u) => u.is_active !== false);
     const q = (value || "").toLowerCase().trim();
-    if (!q) return users.slice(0, 10);
-    return users
+    if (!q) return activeUsers.slice(0, 10);
+    return activeUsers
       .filter((u) => {
         const name = (u.full_name || "").toLowerCase();
         const email = (u.email || "").toLowerCase();
@@ -130,7 +136,11 @@ function RequesterAutocomplete({
 
   return (
     <div ref={containerRef} className="relative space-y-2">
-      <label className="text-sm font-medium">Requester</label>
+      {label && (
+        <label className="text-sm font-medium">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
       <div className="relative">
         <Input
           value={value}
@@ -186,6 +196,7 @@ function RequesterAutocomplete({
           </div>
         )}
       </div>
+
     </div>
   );
 }
@@ -226,12 +237,12 @@ export function PurchaseRequests() {
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
 
-  const statusFilter = searchParams.get("status") || "ALL";
+  const statusFilter = searchParams.get("status") || "OPEN";
   const typeFilter = searchParams.get("request_type") || "ALL";
 
   const handleStatusFilterChange = (val: string) => {
     const newParams = new URLSearchParams(searchParams);
-    if (val === "ALL") {
+    if (val === "OPEN") {
       newParams.delete("status");
     } else {
       newParams.set("status", val);
@@ -274,6 +285,9 @@ export function PurchaseRequests() {
 
   const visibleRequests = useMemo(() => {
     return requests.filter((r) => {
+      if (r.request_type === "RECURRING") {
+        return false;
+      }
       const isDraft = parseRequestStatus(r.status) === RequestStatus.Initial;
       if (isDraft) {
         return isTaskOwnedByUser(r, user);
@@ -425,8 +439,11 @@ export function PurchaseRequests() {
       const discount = Number(quoteExtraction?.extraction?.totals?.discount) || 0;
       return Math.max(0, Math.round((itemsSubtotal + Number(shippingFee || 0) + Number(taxFee || 0) - discount) * 100) / 100);
     }
+    if (form.request_type === "RECURRING") {
+      return Number(form.unit_price ?? form.amount ?? 0);
+    }
     return form.amount || (Number(form.quantity || 1) * Number(form.unit_price || 0));
-  }, [itemMode, itemsSubtotal, shippingFee, taxFee, quoteExtraction, form.amount, form.quantity, form.unit_price]);
+  }, [itemMode, itemsSubtotal, shippingFee, taxFee, quoteExtraction, form.amount, form.quantity, form.unit_price, form.request_type]);
 
   const isDirty = useMemo(() => {
     if (!isDialogOpen) return false;
@@ -484,7 +501,7 @@ export function PurchaseRequests() {
   };
 
   const cards = [
-    { label: "Open Requests", value: summary?.open_requests ?? 0, icon: ShoppingCart, tint: "text-blue-600", statusKey: "ALL" },
+    { label: "Open Requests", value: summary?.open_requests ?? 0, icon: ShoppingCart, tint: "text-blue-600", statusKey: "OPEN" },
     { label: "Waiting for Review", value: summary?.status_counts?.UNDER_REVIEW ?? 0, icon: Clock, tint: "text-orange-600", statusKey: "UNDER_REVIEW" },
     {
       label: "Unpaid Invoices",
@@ -526,8 +543,9 @@ export function PurchaseRequests() {
             <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span>Export to QuickBooks (.xlsx)</span>
           </Button>
-          <Button onClick={openCreate} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" /> New Request
+          <Button onClick={openCreate} className="w-full sm:w-auto gap-2 font-medium shadow-sm">
+            <Plus className="h-4 w-4" />
+            <span>New Request</span>
           </Button>
         </div>
       </div>
@@ -578,6 +596,7 @@ export function PurchaseRequests() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Statuses</SelectItem>
+              <SelectItem value="OPEN">Open (Non-Completed)</SelectItem>
               {STATUS_FILTER_OPTIONS.map((st) => (
                 <SelectItem key={st} value={st}>
                   {getStatusLabel(st)}
@@ -603,7 +622,7 @@ export function PurchaseRequests() {
               <SelectItem value="SPEND">Spend Request</SelectItem>
               <SelectItem value="QUOTE">Quote Request</SelectItem>
               <SelectItem value="ADMIN">Admin Triage</SelectItem>
-              <SelectItem value="RECURRING">Recurring</SelectItem>
+              <SelectItem value="ACCOUNTS_PAYABLE">Accounts Payable</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -646,8 +665,8 @@ export function PurchaseRequests() {
                   </TableCell>
                   <TableCell>{r.requester}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="text-xs">
-                      {r.request_type}
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {formatRequestType(r.request_type)}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -727,28 +746,28 @@ export function PurchaseRequests() {
           <form onSubmit={handleSubmit} className="space-y-4 py-2">
             {/* Mode Selector */}
             <div className="p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400 block mb-1.5">
-                Item Configuration
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant={itemMode === "SINGLE" ? "default" : "outline"}
-                  className="w-full text-xs font-medium justify-center h-9"
-                  onClick={() => setItemMode("SINGLE")}
-                >
-                  Single Item (Direct entry)
-                </Button>
-                <Button
-                  type="button"
-                  variant={itemMode === "MULTIPLE" ? "default" : "outline"}
-                  className="w-full text-xs font-medium justify-center h-9"
-                  onClick={() => setItemMode("MULTIPLE")}
-                >
-                  <FileText className="h-3.5 w-3.5 mr-1.5" /> Multiple Parts (Quote PDF Upload)
-                </Button>
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400 block mb-1.5">
+                  Item Configuration
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={itemMode === "SINGLE" ? "default" : "outline"}
+                    className="w-full text-xs font-medium justify-center h-9"
+                    onClick={() => setItemMode("SINGLE")}
+                  >
+                    Single Item (Direct entry)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={itemMode === "MULTIPLE" ? "default" : "outline"}
+                    className="w-full text-xs font-medium justify-center h-9"
+                    onClick={() => setItemMode("MULTIPLE")}
+                  >
+                    <FileText className="h-3.5 w-3.5 mr-1.5" /> Multiple Parts (Quote PDF Upload)
+                  </Button>
+                </div>
               </div>
-            </div>
 
             {/* Multiple Parts PDF Dropzone & AI Extraction + Always-Visible Line Items Table */}
             {itemMode === "MULTIPLE" && (
@@ -1084,7 +1103,7 @@ export function PurchaseRequests() {
                     <SelectItem value="SPEND">Spend Request</SelectItem>
                     <SelectItem value="QUOTE">Quote Request (Estimate / RFQ)</SelectItem>
                     <SelectItem value="ADMIN">Admin Triage</SelectItem>
-                    <SelectItem value="RECURRING">Recurring (Subscription)</SelectItem>
+                    <SelectItem value="ACCOUNTS_PAYABLE">Accounts Payable</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

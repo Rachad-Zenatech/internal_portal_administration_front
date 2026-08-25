@@ -5,6 +5,8 @@ import {
   FileClock,
   ShoppingCart,
   ReceiptText,
+  CalendarCheck,
+  CheckSquare,
 } from "lucide-react";
 
 export const navigation = [
@@ -27,6 +29,7 @@ export const navigation = [
     path: "/purchasing/requests",
     icon: ShoppingCart,
     section: "PURCHASING & AP",
+    navigationCode: "PURCHASING",
     subItems: [
       { label: "All Requests", path: "/purchasing/requests" },
       { label: "Draft", path: "/purchasing/requests?status=INITIAL" },
@@ -44,10 +47,25 @@ export const navigation = [
     ],
   },
   {
+    label: "Recurring Payments",
+    path: "/purchasing/recurring",
+    icon: CalendarCheck,
+    section: "PURCHASING & AP",
+    navigationCode: "RECURRING_PAYMENTS",
+  },
+  {
+    label: "Batch Approval",
+    path: "/purchasing/batch-approval",
+    icon: CheckSquare,
+    section: "PURCHASING & AP",
+    navigationCode: "BATCH_APPROVAL",
+  },
+  {
     label: "Accounts Payable",
     path: "/purchasing/invoices",
     icon: ReceiptText,
     section: "PURCHASING & AP",
+    navigationCode: "INVOICES",
   },
 
   {

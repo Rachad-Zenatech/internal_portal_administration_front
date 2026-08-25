@@ -72,9 +72,10 @@ export default function UserRoleAssignment() {
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
-    if (!userSearchQuery.trim()) return users;
+    const activeUsers = users.filter(u => u.is_active !== false);
+    if (!userSearchQuery.trim()) return activeUsers;
     const lower = userSearchQuery.toLowerCase();
-    return users.filter(u => 
+    return activeUsers.filter(u => 
       (u.full_name && u.full_name.toLowerCase().includes(lower)) || 
       u.email.toLowerCase().includes(lower)
     );
@@ -92,7 +93,7 @@ export default function UserRoleAssignment() {
   const isSuperAdmin = selectedUser?.is_super_admin === true;
   const activeRoles = allRoles?.filter(r => r.is_active && r.code !== 'PENDING_USER') || [];
   return (
-    <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out p-6 w-full">
+    <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out pb-4 w-full">
       {/* Left Panel: Users List */}
       <div className="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4 lg:border-r border-slate-200 dark:border-zinc-800 lg:pr-6 pb-6 lg:pb-0 border-b lg:border-b-0 min-h-0">
         <div>

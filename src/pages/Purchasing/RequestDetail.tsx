@@ -26,6 +26,7 @@ import {
   Truck,
   Plus,
   Trash2,
+  Download,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -61,7 +62,8 @@ import {
   usePossibleApprovers,
   useExtractProductInfo,
   useUploadAttachments,
-  } from "@/hooks/usePurchasing";
+  useUpdateReviewStatus,
+} from "@/hooks/usePurchasing";
 import * as purchasingService from "@/services/purchasingService";
 import { EditRequestDialog } from "./EditRequestDialog";
 import Stepper from "@/components/Stepper";
@@ -87,6 +89,7 @@ import {
   ADMIN_FLOW,
   SPEND_FLOW,
   RECURRING_FLOW,
+  ACCOUNTS_PAYABLE_FLOW,
   QUOTE_FLOW,
   PAYMENT_BADGE,
   PAYMENT_LABEL,
@@ -95,7 +98,9 @@ import {
   getStatusBadge,
   getStatusLabel,
   formatDate,
+  formatDateTime,
   formatMoney,
+  formatRequestType,
   formatActivityAction,
   formatActivityValue,
   SHIPPED_TO_LOCATIONS,
@@ -162,6 +167,7 @@ export default function RequestDetail() {
 
   const transition = useTransitionRequest(id ?? "");
   const uploadAttachments = useUploadAttachments(id ?? "");
+  const reviewMutation = useUpdateReviewStatus();
 
 
   const { data: approvers = [], isLoading: isLoadingApprovers } = usePossibleApprovers(id);
@@ -195,18 +201,38 @@ export default function RequestDetail() {
     }
   }, [approvers, approval.approver]);
 
+  const isRecurring = data?.request?.request_type === "RECURRING";
+  const isAP = data?.request?.request_type === "ACCOUNTS_PAYABLE";
+  const backUrl = isRecurring ? "/purchasing/recurring" : "/purchasing/requests";
+  const backLabel = isRecurring ? "Recurring Payments" : "Purchase Requests";
+
   useEffect(() => {
     if (data?.request) {
-      document.dispatchEvent(
-        new CustomEvent("set-breadcrumb-title", {
-          detail: {
-            path: `/purchasing/requests/${data.request.id}`,
-            title: `${data.request.title} (${data.request.id})`,
-          },
-        })
-      );
+      if (isRecurring) {
+        document.dispatchEvent(
+          new CustomEvent("set-breadcrumb-trail", {
+            detail: {
+              path: `/purchasing/requests/${data.request.id}`,
+              items: [
+                { title: "Purchasing" },
+                { title: "Recurring Payments", path: "/purchasing/recurring" },
+                { title: `${data.request.title} (${data.request.id})` },
+              ],
+            },
+          })
+        );
+      } else {
+        document.dispatchEvent(
+          new CustomEvent("set-breadcrumb-title", {
+            detail: {
+              path: `/purchasing/requests/${data.request.id}`,
+              title: `${data.request.title} (${data.request.id})`,
+            },
+          })
+        );
+      }
     }
-  }, [data?.request]);
+  }, [data?.request, isRecurring]);
 
   if (isLoading) {
     return <div className="p-8 text-sm text-muted-foreground">Loading request...</div>;
@@ -214,7 +240,7 @@ export default function RequestDetail() {
   if (isError || !data) {
     return (
       <div className="p-8">
-        <Button variant="outline" onClick={() => navigate("/purchasing/requests")}>
+        <Button variant="outline" onClick={() => navigate(backUrl)}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
         <p className="mt-4 text-sm text-red-600">Request not found.</p>
@@ -226,6 +252,7 @@ export default function RequestDetail() {
   const isMulti = request.item_mode === "MULTIPLE" || Boolean(request.items && request.items.length > 0);
   let flow = SPEND_FLOW;
   if (request.request_type === "ADMIN") flow = ADMIN_FLOW;
+  else if (request.request_type === "ACCOUNTS_PAYABLE") flow = ACCOUNTS_PAYABLE_FLOW;
   else if (request.request_type === "RECURRING") flow = RECURRING_FLOW;
   else if (request.request_type === "QUOTE") flow = QUOTE_FLOW;
 
@@ -235,7 +262,7 @@ export default function RequestDetail() {
       toast.success(`${ACTION_META[payload.action].label} done`);
       setActiveForm(null);
       if (payload.action === "DELETE_REQUEST") {
-        navigate("/purchasing/requests");
+        navigate(backUrl);
       }
       return true;
     } catch (err) {
@@ -252,13 +279,20 @@ export default function RequestDetail() {
     }
     // Prefill sensible defaults from existing data.
     if (meta.form === "invoice") {
+      const defaultVendor =
+        purchase_order?.vendor ??
+        request.quote_data?.vendor?.name ??
+        (request.request_type === 'RECURRING' ? request.title : "") ??
+        "";
+      const isDefaultAsset =
+        request.request_type === 'RECURRING' || request.request_type === 'ACCOUNTS_PAYABLE';
       setInvoice({
-        vendor: purchase_order?.vendor ?? "",
-        amount: purchase_order?.amount ?? 0,
-        invoice_date: "",
+        vendor: defaultVendor,
+        amount: purchase_order?.amount ?? request.amount ?? request.unit_price ?? 0,
+        invoice_date: new Date().toISOString().split("T")[0],
         due_date: "",
-        gl_code: "",
-        asset_flag: false,
+        gl_code: purchase_order?.gl_code ?? request.gl_code ?? "",
+        asset_flag: isDefaultAsset,
       });
       setPendingFiles([]);
     }
@@ -314,7 +348,16 @@ export default function RequestDetail() {
     } else if (kind === "invoice") {
       if (!invoice.vendor || !invoice.invoice_date) return toast.error("Vendor and bill date are required.");
       void (async () => {
-        const ok = await dispatch({ action, invoice: { ...invoice, invoice_type: "Purchase", amount: Number(invoice.amount) || 0 } });
+        const cleanDueDate = invoice.due_date && invoice.due_date.trim() !== "" ? invoice.due_date : undefined;
+        const ok = await dispatch({
+          action,
+          invoice: {
+            ...invoice,
+            invoice_type: "Purchase",
+            amount: Number(invoice.amount) || 0,
+            due_date: cleanDueDate,
+          },
+        });
         if (ok && pendingFiles.length > 0 && id) {
           try {
             await uploadAttachments.mutateAsync(pendingFiles);
@@ -338,6 +381,8 @@ export default function RequestDetail() {
     }
   };
 
+  const isReviewed = request.review_status === "REVIEWED";
+
   const quoteCurrency = request.currency || request.quote_data?.currency || "USD";
   const itemsSum = request.items && request.items.length > 0
     ? request.items.reduce((acc, itm) => acc + (Number(itm.total) || 0), 0)
@@ -357,7 +402,7 @@ export default function RequestDetail() {
     <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-start gap-4">
-          <Button variant="outline" size="icon" className="mt-1 shrink-0 h-8 w-8 rounded-full" onClick={() => navigate("/purchasing/requests")}>
+          <Button variant="outline" size="icon" className="mt-1 shrink-0 h-8 w-8 rounded-full" title={`Back to ${backLabel}`} onClick={() => navigate(backUrl)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="space-y-1.5">
@@ -374,10 +419,30 @@ export default function RequestDetail() {
               <span className="text-xs font-medium text-slate-500 dark:text-zinc-400">Current status:</span>
               <Badge variant="outline" className={getStatusBadge(request.status)}>{getStatusLabel(request.status)}</Badge>
               <Badge variant="outline" className={PRIORITY_BADGE[request.priority]}>{request.priority}</Badge>
+              <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300">
+                {formatRequestType(request.request_type)}
+              </Badge>
+              {isRecurring && (
+                <button
+                  onClick={() => {
+                    const newRev = isReviewed ? "WAITING_FOR_REVIEW" : "REVIEWED";
+                    reviewMutation.mutate({ id: request.id, review_status: newRev });
+                  }}
+                  disabled={reviewMutation.isPending}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs hover:opacity-80 ${isReviewed
+                      ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800"
+                      : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
+                    }`}
+                  title="Click to toggle Review Status"
+                >
+                  {isReviewed ? <CheckCircle2 size={13} /> : <Clock size={13} />}
+                  {isReviewed ? "Reviewed" : "Waiting for Review"}
+                </button>
+              )}
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            {(request.status === RequestStatus.Initial || available_actions.length > 0) && (
+            {(([RequestStatus.Initial, RequestStatus.New, RequestStatus.UnderReview] as readonly RequestStatus[]).includes(request.status)) && (
               <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
                 Edit Request
               </Button>
@@ -394,29 +459,52 @@ export default function RequestDetail() {
             )}
           </div>
         </div>
-        {available_actions.filter(a => a !== "DELETE_REQUEST").length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-slate-500 dark:text-zinc-400">Move to:</span>
-            {isExtracting && (
-              <span className="text-xs text-slate-500 dark:text-zinc-400 self-center italic">
-                Waiting for product details...
-              </span>
-            )}
-            {available_actions.filter(a => a !== "DELETE_REQUEST").map((action) => {
-                const meta = ACTION_META[action];
-                return (
-                  <Button
-                    key={action}
-                    variant={meta.variant === "destructive" ? "destructive" : meta.variant === "outline" ? "outline" : "default"}
-                    disabled={transition.isPending || isExtracting}
-                    onClick={() => onAction(action)}
-                  >
-                    {meta.label}
-                  </Button>
-                );
-              })}
-          </div>
-        )}
+        {available_actions.filter(a => {
+          if (a === "DELETE_REQUEST") return false;
+          if ((isRecurring || isAP) && a === "CREATE_PO") return false;
+          return true;
+        }).length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-slate-500 dark:text-zinc-400">Move to:</span>
+              {isExtracting && (
+                <span className="text-xs text-slate-500 dark:text-zinc-400 self-center italic">
+                  Waiting for product details...
+                </span>
+              )}
+              {available_actions
+                .filter(a => {
+                  if (a === "DELETE_REQUEST") return false;
+                  if ((isRecurring || isAP) && a === "CREATE_PO") return false;
+                  return true;
+                })
+                .map((action) => {
+                  const meta = ACTION_META[action];
+                  const isRecordInvoiceDisabled = isRecurring && action === "RECORD_INVOICE" && !isReviewed;
+                  const isDisabled = transition.isPending || isExtracting || isRecordInvoiceDisabled;
+                  const buttonTitle = isRecordInvoiceDisabled
+                    ? "Recurring request must be marked as 'Reviewed' before recording an invoice."
+                    : undefined;
+
+                  return (
+                    <div key={action} title={buttonTitle} className="inline-block">
+                      <Button
+                        variant={meta.variant === "destructive" ? "destructive" : meta.variant === "outline" ? "outline" : "default"}
+                        disabled={isDisabled}
+                        onClick={() => onAction(action)}
+                        className={isRecordInvoiceDisabled ? "opacity-50 cursor-not-allowed" : ""}
+                      >
+                        {meta.label}
+                      </Button>
+                    </div>
+                  );
+                })}
+              {isRecurring && !isReviewed && available_actions.includes("RECORD_INVOICE") && (
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium italic ml-1">
+                  (Mark as 'Reviewed' above to enable Record Invoice)
+                </span>
+              )}
+            </div>
+          )}
       </div>
 
       {/* Workflow Stepper */}
@@ -451,7 +539,7 @@ export default function RequestDetail() {
             <CardContent className="grid grid-cols-2 gap-4 text-sm">
               <Field label="Requester" value={request.requester} />
               <Field label="Department" value={request.department} />
-              <Field label="Type" value={request.request_type} />
+              <Field label="Type" value={formatRequestType(request.request_type)} />
               <Field
                 label="Configuration"
                 value={
@@ -535,9 +623,9 @@ export default function RequestDetail() {
                             <div className="text-slate-700 dark:text-slate-300">{request.product_info.vendor}</div>
                           </div>
                           <div className="min-w-0">
-                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Category</div>
-                              <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 max-w-full truncate block" title={request.product_info.category}>{request.product_info.category}</Badge>
-                            </div>
+                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Category</div>
+                            <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 max-w-full truncate block" title={request.product_info.category}>{request.product_info.category}</Badge>
+                          </div>
                           <div className="col-span-2">
                             <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Description</div>
                             <div className="text-slate-600 dark:text-slate-400 leading-relaxed text-xs">{request.product_info.description}</div>
@@ -800,31 +888,6 @@ export default function RequestDetail() {
 
                 <Field label="GL Code" value={formatGLCode(inv.gl_code || request.gl_code)} />
                 <Field label="Asset Flag" value={inv.asset_flag ? "Yes" : "No"} />
-                {data.attachments.length > 0 && (
-                  <div className="col-span-2">
-                    <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1.5">Attachments</div>
-                    <ul className="space-y-1.5">
-                      {data.attachments.map((att) => (
-                        <li key={att.id} className="flex items-center justify-between gap-2 text-xs bg-slate-50 dark:bg-zinc-800/50 rounded-md px-2.5 py-1.5">
-                          <span className="flex items-center gap-1.5 min-w-0">
-                            <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                            <span className="truncate">{att.filename}</span>
-                          </span>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              type="button"
-                              className="text-blue-600 dark:text-blue-400 hover:underline"
-                              onClick={() => purchasingService.downloadAttachment(request.id, att.id, att.filename)}
-                            >
-                              Download
-                            </button>
-
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}
@@ -891,6 +954,72 @@ export default function RequestDetail() {
                     {a.comment && <div className="text-slate-700 dark:text-zinc-300 mt-1">{a.comment}</div>}
                   </div>
                 ))
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Dedicated Scrollable Attachments Card */}
+          <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Paperclip className="h-4 w-4 text-slate-500" />
+                  <span>Attachments</span>
+                </div>
+                {data.attachments && data.attachments.length > 0 && (
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    {data.attachments.length} {data.attachments.length === 1 ? "file" : "files"}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {(!data.attachments || data.attachments.length === 0) ? (
+                <p className="text-xs text-slate-500 py-2">No attachments uploaded.</p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-100 dark:divide-zinc-800/60">
+                  {data.attachments.map((att) => (
+                    <div
+                      key={att.id}
+                      className="flex items-center justify-between gap-3 pt-2 first:pt-0 group hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 p-1.5 rounded-lg transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="p-1.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 shrink-0">
+                          <Paperclip className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-slate-900 dark:text-zinc-100 truncate max-w-[170px] sm:max-w-[210px]" title={att.filename}>
+                            {att.filename}
+                          </p>
+                          <div className="flex items-center gap-1.5 text-[10.5px] text-slate-400 dark:text-zinc-500 flex-wrap">
+                            {att.size ? <span>{(att.size / 1024).toFixed(1)} KB</span> : null}
+                            {att.uploader_name ? (
+                              <>
+                                <span>•</span>
+                                <span className="font-medium text-slate-600 dark:text-zinc-400">By {att.uploader_name}</span>
+                              </>
+                            ) : null}
+                            {att.uploaded_at ? (
+                              <>
+                                <span>•</span>
+                                <span>{formatDateTime(att.uploaded_at)}</span>
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 shrink-0 gap-1"
+                        onClick={() => purchasingService.downloadAttachment(request.id, att.id, att.filename)}
+                      >
+                        <Download className="h-3 w-3" />
+                        Download
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1249,28 +1378,43 @@ export default function RequestDetail() {
               <>
                 <TwoUp>
                   <FieldInput label="Vendor" value={invoice.vendor} onChange={(v) => setInvoice({ ...invoice, vendor: v })} />
-                  <FieldInput label="Amount" type="number" value={String(invoice.amount)} onChange={(v) => setInvoice({ ...invoice, amount: Number(v) })} />
+                  <FieldInput label="Price / Amount" type="number" value={String(invoice.amount)} onChange={(v) => setInvoice({ ...invoice, amount: Number(v) })} />
                 </TwoUp>
-                <TwoUp>
-                  <FieldInput label="Bill Date" type="date" value={invoice.invoice_date} onChange={(v) => setInvoice({ ...invoice, invoice_date: v })} />
-                  <FieldInput label="Date Arrived" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
-                </TwoUp>
-                <TwoUp>
-                  <div className="space-y-2">
+                {request.request_type === "RECURRING" ? (
+                  <TwoUp>
+                    <FieldInput label="Bill Date" type="date" value={invoice.invoice_date} onChange={(v) => setInvoice({ ...invoice, invoice_date: v })} />
+                    <div className="space-y-2">
                       <label className="text-sm font-medium">GL Code / Account</label>
                       <GLCodeAutocomplete
-                        value={invoice.gl_code ?? data?.purchase_order?.gl_code ?? data?.request.gl_code ?? ""}
+                        value={invoice.gl_code ?? request.gl_code ?? ""}
                         onChange={(v) => setInvoice({ ...invoice, gl_code: v })}
                       />
                     </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Asset Flag</label>
-                    <div className="flex items-center h-10">
-                      <input type="checkbox" className="h-4 w-4" checked={invoice.asset_flag || false} onChange={(e) => setInvoice({ ...invoice, asset_flag: e.target.checked })} />
-                      <span className="ml-2 text-sm text-slate-700">Mark as Asset</span>
-                    </div>
-                  </div>
-                </TwoUp>
+                  </TwoUp>
+                ) : (
+                  <>
+                    <TwoUp>
+                      <FieldInput label="Bill Date" type="date" value={invoice.invoice_date} onChange={(v) => setInvoice({ ...invoice, invoice_date: v })} />
+                      <FieldInput label="Date Arrived" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
+                    </TwoUp>
+                    <TwoUp>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">GL Code / Account</label>
+                        <GLCodeAutocomplete
+                          value={invoice.gl_code ?? data?.purchase_order?.gl_code ?? data?.request.gl_code ?? ""}
+                          onChange={(v) => setInvoice({ ...invoice, gl_code: v })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Asset Flag</label>
+                        <div className="flex items-center h-10">
+                          <input type="checkbox" className="h-4 w-4" checked={invoice.asset_flag || false} onChange={(e) => setInvoice({ ...invoice, asset_flag: e.target.checked })} />
+                          <span className="ml-2 text-sm text-slate-700">Mark as Asset</span>
+                        </div>
+                      </div>
+                    </TwoUp>
+                  </>
+                )}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Description</label>
                   <Textarea
@@ -1373,7 +1517,7 @@ export default function RequestDetail() {
         />
       )}
 
-          </div>
+    </div>
   );
 }
 
@@ -1382,7 +1526,7 @@ function Field({ label, value }: { label: string; value: string }) {
     <div>
       <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">{label}</div>
       <div className="text-slate-800 dark:text-zinc-200">{value}</div>
-</div>
+    </div>
   );
 }
 
@@ -1517,7 +1661,7 @@ function AttachmentDropzone({
           ))}
         </ul>
       )}
-</div>
+    </div>
   );
 }
 
@@ -1603,6 +1747,6 @@ function LocationAutocomplete({ value, onChange }: { value: string; onChange: (v
           ))}
         </div>
       )}
-</div>
+    </div>
   );
 }

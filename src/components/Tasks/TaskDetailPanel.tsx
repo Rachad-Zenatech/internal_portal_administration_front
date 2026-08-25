@@ -26,6 +26,7 @@ import {
   PRIORITY_BADGE,
   TAX_RATE,
   formatDate,
+  formatRequestType,
   formatActivityAction,
   formatActivityValue,
 } from "@/pages/Purchasing/purchasingMeta";
@@ -274,7 +275,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                     {task.priority || 'Medium'}
                   </Badge>
                   <Badge variant="outline" className="bg-slate-100 dark:bg-zinc-800 font-mono text-xs">
-                    {task.category || task.request_type || 'SPEND'}
+                    {formatRequestType(task.category || task.request_type || 'SPEND')}
                   </Badge>
                   {task.gl_code && (
                     <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800 font-mono text-xs">
@@ -334,7 +335,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                 <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                   <DetailField label="Requester" value={task.requester_name || task.requester} icon={User} />
                   <DetailField label="Department" value={task.department} icon={Building2} />
-                  <DetailField label="Type" value={task.category || task.request_type} icon={Layers} />
+                  <DetailField label="Type" value={formatRequestType(task.category || task.request_type)} icon={Layers} />
                   <DetailField
                     label="Configuration"
                     value={

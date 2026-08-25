@@ -71,12 +71,14 @@ export const PAYMENT_BADGE: Record<PaymentStatus, string> = {
 };
 
 export const ADMIN_FLOW: readonly RequestStatus[] = [
+  RequestStatus.Initial,
   RequestStatus.New,
   RequestStatus.UnderReview,
   RequestStatus.Completed,
 ];
 
 export const SPEND_FLOW: readonly RequestStatus[] = [
+  RequestStatus.Initial,
   RequestStatus.New,
   RequestStatus.UnderReview,
   RequestStatus.WaitingApproval,
@@ -90,16 +92,23 @@ export const SPEND_FLOW: readonly RequestStatus[] = [
 ];
 
 export const RECURRING_FLOW: readonly RequestStatus[] = [
-  RequestStatus.New,
   RequestStatus.UnderReview,
-  RequestStatus.WaitingApproval,
-  RequestStatus.Approved,
-  RequestStatus.InvoiceReceived,
   RequestStatus.WaitingPayment,
+  RequestStatus.InvoiceReceived,
+  RequestStatus.Completed,
+];
+
+export const ACCOUNTS_PAYABLE_FLOW: readonly RequestStatus[] = [
+  RequestStatus.Initial,
+  RequestStatus.New,
+  RequestStatus.WaitingApproval,
+  RequestStatus.WaitingPayment,
+  RequestStatus.InvoiceReceived,
   RequestStatus.Completed,
 ];
 
 export const QUOTE_FLOW: readonly RequestStatus[] = [
+  RequestStatus.Initial,
   RequestStatus.New,
   RequestStatus.UnderReview,
   RequestStatus.WaitingApproval,
@@ -151,6 +160,24 @@ export function formatDate(iso: string | null | undefined): string {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return String(iso);
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return String(iso);
+  }
+}
+
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   } catch {
     return String(iso);
   }
@@ -278,6 +305,7 @@ export function formatActivityAction(action: string | null | undefined): string 
     RESUME_WORKFLOW: "Workflow Resumed",
     REQUEST_EDITED: "Request Edited",
     DELETE_REQUEST: "Request Deleted",
+    REVIEW_STATUS_UPDATED: "Review Status Updated",
   };
   if (map[clean]) return map[clean];
   return action
@@ -289,4 +317,22 @@ export function formatActivityAction(action: string | null | undefined): string 
 export function formatActivityValue(val: string | null | undefined): string {
   if (!val) return "";
   return getStatusLabel(val);
+}
+
+
+export const REQUEST_TYPE_LABEL: Record<string, string> = {
+  SPEND: "Spend",
+  QUOTE: "Quote",
+  ACCOUNTS_PAYABLE: "Accounts Payable",
+  "ACCOUNTS PAYABLE": "Accounts Payable",
+  ADMIN: "Admin",
+  RECURRING: "Recurring",
+  ALL: "All Types",
+};
+
+export function formatRequestType(type: string | null | undefined): string {
+  if (!type) return "—";
+  const clean = String(type).trim().toUpperCase();
+  if (REQUEST_TYPE_LABEL[clean]) return REQUEST_TYPE_LABEL[clean];
+  return clean.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }

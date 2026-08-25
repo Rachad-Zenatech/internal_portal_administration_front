@@ -80,8 +80,10 @@ export function getPossibleApprovers(requestId: string) {
 }
 
 export function getUsers() {
-  return apiClient.get<Array<{ id: string; full_name?: string; email?: string; department?: string; [key: string]: any }>>("/api/configuration/users")
-    .catch(() => apiClient.get<Array<{ id: string; full_name?: string; email?: string; department?: string; [key: string]: any }>>("/configuration/users"))
+  return apiClient.get<Array<{ id: string; full_name?: string; email?: string; department?: string; is_active?: boolean; [key: string]: any }>>("/api/configuration/users?is_active=true")
+    .then((users) => (Array.isArray(users) ? users.filter((u) => u.is_active !== false) : []))
+    .catch(() => apiClient.get<Array<{ id: string; full_name?: string; email?: string; department?: string; is_active?: boolean; [key: string]: any }>>("/configuration/users?is_active=true"))
+    .then((users) => (Array.isArray(users) ? users.filter((u) => u.is_active !== false) : []))
     .catch(() => []);
 }
 

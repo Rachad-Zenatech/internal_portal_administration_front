@@ -1,3 +1,4 @@
+import { formatRequestType } from "@/pages/Purchasing/purchasingMeta";
 import { useState, useEffect } from "react";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { apiClient as api } from "@/services/apiClient";
@@ -46,7 +47,7 @@ export default function WorkflowAssignments() {
     try {
       const [assnRes, userRes] = await Promise.all([
         api.get<Assignment[]>("/purchasing/assignments"),
-        api.get<any>("/configuration/users")
+        api.get<any>("/configuration/users?is_active=true")
       ]);
       setAssignments(assnRes);
       setUsers(Array.isArray(userRes) ? userRes : (userRes as any).items || []);
@@ -213,7 +214,7 @@ export default function WorkflowAssignments() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <Badge variant="secondary" className="font-mono text-[10px] uppercase">{a.request_type || "ALL"}</Badge>
+                        <Badge variant="secondary" className="text-[11px] font-medium">{formatRequestType(a.request_type || "ALL")}</Badge>
                       </td>
                       <td className="px-6 py-4">{getUserNames(a.user_ids || (a.user_id ? [a.user_id] : []))}</td>
                       <td className="px-6 py-4">
@@ -325,7 +326,7 @@ export default function WorkflowAssignments() {
                         />
                       </div>
                       <div className="max-h-[250px] overflow-y-auto p-1" onWheelCapture={(e) => e.stopPropagation()}>
-                        {users.filter(u => (u.full_name || u.email).toLowerCase().includes(userSearch.toLowerCase())).length === 0 ? (
+                        {users.filter(u => u.is_active !== false && (u.full_name || u.email).toLowerCase().includes(userSearch.toLowerCase())).length === 0 ? (
                           <div className="p-4 text-center text-sm text-muted-foreground">No users found.</div>
                         ) : (
                           users.filter(u => (u.full_name || u.email).toLowerCase().includes(userSearch.toLowerCase())).map(u => {

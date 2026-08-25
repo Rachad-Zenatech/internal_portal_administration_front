@@ -42,7 +42,7 @@ export default function Sidebar({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { hasPermission, roles, hasRole, user } = useAuth();
+  const { hasPermission, hasRole, user } = useAuth();
   const isSuperAdmin = hasRole("SUPER_ADMIN") || user?.is_super_admin;
 
   const { data: users } = useQuery({
@@ -86,13 +86,25 @@ export default function Sidebar({
   };
 
   const groupedNavigation = navigation.reduce<Record<string, SidebarNavigationItem[]>>((acc, item) => {
-    if (item.navigationCode && !hasPermission(`${item.navigationCode}_READ`)) return acc;
+    // Pure Role Permission Gating: Check item navigation permission
+    if (item.navigationCode) {
+      const hasItemAccess =
+        isSuperAdmin ||
+        hasPermission(`${item.navigationCode}_READ`) ||
+        hasPermission(`${item.navigationCode}_VIEW`);
+      if (!hasItemAccess) return acc;
+    }
 
-    const isRequester = roles.some(r => r.name === "Requester" || r.code === "REQUESTER");
     const filteredSubItems = item.subItems 
       ? item.subItems.filter(sub => {
-          if ('navigationCode' in sub && sub.navigationCode && !hasPermission(`${(sub as { navigationCode?: string }).navigationCode}_READ`)) return false;
-          if (sub.path === "/purchasing/requests?status=INITIAL" && !isRequester) return false;
+          if ('navigationCode' in sub && sub.navigationCode) {
+            const navCode = (sub as { navigationCode?: string }).navigationCode;
+            const hasSubAccess =
+              isSuperAdmin ||
+              hasPermission(`${navCode}_READ`) ||
+              hasPermission(`${navCode}_VIEW`);
+            if (!hasSubAccess) return false;
+          }
           return true;
         })
       : undefined;

@@ -12,7 +12,7 @@ export interface TaskHistoryItem {
   created_at: string;
 }
 
-export type RequestType = "ADMIN" | "SPEND" | "RECURRING" | "QUOTE";
+export type RequestType = "ADMIN" | "SPEND" | "RECURRING" | "QUOTE" | "ACCOUNTS_PAYABLE";
 
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
@@ -107,6 +107,8 @@ export type PurchaseRequest = {
   gl_code?: string | null;
   items?: PurchaseRequestItem[];
   quote_data?: any;
+  review_status?: "WAITING_FOR_REVIEW" | "REVIEWED" | null;
+  due_date?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -186,6 +188,8 @@ export type AttachmentInfo = {
   content_type: string | null;
   size: number;
   uploaded_at: string;
+  uploaded_by?: string | null;
+  uploader_name?: string | null;
 };
 
 export type RequestDetail = {
@@ -368,3 +372,35 @@ export interface QuoteExtractionResponse {
   extraction: QuoteExtractionResult;
   validation: QuoteValidationResult;
 }
+
+export interface BatchApprovalInput {
+  request_ids: number[];
+  comment?: string | null;
+}
+
+export interface BatchRejectInput {
+  request_ids: number[];
+  comment?: string | null;
+}
+
+export interface BatchNotificationSettings {
+  enabled: boolean;
+  midday_time: string;
+  end_of_day_time: string;
+  timezone: string;
+  recipient_role: string;
+  custom_emails?: string[] | null;
+}
+
+
+export type RecurringNotificationSettings = {
+  enabled: boolean;
+  days_ahead: number;
+  sender_email?: string | null;
+  reminder_time: string;
+  timezone: string;
+  include_requester: boolean;
+  include_ap: boolean;
+  include_treasury: boolean;
+  custom_emails?: string[] | null;
+};

@@ -264,7 +264,7 @@ export default function AuditLog() {
   });
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col w-full gap-6 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out p-6">
+    <div className="flex-1 min-h-0 flex flex-col w-full gamax-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out pb-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
