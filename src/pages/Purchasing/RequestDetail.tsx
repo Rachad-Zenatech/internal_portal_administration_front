@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   Truck,
   Plus,
+  Pencil,
   Trash2,
   Download,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
@@ -59,7 +61,6 @@ import {
 import {
   usePurchaseRequest,
   useTransitionRequest,
-  usePossibleApprovers,
   useExtractProductInfo,
   useUploadAttachments,
   useUpdateReviewStatus,
@@ -172,7 +173,6 @@ export default function RequestDetail() {
 
 
   const { user } = useAuth();
-  const { data: approvers = [], isLoading: isLoadingApprovers } = usePossibleApprovers(id);
 
   const [activeForm, setActiveForm] = useState<{ action: WorkflowAction; kind: FormKind } | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -198,10 +198,10 @@ export default function RequestDetail() {
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
-    if (approvers && approvers.length > 0 && !approval.approver) {
-      setApproval(prev => ({ ...prev, approver: approvers[0].user_id }));
+    if (user?.id) {
+      setApproval(prev => ({ ...prev, approver: user.id }));
     }
-  }, [approvers, approval.approver]);
+  }, [user]);
 
   const isRecurring = data?.request?.request_type === "RECURRING";
   const isAP = data?.request?.request_type === "ACCOUNTS_PAYABLE";
@@ -335,6 +335,9 @@ export default function RequestDetail() {
         expected_delivery_date: "",
       });
     }
+    if (meta.form === "approval") {
+      setApproval({ approver: user?.id || "", comment: "" });
+    }
     setConfirmGoods({ description: "" });
     setActiveForm({ action, kind: meta.form });
   };
@@ -402,74 +405,138 @@ export default function RequestDetail() {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-start gap-4">
-          <Button variant="outline" size="icon" className="mt-1 shrink-0 h-8 w-8 rounded-full" title={`Back to ${backLabel}`} onClick={() => navigate(backUrl)}>
-            <ArrowLeft className="h-4 w-4" />
+      {/* Top Navigation & Record Actions */}
+      <div className="flex items-center justify-between gap-4 flex-wrap border-b border-border/40 pb-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-2 text-xs font-medium text-muted-foreground hover:text-foreground -ml-2 h-8 px-2"
+          onClick={() => navigate(backUrl)}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to {backLabel}</span>
+        </Button>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsActivityLogsOpen(true)}
+            className="h-8 text-xs gap-1.5 shadow-xs"
+          >
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+            <span>Activity Logs</span>
           </Button>
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
-                {request.title}
-              </h2>
-              <span className="text-sm font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
-                #{request.id}
-              </span>
-              <HelpIcon text="Detailed view of a single purchase request, including purchase order, invoices, and workflow approval logs." />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-zinc-400">Current status:</span>
-              <Badge variant="outline" className={getStatusBadge(request.status)}>{getStatusLabel(request.status)}</Badge>
-              <Badge variant="outline" className={PRIORITY_BADGE[request.priority]}>{request.priority}</Badge>
-              <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300">
-                {formatRequestType(request.request_type)}
-              </Badge>
-              {isRecurring && (
-                <button
-                  onClick={() => {
-                    const newRev = isReviewed ? "WAITING_FOR_REVIEW" : "REVIEWED";
-                    reviewMutation.mutate({ id: request.id, review_status: newRev });
-                  }}
-                  disabled={reviewMutation.isPending}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs hover:opacity-80 ${isReviewed
-                      ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800"
-                      : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
-                    }`}
-                  title="Click to toggle Review Status"
-                >
-                  {isReviewed ? <CheckCircle2 size={13} /> : <Clock size={13} />}
-                  {isReviewed ? "Reviewed" : "Waiting for Review"}
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {(([RequestStatus.Initial, RequestStatus.New, RequestStatus.UnderReview] as readonly RequestStatus[]).includes(request.status)) && (
-              <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
-                Edit Request
-              </Button>
-            )}
-            {available_actions.includes("DELETE_REQUEST") && (
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={transition.isPending || isExtracting}
-                onClick={() => onAction("DELETE_REQUEST")}
-              >
-                {ACTION_META["DELETE_REQUEST"].label}
-              </Button>
-            )}
-          </div>
+
+          {(([RequestStatus.Initial, RequestStatus.New, RequestStatus.UnderReview] as readonly RequestStatus[]).includes(request.status)) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditOpen(true)}
+              className="h-8 text-xs gap-1.5 shadow-xs"
+            >
+              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Edit Request</span>
+            </Button>
+          )}
+
+          {available_actions.includes("DELETE_REQUEST") && (
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={transition.isPending || isExtracting}
+              onClick={() => onAction("DELETE_REQUEST")}
+              className="h-8 text-xs gap-1.5 shadow-xs"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>{ACTION_META["DELETE_REQUEST"].label}</span>
+            </Button>
+          )}
         </div>
-        {available_actions.filter(a => {
-          if (a === "DELETE_REQUEST") return false;
-          if ((isRecurring || isAP) && a === "CREATE_PO") return false;
-          return true;
-        }).length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-zinc-400">Move to:</span>
+      </div>
+
+      {/* Main Request Header (Full Width) */}
+      <div className="w-full space-y-2.5">
+        {/* Title with ID prefix and HelpIcon - Takes 100% full width */}
+        <div className="flex items-start gap-2.5 w-full">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 leading-snug break-words flex-1 min-w-0">
+            <span className="text-blue-600 dark:text-blue-400 font-semibold mr-2 font-mono text-lg sm:text-xl">
+              #{request.id}
+            </span>
+            {request.title}
+          </h1>
+          <span className="mt-1 shrink-0 inline-flex">
+            <HelpIcon text="Detailed view of a single purchase request, including purchase order, invoices, and workflow approval logs." />
+          </span>
+        </div>
+
+        {/* Status, Context Subtitle & Transition Actions Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-0.5">
+          <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-500 dark:text-zinc-400">
+            {/* Primary Status Badge */}
+            <Badge variant="outline" className={cn("font-medium gap-1.5 shadow-xs shrink-0 py-0.5 px-2.5", getStatusBadge(request.status))}>
+              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+              {getStatusLabel(request.status)}
+            </Badge>
+
+            {/* Priority: only show pill when HIGH or URGENT */}
+            {(request.priority === "HIGH" || request.priority === "URGENT") && (
+              <Badge variant="outline" className={cn("font-semibold shadow-xs shrink-0 py-0.5 px-2", PRIORITY_BADGE[request.priority])}>
+                {request.priority}
+              </Badge>
+            )}
+
+            {isRecurring && (
+              <button
+                onClick={() => {
+                  const newRev = isReviewed ? "WAITING_FOR_REVIEW" : "REVIEWED";
+                  reviewMutation.mutate({ id: request.id, review_status: newRev });
+                }}
+                disabled={reviewMutation.isPending}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-xs hover:opacity-80 shrink-0 ${
+                  isReviewed
+                    ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800"
+                    : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
+                }`}
+                title="Click to toggle Review Status"
+              >
+                {isReviewed ? <CheckCircle2 size={13} /> : <Clock size={13} />}
+                {isReviewed ? "Reviewed" : "Waiting for Review"}
+              </button>
+            )}
+
+            <span className="text-slate-300 dark:text-zinc-700">·</span>
+
+            {/* Clean contextual text */}
+            <span className="font-medium text-slate-700 dark:text-zinc-300">
+              {formatRequestType(request.request_type)}
+            </span>
+
+            <span className="opacity-40">·</span>
+
+            <span>
+              Requested by <strong className="font-medium text-slate-700 dark:text-zinc-300">{request.requester || "Unknown"}</strong>
+              {request.department && <span className="opacity-75"> ({request.department})</span>}
+            </span>
+
+            {request.request_date && (
+              <>
+                <span className="opacity-40">·</span>
+                <span>{formatDate(request.request_date)}</span>
+              </>
+            )}
+          </div>
+
+          {/* Workflow Transition Action Buttons */}
+          {available_actions.filter(a => {
+            if (a === "DELETE_REQUEST") return false;
+            if ((isRecurring || isAP) && a === "CREATE_PO") return false;
+            return true;
+          }).length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Action:</span>
               {isExtracting && (
-                <span className="text-xs text-slate-500 dark:text-zinc-400 self-center italic">
+                <span className="text-xs text-slate-500 dark:text-zinc-400 italic">
                   Waiting for product details...
                 </span>
               )}
@@ -495,15 +562,16 @@ export default function RequestDetail() {
                     ? "bg-rose-600 hover:bg-rose-700 text-white font-semibold"
                     : isRecordInvoiceDisabled
                     ? "opacity-50 cursor-not-allowed"
-                    : "";
+                    : "shadow-xs";
 
                   return (
                     <div key={action} title={buttonTitle} className="inline-block">
                       <Button
+                        size="sm"
                         variant={isApprove || isReject ? "default" : meta.variant === "destructive" ? "destructive" : meta.variant === "outline" ? "outline" : "default"}
                         disabled={isDisabled}
                         onClick={() => onAction(action)}
-                        className={customClass}
+                        className={cn("h-8 text-xs font-medium", customClass)}
                       >
                         {meta.label}
                       </Button>
@@ -517,6 +585,7 @@ export default function RequestDetail() {
               )}
             </div>
           )}
+        </div>
       </div>
 
       {/* Workflow Stepper */}
@@ -907,12 +976,6 @@ export default function RequestDetail() {
 
         {/* Activity: approvals + notifications */}
         <div className="space-y-6">
-          <div className="flex items-center justify-end">
-            <Button variant="outline" size="sm" onClick={() => setIsActivityLogsOpen(true)}>
-              <Clock className="h-4 w-4 mr-2" />
-              Activity Logs
-            </Button>
-          </div>
 
           <EditRequestDialog request={request} open={isEditOpen} onOpenChange={setIsEditOpen} />
 
@@ -948,92 +1011,126 @@ export default function RequestDetail() {
             </DialogContent>
           </Dialog>
 
-          <Card className="border border-slate-200 dark:border-zinc-800">
-            <CardHeader><CardTitle className="text-base flex items-center justify-between"><div className="flex items-center gap-2"><Stamp className="h-4 w-4" /> Approvals</div></CardTitle></CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              {approvals.length === 0 ? (
-                <p className="text-slate-500">No approval activity yet.</p>
-              ) : (
-                approvals.map((a) => (
-                  <div key={a.id} className="border-l-2 pl-3 border-slate-200 dark:border-zinc-700">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{a.approver}</span>
-                      <Badge variant="outline" className={a.decision === "APPROVED" ? STATUS_BADGE.APPROVED : STATUS_BADGE.REJECTED}>
-                        {a.decision}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-slate-500">{formatDate(a.approval_date)}</div>
-                    {a.comment && <div className="text-slate-700 dark:text-zinc-300 mt-1">{a.comment}</div>}
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          {/* Unified Tabbed Activity & Media Card */}
+          <Card className="border border-slate-200 dark:border-zinc-800 shadow-xs">
+            <Tabs defaultValue="approvals" className="w-full">
+              <CardHeader className="pb-0 pt-3 px-4 border-b border-border/40">
+                <TabsList className="h-8 p-0.5 bg-muted/60 w-full grid grid-cols-2">
+                  <TabsTrigger value="approvals" className="text-xs px-2.5 h-7 gap-1.5 data-[state=active]:shadow-xs">
+                    <Stamp className="h-3.5 w-3.5" />
+                    <span>Approvals</span>
+                    {approvals.length > 0 && (
+                      <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                        {approvals.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
 
-          {/* Dedicated Scrollable Attachments Card */}
-          <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Paperclip className="h-4 w-4 text-slate-500" />
-                  <span>Attachments</span>
-                </div>
-                {data.attachments && data.attachments.length > 0 && (
-                  <Badge variant="secondary" className="text-xs font-normal">
-                    {data.attachments.length} {data.attachments.length === 1 ? "file" : "files"}
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {(!data.attachments || data.attachments.length === 0) ? (
-                <p className="text-xs text-slate-500 py-2">No attachments uploaded.</p>
-              ) : (
-                <div className="max-h-64 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-100 dark:divide-zinc-800/60">
-                  {data.attachments.map((att) => (
-                    <div
-                      key={att.id}
-                      className="flex items-center justify-between gap-3 pt-2 first:pt-0 group hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 p-1.5 rounded-lg transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="p-1.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 shrink-0">
-                          <Paperclip className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-slate-900 dark:text-zinc-100 truncate max-w-[170px] sm:max-w-[210px]" title={att.filename}>
-                            {att.filename}
-                          </p>
-                          <div className="flex items-center gap-1.5 text-[10.5px] text-slate-400 dark:text-zinc-500 flex-wrap">
-                            {att.size ? <span>{(att.size / 1024).toFixed(1)} KB</span> : null}
-                            {att.uploader_name ? (
-                              <>
-                                <span>•</span>
-                                <span className="font-medium text-slate-600 dark:text-zinc-400">By {att.uploader_name}</span>
-                              </>
-                            ) : null}
-                            {att.uploaded_at ? (
-                              <>
-                                <span>•</span>
-                                <span>{formatDateTime(att.uploaded_at)}</span>
-                              </>
-                            ) : null}
-                          </div>
-                        </div>
+                  <TabsTrigger value="attachments" className="text-xs px-2.5 h-7 gap-1.5 data-[state=active]:shadow-xs">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    <span>Attachments</span>
+                    {data.attachments && data.attachments.length > 0 && (
+                      <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200">
+                        {data.attachments.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+              </CardHeader>
+
+              <CardContent className="p-4">
+                {/* Approvals Tab */}
+                <TabsContent value="approvals" className="m-0 space-y-3">
+                  {approvals.length === 0 ? (
+                    <div className="py-4 text-center">
+                      <div className="inline-flex p-2 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 mb-1.5">
+                        <Stamp className="h-4 w-4" />
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 shrink-0 gap-1"
-                        onClick={() => purchasingService.downloadAttachment(request.id, att.id, att.filename)}
-                      >
-                        <Download className="h-3 w-3" />
-                        Download
-                      </Button>
+                      <p className="text-xs font-medium text-slate-600 dark:text-zinc-400">No approval activity yet</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Approval records will appear here once reviewed.
+                      </p>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
+                  ) : (
+                    approvals.map((a) => (
+                      <div key={a.id} className="border-l-2 pl-3 border-slate-200 dark:border-zinc-700 py-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-xs sm:text-sm text-foreground">{a.approver}</span>
+                          <Badge variant="outline" className={a.decision === "APPROVED" ? STATUS_BADGE.APPROVED : STATUS_BADGE.REJECTED}>
+                            {a.decision}
+                          </Badge>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">{formatDate(a.approval_date)}</div>
+                        {a.comment && (
+                          <div className="text-xs text-slate-700 dark:text-zinc-300 mt-1 bg-muted/40 p-2 rounded border border-border/50">
+                            {a.comment}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
+
+                {/* Attachments Tab */}
+                <TabsContent value="attachments" className="m-0">
+                  {(!data.attachments || data.attachments.length === 0) ? (
+                    <div className="py-4 text-center">
+                      <div className="inline-flex p-2 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 mb-1.5">
+                        <Paperclip className="h-4 w-4" />
+                      </div>
+                      <p className="text-xs font-medium text-slate-600 dark:text-zinc-400">No attachments uploaded</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Uploaded quotes, documents, or files will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-100 dark:divide-zinc-800/60">
+                      {data.attachments.map((att) => (
+                        <div
+                          key={att.id}
+                          className="flex items-center justify-between gap-3 pt-2 first:pt-0 group hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 p-1.5 rounded-lg transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="p-1.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 shrink-0">
+                              <Paperclip className="h-3.5 w-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-slate-900 dark:text-zinc-100 truncate max-w-[170px] sm:max-w-[210px]" title={att.filename}>
+                                {att.filename}
+                              </p>
+                              <div className="flex items-center gap-1.5 text-[10.5px] text-slate-400 dark:text-zinc-500 flex-wrap">
+                                {att.size ? <span>{(att.size / 1024).toFixed(1)} KB</span> : null}
+                                {att.uploader_name ? (
+                                  <>
+                                    <span>•</span>
+                                    <span className="font-medium text-slate-600 dark:text-zinc-400">By {att.uploader_name}</span>
+                                  </>
+                                ) : null}
+                                {att.uploaded_at ? (
+                                  <>
+                                    <span>•</span>
+                                    <span>{formatDateTime(att.uploaded_at)}</span>
+                                  </>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 shrink-0 gap-1 cursor-pointer"
+                            onClick={() => purchasingService.downloadAttachment(request.id, att.id, att.filename)}
+                          >
+                            <Download className="h-3 w-3" />
+                            Download
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              </CardContent>
+            </Tabs>
           </Card>
 
 
@@ -1448,32 +1545,29 @@ export default function RequestDetail() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Approver</label>
                   <Select
-                    value={approval.approver}
-                    onValueChange={(v) => setApproval({ ...approval, approver: v })}
+                    value={user?.id || approval.approver || "_current_user"}
+                    disabled
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select approver..." />
+                    <SelectTrigger className="w-full bg-muted/50 cursor-not-allowed opacity-80">
+                      <SelectValue>
+                        {user?.full_name || user?.email || "Logged in Approver"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {isLoadingApprovers ? (
-                        <SelectItem value="_loading" disabled>Loading approvers...</SelectItem>
-                      ) : approvers.length > 0 ? (
-                        approvers.map((appr) => (
-                          <SelectItem key={appr.user_id} value={appr.user_id}>
-                            {appr.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value={user?.id || "current_user"}>
-                          {user?.full_name || user?.email || "Authorized Approver"}
-                        </SelectItem>
-                      )}
+                      <SelectItem value={user?.id || "_current_user"}>
+                        {user?.full_name || user?.email || "Logged in Approver"}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Comment</label>
-                  <Textarea value={approval.comment ?? ""} onChange={(e) => setApproval({ ...approval, comment: e.target.value })} rows={2} />
+                  <Textarea
+                    placeholder="Add an optional comment..."
+                    value={approval.comment ?? ""}
+                    onChange={(e) => setApproval({ ...approval, comment: e.target.value })}
+                    rows={3}
+                  />
                 </div>
               </>
             )}

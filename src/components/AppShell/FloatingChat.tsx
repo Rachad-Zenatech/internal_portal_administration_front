@@ -1,3 +1,4 @@
+import { ChatMessageRenderer } from "./ChatMessageRenderer";
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Send,
@@ -361,7 +362,11 @@ export default function FloatingChat() {
                                   }
                                 >
                                   <BubbleContent>
-                                    {message.content}
+                                    <ChatMessageRenderer
+                                      content={message.content}
+                                      role={message.role}
+                                      
+                                    />
                                     {isStreaming && index === messages.length - 1 && message.role === "assistant" && (
                                       <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-primary animate-pulse" />
                                     )}
