@@ -1,3 +1,4 @@
+import { TimezoneAutocomplete } from "./TimezoneAutocomplete";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -438,8 +439,8 @@ export default function BatchApproval() {
 
       {/* Table of Waiting Approvals */}
       <Card className="border border-slate-200 dark:border-zinc-800">
-        <Table>
-          <TableHeader>
+        <Table className="w-full min-w-full" containerClassName="flex-1 w-full min-w-full overflow-x-auto">
+          <TableHeader >
             <TableRow className="bg-slate-50/50 dark:bg-zinc-900/50">
               <TableHead className="w-[48px]">
                 <Checkbox
@@ -699,12 +700,12 @@ export default function BatchApproval() {
               <label className="text-xs font-semibold uppercase text-muted-foreground">
                 Timezone
               </label>
-              <Input
+              <TimezoneAutocomplete
                 value={settingsForm.timezone}
-                onChange={(e) =>
-                  setSettingsForm({ ...settingsForm, timezone: e.target.value })
+                onChange={(tz) =>
+                  setSettingsForm({ ...settingsForm, timezone: tz })
                 }
-                placeholder="America/New_York"
+                placeholder="Select timezone (e.g. America/New_York)..."
               />
             </div>
 

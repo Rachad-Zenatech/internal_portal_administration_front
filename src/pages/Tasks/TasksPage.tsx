@@ -41,7 +41,7 @@ export default function TasksPage() {
   });
 
   return (
-    <div className="p-6 h-full flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col h-full pb-4">
       <div className="flex justify-between items-center mb-6">
         <div>
           <div className="flex items-center gap-2"><h1 className="text-3xl font-bold tracking-tight">Tasks</h1><HelpIcon text="Create, view, and track execution of order system tasks and custom workflows." /></div>

@@ -93,9 +93,9 @@ export default function Invoices() {
         </Select>
       </div>
 
-      <Card className="flex-1 min-h-0 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm p-0">
-        <Table className="m-0" containerClassName="max-h-[calc(100vh-16rem)]">
-          <TableHeader className="bg-slate-50/80 dark:bg-zinc-950/50 sticky top-0 z-10 border-b">
+      <Card className="flex-1 min-h-[600px] flex flex-col w-full rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-0">
+        <Table className="m-0 w-full min-w-full" containerClassName="flex-1 w-full min-w-full overflow-x-auto">
+          <TableHeader >
             <TableRow>
               <TableHead>ID</TableHead>
               <TableHead>Item / Product Name</TableHead>
@@ -126,7 +126,7 @@ export default function Invoices() {
                     <TableCell className="font-mono text-xs font-semibold text-slate-600 dark:text-zinc-400">
                       #{task.id}
                     </TableCell>
-                    <TableCell className="font-medium text-slate-900 dark:text-zinc-100 max-w-[280px] truncate">
+                    <TableCell className="font-medium text-slate-900 dark:text-zinc-100 min-w-[240px]">
                       {task.product_name}
                     </TableCell>
                     <TableCell>

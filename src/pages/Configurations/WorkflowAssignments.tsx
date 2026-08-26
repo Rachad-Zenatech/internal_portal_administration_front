@@ -22,13 +22,14 @@ type Assignment = {
 };
 
 const ROLE_STATES_MAP: Record<string, string[]> = {
-  "PURCHASING": ["New Request", "Under Review"],
-  "MANAGER": ["Waiting Approval"],
+  "PURCHASING": ["New Request", "Under Review", "Purchased / Ordered", "Goods Received (CC)", "Waiting Payment (Credit Card)"],
+  "MANAGER": ["Waiting Approval (< $10k)"],
+  "EXECUTIVE": ["Waiting Approval (≥ $10k)"],
   "DIRECTOR": ["Waiting Approval"],
   "VP": ["Waiting Approval"],
-  "AP": ["Waiting Payment"],
+  "AP": ["Goods Received (Debit / Wire)", "Waiting Payment (Debit Card / Invoices)"],
   "RECEIVING": ["Shipped", "Goods Received"],
-  "TREASURY": ["Waiting Payment", "Completed"],
+  "TREASURY": ["Waiting Payment (Wire Transfer)", "Completed"],
 };
 
 export default function WorkflowAssignments() {
@@ -78,35 +79,32 @@ export default function WorkflowAssignments() {
       return toast.error("Role name must be unique. This role already exists.");
     }
 
+    const assignedCount = (form.user_ids && form.user_ids.length > 0)
+      ? form.user_ids.length
+      : (form.user_id ? 1 : 0);
+
+    const isManagerRole = form.role.trim().toUpperCase() === "MANAGER";
+    if (!isManagerRole && assignedCount === 0) {
+      return toast.error(`Workflow role '${form.role}' requires at least 1 assigned user (only Manager role is optional for auto-approval).`);
+    }
+
     try {
       const requestType = form.request_type === "ALL" ? null : (form.request_type || null);
 
+      const selectedUserIds = form.user_ids || [];
+      const payload: any = {
+        role: form.role,
+        request_type: requestType,
+        team_id: form.team_id || null,
+        active: form.active ?? true,
+        user_ids: selectedUserIds,
+        user_id: selectedUserIds[0] || null,
+      };
+
       if (form.id) {
-        const payload: any = {
-          role: form.role,
-          request_type: requestType,
-          team_id: form.team_id || null,
-          active: form.active ?? true,
-        };
-        if (form.user_ids && form.user_ids.length > 0) {
-          payload.user_ids = form.user_ids;
-        } else {
-          payload.user_id = form.user_id || null;
-        }
         await api.put(`/purchasing/assignments/${form.id}`, payload);
         toast.success("Assignment updated");
       } else {
-        const payload: any = {
-          role: form.role,
-          request_type: requestType,
-          team_id: form.team_id || null,
-          active: form.active ?? true,
-        };
-        if (form.user_ids && form.user_ids.length > 0) {
-          payload.user_ids = form.user_ids;
-        } else {
-          payload.user_id = form.user_id || null;
-        }
         await api.post(`/purchasing/assignments`, payload);
         toast.success("Assignment created");
       }
@@ -119,8 +117,17 @@ export default function WorkflowAssignments() {
     }
   };
 
-  const getUserNames = (ids: string[] | null) => {
-    if (!ids || ids.length === 0) return <span className="text-muted-foreground italic text-xs">None</span>;
+  const getUserNames = (ids: string[] | null, role?: string) => {
+    if (!ids || ids.length === 0) {
+      if (role?.toUpperCase() === "MANAGER") {
+        return (
+          <Badge variant="outline" className="font-normal text-[11px] bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+            Auto-Approved (No users assigned)
+          </Badge>
+        );
+      }
+      return <span className="text-rose-500 font-medium italic text-xs">Unassigned (Required)</span>;
+    }
     
     const visibleIds = ids.slice(0, 2);
     const hiddenIds = ids.slice(2);
@@ -178,6 +185,13 @@ export default function WorkflowAssignments() {
         </div>
       </div>
 
+      <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200 shadow-xs flex items-start gap-2.5">
+        <span className="text-base leading-none">💡</span>
+        <div className="leading-relaxed">
+          <strong className="font-semibold text-blue-950 dark:text-blue-100">Assignment Rules:</strong> All workflow roles require at least <strong>1 assigned user</strong>. The <strong>Manager</strong> role is optional — if no users are assigned to Manager, purchase requests requiring Manager sign-off (&lt; $10,000) are automatically approved by the system.
+        </div>
+      </div>
+
       <Card className="flex-1 min-h-0 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col p-0">
         <CardHeader className="bg-slate-50/50 dark:bg-zinc-950/50 border-b border-slate-100 dark:border-zinc-800 pb-4">
           <CardTitle className="text-lg">Role Assignments</CardTitle>
@@ -216,7 +230,7 @@ export default function WorkflowAssignments() {
                       <td className="px-6 py-4">
                         <Badge variant="secondary" className="text-[11px] font-medium">{formatRequestType(a.request_type || "ALL")}</Badge>
                       </td>
-                      <td className="px-6 py-4">{getUserNames(a.user_ids || (a.user_id ? [a.user_id] : []))}</td>
+                      <td className="px-6 py-4">{getUserNames(a.user_ids || (a.user_id ? [a.user_id] : []), a.role)}</td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide uppercase ${a.active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
                           {a.active ? "Active" : "Inactive"}
@@ -252,7 +266,7 @@ export default function WorkflowAssignments() {
             <div className="grid gap-2">
               <label className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">Role Name</label>
               <Input
-                placeholder="e.g. PURCHASING, AP, TREASURY"
+                placeholder="e.g. PURCHASING, MANAGER, EXECUTIVE, AP, TREASURY"
                 value={form.role || ""}
                 onChange={e => setForm({ ...form, role: e.target.value.toUpperCase() })}
                 className="uppercase placeholder:normal-case"
@@ -284,7 +298,18 @@ export default function WorkflowAssignments() {
             </div>
 
             <div className="grid gap-2">
-              <label className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">Assigned Users</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">Assigned Users</label>
+                {form.role?.trim().toUpperCase() === "MANAGER" ? (
+                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                    Optional (Auto-Approves if empty)
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                    At least 1 user required
+                  </span>
+                )}
+              </div>
               <div className="border rounded-lg p-4 space-y-4 bg-slate-50/50 dark:bg-zinc-900/50 shadow-sm">
                 <div className="flex flex-wrap gap-2">
                   {(!form.user_ids || form.user_ids.length === 0) ? (

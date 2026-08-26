@@ -318,8 +318,8 @@ export default function COATable({ result, loadingData }: COATableProps) {
         </div>
 
         <Card className="overflow-hidden p-0">
-          <Table className="m-0 relative" containerClassName="max-h-[calc(100vh-16rem)]">
-            <TableHeader className="sticky top-0 z-10 bg-slate-50 shadow-sm">
+          <Table className="m-0 relative" containerClassName="w-full overflow-x-auto">
+            <TableHeader >
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="bg-slate-50 hover:bg-slate-50 border-t-0">
                   {headerGroup.headers.map((header) => (

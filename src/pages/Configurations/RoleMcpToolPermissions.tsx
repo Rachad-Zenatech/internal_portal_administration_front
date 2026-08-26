@@ -224,7 +224,7 @@ export default function RoleMcpToolPermissions() {
             <div className={`flex-1 min-h-0 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden flex flex-col transition-opacity duration-200 ${loadingRolePermissions || saveMutation.isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
               <div className="flex-1 overflow-y-auto relative">
                 <Table>
-                  <TableHeader className="bg-slate-50/80 dark:bg-zinc-950/90 sticky top-0 z-10 backdrop-blur-sm">
+                  <TableHeader className="bg-slate-50/80 dark:bg-zinc-950/90 ">
                     <TableRow>
                       <TableHead className="w-16 text-center bg-inherit">Access</TableHead>
                       <TableHead 

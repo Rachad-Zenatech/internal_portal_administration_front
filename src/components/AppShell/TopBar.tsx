@@ -66,6 +66,18 @@ function TopBarClock() {
 
 
 
+const WORKFLOW_ROLE_LABELS: Record<string, string> = {
+  MANAGER: "Manager Approver",
+  EXECUTIVE: "Executive Approver",
+  AP: "Accounts Payable",
+  TREASURY: "Treasury",
+  PURCHASING: "Purchasing",
+};
+
+function formatWorkflowRole(role: string): string {
+  return WORKFLOW_ROLE_LABELS[role.toUpperCase()] || role;
+}
+
 export default function TopBar() {
   const [inputValue, setInputValue] = useState("");
   const [debouncedValue, setDebouncedValue] = useState("");
@@ -76,7 +88,7 @@ export default function TopBar() {
   const [inAppAlerts, setInAppAlerts] = useState(() => localStorage.getItem("inAppAlerts") !== "false");
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { user, roles, logout } = useAuth();
+  const { user, roles, workflow_roles = [], logout } = useAuth();
 
   const { data: allRoles = [] } = useQuery({
     queryKey: ["roles"],
@@ -118,6 +130,8 @@ export default function TopBar() {
         queryClient.invalidateQueries({ queryKey: ["notifications"] });
         queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
         queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+        queryClient.invalidateQueries({ queryKey: ["purchasing-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["my-approvals-list"] });
         queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
         queryClient.invalidateQueries({ queryKey: ["invoices"] });
@@ -444,6 +458,11 @@ export default function TopBar() {
                 <span className="text-[11px] font-semibold text-muted-foreground mt-0.5">
                   {user?.is_super_admin ? "Super Admin" : roles.length > 0 ? roles[0].name : "Standard User"}
                 </span>
+                {workflow_roles.length > 0 && (
+                  <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5 flex items-center gap-1">
+                    Workflow: {workflow_roles.map((r) => formatWorkflowRole(r)).join(", ")}
+                  </span>
+                )}
               </div>
             </div>
           </DropdownMenuTrigger>
@@ -513,6 +532,13 @@ export default function TopBar() {
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Job Title</Label>
                       <Input readOnly value={user.job_title} className="bg-muted/30 border-border text-muted-foreground h-11" />
+                    </div>
+                  )}
+
+                  {workflow_roles.length > 0 && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Workflow Roles</Label>
+                      <Input readOnly value={workflow_roles.map((r) => formatWorkflowRole(r)).join(", ")} className="bg-muted/30 border-border text-indigo-600 dark:text-indigo-400 font-medium h-11" />
                     </div>
                   )}
 

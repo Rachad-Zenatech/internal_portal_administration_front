@@ -66,6 +66,7 @@ import {
 } from "@/hooks/usePurchasing";
 import * as purchasingService from "@/services/purchasingService";
 import { EditRequestDialog } from "./EditRequestDialog";
+import { useAuth } from "@/lib/AuthContext";
 import Stepper from "@/components/Stepper";
 import { RequestStatus, PAYMENT_METHOD_LABEL } from "@/types/purchasing";
 import type {
@@ -170,6 +171,7 @@ export default function RequestDetail() {
   const reviewMutation = useUpdateReviewStatus();
 
 
+  const { user } = useAuth();
   const { data: approvers = [], isLoading: isLoadingApprovers } = usePossibleApprovers(id);
 
   const [activeForm, setActiveForm] = useState<{ action: WorkflowAction; kind: FormKind } | null>(null);
@@ -368,8 +370,8 @@ export default function RequestDetail() {
         }
       })();
     } else if (kind === "approval") {
-      if (!approval.approver) return toast.error("Approver is required.");
-      void dispatch({ action, approval });
+      const approverId = approval.approver || user?.id || user?.full_name || user?.email || "Approver";
+      void dispatch({ action, approval: { ...approval, approver: approverId } });
     } else if (kind === "tracking") {
       if (!tracking.tracking_number) return toast.error("Tracking number is required.");
       void dispatch({ action, tracking });
@@ -485,13 +487,23 @@ export default function RequestDetail() {
                     ? "Recurring request must be marked as 'Reviewed' before recording an invoice."
                     : undefined;
 
+                  const isApprove = action === "APPROVE";
+                  const isReject = action === "REJECT";
+                  const customClass = isApprove
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+                    : isReject
+                    ? "bg-rose-600 hover:bg-rose-700 text-white font-semibold"
+                    : isRecordInvoiceDisabled
+                    ? "opacity-50 cursor-not-allowed"
+                    : "";
+
                   return (
                     <div key={action} title={buttonTitle} className="inline-block">
                       <Button
-                        variant={meta.variant === "destructive" ? "destructive" : meta.variant === "outline" ? "outline" : "default"}
+                        variant={isApprove || isReject ? "default" : meta.variant === "destructive" ? "destructive" : meta.variant === "outline" ? "outline" : "default"}
                         disabled={isDisabled}
                         onClick={() => onAction(action)}
-                        className={isRecordInvoiceDisabled ? "opacity-50 cursor-not-allowed" : ""}
+                        className={customClass}
                       >
                         {meta.label}
                       </Button>
@@ -1250,7 +1262,7 @@ export default function RequestDetail() {
 
                     <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-200 dark:border-zinc-700 shadow-xs">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-[11px] font-semibold sticky top-0 z-10">
+                        <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-[11px] font-semibold ">
                           <tr>
                             <th className="p-2 w-8 text-center text-slate-400">#</th>
                             <th className="p-2 w-24">SKU</th>
@@ -1452,7 +1464,9 @@ export default function RequestDetail() {
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="_none" disabled>No assignees found</SelectItem>
+                        <SelectItem value={user?.id || "current_user"}>
+                          {user?.full_name || user?.email || "Authorized Approver"}
+                        </SelectItem>
                       )}
                     </SelectContent>
                   </Select>

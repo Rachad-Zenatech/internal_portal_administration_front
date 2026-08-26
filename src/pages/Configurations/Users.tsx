@@ -109,6 +109,10 @@ export default function Users() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.full_name && /[^a-zA-Z\s]/.test(formData.full_name)) {
+      toast.error("Full Name can only contain letters and spaces (no numbers or symbols).");
+      return;
+    }
     const finalEmail = formData.email.includes("@") ? formData.email : `${formData.email}@zenatech.com`;
     const payload = { ...formData, email: finalEmail };
 
@@ -368,8 +372,8 @@ export default function Users() {
         </div>
 
         <Card className="flex-1 min-h-0 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col p-0">
-          <Table className="m-0 relative" containerClassName="max-h-[calc(100vh-16rem)]">
-            <TableHeader className="bg-slate-50/80 dark:bg-zinc-950/50 sticky top-0 z-10 shadow-sm border-b">
+          <Table className="m-0 relative" containerClassName="w-full overflow-x-auto">
+            <TableHeader >
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="border-t-0">
                   {headerGroup.headers.map((header) => (
@@ -428,9 +432,13 @@ export default function Users() {
               <label className="text-sm font-medium">Full Name</label>
               <Input 
                 value={formData.full_name} 
-                onChange={e => setFormData({...formData, full_name: e.target.value})} 
+                onChange={e => {
+                  const sanitized = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+                  setFormData({...formData, full_name: sanitized});
+                }} 
                 placeholder="John Doe"
               />
+              <p className="text-[11px] text-muted-foreground">Letters and spaces only (no symbols or numbers).</p>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Email</label>

@@ -100,10 +100,10 @@ export default function Login() {
               Sign in with your @zenatech.com account
             </CardDescription>
           </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-2.5">
             <Button
               onClick={handleLogin}
-              className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all mb-3"
+              className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -115,7 +115,18 @@ export default function Login() {
                 "Sign in with Microsoft"
               )}
             </Button>
-            
+
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-200 dark:border-zinc-800" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white dark:bg-zinc-900 px-2 text-muted-foreground font-medium">
+                  Quick Dev Logins
+                </span>
+              </div>
+            </div>
+
             <Button
               onClick={() => {
                 const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
@@ -123,10 +134,39 @@ export default function Login() {
                 window.location.href = `${baseUrl}/api/auth/dev-login?email=testa@zenatech.com`;
               }}
               variant="outline"
-              className="w-full h-12 rounded-xl border-slate-200 dark:border-zinc-800 font-semibold shadow-sm hover:shadow transition-all"
+              className="w-full h-10 rounded-xl border-slate-200 dark:border-zinc-800 text-xs font-semibold shadow-xs hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-all justify-between"
               disabled={isLoading}
             >
-              Login as Test A
+              <span>Test A</span>
+              <span className="text-[10px] text-muted-foreground font-normal">Requester</span>
+            </Button>
+
+            <Button
+              onClick={() => {
+                const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
+                const baseUrl = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+                window.location.href = `${baseUrl}/api/auth/dev-login?email=testb@zenatech.com`;
+              }}
+              variant="outline"
+              className="w-full h-10 rounded-xl border-indigo-200 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold shadow-xs hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-all justify-between"
+              disabled={isLoading}
+            >
+              <span>Test B (HR)</span>
+              <span className="text-[10px] font-medium bg-indigo-100 dark:bg-indigo-900/80 px-1.5 py-0.5 rounded">Low Level Approver (&lt; $10k)</span>
+            </Button>
+
+            <Button
+              onClick={() => {
+                const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
+                const baseUrl = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+                window.location.href = `${baseUrl}/api/auth/dev-login?email=testc@zenatech.com`;
+              }}
+              variant="outline"
+              className="w-full h-10 rounded-xl border-purple-200 dark:border-purple-900/60 text-purple-700 dark:text-purple-300 text-xs font-semibold shadow-xs hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-all justify-between"
+              disabled={isLoading}
+            >
+              <span>Test C (HR)</span>
+              <span className="text-[10px] font-medium bg-purple-100 dark:bg-purple-900/80 px-1.5 py-0.5 rounded">High Level Approver (&ge; $10k)</span>
             </Button>
           </CardContent>
           <CardFooter className="flex justify-center pb-8 pt-4 border-t border-slate-100 dark:border-zinc-800/50 mt-2 bg-slate-50/50 dark:bg-zinc-950/30">

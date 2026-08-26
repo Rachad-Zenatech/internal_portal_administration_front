@@ -50,9 +50,9 @@ export default function TaskBoard({ tasks, onTaskClick, onTaskMoved, readOnly = 
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex h-full gap-3 overflow-x-auto pb-4">
+      <div className="flex flex-1 min-h-0 h-full gap-3 overflow-x-auto pb-4">
         {BOARD_COLUMNS.map((col) => (
-          <div key={col.key} className="w-[280px] flex-shrink-0 flex flex-col h-full min-h-0 bg-[#F4F5F7] dark:bg-slate-900 rounded-sm p-2">
+          <div key={col.key} className="w-[290px] flex-shrink-0 flex flex-col h-full min-h-[620px] bg-[#F4F5F7] dark:bg-slate-900 rounded-sm p-2">
             <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 px-2 mt-1">
               {col.label} <span className="font-normal ml-1">{getTasksByStatus(col.key).length}</span>
             </h3>

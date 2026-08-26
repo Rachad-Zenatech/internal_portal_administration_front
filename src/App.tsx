@@ -21,7 +21,7 @@ const PurchaseRequests = lazy(() => import("./pages/Purchasing/PurchaseRequests"
 const RequestDetail = lazy(() => import("./pages/Purchasing/RequestDetail"));
 const Invoices = lazy(() => import("./pages/Purchasing/Invoices"));
 const RecurringPayments = lazy(() => import("./pages/Purchasing/RecurringPayments"));
-const BatchApproval = lazy(() => import("./pages/Purchasing/BatchApproval"));
+const MyApprovals = lazy(() => import("./pages/Purchasing/MyApprovals"));
 const Login = lazy(() => import("./pages/Login"));
 const PendingAccess = lazy(() => import("./pages/PendingAccess"));
 
@@ -48,9 +48,10 @@ function App() {
             <Route path="/purchasing" element={<Navigate to="/purchasing/requests" replace />} />
             <Route path="/purchasing/requests" element={<ProtectedRoute><PurchaseRequests /></ProtectedRoute>} />
             <Route path="/purchasing/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
-            <Route path="/purchasing/recurring" element={<ProtectedRoute><RecurringPayments /></ProtectedRoute>} />
-            <Route path="/purchasing/batch-approval" element={<ProtectedRoute><BatchApproval /></ProtectedRoute>} />
-            <Route path="/purchasing/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+            <Route path="/purchasing/recurring" element={<ProtectedRoute navigationCode="RECURRING_PAYMENTS"><RecurringPayments /></ProtectedRoute>} />
+            <Route path="/purchasing/my-approvals" element={<ProtectedRoute navigationCode="MY_APPROVALS"><MyApprovals /></ProtectedRoute>} />
+            <Route path="/purchasing/batch-approval" element={<Navigate to="/purchasing/my-approvals" replace />} />
+            <Route path="/purchasing/invoices" element={<ProtectedRoute navigationCode="INVOICES"><Invoices /></ProtectedRoute>} />
 
             <Route path="/configurations" element={<Navigate to="/configurations/users" replace />} />
 

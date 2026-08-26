@@ -1,10 +1,9 @@
 import * as React from "react"
-
 import { cn } from "@/lib/utils"
 
 interface TableProps extends React.ComponentProps<"table"> {
-  containerClassName?: string;
-  containerRef?: React.Ref<HTMLDivElement>;
+  containerClassName?: string
+  containerRef?: React.RefObject<HTMLDivElement | null>
 }
 
 function Table({ className, containerClassName, containerRef, ...props }: TableProps) {
@@ -12,11 +11,11 @@ function Table({ className, containerClassName, containerRef, ...props }: TableP
     <div
       ref={containerRef}
       data-slot="table-container"
-      className={cn("relative w-full h-full overflow-auto", containerClassName)}
+      className={cn("relative w-full overflow-x-auto overflow-y-visible", containerClassName)}
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom text-sm border-collapse", className)}
         {...props}
       />
     </div>
@@ -27,7 +26,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className, "sticky top-0 z-10 bg-slate-50 dark:bg-zinc-950 backdrop-blur shadow-sm")}
+      className={cn("[&_tr]:border-b sticky top-0 z-20 bg-slate-50/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-xs", className)}
       {...props}
     />
   )
@@ -61,7 +60,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
         className
       )}
       {...props}
@@ -74,7 +73,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-3 text-left align-middle font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider [&:has([role=checkbox])]:pr-0 sticky top-0 bg-slate-50/95 dark:bg-zinc-900/95 backdrop-blur-md z-20 border-b border-border/80",
         className
       )}
       {...props}
@@ -87,7 +86,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap min-w-fit [&:has([role=checkbox])]:pr-0",
+        "p-3 align-middle [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}

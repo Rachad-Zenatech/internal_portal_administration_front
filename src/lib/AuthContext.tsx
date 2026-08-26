@@ -27,6 +27,7 @@ export interface Role {
 interface PermissionsData {
   user: User;
   roles: Role[];
+  workflow_roles?: string[];
   navigation_permissions: Record<string, string[]>;
   mcp_tool_permissions: string[];
 }
@@ -34,6 +35,7 @@ interface PermissionsData {
 interface AuthContextType {
   user: User | null;
   roles: Role[];
+  workflow_roles: string[];
   isLoading: boolean;
   canAccessNavigationItem: (navigationCode: string, actionCode?: string) => boolean;
   hasPermission: (permissionCode: string) => boolean;
@@ -180,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user: permissions?.user || null,
         roles: permissions?.roles || [],
+        workflow_roles: permissions?.workflow_roles || [],
         isLoading,
         canAccessNavigationItem,
         hasPermission,

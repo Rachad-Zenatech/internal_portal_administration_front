@@ -1,3 +1,4 @@
+import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -217,6 +218,7 @@ const EMPTY_FORM: RequestCreateInput = {
 };
 
 export function PurchaseRequests() {
+  const kpiRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
@@ -233,7 +235,10 @@ export function PurchaseRequests() {
   const [isFullScreenTable, setIsFullScreenTable] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
 
-  const { user, roles = [] } = useAuth();
+
+
+  const { user, roles = [], hasPermission } = useAuth();
+  const canCreate = Boolean(user?.is_super_admin || hasPermission("PURCHASING_CREATE"));
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
 
@@ -299,6 +304,10 @@ export function PurchaseRequests() {
   const extractQuoteMutation = useExtractQuote();
 
   const openCreate = () => {
+    if (!canCreate) {
+      toast.error("You do not have permission to create purchase requests");
+      return;
+    }
     const defaultRequester = user?.full_name || user?.email || "";
     const matchedUser = usersList.find(
       (u) =>
@@ -543,14 +552,58 @@ export function PurchaseRequests() {
             <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span>Export to QuickBooks (.xlsx)</span>
           </Button>
-          <Button onClick={openCreate} className="w-full sm:w-auto gap-2 font-medium shadow-sm">
-            <Plus className="h-4 w-4" />
-            <span>New Request</span>
-          </Button>
+          {canCreate && (
+            <Button onClick={openCreate} className="w-full sm:w-auto gap-2 font-medium shadow-sm">
+              <Plus className="h-4 w-4" />
+              <span>New Request</span>
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Slim Vertical Floating Quick Filter (Follows card colors & appears on scroll) */}
+      <FloatingVerticalFilter
+        items={[
+          {
+            key: "OPEN",
+            label: "Open Requests",
+            count: summary?.open_requests ?? 0,
+            icon: ShoppingCart,
+            color: "blue",
+          },
+          {
+            key: "UNDER_REVIEW",
+            label: "Waiting Review",
+            count: summary?.status_counts?.UNDER_REVIEW ?? 0,
+            icon: Clock,
+            color: "orange",
+          },
+          {
+            key: "WAITING_PAYMENT",
+            label: "Unpaid Invoices",
+            count: summary?.unpaid_invoices ?? 0,
+            icon: FileWarning,
+            color: "fuchsia",
+          },
+          {
+            key: "COMPLETED",
+            label: "Completed",
+            count: summary?.completed ?? 0,
+            icon: CheckCircle2,
+            color: "green",
+          },
+        ]}
+        activeKey={statusFilter}
+        onSelect={handleStatusFilterChange}
+        defaultKey="OPEN"
+        onReset={() => handleStatusFilterChange("OPEN")}
+        scrollThreshold={130}
+        title="Requests"
+        kpiRef={kpiRef}
+      />
+
+      {/* Big KPI Cards Section */}
+      <div ref={kpiRef} className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
         {cards.map((c) => {
           const Icon = c.icon;
           const isSelected = statusFilter === c.statusKey;
@@ -628,9 +681,9 @@ export function PurchaseRequests() {
         </div>
       </div>
 
-      <Card className="border border-slate-200 dark:border-zinc-800">
-        <Table>
-          <TableHeader>
+      <Card className="flex-1 min-h-[600px] flex flex-col w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm bg-white dark:bg-zinc-900">
+        <Table className="w-full min-w-full" containerClassName="flex-1 w-full min-w-full overflow-x-auto">
+          <TableHeader >
             <TableRow>
               <TableHead>ID</TableHead>
               <TableHead>Title</TableHead>
@@ -660,7 +713,7 @@ export function PurchaseRequests() {
                   <TableCell className="font-mono text-xs font-semibold text-slate-600 dark:text-zinc-400">
                     #{r.id}
                   </TableCell>
-                  <TableCell className="font-medium text-slate-900 dark:text-zinc-100 max-w-[200px] truncate">
+                  <TableCell className="font-medium text-slate-900 dark:text-zinc-100 min-w-[220px]">
                     {r.title}
                   </TableCell>
                   <TableCell>{r.requester}</TableCell>
@@ -901,7 +954,7 @@ export function PurchaseRequests() {
 
                   <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-zinc-700 shadow-xs">
                     <table className="w-full text-left">
-                      <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-[11px] font-semibold sticky top-0 z-10 shadow-xs">
+                      <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-[11px] font-semibold ">
                         <tr>
                           <th className="p-2 w-10 text-center text-slate-400">#</th>
                           <th className="p-2 w-28">SKU</th>
@@ -1205,7 +1258,7 @@ export function PurchaseRequests() {
           <div className="space-y-4 pt-4">
             <div className="rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-xs">
               <table className="w-full text-left">
-                <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-xs font-semibold sticky top-0 z-10 shadow-xs">
+                <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-xs font-semibold ">
                   <tr>
                     <th className="p-3 w-12 text-center text-slate-400">#</th>
                     <th className="p-3 w-36 font-semibold">SKU</th>

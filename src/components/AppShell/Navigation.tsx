@@ -6,7 +6,7 @@ import {
   ShoppingCart,
   ReceiptText,
   CalendarCheck,
-  CheckSquare,
+  UserCheck,
 } from "lucide-react";
 
 export const navigation = [
@@ -47,18 +47,18 @@ export const navigation = [
     ],
   },
   {
+    label: "My Approvals",
+    path: "/purchasing/my-approvals",
+    icon: UserCheck,
+    section: "PURCHASING & AP",
+    navigationCode: "MY_APPROVALS",
+  },
+  {
     label: "Recurring Payments",
     path: "/purchasing/recurring",
     icon: CalendarCheck,
     section: "PURCHASING & AP",
     navigationCode: "RECURRING_PAYMENTS",
-  },
-  {
-    label: "Batch Approval",
-    path: "/purchasing/batch-approval",
-    icon: CheckSquare,
-    section: "PURCHASING & AP",
-    navigationCode: "BATCH_APPROVAL",
   },
   {
     label: "Accounts Payable",

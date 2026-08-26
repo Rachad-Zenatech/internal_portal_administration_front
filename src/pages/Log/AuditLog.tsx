@@ -320,8 +320,8 @@ export default function AuditLog() {
             </div>
             
             <Card className="flex-1 min-h-0 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col p-0">
-              <Table className="m-0 relative" containerClassName="max-h-[calc(100vh-16rem)]">
-                <TableHeader className="bg-slate-50/80 dark:bg-zinc-950/50 sticky top-0 z-10 shadow-sm border-b">
+              <Table className="m-0 relative" containerClassName="w-full overflow-x-auto">
+                <TableHeader >
                   {auditTable.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id} className="border-t-0">
                       {headerGroup.headers.map((header) => (
@@ -413,8 +413,8 @@ export default function AuditLog() {
             </div>
             
             <Card className="flex-1 min-h-0 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col p-0">
-              <Table className="m-0 relative" containerClassName="max-h-[calc(100vh-16rem)]">
-                <TableHeader className="bg-slate-50/80 dark:bg-zinc-950/50 sticky top-0 z-10 shadow-sm border-b">
+              <Table className="m-0 relative" containerClassName="w-full overflow-x-auto">
+                <TableHeader >
                   {loginTable.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id} className="border-t-0">
                       {headerGroup.headers.map((header) => (

@@ -1,3 +1,4 @@
+import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -62,6 +63,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import GLCodeAutocomplete from "./GLCodeAutocomplete";
+import { TimezoneAutocomplete } from "./TimezoneAutocomplete";
 
 interface CalendarCell {
   day: number;
@@ -175,6 +177,7 @@ function RequesterAutocomplete({
 }
 
 export default function RecurringPayments() {
+  const kpiRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { roles: userRoles, hasRole, hasPermission, user } = useAuth();
@@ -214,6 +217,8 @@ export default function RecurringPayments() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+
 
   // Recurring notification settings query
   const { data: notifSettings, refetch: refetchSettings } = useQuery<RecurringNotificationSettings>({
@@ -659,6 +664,8 @@ export default function RecurringPayments() {
           </div>
 
           <div className="flex items-center gap-2">
+            
+
             <Button
               variant="outline"
               size="sm"
@@ -682,8 +689,42 @@ export default function RecurringPayments() {
         </div>
       </div>
 
+      {/* Slim Vertical Floating Quick Filter (Follows card colors & appears on scroll) */}
+      <FloatingVerticalFilter
+        items={[
+          {
+            key: "ALL",
+            label: "All Subscriptions",
+            count: stats.total,
+            icon: RefreshCw,
+            color: "blue",
+          },
+          {
+            key: "WAITING_REVIEW",
+            label: "Waiting Review",
+            count: stats.waitingReview,
+            icon: Clock,
+            color: "amber",
+          },
+          {
+            key: "REVIEWED",
+            label: "Reviewed (AP)",
+            count: stats.reviewed,
+            icon: CheckCircle2,
+            color: "sky",
+          },
+        ]}
+        activeKey={statusFilter}
+        onSelect={setStatusFilter}
+        defaultKey="ALL"
+        onReset={() => setStatusFilter("ALL")}
+        scrollThreshold={130}
+        title="Subscriptions"
+        kpiRef={kpiRef}
+      />
+
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div ref={kpiRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
         <Card className="border border-slate-200/80 dark:border-zinc-800">
           <CardContent className="p-5 flex items-center justify-between">
             <div>
@@ -795,7 +836,7 @@ export default function RecurringPayments() {
       {viewMode === "table" ? (
         <Card className="border border-slate-200 dark:border-zinc-800">
           <Table>
-            <TableHeader>
+            <TableHeader >
               <TableRow className="bg-slate-50/50 dark:bg-zinc-900/50">
                 <TableHead className="w-[80px]">ID</TableHead>
                 <TableHead>Title / Description</TableHead>
@@ -1520,15 +1561,15 @@ export default function RecurringPayments() {
               <label className="text-xs font-semibold uppercase text-muted-foreground">
                 Timezone
               </label>
-              <Input
+              <TimezoneAutocomplete
                 value={settingsForm.timezone}
-                onChange={(e) =>
+                onChange={(tz) =>
                   setSettingsForm({
                     ...settingsForm,
-                    timezone: e.target.value,
+                    timezone: tz,
                   })
                 }
-                placeholder="America/New_York"
+                placeholder="Select timezone (e.g. America/New_York)..."
               />
             </div>
 

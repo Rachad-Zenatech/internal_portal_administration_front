@@ -472,7 +472,7 @@ export function EditRequestDialog({
                 {/* Table */}
                 <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-zinc-700 shadow-xs">
                   <table className="w-full text-left">
-                    <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-[11px] font-semibold sticky top-0 z-10 shadow-xs">
+                    <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-[11px] font-semibold ">
                       <tr>
                         <th className="p-2 w-10 text-center text-slate-400">#</th>
                         <th className="p-2 w-28">SKU</th>
@@ -794,7 +794,7 @@ export function EditRequestDialog({
           <div className="space-y-5 pt-4">
             <div className="rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-xs">
               <table className="w-full text-left">
-                <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-xs font-semibold sticky top-0 z-10 shadow-xs">
+                <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-xs font-semibold ">
                   <tr>
                     <th className="p-3 w-12 text-center text-slate-400">#</th>
                     <th className="p-3 w-36 font-semibold">SKU</th>
