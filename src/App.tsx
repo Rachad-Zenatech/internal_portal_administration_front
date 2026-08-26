@@ -39,7 +39,8 @@ function App() {
 
           {/* Main app layout routes */}
           <Route element={<ProtectedRoute><AppShell><Outlet /></AppShell></ProtectedRoute>}>
-            <Route path="/" element={<ProtectedRoute navigationCode="DASHBOARD"><Dashboard /></ProtectedRoute>} />
+            <Route path="/" element={<Navigate to="/purchasing/requests" replace />} />
+            <Route path="/dashboard" element={<ProtectedRoute navigationCode="DASHBOARD"><Dashboard /></ProtectedRoute>} />
             <Route path="/upload-files" element={<ProtectedRoute navigationCode="UPLOAD_FILES"><UploadFile /></ProtectedRoute>} />
 
             {/* Purchasing + Accounts Payable workflow (Tasks 1-3).

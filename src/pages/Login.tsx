@@ -49,14 +49,10 @@ export default function Login() {
           if (token) {
             sessionStorage.setItem("token", token);
           }
-          const perms = await refreshPermissions();
+          await refreshPermissions();
           toast.success("Successfully logged in");
           window.history.replaceState({}, document.title, window.location.pathname);
-          if (perms?.roles?.some(r => r.code === "REQUESTER")) {
-            navigate("/purchasing/requests");
-          } else {
-            navigate("/");
-          }
+          navigate("/purchasing/requests");
         } catch (error) {
           console.error("Failed to process SSO login", error);
           toast.error("Failed to process login");
@@ -152,7 +148,7 @@ export default function Login() {
               disabled={isLoading}
             >
               <span>Test B (HR)</span>
-              <span className="text-[10px] font-medium bg-indigo-100 dark:bg-indigo-900/80 px-1.5 py-0.5 rounded">Low Level Approver (&lt; $10k)</span>
+              <span className="text-[10px] font-medium bg-indigo-100 dark:bg-indigo-900/80 px-1.5 py-0.5 rounded">Standard Approver (&lt; $10k)</span>
             </Button>
 
             <Button
@@ -166,7 +162,7 @@ export default function Login() {
               disabled={isLoading}
             >
               <span>Test C (HR)</span>
-              <span className="text-[10px] font-medium bg-purple-100 dark:bg-purple-900/80 px-1.5 py-0.5 rounded">High Level Approver (&ge; $10k)</span>
+              <span className="text-[10px] font-medium bg-purple-100 dark:bg-purple-900/80 px-1.5 py-0.5 rounded">Senior Approver (&ge; $10k)</span>
             </Button>
           </CardContent>
           <CardFooter className="flex justify-center pb-8 pt-4 border-t border-slate-100 dark:border-zinc-800/50 mt-2 bg-slate-50/50 dark:bg-zinc-950/30">

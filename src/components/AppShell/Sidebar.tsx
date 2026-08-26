@@ -66,6 +66,15 @@ export default function Sidebar({
   const getSubItemCount = (path: string): number | undefined => {
     if (!purchasingSummary) return undefined;
     if (path === "/purchasing/requests") return purchasingSummary.total_requests;
+    if (path === "/purchasing/recurring") return purchasingSummary.recurring_total ?? 0;
+    if (path.includes("/purchasing/recurring")) {
+      const searchParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
+      const filterKey = searchParams.get("filter")?.toUpperCase();
+      if (filterKey === "DUE_SOON") return purchasingSummary.recurring_due_soon_count ?? 0;
+      if (filterKey === "WAITING_REVIEW") return purchasingSummary.recurring_waiting_review ?? 0;
+      if (filterKey === "REVIEWED") return purchasingSummary.recurring_reviewed ?? 0;
+      return purchasingSummary.recurring_total ?? 0;
+    }
     const searchParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
     const statusKey = searchParams.get("status")?.toUpperCase();
     if (!statusKey) return undefined;
@@ -78,6 +87,9 @@ export default function Sidebar({
   useEffect(() => {
     if (location.pathname.startsWith("/purchasing/requests")) {
       setExpandedItems(prev => ({ ...prev, "Purchase Requests": true }));
+    }
+    if (location.pathname.startsWith("/purchasing/recurring")) {
+      setExpandedItems(prev => ({ ...prev, "Recurring Payments": true }));
     }
   }, [location.pathname]);
 
@@ -210,7 +222,7 @@ export default function Sidebar({
                     const isSubActive = sub.path.includes("?")
                       ? fullPath === sub.path
                       : (location.pathname === sub.path && !location.search);
-                    const subCount = sub.path.startsWith("/purchasing/requests") ? getSubItemCount(sub.path) : undefined;
+                    const subCount = (sub.path.startsWith("/purchasing/requests") || sub.path.startsWith("/purchasing/recurring")) ? getSubItemCount(sub.path) : undefined;
                     return (
                       <Link
                         key={sub.path}
@@ -269,6 +281,12 @@ export default function Sidebar({
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                       </span>
                     )}
+                    {!isOpen && item.label === "Recurring Payments" && (purchasingSummary?.recurring_due_soon_count ?? 0) > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                      </span>
+                    )}
                   </div>
                   <div className={`flex items-center justify-between min-w-0 ${isOpen ? 'flex-1' : 'w-0'}`}>
                     <span
@@ -281,6 +299,14 @@ export default function Sidebar({
                     {isOpen && item.label === "Notification Plans" && unreadCount > 0 && (
                       <span className="flex-shrink-0 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mr-2">
                         {unreadCount}
+                      </span>
+                    )}
+                    {isOpen && item.label === "Recurring Payments" && (purchasingSummary?.recurring_due_soon_count ?? 0) > 0 && (
+                      <span
+                        className="flex-shrink-0 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full mr-2 shadow-2xs animate-in fade-in"
+                        title={`${purchasingSummary?.recurring_due_soon_count} recurring payment(s) due within 7 days`}
+                      >
+                        {purchasingSummary?.recurring_due_soon_count}
                       </span>
                     )}
                   </div>

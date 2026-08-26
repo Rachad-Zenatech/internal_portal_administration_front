@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Search, Bell, Building2, BookText, FileText, Banknote, Loader2, LogOut, User, Sparkles, Mail, BellRing, Settings2, CheckCheck, X, CloudDownload } from "lucide-react";
+import { Search, Bell, ShieldCheck, Building2, BookText, FileText, Banknote, Loader2, LogOut, User, Sparkles, Mail, BellRing, Settings2, CheckCheck, X, CloudDownload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,8 +68,8 @@ function TopBarClock() {
 
 
 const WORKFLOW_ROLE_LABELS: Record<string, string> = {
-  MANAGER: "Manager Approver",
-  EXECUTIVE: "Executive Approver",
+  MANAGER: "Manager",
+  EXECUTIVE: "Executive",
   AP: "Accounts Payable",
   TREASURY: "Treasury",
   PURCHASING: "Purchasing",
@@ -450,33 +451,44 @@ export default function TopBar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <div className="flex items-center gap-2 sm:gap-3 cursor-pointer hover:bg-muted p-1.5 sm:p-2 sm:pr-3 rounded-xl transition-colors border border-transparent hover:border-border outline-none">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0 border border-border shadow-sm">
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0 border border-border shadow-xs">
                 <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || user?.email || "User")}&background=eff6ff&color=2563eb&rounded=true&bold=true`} alt="User avatar" className="h-full w-full object-cover" />
               </div>
               <div className="hidden md:flex flex-col text-left">
                 <span className="text-sm font-bold text-foreground leading-tight">{user?.full_name || "User"}</span>
-                <span className="text-[11px] font-semibold text-muted-foreground mt-0.5">
+                <span className="text-[11px] font-medium text-muted-foreground mt-0.5">
                   {user?.is_super_admin ? "Super Admin" : roles.length > 0 ? roles[0].name : "Standard User"}
                 </span>
-                {workflow_roles.length > 0 && (
-                  <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5 flex items-center gap-1">
-                    Workflow: {workflow_roles.map((r) => formatWorkflowRole(r)).join(", ")}
-                  </span>
-                )}
               </div>
             </div>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => setIsProfileOpen(true)} className="cursor-pointer">
-              <User className="mr-2 h-4 w-4" />
+          <DropdownMenuContent align="end" className="w-64 p-2">
+            <div className="px-2 py-2 border-b border-border/50 pb-2.5 mb-1">
+              <p className="text-sm font-semibold text-foreground leading-tight">{user?.full_name || "User"}</p>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">{user?.email}</p>
+              
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <Badge variant="secondary" className="text-[10px] font-medium py-0 px-1.5">
+                  {user?.is_super_admin ? "Super Admin" : roles.length > 0 ? roles[0].name : "Standard User"}
+                </Badge>
+                {workflow_roles.length > 0 && (
+                  <Badge variant="outline" className="text-[10px] font-medium py-0 px-1.5 border-indigo-200 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800">
+                    <ShieldCheck className="h-3 w-3 mr-1 inline-block" />
+                    {workflow_roles.map((r) => formatWorkflowRole(r)).join(", ")}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <DropdownMenuItem onClick={() => setIsProfileOpen(true)} className="cursor-pointer text-xs">
+              <User className="mr-2 h-3.5 w-3.5" />
               <span>Profile</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 
               onClick={() => setIsLogoutOpen(true)} 
-              className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-100 dark:focus:bg-red-900/30"
+              className="cursor-pointer text-xs text-red-600 focus:text-red-600 focus:bg-red-100 dark:focus:bg-red-900/30"
             >
-              <LogOut className="mr-2 h-4 w-4" />
+              <LogOut className="mr-2 h-3.5 w-3.5" />
               <span>Logout</span>
             </DropdownMenuItem>
           </DropdownMenuContent>

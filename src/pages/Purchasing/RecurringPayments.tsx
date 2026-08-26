@@ -2,7 +2,7 @@ import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
 import type { PurchaseRequest,
   RecurringNotificationSettings, RequestDetail } from "@/types/purchasing";
@@ -49,6 +49,7 @@ import {
   Calendar as CalendarIcon,
   Table as TableIcon,
   Plus,
+  AlertTriangle,
   Settings,
   Send,
   Search,
@@ -58,7 +59,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldAlert,
-  DollarSign,
   Edit2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -176,6 +176,26 @@ function RequesterAutocomplete({
   );
 }
 
+function getDueStatus(dateStr?: string | null, status?: string) {
+  if (!dateStr || status === "COMPLETED" || status === "REJECTED") return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) {
+    return { label: `Overdue (${Math.abs(diffDays)}d)`, variant: "destructive" as const, className: "", isUrgent: true };
+  } else if (diffDays === 0) {
+    return { label: "Due Today", variant: "default" as const, className: "bg-rose-600 hover:bg-rose-700 text-white font-bold", isUrgent: true };
+  } else if (diffDays === 1) {
+    return { label: "Due Tomorrow", variant: "default" as const, className: "bg-amber-600 hover:bg-amber-700 text-white font-semibold", isUrgent: true };
+  } else if (diffDays <= 7) {
+    return { label: `Due in ${diffDays}d`, variant: "outline" as const, className: "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 font-medium", isUrgent: true };
+  }
+  return null;
+}
+
 export default function RecurringPayments() {
   const kpiRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -214,6 +234,24 @@ export default function RecurringPayments() {
   const [searchTerm, setSearchTerm] = useState("");
   const [reviewFilter, setReviewFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialFilter = searchParams.get("filter")?.toUpperCase() || "ALL";
+  const [cardFilter, setCardFilter] = useState<string>(initialFilter);
+
+  useEffect(() => {
+    const f = searchParams.get("filter")?.toUpperCase() || "ALL";
+    setCardFilter(f);
+  }, [searchParams]);
+
+  const handleCardFilterChange = (newFilter: string) => {
+    setCardFilter(newFilter);
+    if (newFilter === "ALL") {
+      searchParams.delete("filter");
+    } else {
+      searchParams.set("filter", newFilter);
+    }
+    setSearchParams(searchParams, { replace: true });
+  };
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -523,6 +561,19 @@ export default function RecurringPayments() {
     });
   };
 
+  // Helper to check if a recurring request is due within 7 days
+  const isDueSoon = (r: PurchaseRequest) => {
+    const dateStr = r.due_date || r.request_date;
+    if (!dateStr || r.status === "COMPLETED" || r.status === "REJECTED") return false;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 7;
+  };
+
   // Filtered requests
   const filteredRequests = useMemo(() => {
     return requests.filter((r) => {
@@ -535,6 +586,14 @@ export default function RecurringPayments() {
       ) {
         return false;
       }
+      if (cardFilter === "DUE_SOON") {
+        if (!isDueSoon(r)) return false;
+      } else if (cardFilter === "WAITING_REVIEW") {
+        const rev = r.review_status || "WAITING_FOR_REVIEW";
+        if (rev !== "WAITING_FOR_REVIEW") return false;
+      } else if (cardFilter === "REVIEWED") {
+        if (r.review_status !== "REVIEWED") return false;
+      }
       if (reviewFilter !== "ALL") {
         const rev = r.review_status || "WAITING_FOR_REVIEW";
         if (rev !== reviewFilter) return false;
@@ -544,11 +603,12 @@ export default function RecurringPayments() {
       }
       return true;
     });
-  }, [requests, searchTerm, reviewFilter, statusFilter]);
+  }, [requests, searchTerm, cardFilter, reviewFilter, statusFilter]);
 
   // Summary statistics
   const stats = useMemo(() => {
     const total = requests.length;
+    const dueSoon = requests.filter(isDueSoon).length;
     const waitingReview = requests.filter(
       (r) => (r.review_status || "WAITING_FOR_REVIEW") === "WAITING_FOR_REVIEW"
     ).length;
@@ -556,7 +616,7 @@ export default function RecurringPayments() {
       (r) => r.review_status === "REVIEWED"
     ).length;
     const totalAmount = requests.reduce((sum, r) => sum + (r.amount || 0), 0);
-    return { total, waitingReview, reviewed, totalAmount };
+    return { total, dueSoon, waitingReview, reviewed, totalAmount };
   }, [requests]);
 
   if (!canAccess) {
@@ -700,6 +760,13 @@ export default function RecurringPayments() {
             color: "blue",
           },
           {
+            key: "DUE_SOON",
+            label: "Due in 7 Days",
+            count: stats.dueSoon,
+            icon: AlertTriangle,
+            color: "amber",
+          },
+          {
             key: "WAITING_REVIEW",
             label: "Waiting Review",
             count: stats.waitingReview,
@@ -714,26 +781,33 @@ export default function RecurringPayments() {
             color: "sky",
           },
         ]}
-        activeKey={statusFilter}
-        onSelect={setStatusFilter}
+        activeKey={cardFilter}
+        onSelect={handleCardFilterChange}
         defaultKey="ALL"
-        onReset={() => setStatusFilter("ALL")}
+        onReset={() => handleCardFilterChange("ALL")}
         scrollThreshold={130}
         title="Subscriptions"
         kpiRef={kpiRef}
       />
 
-      {/* KPI Cards */}
+      {/* Interactive KPI Filter Cards */}
       <div ref={kpiRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
-        <Card className="border border-slate-200/80 dark:border-zinc-800">
+        {/* 1. All Subscriptions */}
+        <Card
+          onClick={() => handleCardFilterChange("ALL")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-md transition-all hover:border-blue-300 ${
+            cardFilter === "ALL" ? "ring-2 ring-blue-500 bg-blue-50/20 dark:bg-blue-950/20" : ""
+          }`}
+        >
           <CardContent className="p-5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">
                 Active Subscriptions
               </p>
               <h3 className="text-2xl font-bold text-slate-900 dark:text-zinc-100 mt-1">
                 {stats.total}
               </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">All recurring orders</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-950 flex items-center justify-center text-blue-600">
               <RefreshCw size={20} />
@@ -741,15 +815,49 @@ export default function RecurringPayments() {
           </CardContent>
         </Card>
 
-        <Card className="border border-slate-200/80 dark:border-zinc-800">
+        {/* 2. Due Within 7 Days Alert Filter Card */}
+        <Card
+          onClick={() => handleCardFilterChange(cardFilter === "DUE_SOON" ? "ALL" : "DUE_SOON")}
+          className={`border cursor-pointer shadow-xs hover:shadow-md transition-all ${
+            stats.dueSoon > 0 ? "border-amber-300/80 dark:border-amber-700/60 bg-amber-50/10" : "border-slate-200/80 dark:border-zinc-800"
+          } ${
+            cardFilter === "DUE_SOON" ? "ring-2 ring-amber-500 bg-amber-50/30 dark:bg-amber-950/40 border-amber-500" : "hover:border-amber-400"
+          }`}
+        >
           <CardContent className="p-5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase flex items-center gap-1">
+                Due in 7 Days
+              </p>
+              <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                {stats.dueSoon}
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {stats.dueSoon === 1 ? "1 renewal due soon" : `${stats.dueSoon} renewals due soon`}
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-amber-600">
+              <AlertTriangle size={20} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 3. Waiting for Review */}
+        <Card
+          onClick={() => handleCardFilterChange(cardFilter === "WAITING_REVIEW" ? "ALL" : "WAITING_REVIEW")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-md transition-all hover:border-amber-300 ${
+            cardFilter === "WAITING_REVIEW" ? "ring-2 ring-amber-500 bg-amber-50/20 dark:bg-amber-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-5 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase">
                 Waiting for Review
               </p>
               <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
                 {stats.waitingReview}
               </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Pending AP sign-off</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-950 flex items-center justify-center text-amber-600">
               <Clock size={20} />
@@ -757,34 +865,25 @@ export default function RecurringPayments() {
           </CardContent>
         </Card>
 
-        <Card className="border border-slate-200/80 dark:border-zinc-800">
+        {/* 4. Reviewed (AP) */}
+        <Card
+          onClick={() => handleCardFilterChange(cardFilter === "REVIEWED" ? "ALL" : "REVIEWED")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-md transition-all hover:border-sky-300 ${
+            cardFilter === "REVIEWED" ? "ring-2 ring-sky-500 bg-sky-50/20 dark:bg-sky-950/20" : ""
+          }`}
+        >
           <CardContent className="p-5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">
                 Reviewed (AP)
               </p>
               <h3 className="text-2xl font-bold text-sky-600 dark:text-sky-400 mt-1">
                 {stats.reviewed}
               </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Ready for invoice match</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-sky-50 dark:bg-sky-950 flex items-center justify-center text-sky-600">
               <CheckCircle2 size={20} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-slate-200/80 dark:border-zinc-800">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase">
-                Total Spend Volume
-              </p>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                {formatMoney(stats.totalAmount)}
-              </h3>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-700 dark:text-zinc-300">
-              <DollarSign size={20} />
             </div>
           </CardContent>
         </Card>
@@ -890,7 +989,18 @@ export default function RecurringPayments() {
                         {req.department}
                       </TableCell>
                       <TableCell className="text-sm font-medium">
-                        {req.due_date ? formatDate(req.due_date) : formatDate(req.request_date)}
+                        <div className="flex flex-col gap-1 items-start">
+                          <span>{req.due_date ? formatDate(req.due_date) : formatDate(req.request_date)}</span>
+                          {(() => {
+                            const due = getDueStatus(req.due_date || req.request_date, req.status);
+                            if (!due) return null;
+                            return (
+                              <Badge variant={due.variant} className={`text-[10px] py-0 px-1.5 leading-tight ${due.className}`}>
+                                {due.label}
+                              </Badge>
+                            );
+                          })()}
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm font-bold text-slate-900 dark:text-zinc-100">
                         {formatMoney(req.amount)}

@@ -12,7 +12,7 @@ import {
 export const navigation = [
   {
     label: "Dashboard",
-    path: "/",
+    path: "/dashboard",
     icon: LayoutDashboard,
     section: "MAIN",
     navigationCode: "DASHBOARD",
@@ -59,6 +59,12 @@ export const navigation = [
     icon: CalendarCheck,
     section: "PURCHASING & AP",
     navigationCode: "RECURRING_PAYMENTS",
+    subItems: [
+      { label: "All Subscriptions", path: "/purchasing/recurring" },
+      { label: "Due in 7 Days", path: "/purchasing/recurring?filter=DUE_SOON" },
+      { label: "Waiting for Review", path: "/purchasing/recurring?filter=WAITING_REVIEW" },
+      { label: "Reviewed (AP)", path: "/purchasing/recurring?filter=REVIEWED" },
+    ],
   },
   {
     label: "Accounts Payable",
