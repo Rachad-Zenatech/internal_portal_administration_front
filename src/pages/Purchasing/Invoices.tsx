@@ -69,11 +69,11 @@ export default function Invoices() {
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+    <div className="flex-1 min-h-0 flex flex-col gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Accounts Payable</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Accounts Payable</h2>
             <HelpIcon text="Track, record, and pay vendor invoices generated through the purchasing workflow." />
           </div>
           <p className="text-sm text-slate-500 dark:text-zinc-400">
@@ -93,7 +93,7 @@ export default function Invoices() {
         </Select>
       </div>
 
-      <Card className="flex-1 min-h-[600px] flex flex-col w-full rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-0">
+      <Card className="flex-1 min-h-[380px] flex flex-col w-full rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-0">
         <Table className="m-0 w-full min-w-full" containerClassName="flex-1 w-full min-w-full overflow-x-auto">
           <TableHeader >
             <TableRow>

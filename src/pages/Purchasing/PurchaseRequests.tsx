@@ -524,14 +524,14 @@ export function PurchaseRequests() {
   ];
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+    <div className="flex-1 min-h-0 flex flex-col gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Purchase Requests</h2>
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Purchase Requests</h2>
             <HelpIcon text="Manage and create purchase requests. Displays current review status and routing info." />
           </div>
-          <p className="text-sm text-slate-500 dark:text-zinc-400">
+          <p className="text-xs text-slate-500 dark:text-zinc-400">
             Capture, review, approve and track purchasing &amp; accounts payable requests.
           </p>
         </div>
@@ -602,8 +602,8 @@ export function PurchaseRequests() {
         kpiRef={kpiRef}
       />
 
-      {/* Big KPI Cards Section */}
-      <div ref={kpiRef} className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
+      {/* Compact KPI Cards Section */}
+      <div ref={kpiRef} className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
         {cards.map((c) => {
           const Icon = c.icon;
           const isSelected = statusFilter === c.statusKey;
@@ -611,19 +611,19 @@ export function PurchaseRequests() {
             <Card
               key={c.label}
               onClick={() => handleStatusFilterChange(c.statusKey)}
-              className={`border transition-all cursor-pointer ${isSelected
-                  ? "border-blue-500/80 ring-2 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-950/20 shadow-md"
-                  : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-md"
+              className={`border transition-all cursor-pointer rounded-lg ${isSelected
+                  ? "border-blue-500/80 ring-2 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-950/20 shadow-xs"
+                  : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-xs"
                 }`}
             >
-              <CardContent className="p-4 flex flex-col justify-between h-full">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-500 dark:text-zinc-400">{c.label}</span>
-                  <Icon className={`h-5 w-5 ${c.tint}`} />
+              <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 block">{c.label}</span>
+                  <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight mt-0.5">{c.value}</div>
+                  {c.sub && <div className="text-[10px] text-slate-500 mt-0.5">{c.sub}</div>}
                 </div>
-                <div className="mt-2">
-                  <div className="text-2xl font-bold">{c.value}</div>
-                  {c.sub && <div className="text-xs text-slate-500 mt-1">{c.sub}</div>}
+                <div className="p-1.5 rounded-md bg-slate-50 dark:bg-zinc-800/60 shrink-0">
+                  <Icon className={`h-4 w-4 ${c.tint}`} />
                 </div>
               </CardContent>
             </Card>
@@ -631,20 +631,20 @@ export function PurchaseRequests() {
         })}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+      <div className="flex flex-col sm:flex-row gap-2.5 items-center justify-between shrink-0">
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
           <Input
             placeholder="Search requests..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
+            className="pl-8 h-8 text-xs"
           />
         </div>
 
-        <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1">
+        <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-0.5">
           <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[160px] h-8 text-xs">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
@@ -667,7 +667,7 @@ export function PurchaseRequests() {
               setSearchParams(newParams);
             }}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[150px] h-8 text-xs">
               <SelectValue placeholder="Request Type" />
             </SelectTrigger>
             <SelectContent>
@@ -681,8 +681,8 @@ export function PurchaseRequests() {
         </div>
       </div>
 
-      <Card className="flex-1 min-h-[600px] flex flex-col w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm bg-white dark:bg-zinc-900">
-        <Table className="w-full min-w-full" containerClassName="flex-1 w-full min-w-full overflow-x-auto">
+      <Card className="flex-1 min-h-[280px] flex flex-col w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden">
+        <Table className="w-full min-w-full" containerClassName="flex-1 w-full min-w-full overflow-auto">
           <TableHeader >
             <TableRow>
               <TableHead>ID</TableHead>

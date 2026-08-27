@@ -134,19 +134,28 @@ export default function Sidebar({
   }, {});
 
   return (
-    <aside
-      className={`
-        h-full flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground overflow-hidden whitespace-nowrap
-        ${isOpen ? "w-72" : "w-20"}
-      `}
-    >
-      <div className={`flex items-center h-16 px-4 transition-all duration-300 ease-in-out ${isOpen ? "justify-between" : "justify-center"}`}>
+    <>
+      {/* Mobile & Tablet backdrop overlay */}
+      {isOpen && (
+        <div
+          onClick={onToggle}
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs laptop:hidden animate-in fade-in"
+        />
+      )}
+
+      <aside
+        className={`
+          fixed laptop:static top-0 bottom-0 left-0 z-50 h-full flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out shadow-lg laptop:shadow-none
+          ${isOpen ? "w-52 tablet:w-56 desktop:w-60 translate-x-0" : "-translate-x-full laptop:translate-x-0 laptop:w-14"}
+        `}
+      >
+      <div className={`flex items-center h-10 tablet:h-11 px-2 transition-all duration-300 ease-in-out ${isOpen ? "justify-between" : "justify-center"}`}>
         <Link to="/" className={`transition-all duration-300 ease-in-out ${isOpen ? "opacity-100" : "opacity-0 w-0 h-0 overflow-hidden"}`}>
           <img
             src={zenatechLogo}
             alt="Zenatech Logo"
             className={`transition-all duration-300 ease-in-out object-contain cursor-pointer ${
-              isOpen ? "h-20 w-auto -translate-x-4" : "w-0 h-0"
+              isOpen ? "h-8 w-auto ml-1" : "w-0 h-0"
             }`}
           />
         </Link>
@@ -155,12 +164,12 @@ export default function Sidebar({
           onClick={onToggle}
           className="rounded-lg p-2 hover:bg-sidebar-accent flex-shrink-0"
         >
-          <PanelRight size={20} />
+          <PanelRight size={16} />
         </button>
       </div>
 
       <TooltipProvider delayDuration={0}>
-        <nav className="space-y-6 px-3 mt-6 pb-6 overflow-y-auto scrollbar-hide flex-1 min-h-0">
+        <nav className="space-y-3 px-2 mt-2 pb-4 overflow-y-auto scrollbar-hide flex-1 min-h-0">
           {Object.entries(groupedNavigation).map(([section, items]) => (
           <div key={section} className="space-y-1">
             {isOpen ? (
@@ -189,15 +198,15 @@ export default function Sidebar({
                         }
                       }}
                       className={`
-                        flex items-center justify-between h-12 overflow-hidden rounded-lg transition-all duration-300 ease-in-out hover:bg-sidebar-accent text-sidebar-foreground
+                        flex items-center justify-between h-8 tablet:h-8.5 overflow-hidden rounded-md text-xs transition-all duration-300 ease-in-out hover:bg-sidebar-accent text-sidebar-foreground
                         ${isOpen ? "px-3" : "px-0 justify-center"}
                       `}
                     >
                       <div className={`flex items-center ${isOpen ? "justify-start" : "justify-center"}`}>
                         <div className="flex items-center justify-center flex-shrink-0">
-                          <Icon size={20} />
+                          <Icon size={16} />
                         </div>
-                        <span className={`text-sm font-medium transition-all duration-300 ease-in-out ${isOpen ? "opacity-100 ml-3 translate-x-0 w-auto" : "opacity-0 ml-0 -translate-x-4 w-0 overflow-hidden"}`}>
+                        <span className={`text-xs font-medium transition-all duration-300 ease-in-out ${isOpen ? "opacity-100 ml-3 translate-x-0 w-auto" : "opacity-0 ml-0 -translate-x-4 w-0 overflow-hidden"}`}>
                           {item.label}
                         </span>
                       </div>
@@ -263,7 +272,7 @@ export default function Sidebar({
                   to={item.path!}
                   className={
                     `
-                      flex items-center h-12 overflow-hidden rounded-lg transition-all duration-300 ease-in-out
+                      flex items-center h-8 tablet:h-8.5 overflow-hidden rounded-md text-xs transition-all duration-300 ease-in-out
                       ${isOpen ? "px-3 justify-start" : "px-0 justify-center"}
                       ${
                         isMainActive
@@ -274,7 +283,7 @@ export default function Sidebar({
                   }
                 >
                   <div className="flex items-center justify-center flex-shrink-0 relative">
-                    <Icon size={20} />
+                    <Icon size={16} />
                     {!isOpen && item.label === "Notification Plans" && unreadCount > 0 && (
                       <span className="absolute -top-1 -right-1 flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -290,7 +299,7 @@ export default function Sidebar({
                   </div>
                   <div className={`flex items-center justify-between min-w-0 ${isOpen ? 'flex-1' : 'w-0'}`}>
                     <span
-                      className={`text-sm font-medium transition-all duration-300 ease-in-out truncate ${
+                      className={`text-xs font-medium transition-all duration-300 ease-in-out truncate ${
                         isOpen ? "opacity-100 ml-3 translate-x-0 w-auto" : "opacity-0 ml-0 -translate-x-4 w-0 overflow-hidden"
                       }`}
                     >
@@ -323,5 +332,6 @@ export default function Sidebar({
         </nav>
       </TooltipProvider>
     </aside>
+    </>
   );
 }

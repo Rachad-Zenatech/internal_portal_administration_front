@@ -55,7 +55,7 @@ export default function Breadcrumbs() {
   const activeTrail = customTrails[location.pathname];
 
   return (
-    <nav className="flex items-center text-sm text-muted-foreground mb-6 overflow-x-auto whitespace-nowrap pt-1 pb-2 scrollbar-none min-h-[36px]">
+    <nav className="flex items-center text-xs text-muted-foreground mb-2.5 sm:mb-3.5 overflow-x-auto whitespace-nowrap pt-0.5 pb-1.5 scrollbar-none min-h-[28px]">
       <Link 
         to="/" 
         className="flex items-center hover:text-foreground transition-colors"

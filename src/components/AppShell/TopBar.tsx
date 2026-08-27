@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Search, Bell, ShieldCheck, Building2, BookText, FileText, Banknote, Loader2, LogOut, User, Sparkles, Mail, BellRing, Settings2, CheckCheck, X, CloudDownload } from "lucide-react";
+import { Search, Bell, Menu, ShieldCheck, Building2, BookText, FileText, Banknote, Loader2, LogOut, User, Sparkles, Mail, BellRing, Settings2, CheckCheck, X, CloudDownload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -52,11 +52,11 @@ function TopBarClock() {
   });
 
   return (
-    <div className="hidden lg:flex flex-col items-end justify-center mr-2">
-      <span className="text-sm font-bold text-foreground leading-tight tracking-tight">
+    <div className="hidden laptop:flex flex-col items-end justify-center mr-1">
+      <span className="text-xs font-bold text-foreground leading-tight tracking-tight">
         {formattedTime}
       </span>
-      <span className="text-[11px] font-semibold text-muted-foreground mt-0.5">
+      <span className="text-[10px] font-semibold text-muted-foreground mt-0.5">
         {formattedDate}
       </span>
     </div>
@@ -79,7 +79,7 @@ function formatWorkflowRole(role: string): string {
   return WORKFLOW_ROLE_LABELS[role.toUpperCase()] || role;
 }
 
-export default function TopBar() {
+export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const [inputValue, setInputValue] = useState("");
   const [debouncedValue, setDebouncedValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -200,13 +200,24 @@ export default function TopBar() {
   };
 
   return (
-    <header className="h-20 border-b border-border bg-card text-card-foreground flex items-center justify-between px-4 sm:px-6 md:px-8 shrink-0 transition-all duration-300 gap-4">
-      <div className="flex-1 flex items-center min-w-0">
-        <div ref={containerRef} className="relative w-full max-w-md z-50">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <header className="h-10 tablet:h-11 border-b border-border bg-card text-card-foreground flex items-center justify-between px-2 phone:px-3 tablet:px-4 shrink-0 transition-all duration-300 gap-1.5 phone:gap-2 tablet:gap-3">
+      <div className="flex-1 flex items-center min-w-0 gap-1.5">
+        {onToggleSidebar && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleSidebar}
+            className="laptop:hidden h-7.5 w-7.5 text-muted-foreground hover:text-foreground shrink-0"
+            title="Toggle Menu"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+        )}
+        <div ref={containerRef} className="relative w-full max-w-[140px] phone:max-w-[170px] large:max-w-[220px] tablet:max-w-[260px] laptop:max-w-[280px] desktop:max-w-[320px] wide:max-w-[360px] z-20">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input 
             placeholder="Search for anything here..." 
-            className="w-full pl-11 bg-muted border-none rounded-full h-11 text-sm shadow-inner focus-visible:ring-1 focus-visible:ring-ring"
+            className="w-full pl-8 bg-muted border-none rounded-full h-7 tablet:h-7.5 text-xs shadow-inner focus-visible:ring-1 focus-visible:ring-ring"
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value);

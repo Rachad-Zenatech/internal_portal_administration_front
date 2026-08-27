@@ -179,14 +179,12 @@ export default function MyApprovals() {
   };
 
   return (
-    <div className="w-full flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+    <div className="flex-1 min-h-0 flex flex-col gap-3 sm:gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-3.5">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
-              My Approvals
-            </h1>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">My Approvals</h1>
             <Badge
               variant="outline"
               className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 font-semibold"
@@ -194,7 +192,7 @@ export default function MyApprovals() {
               {requests.length} Pending
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Review, sign-off, or reject purchase requests requiring your managerial or executive approval. Click any row to view full request details.
           </p>
         </div>
@@ -244,14 +242,14 @@ export default function MyApprovals() {
           },
           {
             key: "UNDER_10K",
-            label: "< $10k (Manager)",
+            label: "< $10k (Standard Approver)",
             count: metrics.under10k,
             icon: DollarSign,
             color: "green",
           },
           {
             key: "OVER_10K",
-            label: "≥ $10k (Executive)",
+            label: "≥ $10k (Senior Approver)",
             count: metrics.over10k,
             icon: Sparkles,
             color: "violet",
@@ -266,98 +264,98 @@ export default function MyApprovals() {
         kpiRef={kpiRef}
       />
 
-      {/* Metric Cards Section */}
-      <div ref={kpiRef} className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 animate-in fade-in duration-300">
+      {/* Compact Metric Cards Section */}
+      <div ref={kpiRef} className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
         <Card
-          onClick={() => setCardFilter(cardFilter === "ALL" ? "ALL" : "ALL")}
-          className={`border transition-all cursor-pointer ${
+          onClick={() => setCardFilter("ALL")}
+          className={`border transition-all cursor-pointer rounded-lg ${
             cardFilter === "ALL"
-              ? "border-blue-500/80 ring-2 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-950/20 shadow-md"
-              : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-md"
+              ? "border-blue-500/80 ring-2 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-950/20 shadow-xs"
+              : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-xs"
           }`}
         >
-          <CardContent className="p-3.5 flex items-center justify-between">
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground">All Pending</p>
-              <p className="text-xl font-bold text-slate-900 dark:text-zinc-50 mt-0.5">{metrics.totalCount}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{formatMoney(metrics.totalAmount)}</p>
+              <p className="text-[11px] font-medium text-muted-foreground">All Pending</p>
+              <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-50 leading-tight mt-0.5">{metrics.totalCount}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{formatMoney(metrics.totalAmount)}</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-              <Layers className="w-5 h-5" />
+            <div className="p-1.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 shrink-0">
+              <Layers className="w-4 h-4" />
             </div>
           </CardContent>
         </Card>
 
         <Card
           onClick={() => setCardFilter(cardFilter === "HIGH" ? "ALL" : "HIGH")}
-          className={`border transition-all cursor-pointer ${
+          className={`border transition-all cursor-pointer rounded-lg ${
             cardFilter === "HIGH"
-              ? "border-orange-500/80 ring-2 ring-orange-500/20 bg-orange-50/20 dark:bg-orange-950/20 shadow-md"
-              : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-md"
+              ? "border-orange-500/80 ring-2 ring-orange-500/20 bg-orange-50/20 dark:bg-orange-950/20 shadow-xs"
+              : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-xs"
           }`}
         >
-          <CardContent className="p-3.5 flex items-center justify-between">
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground">High / Urgent</p>
-              <p className="text-xl font-bold text-slate-900 dark:text-zinc-50 mt-0.5">{metrics.highPriority}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Requires fast-track</p>
+              <p className="text-[11px] font-medium text-muted-foreground">High / Urgent</p>
+              <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-50 leading-tight mt-0.5">{metrics.highPriority}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Requires fast-track</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="p-1.5 rounded-md bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 shrink-0">
+              <ShieldCheck className="w-4 h-4" />
             </div>
           </CardContent>
         </Card>
 
         <Card
           onClick={() => setCardFilter(cardFilter === "UNDER_10K" ? "ALL" : "UNDER_10K")}
-          className={`border transition-all cursor-pointer ${
+          className={`border transition-all cursor-pointer rounded-lg ${
             cardFilter === "UNDER_10K"
-              ? "border-emerald-500/80 ring-2 ring-emerald-500/20 bg-emerald-50/20 dark:bg-emerald-950/20 shadow-md"
-              : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-md"
+              ? "border-emerald-500/80 ring-2 ring-emerald-500/20 bg-emerald-50/20 dark:bg-emerald-950/20 shadow-xs"
+              : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-xs"
           }`}
         >
-          <CardContent className="p-3.5 flex items-center justify-between">
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground">&lt; $10k (Manager)</p>
-              <p className="text-xl font-bold text-slate-900 dark:text-zinc-50 mt-0.5">{metrics.under10k}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Tier 1 limit</p>
+              <p className="text-[11px] font-medium text-muted-foreground">&lt; $10k (Standard)</p>
+              <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-50 leading-tight mt-0.5">{metrics.under10k}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Tier 1 limit</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
-              <DollarSign className="w-5 h-5" />
+            <div className="p-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 shrink-0">
+              <DollarSign className="w-4 h-4" />
             </div>
           </CardContent>
         </Card>
 
         <Card
           onClick={() => setCardFilter(cardFilter === "OVER_10K" ? "ALL" : "OVER_10K")}
-          className={`border transition-all cursor-pointer ${
+          className={`border transition-all cursor-pointer rounded-lg ${
             cardFilter === "OVER_10K"
-              ? "border-violet-500/80 ring-2 ring-violet-500/20 bg-violet-50/20 dark:bg-violet-950/20 shadow-md"
-              : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-md"
+              ? "border-violet-500/80 ring-2 ring-violet-500/20 bg-violet-50/20 dark:bg-violet-950/20 shadow-xs"
+              : "border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-xs"
           }`}
         >
-          <CardContent className="p-3.5 flex items-center justify-between">
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground">≥ $10k (Executive)</p>
-              <p className="text-xl font-bold text-slate-900 dark:text-zinc-50 mt-0.5">{metrics.over10k}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Tier 2 sign-off</p>
+              <p className="text-[11px] font-medium text-muted-foreground">≥ $10k (Senior)</p>
+              <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-50 leading-tight mt-0.5">{metrics.over10k}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Tier 2 sign-off</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400">
-              <Sparkles className="w-5 h-5" />
+            <div className="p-1.5 rounded-md bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 shrink-0">
+              <Sparkles className="w-4 h-4" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Action Bar & Search Filter */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-zinc-900 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-2xs">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-white dark:bg-zinc-900 p-2 sm:p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-2xs shrink-0">
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by title, requester, department, ID, GL code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 text-xs h-9"
+            className="pl-9 text-xs h-8 text-xs"
           />
         </div>
 
@@ -397,8 +395,8 @@ export default function MyApprovals() {
       </div>
 
       {/* Main Table */}
-      <Card className="w-full flex flex-col border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden">
-        <Table className="w-full min-w-full" containerClassName="w-full min-w-full overflow-x-auto">
+      <Card className="flex-1 min-h-[280px] flex flex-col w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden">
+        <Table className="w-full min-w-full" containerClassName="flex-1 min-h-0 w-full min-w-full overflow-auto">
           <TableHeader className="bg-slate-50/90 dark:bg-zinc-900/90 border-b border-slate-200 dark:border-zinc-800">
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-12 text-center py-3">
@@ -558,7 +556,7 @@ export default function MyApprovals() {
         <DialogContent className="sm:max-w-[460px]">
           <DialogHeader>
             <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2">
-              <CheckCircle2 className="w-5 h-5" />
+              <CheckCircle2 className="w-4.5 h-4.5" />
             </div>
             <DialogTitle>Confirm Approval</DialogTitle>
             <DialogDescription>
@@ -609,7 +607,7 @@ export default function MyApprovals() {
         <DialogContent className="sm:max-w-[460px]">
           <DialogHeader>
             <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-2">
-              <XCircle className="w-5 h-5" />
+              <XCircle className="w-4.5 h-4.5" />
             </div>
             <DialogTitle>Reject Request(s)</DialogTitle>
             <DialogDescription>

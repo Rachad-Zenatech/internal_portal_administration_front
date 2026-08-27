@@ -248,11 +248,11 @@ export default function Dashboard() {
   }, [tasks, searchQuery, dashboardFilter]);
 
   return (
-    <div className="w-full space-y-4 flex flex-col flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out relative">
+    <div className="w-full space-y-3 flex flex-col flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out relative">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
               Welcome back, {user?.full_name || "Admin"}
             </h1>
             <HelpIcon text="Provides a high-level overview of system metrics, active users, recent audit actions, and task execution counts." />
@@ -355,12 +355,12 @@ export default function Dashboard() {
               dashboardFilter === "ALL" ? "ring-2 ring-blue-500 bg-blue-50/20 dark:bg-blue-950/20" : ""
             }`}
           >
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 shrink-0">
-                <Activity className="w-6 h-6" />
+            <CardContent className="p-3 sm:p-3.5 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 shrink-0">
+                <Activity className="w-5 h-5" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-2xl font-bold leading-none mb-1">{purchasingSummary?.open_requests ?? activeCount}</span>
+                <span className="text-lg sm:text-xl font-bold leading-none mb-1">{purchasingSummary?.open_requests ?? activeCount}</span>
                 <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">Active Requests</span>
                 <span className="text-[11px] text-muted-foreground mt-0.5">
                   Pipeline: {formatMoney(pipelineValue)} · {totalCount} total
@@ -376,12 +376,12 @@ export default function Dashboard() {
               dashboardFilter === "APPROVALS" ? "ring-2 ring-violet-500 bg-violet-50/20 dark:bg-violet-950/20" : ""
             }`}
           >
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400 shrink-0">
-                <UserCheck className="w-6 h-6" />
+            <CardContent className="p-3 sm:p-3.5 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400 shrink-0">
+                <UserCheck className="w-5 h-5" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-2xl font-bold leading-none mb-1">{purchasingSummary?.awaiting_approval ?? 0}</span>
+                <span className="text-lg sm:text-xl font-bold leading-none mb-1">{purchasingSummary?.awaiting_approval ?? 0}</span>
                 <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">Awaiting Approval</span>
                 <span className="text-[11px] text-violet-600 dark:text-violet-400 font-medium mt-0.5">
                   Click to filter board
@@ -397,12 +397,12 @@ export default function Dashboard() {
               dashboardFilter === "UNPAID_INVOICES" ? "ring-2 ring-rose-500 bg-rose-50/20 dark:bg-rose-950/20" : ""
             }`}
           >
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400 shrink-0">
-                <ReceiptText className="w-6 h-6" />
+            <CardContent className="p-3 sm:p-3.5 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400 shrink-0">
+                <ReceiptText className="w-5 h-5" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-2xl font-bold leading-none mb-1">{purchasingSummary?.unpaid_invoices ?? 0}</span>
+                <span className="text-lg sm:text-xl font-bold leading-none mb-1">{purchasingSummary?.unpaid_invoices ?? 0}</span>
                 <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">Unpaid Invoices (AP)</span>
                 <span className="text-[11px] text-muted-foreground mt-0.5 truncate">
                   {formatMoney(purchasingSummary?.unpaid_amount ?? 0)} due
@@ -418,12 +418,12 @@ export default function Dashboard() {
               dashboardFilter === "RECURRING" ? "ring-2 ring-amber-500 bg-amber-50/20 dark:bg-amber-950/20" : ""
             }`}
           >
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400 shrink-0">
-                <CalendarCheck className="w-6 h-6" />
+            <CardContent className="p-3 sm:p-3.5 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400 shrink-0">
+                <CalendarCheck className="w-5 h-5" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-2xl font-bold leading-none mb-1">{purchasingSummary?.recurring_total ?? 0}</span>
+                <span className="text-lg sm:text-xl font-bold leading-none mb-1">{purchasingSummary?.recurring_total ?? 0}</span>
                 <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">Recurring Payments</span>
                 <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
                   {(purchasingSummary?.recurring_due_soon_count ?? 0) > 0
@@ -436,7 +436,7 @@ export default function Dashboard() {
       </div>
 
       {/* Read-Only Tasks Board & Overview Section */}
-      <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex-1 min-h-[750px] lg:min-h-[820px] flex flex-col">
+      <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex-1 min-h-[480px] lg:min-h-[540px] flex flex-col">
         <CardContent className="p-4 sm:p-6 flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
           <div className="flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
