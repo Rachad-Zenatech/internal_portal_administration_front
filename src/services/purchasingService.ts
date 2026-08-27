@@ -130,7 +130,7 @@ export function getGLCodes(search?: string) {
   return apiClient.get<GLCodeOption[]>(`${BASE}/gl-codes${qs}`);
 }
 
-export function exportQuickBooksXlsx(ids?: string[], status?: string) {
+export function exportQuickBooksXlsx(ids?: string[], status?: string, year?: number | null, month?: number | null) {
   const params = new URLSearchParams();
   if (ids && ids.length > 0) {
     params.set("ids", ids.join(","));
@@ -138,8 +138,20 @@ export function exportQuickBooksXlsx(ids?: string[], status?: string) {
   if (status && status !== "ALL") {
     params.set("status", status);
   }
+  if (year) {
+    params.set("year", String(year));
+  }
+  if (month) {
+    params.set("month", String(month));
+  }
   const qs = params.toString() ? `?${params.toString()}` : "";
-  const filename = status && status !== "ALL" ? `QuickBooks_Export_${status}.xlsx` : "QuickBooks_Export.xlsx";
+
+  const nameParts = ["QuickBooks_Export"];
+  if (year) nameParts.push(String(year));
+  if (month) nameParts.push(String(month).padStart(2, "0"));
+  if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
+  const filename = `${nameParts.join("_")}.xlsx`;
+
   return apiClient.downloadFile(`${BASE}/export/quickbooks/xlsx${qs}`, filename);
 }
 

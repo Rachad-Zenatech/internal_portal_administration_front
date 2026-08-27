@@ -242,10 +242,10 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
 
   return (
     <Sheet open={!!task} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent aria-describedby={undefined} className="!max-w-[80vw] !w-[80vw] flex flex-col p-0 bg-slate-50/50 dark:bg-zinc-950">
-        <div className="p-6 sm:p-8 flex-1 overflow-y-auto space-y-6">
-          {/* Header */}
-          <SheetHeader className="pr-8">
+      <SheetContent aria-describedby={undefined} className="!max-w-[90vw] lg:!max-w-[80vw] !w-[90vw] lg:!w-[80vw] flex flex-col p-0 bg-slate-100 dark:bg-zinc-950 text-foreground border-l border-slate-200 dark:border-zinc-800 shadow-2xl">
+        {/* Header */}
+        <SheetHeader className="bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 p-4 sm:p-6 shrink-0 pr-14 shadow-2xs">
+
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
@@ -295,8 +295,9 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                 </div>
               </div>
             </div>
-          </SheetHeader>
+        </SheetHeader>
 
+        <div className="p-4 sm:p-6 flex-1 overflow-y-auto space-y-4 bg-slate-50/70 dark:bg-zinc-950">
           {/* Stepper Card */}
           <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900">
             <CardContent className="p-4 sm:p-5">

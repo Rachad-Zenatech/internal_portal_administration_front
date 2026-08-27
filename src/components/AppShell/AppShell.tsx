@@ -35,13 +35,13 @@ export default function AppShell({ children }: Props) {
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
         <TopBar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
         <main
-          className="flex-1 overflow-y-auto p-2.5 sm:p-3.5 md:p-4 bg-background flex flex-col min-h-0"
+          className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3.5 md:p-4 bg-background"
         >
           <Breadcrumbs />
-          <div className="flex-1 flex flex-col min-h-0">
+          <div className="w-full pb-8">
             {children}
           </div>
         </main>

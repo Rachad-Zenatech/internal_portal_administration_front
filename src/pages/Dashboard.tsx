@@ -248,7 +248,7 @@ export default function Dashboard() {
   }, [tasks, searchQuery, dashboardFilter]);
 
   return (
-    <div className="w-full space-y-3 flex flex-col flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out relative">
+    <div className="w-full space-y-3.5 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out relative">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 pb-4">
         <div>
           <div className="flex items-center gap-2">
@@ -436,8 +436,8 @@ export default function Dashboard() {
       </div>
 
       {/* Read-Only Tasks Board & Overview Section */}
-      <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex-1 min-h-[480px] lg:min-h-[540px] flex flex-col">
-        <CardContent className="p-4 sm:p-6 flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
+      <Card className="border border-slate-200 dark:border-zinc-800 shadow-xs overflow-hidden w-full flex flex-col">
+        <CardContent className="p-3.5 sm:p-4 flex flex-col gap-3 w-full">
           <div className="flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Tasks Overview</h2>

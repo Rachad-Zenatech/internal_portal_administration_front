@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Search, Bell, Menu, ShieldCheck, Building2, BookText, FileText, Banknote, Loader2, LogOut, User, Sparkles, Mail, BellRing, Settings2, CheckCheck, X, CloudDownload } from "lucide-react";
+import { Search, Bell, Menu, ShieldCheck, Building2, FileText, Loader2, LogOut, User, Sparkles, Mail, BellRing, Settings2, CheckCheck, X, CloudDownload, ShoppingCart, RefreshCw, ReceiptText, Layers, Paperclip, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -182,11 +182,32 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
 
   const getIcon = (type: string) => {
     switch (type) {
-      case "company": return <Building2 className="h-4 w-4 text-blue-500" />;
-      case "gl_account": return <BookText className="h-4 w-4 text-emerald-500" />;
-      case "gl_entry": return <FileText className="h-4 w-4 text-amber-500" />;
-      case "bank_transaction": return <Banknote className="h-4 w-4 text-purple-500" />;
-      default: return <Search className="h-4 w-4 text-muted-foreground" />;
+      case "request":
+      case "purchase_request":
+        return <ShoppingCart className="h-4 w-4 text-blue-500" />;
+      case "recurring":
+      case "recurring_payment":
+        return <RefreshCw className="h-4 w-4 text-sky-500" />;
+      case "invoice":
+      case "accounts_payable":
+        return <ReceiptText className="h-4 w-4 text-emerald-500" />;
+      case "user":
+        return <User className="h-4 w-4 text-purple-500" />;
+      case "role":
+        return <ShieldCheck className="h-4 w-4 text-indigo-500" />;
+      case "page":
+      case "navigation":
+        return <Layers className="h-4 w-4 text-amber-500" />;
+      case "audit":
+      case "audit_log":
+        return <Clock className="h-4 w-4 text-slate-500" />;
+      case "file":
+      case "attachment":
+        return <Paperclip className="h-4 w-4 text-teal-500" />;
+      case "company":
+        return <Building2 className="h-4 w-4 text-blue-500" />;
+      default:
+        return <Search className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -200,7 +221,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   };
 
   return (
-    <header className="h-10 tablet:h-11 border-b border-border bg-card text-card-foreground flex items-center justify-between px-2 phone:px-3 tablet:px-4 shrink-0 transition-all duration-300 gap-1.5 phone:gap-2 tablet:gap-3">
+    <header className="h-14 border-b border-border bg-card text-card-foreground flex items-center justify-between px-4 sm:px-6 shrink-0 transition-all duration-300 gap-3 sm:gap-4 relative z-40">
       <div className="flex-1 flex items-center min-w-0 gap-1.5">
         {onToggleSidebar && (
           <Button
@@ -213,11 +234,11 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             <Menu className="h-4 w-4" />
           </Button>
         )}
-        <div ref={containerRef} className="relative w-full max-w-[140px] phone:max-w-[170px] large:max-w-[220px] tablet:max-w-[260px] laptop:max-w-[280px] desktop:max-w-[320px] wide:max-w-[360px] z-20">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <div ref={containerRef} className="relative w-full max-w-[220px] sm:max-w-[300px] md:max-w-[360px] desktop:max-w-[400px] z-50">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             placeholder="Search for anything here..." 
-            className="w-full pl-8 bg-muted border-none rounded-full h-7 tablet:h-7.5 text-xs shadow-inner focus-visible:ring-1 focus-visible:ring-ring"
+            className="w-full pl-9 bg-muted/60 border-none rounded-full h-8.5 sm:h-9 text-xs sm:text-sm shadow-inner focus-visible:ring-1 focus-visible:ring-ring"
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value);
@@ -229,7 +250,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
           />
           
           {isOpen && debouncedValue.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border shadow-lg rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute top-full left-0 w-[360px] sm:w-[440px] md:w-[480px] max-w-[calc(100vw-2rem)] mt-2 bg-card border border-border shadow-2xl rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
               {isLoading || isFetching ? (
                 <div className="p-6 flex items-center justify-center text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -240,14 +261,19 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   {results.map((result, idx) => (
                     <div 
                       key={`${result.type}-${result.id}-${idx}`}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
                       onClick={() => handleResultClick(result.url || "/")}
                     >
-                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 border border-border/50 shadow-sm">
+                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 border border-border/50 shadow-2xs">
                         {getIcon(result.type)}
                       </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-semibold text-foreground truncate">{result.title}</span>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-foreground truncate">{result.title}</span>
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded uppercase bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 shrink-0">
+                            {result.type}
+                          </span>
+                        </div>
                         {result.subtitle && (
                           <span className="text-xs text-muted-foreground truncate">{result.subtitle}</span>
                         )}
@@ -301,7 +327,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
         </div>
       </div>
       
-      <div className="flex items-center gap-2 sm:gap-4 md:gap-5 shrink-0">
+      <div className="flex items-center gap-2.5 sm:gap-3.5 md:gap-4.5 shrink-0">
                 <TopBarClock />
         <TooltipProvider delayDuration={0}>
           <Tooltip>
@@ -316,8 +342,8 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
         <div className="hidden sm:flex items-center gap-1.5 border-r pr-2 sm:pr-4 md:pr-5 mr-1">
           <DropdownMenu open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-full h-10 w-10 outline-none focus-visible:ring-0">
-                <Bell className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-full h-8.5 w-8.5 outline-none focus-visible:ring-0">
+                <Bell className="h-4 w-4" />
                 {unreadCount > 0 && (
                   <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-card" />
                 )}
@@ -376,7 +402,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                             </div>
                           ) : (
                             <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200 dark:border-blue-800 shadow-sm">
-                              <Bell className="h-5 w-5" />
+                              <Bell className="h-4 w-4" />
                             </div>
                           )}
                         </div>

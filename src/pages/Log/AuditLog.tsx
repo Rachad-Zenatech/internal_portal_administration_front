@@ -129,6 +129,11 @@ export default function AuditLog() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setAuditColumnVisibility,
+    initialState: {
+      pagination: {
+        pageSize: 50,
+      },
+    },
     globalFilterFn: (row, _columnId, filterValue) => {
       const search = filterValue.toLowerCase();
       const actor = (row.getValue("actor_name") as string)?.toLowerCase() || "";
@@ -246,6 +251,11 @@ export default function AuditLog() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setLoginColumnVisibility,
+    initialState: {
+      pagination: {
+        pageSize: 50,
+      },
+    },
     globalFilterFn: (row, _columnId, filterValue) => {
       const search = filterValue.toLowerCase();
       const name = (row.original.user_full_name as string)?.toLowerCase() || "";

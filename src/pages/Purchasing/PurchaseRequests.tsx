@@ -89,7 +89,7 @@ import {
 } from "./purchasingMeta";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
-import { exportQuickBooksXlsx } from "@/services/purchasingService";
+import { QuickBooksExportDialog } from "./QuickBooksExportDialog";
 
 function RequesterAutocomplete({
   value,
@@ -234,6 +234,7 @@ export function PurchaseRequests() {
   const [taxFee, setTaxFee] = useState<number>(0);
   const [isFullScreenTable, setIsFullScreenTable] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+  const [isQBExportOpen, setIsQBExportOpen] = useState(false);
 
 
 
@@ -524,7 +525,7 @@ export function PurchaseRequests() {
   ];
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+    <div className="w-full flex flex-col gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -538,15 +539,7 @@ export function PurchaseRequests() {
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
             variant="outline"
-            onClick={async () => {
-              try {
-                toast.loading("Generating QuickBooks export...", { id: "qb-export" });
-                await exportQuickBooksXlsx(undefined, "COMPLETED");
-                toast.success("QuickBooks export downloaded", { id: "qb-export" });
-              } catch (err: any) {
-                toast.error(err.message || "Failed to export QuickBooks file", { id: "qb-export" });
-              }
-            }}
+            onClick={() => setIsQBExportOpen(true)}
             className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
           >
             <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -681,8 +674,9 @@ export function PurchaseRequests() {
         </div>
       </div>
 
-      <Card className="flex-1 min-h-[280px] flex flex-col w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden">
-        <Table className="w-full min-w-full" containerClassName="flex-1 w-full min-w-full overflow-auto">
+      <Card className="w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[350px]">
+        <div className="flex-1 min-h-0 overflow-auto relative">
+          <Table className="w-full min-w-full" containerClassName="overflow-visible">
           <TableHeader >
             <TableRow>
               <TableHead>ID</TableHead>
@@ -756,6 +750,7 @@ export function PurchaseRequests() {
             )}
           </TableBody>
         </Table>
+        </div>
       </Card>
 
       {/* New Purchase Request Modal */}
@@ -1256,7 +1251,7 @@ export function PurchaseRequests() {
           </DialogHeader>
 
           <div className="space-y-4 pt-4">
-            <div className="rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-xs">
+            <div className="rounded-lg border border-slate-200 dark:border-zinc-700 overflow-visible shadow-xs">
               <table className="w-full text-left">
                 <thead className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 uppercase text-xs font-semibold ">
                   <tr>
@@ -1390,6 +1385,9 @@ export function PurchaseRequests() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* QuickBooks Export Filter Dialog */}
+      <QuickBooksExportDialog open={isQBExportOpen} onOpenChange={setIsQBExportOpen} />
     </div>
   );
 }

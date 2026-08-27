@@ -56,7 +56,7 @@ export default function UploadFiles() {
 
   // Pagination state
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(50);
 
   // Selection state
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());

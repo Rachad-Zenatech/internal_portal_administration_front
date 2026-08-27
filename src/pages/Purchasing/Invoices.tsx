@@ -69,7 +69,7 @@ export default function Invoices() {
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+    <div className="w-full flex flex-col gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -93,8 +93,9 @@ export default function Invoices() {
         </Select>
       </div>
 
-      <Card className="flex-1 min-h-[380px] flex flex-col w-full rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-0">
-        <Table className="m-0 w-full min-w-full" containerClassName="flex-1 w-full min-w-full overflow-x-auto">
+      <Card className="w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[350px] p-0">
+        <div className="flex-1 min-h-0 overflow-auto relative">
+          <Table className="m-0 w-full min-w-full" containerClassName="overflow-visible">
           <TableHeader >
             <TableRow>
               <TableHead>ID</TableHead>
@@ -166,6 +167,7 @@ export default function Invoices() {
             )}
           </TableBody>
         </Table>
+        </div>
       </Card>
     </div>
   );

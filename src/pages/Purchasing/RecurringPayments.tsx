@@ -675,7 +675,7 @@ export default function RecurringPayments() {
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-3 sm:gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+    <div className="w-full flex flex-col gap-3 sm:gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -931,8 +931,9 @@ export default function RecurringPayments() {
 
       {/* Main View: Table or Calendar */}
       {viewMode === "table" ? (
-        <Card className="border border-slate-200 dark:border-zinc-800">
-          <Table>
+        <Card className="border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[350px]">
+          <div className="flex-1 min-h-0 overflow-auto relative">
+            <Table containerClassName="overflow-visible">
             <TableHeader >
               <TableRow className="bg-slate-50/50 dark:bg-zinc-900/50">
                 <TableHead className="w-[80px]">ID</TableHead>
@@ -1064,6 +1065,7 @@ export default function RecurringPayments() {
               )}
             </TableBody>
           </Table>
+          </div>
         </Card>
       ) : (
         /* Calendar View */

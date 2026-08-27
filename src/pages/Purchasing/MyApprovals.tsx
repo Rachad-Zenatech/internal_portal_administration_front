@@ -179,7 +179,7 @@ export default function MyApprovals() {
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-3 sm:gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+    <div className="w-full flex flex-col gap-3 sm:gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-3.5">
         <div>
@@ -395,29 +395,30 @@ export default function MyApprovals() {
       </div>
 
       {/* Main Table */}
-      <Card className="flex-1 min-h-[280px] flex flex-col w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden">
-        <Table className="w-full min-w-full" containerClassName="flex-1 min-h-0 w-full min-w-full overflow-auto">
-          <TableHeader className="bg-slate-50/90 dark:bg-zinc-900/90 border-b border-slate-200 dark:border-zinc-800">
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="w-12 text-center py-3">
-                <Checkbox
-                  checked={
-                    filteredRequests.length > 0 &&
-                    filteredRequests.every((r) => selectedIds.includes(Number(r.id)))
-                  }
-                  onCheckedChange={(c) => handleSelectAll(!!c)}
-                  aria-label="Select all"
-                />
-              </TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-3">Request Title</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-3">Requester</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-3">Department</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-3">Priority</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-3 text-right">Amount</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-3">Date</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-3 text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+      <Card className="w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[350px]">
+        <div className="flex-1 min-h-0 overflow-auto relative">
+          <Table className="w-full min-w-full" containerClassName="overflow-visible">
+            <TableHeader className="bg-slate-50 dark:bg-zinc-900 border-b">
+              <TableRow className="hover:bg-transparent bg-slate-50 dark:bg-zinc-900">
+                <TableHead className="w-12 text-center py-2 ">
+                  <Checkbox
+                    checked={
+                      filteredRequests.length > 0 &&
+                      filteredRequests.every((r) => selectedIds.includes(Number(r.id)))
+                    }
+                    onCheckedChange={(c) => handleSelectAll(!!c)}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-2 ">Request Title</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-2 ">Requester</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-2 ">Department</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-2 ">Priority</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-2 text-right ">Amount</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-2 ">Date</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700 dark:text-zinc-300 py-2 text-right ">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
@@ -456,7 +457,7 @@ export default function MyApprovals() {
                         isChecked ? "bg-indigo-50/40 dark:bg-indigo-950/20" : ""
                       }`}
                     >
-                      <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="text-center py-1.5" onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={isChecked}
                           onCheckedChange={() => handleToggleRow(idNum)}
@@ -464,7 +465,7 @@ export default function MyApprovals() {
                         />
                       </TableCell>
 
-                      <TableCell className="max-w-[280px]">
+                      <TableCell className="max-w-[280px] py-1.5">
                         <div className="flex flex-col">
                           <div className="font-medium text-xs text-slate-900 dark:text-zinc-100 hover:text-indigo-600 dark:hover:text-indigo-400 text-left line-clamp-1 group flex items-center gap-1">
                             <span>{req.title || `Request #${req.id}`}</span>
@@ -481,15 +482,15 @@ export default function MyApprovals() {
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-xs text-slate-700 dark:text-zinc-300">
+                      <TableCell className="text-xs text-slate-700 dark:text-zinc-300 py-1.5">
                         {req.requester || "Unassigned"}
                       </TableCell>
 
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell className="text-xs text-muted-foreground py-1.5">
                         {req.department || "General"}
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="py-1.5">
                         <Badge
                           variant="secondary"
                           className={`text-[10px] py-0.5 px-2 font-medium border ${priorityClass}`}
@@ -498,15 +499,15 @@ export default function MyApprovals() {
                         </Badge>
                       </TableCell>
 
-                      <TableCell className="text-right font-semibold text-xs text-slate-900 dark:text-zinc-100">
+                      <TableCell className="text-right font-semibold text-xs text-slate-900 dark:text-zinc-100 py-1.5">
                         {formatMoney(Number(req.amount) || 0)}
                       </TableCell>
 
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell className="text-xs text-muted-foreground py-1.5">
                         {formatDate(req.request_date)}
                       </TableCell>
 
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="text-right py-1.5" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
                           <Button
                             size="sm"
@@ -541,7 +542,8 @@ export default function MyApprovals() {
               )}
             </TableBody>
           </Table>
-        <div className="border-t border-slate-100 dark:border-zinc-800 px-4 py-2.5 bg-slate-50/50 dark:bg-zinc-950/30 text-xs text-muted-foreground flex items-center justify-between">
+        </div>
+        <div className="border-t border-slate-100 dark:border-zinc-800 px-4 py-2 bg-slate-50/50 dark:bg-zinc-950/30 text-xs text-muted-foreground flex items-center justify-between shrink-0">
           <span>Showing <strong>{filteredRequests.length}</strong> pending request(s)</span>
           {selectedIds.length > 0 && (
             <span className="text-indigo-600 dark:text-indigo-400 font-medium">

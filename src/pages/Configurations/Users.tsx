@@ -302,6 +302,11 @@ export default function Users() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
+    initialState: {
+      pagination: {
+        pageSize: 50,
+      },
+    },
     globalFilterFn: (row, _columnId, filterValue) => {
       const search = filterValue.toLowerCase();
       const name = (row.getValue("full_name") as string)?.toLowerCase() || "";
