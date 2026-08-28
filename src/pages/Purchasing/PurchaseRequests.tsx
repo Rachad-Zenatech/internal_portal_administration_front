@@ -364,46 +364,74 @@ export function PurchaseRequests() {
       const result = await extractQuoteMutation.mutateAsync(file);
       setQuoteExtraction(result);
 
-      // Convert extracted items to PurchaseRequestItem shape
-      const items: PurchaseRequestItem[] = (result.extraction.items || []).map((itm, idx) => ({
-        item_order: idx,
-        sku: itm.sku || "",
-        description: itm.description || `Item #${idx + 1}`,
-        quantity: Number(itm.quantity) || 1,
-        unit_price: Number(itm.unit_price) || 0,
-        discount: Number(itm.discount) || 0,
-        tax: Number(itm.tax) || 0,
-        total: Number(itm.total) || (Number(itm.quantity || 1) * Number(itm.unit_price || 0)),
-      }));
+      const conv = result.extraction.conversion;
+      const isForeign = Boolean(conv?.is_converted);
+      const rate = conv?.exchange_rate || 1.0;
+      const origCurr = conv?.original_currency || result.extraction.currency || "USD";
+
+      // 1. Keep line items strictly in their extracted native quote currency (e.g. CAD) so inputs match the PDF quote
+      const items: PurchaseRequestItem[] = (result.extraction.items || []).map((itm, idx) => {
+        const origUnitPrice = Number(itm.original_unit_price ?? itm.unit_price ?? 0);
+        const origTotal = Number(itm.original_total ?? itm.total ?? (Number(itm.quantity || 1) * origUnitPrice));
+        const convertedUnitPrice = isForeign ? (itm.converted_unit_price ?? Math.round(origUnitPrice * rate * 100) / 100) : origUnitPrice;
+        const convertedTotal = isForeign ? (itm.converted_total ?? Math.round(origTotal * rate * 100) / 100) : origTotal;
+
+        return {
+          item_order: idx,
+          sku: itm.sku || "",
+          description: itm.description || `Item #${idx + 1}`,
+          quantity: Number(itm.quantity) || 1,
+          unit_price: origUnitPrice,
+          discount: Number(itm.discount) || 0,
+          tax: Number(itm.tax) || 0,
+          total: origTotal,
+          converted_unit_price: convertedUnitPrice,
+          converted_total: convertedTotal,
+          original_unit_price: origUnitPrice,
+          original_total: origTotal,
+          original_currency: isForeign ? origCurr : undefined,
+        };
+      });
       setQuoteItems(items);
 
-      // Auto-prefill form fields if empty
+      // 2. Prefill shipping and tax in native quote currency (e.g. CAD)
       const vendorName = result.extraction.vendor?.name || "";
       const quoteNum = result.extraction.quote_number || "";
       const itemsCount = items.length;
-      const shipping = Number(result.extraction.totals?.shipping) || 0;
-      const tax = Number(result.extraction.totals?.tax) || 0;
-      const discount = Number(result.extraction.totals?.discount) || 0;
-      setShippingFee(shipping);
-      setTaxFee(tax);
+      
+      const rawShipping = Number(result.extraction.totals?.shipping) || 0;
+      const rawTax = Number(result.extraction.totals?.tax) || 0;
+      const rawDiscount = Number(result.extraction.totals?.discount) || 0;
+      
+      setShippingFee(rawShipping);
+      setTaxFee(rawTax);
+      
       const itemsSum = items.reduce((sum, itm) => sum + itm.total, 0);
-      const totalAmount = result.extraction.totals?.total || (itemsSum + shipping + tax - discount);
+      const hasDiscountInItems = items.some(i => Number(i.total || 0) < 0 || (i.description || "").toLowerCase().includes("discount"));
+      const discountToApply = hasDiscountInItems ? 0 : rawDiscount;
+      const totalAmountNative = itemsSum + rawShipping + rawTax - discountToApply;
+      const totalAmountUsd = isForeign ? (conv?.converted_total ?? Math.round(totalAmountNative * rate * 100) / 100) : totalAmountNative;
 
       setForm((prev) => ({
         ...prev,
         title: prev.title || `${vendorName ? vendorName + " - " : ""}Quote ${quoteNum || "Order"} (${itemsCount} parts)`.trim(),
         request_type: "QUOTE",
-        amount: totalAmount,
-        description: prev.description || result.extraction.notes || `Extracted quote from ${file.name}`,
+        amount: Math.round(totalAmountUsd * 100) / 100,
+        currency: "USD",
+        quote_data: result.extraction,
+        description: prev.description || result.extraction.notes || `Extracted quote from ${file.name}${isForeign ? ` (Original: ${origCurr} ${totalAmountNative.toLocaleString(undefined, { minimumFractionDigits: 2 })} @ Rate ${rate} → $${totalAmountUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })} USD)` : ""}`,
       }));
 
-      toast.success("Quote extracted successfully!");
+      if (isForeign) {
+        toast.success(`Quote extracted: Detected ${origCurr} (Editing in ${origCurr}, Converted to USD @ 1 ${origCurr} = $${rate} USD)`);
+      } else {
+        toast.success("Quote extracted successfully!");
+      }
     } catch (err: any) {
       toast.error(err?.message || "Failed to extract quote from PDF");
     }
   };
 
-  // Line item manipulation
   const handleItemChange = (index: number, field: keyof PurchaseRequestItem, val: any) => {
     setQuoteItems((prev) => {
       const next = [...prev];
@@ -446,8 +474,10 @@ export function PurchaseRequests() {
 
   const totalCalculatedAmount = useMemo(() => {
     if (itemMode === "MULTIPLE") {
-      const discount = Number(quoteExtraction?.extraction?.totals?.discount) || 0;
-      return Math.max(0, Math.round((itemsSubtotal + Number(shippingFee || 0) + Number(taxFee || 0) - discount) * 100) / 100);
+      const hasDiscountInItems = quoteItems.some(i => Number(i.total || 0) < 0 || (i.description || "").toLowerCase().includes("discount"));
+      const rawDiscount = Number(quoteExtraction?.extraction?.totals?.discount) || 0;
+      const discountToApply = hasDiscountInItems ? 0 : rawDiscount;
+      return Math.max(0, Math.round((itemsSubtotal + Number(shippingFee || 0) + Number(taxFee || 0) - discountToApply) * 100) / 100);
     }
     if (form.request_type === "RECURRING") {
       return Number(form.unit_price ?? form.amount ?? 0);
@@ -492,11 +522,26 @@ export function PurchaseRequests() {
     }
 
     try {
+      const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted);
+      const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
+      const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
+      const finalUsdAmount = isForeign ? Math.round(totalCalculatedAmount * rate * 100) / 100 : totalCalculatedAmount;
+
+      const finalItems = itemMode === "MULTIPLE" ? quoteItems.map((itm) => ({
+        ...itm,
+        converted_unit_price: isForeign ? Math.round(Number(itm.unit_price || 0) * rate * 100) / 100 : Number(itm.unit_price || 0),
+        converted_total: isForeign ? Math.round(Number(itm.total || 0) * rate * 100) / 100 : Number(itm.total || 0),
+        original_unit_price: Number(itm.unit_price || 0),
+        original_total: Number(itm.total || 0),
+        original_currency: isForeign ? quoteCurr : undefined,
+      })) : undefined;
+
       const payload: RequestCreateInput = {
         ...form,
         item_mode: itemMode,
-        amount: totalCalculatedAmount,
-        items: itemMode === "MULTIPLE" ? quoteItems : undefined,
+        amount: finalUsdAmount,
+        currency: "USD",
+        items: finalItems,
         quote_file_id: quoteExtraction?.file_id || undefined,
         quote_data: quoteExtraction?.extraction || undefined,
       };
@@ -880,9 +925,15 @@ export function PurchaseRequests() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 font-mono text-xs">
-                          Currency: {quoteExtraction.extraction.currency || "USD"}
-                        </Badge>
+                        {quoteExtraction.extraction.conversion?.is_converted ? (
+                          <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300 font-mono text-xs">
+                            💱 Converted to USD ({quoteExtraction.extraction.currency} @ 1 {quoteExtraction.extraction.currency} = ${quoteExtraction.extraction.conversion.exchange_rate} USD)
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 font-mono text-xs">
+                            Currency: {quoteExtraction.extraction.currency || "USD"}
+                          </Badge>
+                        )}
                         <Badge
                           variant="outline"
                           className={
@@ -955,69 +1006,88 @@ export function PurchaseRequests() {
                           <th className="p-2 w-28">SKU</th>
                           <th className="p-2">Description</th>
                           <th className="p-2 w-20 text-right">Qty</th>
-                          <th className="p-2 w-28 text-right">Price ({quoteExtraction?.extraction?.currency || form.currency || "USD"})</th>
-                          <th className="p-2 w-28 text-right">Total ({quoteExtraction?.extraction?.currency || form.currency || "USD"})</th>
+                          <th className="p-2 w-36 text-right">Price ({quoteExtraction?.extraction?.currency || form.currency || "USD"})</th>
+                          <th className="p-2 w-36 text-right">Total ({quoteExtraction?.extraction?.currency || form.currency || "USD"})</th>
                           <th className="p-2 w-10 text-center"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
-                        {quoteItems.map((itm, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 transition-colors">
-                            <td className="p-2 text-center text-xs font-mono text-slate-400">
-                              {idx + 1}
-                            </td>
-                            <td className="p-2 w-28">
-                              <Input
-                                value={itm.sku || ""}
-                                onChange={(e) => handleItemChange(idx, "sku", e.target.value)}
-                                placeholder="SKU / Part #"
-                                className="h-8 text-sm font-mono"
-                              />
-                            </td>
-                            <td className="p-2">
-                              <Input
-                                value={itm.description}
-                                onChange={(e) => handleItemChange(idx, "description", e.target.value)}
-                                placeholder="Item description..."
-                                className="h-8 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
-                              />
-                            </td>
-                            <td className="p-2 w-20">
-                              <Input
-                                type="number"
-                                min="1"
-                                step="1"
-                                value={itm.quantity}
-                                onChange={(e) => handleItemChange(idx, "quantity", Number(e.target.value))}
-                                className="h-8 text-sm text-right font-medium"
-                              />
-                            </td>
-                            <td className="p-2 w-28">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={itm.unit_price}
-                                onChange={(e) => handleItemChange(idx, "unit_price", Number(e.target.value))}
-                                className="h-8 text-sm text-right font-mono"
-                              />
-                            </td>
-                            <td className="p-2 w-28 text-right font-semibold font-mono text-sm text-slate-900 dark:text-zinc-100">
-                              {formatMoney(itm.total)}
-                            </td>
-                            <td className="p-2 text-center w-10">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                onClick={() => handleRemoveItem(idx)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
+                        {quoteItems.map((itm, idx) => {
+                          const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
+                          const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted || (quoteCurr && quoteCurr !== "USD"));
+                          const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
+                          const usdUnitPrice = isForeign ? Math.round(Number(itm.unit_price || 0) * rate * 100) / 100 : Number(itm.unit_price || 0);
+                          const usdTotal = isForeign ? Math.round(Number(itm.total || 0) * rate * 100) / 100 : Number(itm.total || 0);
+
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 transition-colors">
+                              <td className="p-2 text-center text-xs font-mono text-slate-400">
+                                {idx + 1}
+                              </td>
+                              <td className="p-2 w-28">
+                                <Input
+                                  value={itm.sku || ""}
+                                  onChange={(e) => handleItemChange(idx, "sku", e.target.value)}
+                                  placeholder="SKU / Part #"
+                                  className="h-8 text-sm font-mono"
+                                />
+                              </td>
+                              <td className="p-2">
+                                <Input
+                                  value={itm.description}
+                                  onChange={(e) => handleItemChange(idx, "description", e.target.value)}
+                                  placeholder="Item description..."
+                                  className="h-8 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
+                                />
+                              </td>
+                              <td className="p-2 w-20">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={itm.quantity}
+                                  onChange={(e) => handleItemChange(idx, "quantity", Number(e.target.value))}
+                                  className="h-8 text-sm text-right font-medium"
+                                />
+                              </td>
+                              <td className="p-2 w-36">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={itm.unit_price}
+                                  onChange={(e) => handleItemChange(idx, "unit_price", Number(e.target.value))}
+                                  className="h-8 text-sm text-right font-mono font-medium"
+                                />
+                                {isForeign && (
+                                  <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono block text-right mt-0.5 whitespace-nowrap">
+                                    ({formatMoney(usdUnitPrice)} USD)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2 w-36 text-right">
+                                <div className="font-semibold font-mono text-sm text-slate-900 dark:text-zinc-100">
+                                  {formatMoney(itm.total)}
+                                </div>
+                                {isForeign && (
+                                  <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono block text-right whitespace-nowrap">
+                                    ({formatMoney(usdTotal)} USD)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2 text-center w-10">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                  onClick={() => handleRemoveItem(idx)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                         {quoteItems.length === 0 && (
                           <tr>
                             <td colSpan={7} className="text-center py-8 text-slate-400 text-xs">
@@ -1032,72 +1102,117 @@ export function PurchaseRequests() {
                   {/* Bottom breakdown and calculations */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
                     <div className="text-[11px]">
-                      {quoteExtraction && (
-                        Math.abs(totalCalculatedAmount - Number(quoteExtraction.extraction.totals?.total || totalCalculatedAmount)) < 0.05 ? (
+                      {quoteExtraction && (() => {
+                        const statedTotal = Number(quoteExtraction.extraction.totals?.total || 0);
+                        const quoteCurr = quoteExtraction.extraction.currency || form.currency || "USD";
+                        const isMatch = Math.abs(totalCalculatedAmount - statedTotal) < 0.05;
+                        return isMatch ? (
                           <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
                             <CheckCircle2 className="h-3.5 w-3.5" />
-                            Calculated items sum + shipping matches quote total
+                            Calculated items sum + shipping matches quote total ({formatMoney(statedTotal)} {quoteCurr})
                           </span>
                         ) : (
                           <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
                             <AlertTriangle className="h-3.5 w-3.5" />
-                            Stated total ({formatMoney(quoteExtraction.extraction.totals?.total || 0)}) differs from calculated ({formatMoney(totalCalculatedAmount)})
+                            Stated total ({formatMoney(statedTotal)} {quoteCurr}) differs from calculated ({formatMoney(totalCalculatedAmount)} {quoteCurr})
                           </span>
-                        )
-                      )}
+                        );
+                      })()}
                     </div>
 
-                    <div className="text-right text-xs space-y-2 min-w-[260px]">
-                      <div className="text-slate-500 flex items-center justify-between gap-4">
-                        <span>Items Subtotal:</span>
-                        <span className="font-medium font-mono text-slate-800 dark:text-zinc-200">
-                          {formatMoney(itemsSubtotal)} {quoteExtraction?.extraction?.currency || form.currency || "USD"}
-                        </span>
-                      </div>
+                    <div className="text-right text-xs space-y-2 min-w-[300px]">
+                      {(() => {
+                        const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
+                        const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted || (quoteCurr && quoteCurr !== "USD"));
+                        const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
+                        const usdSubtotal = Math.round(itemsSubtotal * rate * 100) / 100;
+                        const usdShipping = Math.round(Number(shippingFee || 0) * rate * 100) / 100;
+                        const usdTax = Math.round(Number(taxFee || 0) * rate * 100) / 100;
+                        const usdGrandTotal = Math.round(totalCalculatedAmount * rate * 100) / 100;
 
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-700 dark:text-zinc-300 font-medium flex items-center gap-1.5">
-                          <Truck className="h-3.5 w-3.5 text-indigo-500" />
-                          <span>Shipping Fee:</span>
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-slate-400 font-mono text-xs">$</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={shippingFee}
-                            onChange={(e) => setShippingFee(Math.max(0, Number(e.target.value) || 0))}
-                            placeholder="0.00"
-                            className="h-7 w-28 text-right text-xs font-mono bg-white dark:bg-zinc-900 font-semibold"
-                          />
-                        </div>
-                      </div>
+                        return (
+                          <>
+                            <div className="text-slate-500 flex items-center justify-between gap-4">
+                              <span>Items Subtotal:</span>
+                              <div className="text-right">
+                                <span className="font-medium font-mono text-slate-800 dark:text-zinc-200">
+                                  {formatMoney(itemsSubtotal)} {quoteCurr}
+                                </span>
+                                {isForeign && (
+                                  <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono block">
+                                    ({formatMoney(usdSubtotal)} USD)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
 
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-600 dark:text-zinc-400 font-medium">
-                          <span>Tax Fee:</span>
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-slate-400 font-mono text-xs">$</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={taxFee}
-                            onChange={(e) => setTaxFee(Math.max(0, Number(e.target.value) || 0))}
-                            placeholder="0.00"
-                            className="h-7 w-28 text-right text-xs font-mono bg-white dark:bg-zinc-900"
-                          />
-                        </div>
-                      </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-slate-700 dark:text-zinc-300 font-medium flex items-center gap-1.5">
+                                <Truck className="h-3.5 w-3.5 text-indigo-500" />
+                                <span>Shipping Fee ({quoteCurr}):</span>
+                              </span>
+                              <div className="flex flex-col items-end gap-0.5">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-slate-400 font-mono text-xs">{quoteCurr === "EUR" ? "€" : (quoteCurr === "GBP" ? "£" : "$")}</span>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={shippingFee}
+                                    onChange={(e) => setShippingFee(Math.max(0, Number(e.target.value) || 0))}
+                                    placeholder="0.00"
+                                    className="h-7 w-28 text-right text-xs font-mono bg-white dark:bg-zinc-900 font-semibold"
+                                  />
+                                </div>
+                                {isForeign && Number(shippingFee || 0) > 0 && (
+                                  <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono">
+                                    ({formatMoney(usdShipping)} USD)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
 
-                      <div className="pt-2 border-t border-slate-200 dark:border-zinc-700 flex items-center justify-between gap-4">
-                        <span className="text-slate-900 dark:text-zinc-100 font-semibold">Grand Total:</span>
-                        <span className="font-bold text-base text-slate-900 dark:text-zinc-100 font-mono">
-                          {formatMoney(totalCalculatedAmount)} {quoteExtraction?.extraction?.currency || form.currency || "USD"}
-                        </span>
-                      </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-slate-600 dark:text-zinc-400 font-medium">
+                                <span>Tax Fee ({quoteCurr}):</span>
+                              </span>
+                              <div className="flex flex-col items-end gap-0.5">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-slate-400 font-mono text-xs">{quoteCurr === "EUR" ? "€" : (quoteCurr === "GBP" ? "£" : "$")}</span>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={taxFee}
+                                    onChange={(e) => setTaxFee(Math.max(0, Number(e.target.value) || 0))}
+                                    placeholder="0.00"
+                                    className="h-7 w-28 text-right text-xs font-mono bg-white dark:bg-zinc-900"
+                                  />
+                                </div>
+                                {isForeign && Number(taxFee || 0) > 0 && (
+                                  <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono">
+                                    ({formatMoney(usdTax)} USD)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-slate-200 dark:border-zinc-700 flex items-center justify-between gap-4">
+                              <span className="text-slate-900 dark:text-zinc-100 font-semibold">Grand Total:</span>
+                              <div className="text-right">
+                                <span className="font-bold text-base text-slate-900 dark:text-zinc-100 font-mono">
+                                  {formatMoney(totalCalculatedAmount)} {quoteCurr}
+                                </span>
+                                {isForeign && (
+                                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 font-mono block">
+                                    ({formatMoney(usdGrandTotal)} USD)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -1265,63 +1380,82 @@ export function PurchaseRequests() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
-                  {quoteItems.map((itm, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 transition-colors">
-                      <td className="p-3 text-center text-xs font-mono text-slate-400">
-                        {idx + 1}
-                      </td>
-                      <td className="p-3 w-36">
-                        <Input
-                          value={itm.sku || ""}
-                          onChange={(e) => handleItemChange(idx, "sku", e.target.value)}
-                          placeholder="SKU / Part #"
-                          className="h-9 text-sm font-mono"
-                        />
-                      </td>
-                      <td className="p-3">
-                        <Input
-                          value={itm.description}
-                          onChange={(e) => handleItemChange(idx, "description", e.target.value)}
-                          placeholder="Part / Item full description..."
-                          className="h-9 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
-                        />
-                      </td>
-                      <td className="p-3 w-24">
-                        <Input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={itm.quantity}
-                          onChange={(e) => handleItemChange(idx, "quantity", Number(e.target.value))}
-                          className="h-9 text-sm text-right font-medium"
-                        />
-                      </td>
-                      <td className="p-3 w-36">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={itm.unit_price}
-                          onChange={(e) => handleItemChange(idx, "unit_price", Number(e.target.value))}
-                          className="h-9 text-sm text-right font-mono"
-                        />
-                      </td>
-                      <td className="p-3 w-36 text-right font-bold font-mono text-sm text-slate-900 dark:text-zinc-100">
-                        {formatMoney(itm.total)}
-                      </td>
-                      <td className="p-3 text-center w-12">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
-                          onClick={() => handleRemoveItem(idx)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {quoteItems.map((itm, idx) => {
+                          const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
+                          const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted || (quoteCurr && quoteCurr !== "USD"));
+                          const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
+                          const usdUnitPrice = isForeign ? Math.round(Number(itm.unit_price || 0) * rate * 100) / 100 : Number(itm.unit_price || 0);
+                          const usdTotal = isForeign ? Math.round(Number(itm.total || 0) * rate * 100) / 100 : Number(itm.total || 0);
+
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 transition-colors">
+                              <td className="p-2 text-center text-xs font-mono text-slate-400">
+                                {idx + 1}
+                              </td>
+                              <td className="p-2 w-28">
+                                <Input
+                                  value={itm.sku || ""}
+                                  onChange={(e) => handleItemChange(idx, "sku", e.target.value)}
+                                  placeholder="SKU / Part #"
+                                  className="h-8 text-sm font-mono"
+                                />
+                              </td>
+                              <td className="p-2">
+                                <Input
+                                  value={itm.description}
+                                  onChange={(e) => handleItemChange(idx, "description", e.target.value)}
+                                  placeholder="Item description..."
+                                  className="h-8 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
+                                />
+                              </td>
+                              <td className="p-2 w-20">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={itm.quantity}
+                                  onChange={(e) => handleItemChange(idx, "quantity", Number(e.target.value))}
+                                  className="h-8 text-sm text-right font-medium"
+                                />
+                              </td>
+                              <td className="p-2 w-36">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={itm.unit_price}
+                                  onChange={(e) => handleItemChange(idx, "unit_price", Number(e.target.value))}
+                                  className="h-8 text-sm text-right font-mono font-medium"
+                                />
+                                {isForeign && (
+                                  <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono block text-right mt-0.5 whitespace-nowrap">
+                                    ({formatMoney(usdUnitPrice)} USD)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2 w-36 text-right">
+                                <div className="font-semibold font-mono text-sm text-slate-900 dark:text-zinc-100">
+                                  {formatMoney(itm.total)}
+                                </div>
+                                {isForeign && (
+                                  <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono block text-right whitespace-nowrap">
+                                    ({formatMoney(usdTotal)} USD)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2 text-center w-10">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                  onClick={() => handleRemoveItem(idx)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                   {quoteItems.length === 0 && (
                     <tr>
                       <td colSpan={6} className="text-center py-12 text-slate-400 text-sm">

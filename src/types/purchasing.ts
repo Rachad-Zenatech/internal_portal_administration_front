@@ -365,6 +365,11 @@ export interface PurchaseRequestItem {
   discount?: number;
   tax?: number;
   total: number;
+  converted_unit_price?: number | null;
+  converted_total?: number | null;
+  original_unit_price?: number | null;
+  original_total?: number | null;
+  original_currency?: string | null;
 }
 
 export interface QuoteItem {
@@ -375,6 +380,11 @@ export interface QuoteItem {
   discount?: number;
   tax?: number;
   total: number;
+  converted_unit_price?: number | null;
+  converted_total?: number | null;
+  original_unit_price?: number | null;
+  original_total?: number | null;
+  original_currency?: string | null;
 }
 
 export interface QuoteVendor {
@@ -397,6 +407,25 @@ export interface QuoteTotals {
   total: number;
 }
 
+export interface QuoteCurrencyConversion {
+  original_currency: string;
+  target_currency: string;
+  exchange_rate: number;
+  original_subtotal: number;
+  converted_subtotal: number;
+  original_tax: number;
+  converted_tax: number;
+  original_shipping: number;
+  converted_shipping: number;
+  original_discount: number;
+  converted_discount: number;
+  original_total: number;
+  converted_total: number;
+  rate_date?: string | null;
+  rate_source: string;
+  is_converted: boolean;
+}
+
 export interface QuoteExtractionResult {
   vendor?: QuoteVendor | null;
   quote_number?: string | null;
@@ -409,6 +438,7 @@ export interface QuoteExtractionResult {
   payment_terms?: string | null;
   delivery_terms?: string | null;
   notes?: string | null;
+  conversion?: QuoteCurrencyConversion | null;
 }
 
 export interface QuoteValidationResult {

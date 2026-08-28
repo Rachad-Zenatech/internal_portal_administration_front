@@ -853,16 +853,34 @@ export default function RequestDetail() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(request.items?.length ? request.items : (request.quote_data?.items || [])).map((itm: any, idx: number) => (
-                        <TableRow key={itm.id || idx}>
-                          <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
-                          <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
-                          <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-sm">{itm.description}</TableCell>
-                          <TableCell className="text-right text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
-                          <TableCell className="text-right text-slate-600 dark:text-zinc-400">{formatMoney(itm.unit_price)}</TableCell>
-                          <TableCell className="text-right font-semibold font-mono text-slate-900 dark:text-zinc-100">{formatMoney(itm.total)}</TableCell>
-                        </TableRow>
-                      ))}
+                      {(request.items?.length ? request.items : (request.quote_data?.items || [])).map((itm: any, idx: number) => {
+                        const origCurr = itm.original_currency || request.quote_data?.conversion?.original_currency || request.quote_data?.currency;
+                        const isConverted = Boolean(request.quote_data?.conversion?.is_converted || (origCurr && origCurr !== "USD"));
+                        return (
+                          <TableRow key={itm.id || idx}>
+                            <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
+                            <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
+                            <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-sm">{itm.description}</TableCell>
+                            <TableCell className="text-right text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
+                            <TableCell className="text-right text-slate-600 dark:text-zinc-400">
+                              <div>{formatMoney(itm.unit_price)} {request.currency || "USD"}</div>
+                              {isConverted && (itm.original_unit_price ?? itm.unit_price) && (
+                                <div className="text-[10.5px] text-slate-400 font-mono">
+                                  ({formatMoney(itm.original_unit_price ?? itm.unit_price)} {origCurr})
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold font-mono text-slate-900 dark:text-zinc-100">
+                              <div>{formatMoney(itm.total)} {request.currency || "USD"}</div>
+                              {isConverted && (itm.original_total ?? itm.total) && (
+                                <div className="text-[10.5px] text-slate-400 font-mono font-normal">
+                                  ({formatMoney(itm.original_total ?? itm.total)} {origCurr})
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
