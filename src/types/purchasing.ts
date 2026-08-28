@@ -196,6 +196,7 @@ export type RequestDetail = {
   request: PurchaseRequest;
   purchase_order: PurchaseOrder | null;
   invoice: Invoice | null;
+  wire_transfer?: WireTransfer | null;
   approvals: Approval[];
   notifications: PurchasingNotification[];
   available_actions: WorkflowAction[];
@@ -288,8 +289,58 @@ export type ConfirmGoodsInput = {
   note?: string;
 };
 
+
+export type WireTransferInput = {
+  entered_by?: string | null;
+  entered_by_user_id?: string | null;
+  entry_date?: string | null;
+  due_date?: string | null;
+  payment_date?: string | null;
+  vendor?: string | null;
+  is_new_vendor?: boolean;
+  pay_date?: string | null;
+  amount?: number | null;
+  currency?: string | null;
+  conversion_rate?: string | null;
+  pay_from?: string | null;
+  invoice_number?: string | null;
+  comments?: string | null;
+  vendor_address?: string | null;
+  bank_address?: string | null;
+  vendor_email?: string | null;
+  bank_name?: string | null;
+  tax_id?: string | null;
+  bank_country?: string | null;
+  routing_wire?: string | null;
+  routing_ach?: string | null;
+  bank_account_number?: string | null;
+  swift_code?: string | null;
+  sort_code?: string | null;
+  transit_code_ca?: string | null;
+  transit_number_ca?: string | null;
+  institution_code?: string | null;
+  branch_code?: string | null;
+  bsb_australia?: string | null;
+  clearing_code?: string | null;
+  bank_code?: string | null;
+  iban?: string | null;
+  bic?: string | null;
+  transit?: string | null;
+  aba?: string | null;
+  region?: string | null;
+  contact_name_china?: string | null;
+};
+
+export type WireTransfer = WireTransferInput & {
+  id: number;
+  request_id: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type TransitionInput = {
   action: WorkflowAction;
+  wire_transfer?: WireTransferInput;
   purchase_order?: PurchaseOrderInput;
   invoice?: InvoiceInput;
   approval?: ApprovalInput;

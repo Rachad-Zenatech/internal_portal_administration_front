@@ -1,7 +1,8 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface ProtectedRouteProps {
   navigationCode?: string;
@@ -11,6 +12,8 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ navigationCode, actionCode = 'VIEW', children }: ProtectedRouteProps) {
   const { user, roles, isLoading, hasPermission } = useAuth();
+  const navigate = useNavigate();
+
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-zinc-950">
@@ -45,16 +48,18 @@ export default function ProtectedRoute({ navigationCode, actionCode = 'VIEW', ch
 
   if (permissionCode && !hasPermission(permissionCode)) {
     return (
-      <div className="flex flex-col h-full w-full items-center justify-center p-8 text-center bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800">
-        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-6">
-          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v-2m0 2h.01M12 9v2m0-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+      <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-center bg-card rounded-xl border border-border shadow-xs my-6 max-w-lg mx-auto">
+        <div className="w-14 h-14 bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mb-4">
+          <ShieldAlert className="w-7 h-7" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100 mb-2">Access Denied</h2>
-        <p className="text-slate-500 dark:text-zinc-400 max-w-md">
-          You do not have permission to view this page. If you believe this is an error, please contact your administrator.
+        <h2 className="text-xl font-bold text-foreground mb-1.5">Access Denied</h2>
+        <p className="text-sm text-muted-foreground mb-6 max-w-md">
+          You do not have permission (<code className="font-mono text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950 px-1.5 py-0.5 rounded">{permissionCode}</code>) to view this page. If you believe this is an error, please contact your system administrator.
         </p>
+        <Button onClick={() => navigate("/dashboard")} variant="outline" className="gap-2 text-xs">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Dashboard</span>
+        </Button>
       </div>
     );
   }

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/services/apiClient";
 import * as purchasing from "@/services/purchasingService";
 import type { RequestListFilters } from "@/services/purchasingService";
-import type { RequestCreateInput, TransitionInput } from "@/types/purchasing";
+import type { RequestCreateInput, TransitionInput, WireTransferInput } from "@/types/purchasing";
 
 const keys = {
   all: ["purchasing"] as const,
@@ -263,5 +263,20 @@ export function useWorkflowAssignments() {
     queryKey: ["purchasing", "assignments"],
     queryFn: () => apiClient.get<any[]>("/api/purchasing/assignments").catch(() => apiClient.get<any[]>("/purchasing/assignments")).catch(() => []),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpdateWireTransfer(requestId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: WireTransferInput) => purchasing.updateWireTransfer(requestId, payload),
+    onSuccess: (data) => {
+      qc.setQueryData(keys.request(requestId), data);
+      qc.invalidateQueries({ queryKey: keys.all });
+      toast.success("Wire transfer information updated successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Failed to update wire transfer");
+    },
   });
 }

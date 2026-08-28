@@ -28,6 +28,7 @@ import {
   Pencil,
   Trash2,
   Download,
+  Landmark,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -64,14 +65,17 @@ import {
   useExtractProductInfo,
   useUploadAttachments,
   useUpdateReviewStatus,
+  useUpdateWireTransfer,
 } from "@/hooks/usePurchasing";
 import * as purchasingService from "@/services/purchasingService";
 import { EditRequestDialog } from "./EditRequestDialog";
+import { WireTransferDialog } from "./WireTransferDialog";
 import { useAuth } from "@/lib/AuthContext";
 import Stepper from "@/components/Stepper";
 import { RequestStatus, PAYMENT_METHOD_LABEL } from "@/types/purchasing";
 import type {
   PurchaseOrderInput,
+  WireTransferInput,
   InvoiceInput,
   ApprovalInput,
   TrackingInput,
@@ -138,6 +142,7 @@ export default function RequestDetail() {
   }, [id]);
 
   const [isManualPriceOpen, setIsManualPriceOpen] = useState(false);
+  const [isWireDialogOpen, setIsWireDialogOpen] = useState(false);
   const [hasShownManualPrice, setHasShownManualPrice] = useState(false);
 
   const isExtracting =
@@ -168,6 +173,17 @@ export default function RequestDetail() {
   }, [isExtracting, extractProductMutation.isPending, refetch]);
 
   const transition = useTransitionRequest(id ?? "");
+  const updateWireTransfer = useUpdateWireTransfer(id ?? "");
+  const [isEditWireOpen, setIsEditWireOpen] = useState(false);
+
+  const handleUpdateWire = async (wireData: WireTransferInput) => {
+    try {
+      await updateWireTransfer.mutateAsync(wireData);
+      setIsEditWireOpen(false);
+    } catch {
+      // Error handled by hook toast
+    }
+  };
   const uploadAttachments = useUploadAttachments(id ?? "");
   const reviewMutation = useUpdateReviewStatus();
 
@@ -273,7 +289,26 @@ export default function RequestDetail() {
     }
   };
 
+  const handleConfirmWire = async (wireData: WireTransferInput) => {
+    const ok = await dispatch({
+      action: "MARK_PURCHASED",
+      wire_transfer: wireData,
+    });
+    if (ok) {
+      setIsWireDialogOpen(false);
+      toast.success("Wire transfer details saved & marked as purchased.");
+    }
+  };
+
   const onAction = (action: WorkflowAction) => {
+    const isWire =
+      purchase_order?.payment_method === "W" ||
+      (purchase_order?.payment_method as any) === "WIRE";
+    if (action === "MARK_PURCHASED" && isWire) {
+      setIsWireDialogOpen(true);
+      return;
+    }
+
     const meta = ACTION_META[action];
     if (!meta.form) {
       void dispatch({ action });
@@ -972,6 +1007,88 @@ export default function RequestDetail() {
               </CardContent>
             </Card>
           )}
+
+          {data?.wire_transfer && (
+            <Card className="border border-slate-200 dark:border-zinc-800">
+              <CardHeader className="bg-indigo-50/40 dark:bg-indigo-950/20 border-b border-slate-100 dark:border-zinc-800 px-6 py-3.5 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-semibold text-base">
+                  <Landmark className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span>Wire Transfer Details</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-semibold px-2.5 py-0.5 my-auto">
+                    TREASURY RECORDED
+                  </Badge>
+                  {request.status !== RequestStatus.Completed && request.status !== RequestStatus.Rejected && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditWireOpen(true)}
+                      className="h-7 text-xs px-2.5 bg-white dark:bg-zinc-900 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 dark:border-indigo-800 dark:text-indigo-300 gap-1.5 shadow-xs"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      <span>Edit Wire Info</span>
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                  <Field label="Entered By" value={data.wire_transfer.entered_by || "—"} />
+                  <Field label="Entry Date" value={formatDate(data.wire_transfer.entry_date)} />
+                  <Field label="Payment Date" value={formatDate(data.wire_transfer.payment_date)} />
+                  <Field label="Due Date" value={formatDate(data.wire_transfer.due_date)} />
+                  <Field label="Pay Date (Terms)" value={data.wire_transfer.pay_date || "—"} />
+                  <Field label="Pay From" value={data.wire_transfer.pay_from || "—"} />
+                  <Field label="Vendor" value={data.wire_transfer.vendor || "—"} />
+                  <Field label="New Vendor?" value={data.wire_transfer.is_new_vendor ? "Yes" : "No"} />
+                  <Field label="Invoice #" value={data.wire_transfer.invoice_number || "—"} />
+                  <Field label="Amount" value={`${formatMoney(data.wire_transfer.amount || 0)} ${data.wire_transfer.currency || "USD"}`} />
+                  <Field label="Conversion" value={data.wire_transfer.conversion_rate || "—"} />
+                  <Field label="Vendor Email" value={data.wire_transfer.vendor_email || "—"} />
+                  <Field label="Bank Name" value={data.wire_transfer.bank_name || "—"} />
+                  <Field label="Bank Country" value={data.wire_transfer.bank_country || "—"} />
+                  <Field label="Tax ID" value={data.wire_transfer.tax_id || "—"} />
+                  <Field label="Bank Account #" value={data.wire_transfer.bank_account_number || "—"} />
+                  <Field label="Routing (Wire)" value={data.wire_transfer.routing_wire || "—"} />
+                  <Field label="Routing (ACH)" value={data.wire_transfer.routing_ach || "—"} />
+                  <Field label="SWIFT Code" value={data.wire_transfer.swift_code || "—"} />
+                  <Field label="BIC" value={data.wire_transfer.bic || "—"} />
+                  <Field label="IBAN" value={data.wire_transfer.iban || "—"} />
+                  <Field label="Sort Code" value={data.wire_transfer.sort_code || "—"} />
+                  <Field label="Transit Code (CA)" value={data.wire_transfer.transit_code_ca || "—"} />
+                  <Field label="Transit Number (CA)" value={data.wire_transfer.transit_number_ca || "—"} />
+                  <Field label="Institution Code" value={data.wire_transfer.institution_code || "—"} />
+                  <Field label="Branch Code" value={data.wire_transfer.branch_code || "—"} />
+                  <Field label="BSB Australia" value={data.wire_transfer.bsb_australia || "—"} />
+                  <Field label="Clearing Code" value={data.wire_transfer.clearing_code || "—"} />
+                  <Field label="Bank Code" value={data.wire_transfer.bank_code || "—"} />
+                  <Field label="ABA" value={data.wire_transfer.aba || "—"} />
+                  <Field label="Region" value={data.wire_transfer.region || "—"} />
+                  <Field label="Contact Name (China)" value={data.wire_transfer.contact_name_china || "—"} />
+                  {data.wire_transfer.comments && (
+                    <div className="col-span-2 sm:col-span-3">
+                      <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Comments / Memo</div>
+                      <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{data.wire_transfer.comments}</div>
+                    </div>
+                  )}
+                  {data.wire_transfer.vendor_address && (
+                    <div className="col-span-2 sm:col-span-3">
+                      <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Vendor Address</div>
+                      <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{data.wire_transfer.vendor_address}</div>
+                    </div>
+                  )}
+                  {data.wire_transfer.bank_address && (
+                    <div className="col-span-2 sm:col-span-3">
+                      <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Bank Address</div>
+                      <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{data.wire_transfer.bank_address}</div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Activity: approvals + notifications */}
@@ -1617,6 +1734,29 @@ export default function RequestDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {id && data?.request && (
+        <>
+          <WireTransferDialog
+            open={isWireDialogOpen}
+            onOpenChange={setIsWireDialogOpen}
+            request={data.request}
+            purchaseOrder={data.purchase_order}
+            onConfirm={handleConfirmWire}
+            isSubmitting={transition.isPending}
+          />
+          <WireTransferDialog
+            open={isEditWireOpen}
+            onOpenChange={setIsEditWireOpen}
+            request={data.request}
+            purchaseOrder={data.purchase_order}
+            initialData={data.wire_transfer}
+            isEditMode={true}
+            onConfirm={handleUpdateWire}
+            isSubmitting={updateWireTransfer.isPending}
+          />
+        </>
+      )}
+
       {id && (
         <ManualPriceDialog
           requestId={id}

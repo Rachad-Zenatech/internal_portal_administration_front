@@ -11,6 +11,7 @@ import type {
   RequestCreateInput,
   RequestDetail,
   TransitionInput,
+  WireTransferInput,
 } from "@/types/purchasing";
 
 const BASE = "/api/purchasing";
@@ -157,4 +158,12 @@ export function exportQuickBooksXlsx(ids?: string[], status?: string, year?: num
 
 export function exportSingleRequestQuickBooksXlsx(requestId: string) {
   return apiClient.downloadFile(`${BASE}/requests/${requestId}/export/quickbooks/xlsx`, `QuickBooks_Export_REQ_${requestId}.xlsx`);
+}
+
+export function getTreasuryUsers() {
+  return apiClient.get<Array<{ id: string; full_name: string; email: string; department?: string }>>(BASE + "/treasury-users");
+}
+
+export function updateWireTransfer(requestId: string | number, payload: WireTransferInput) {
+  return apiClient.put<RequestDetail>(`${BASE}/requests/${requestId}/wire-transfer`, payload);
 }

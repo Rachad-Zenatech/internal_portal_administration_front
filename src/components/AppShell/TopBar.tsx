@@ -505,13 +505,13 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               <p className="text-xs text-muted-foreground truncate mt-0.5">{user?.email}</p>
               
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                <Badge variant="secondary" className="text-[10px] font-medium py-0 px-1.5">
-                  {user?.is_super_admin ? "Super Admin" : roles.length > 0 ? roles[0].name : "Standard User"}
+                <Badge variant="secondary" className="h-5 inline-flex items-center justify-center px-2 text-[10px] font-medium leading-none">
+                  <span className="leading-none">{user?.is_super_admin ? "Super Admin" : roles.length > 0 ? roles[0].name : "Standard User"}</span>
                 </Badge>
                 {workflow_roles.length > 0 && (
-                  <Badge variant="outline" className="text-[10px] font-medium py-0 px-1.5 border-indigo-200 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800">
-                    <ShieldCheck className="h-3 w-3 mr-1 inline-block" />
-                    {workflow_roles.map((r) => formatWorkflowRole(r)).join(", ")}
+                  <Badge variant="outline" className="h-5 inline-flex items-center justify-center gap-1 px-2 text-[10px] font-medium leading-none border-indigo-200 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800">
+                    <ShieldCheck className="w-3 h-3 shrink-0 block" />
+                    <span className="leading-none">{workflow_roles.map((r) => formatWorkflowRole(r)).join(", ")}</span>
                   </Badge>
                 )}
               </div>
