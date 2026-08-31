@@ -5,7 +5,7 @@ import { ManualPriceDialog } from "./ManualPriceDialog";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { useState, useEffect, useMemo, useRef } from "react";
 import HelpIcon from "@/components/ui/HelpIcon";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -131,6 +131,7 @@ export default function RequestDetail() {
     return trimmed;
   };
   const navigate = useNavigate();
+  const location = useLocation();
   const { data, isLoading, isError, refetch } = usePurchaseRequest(id);
   const extractProductMutation = useExtractProductInfo(id ?? "");
 
@@ -281,6 +282,10 @@ export default function RequestDetail() {
       setActiveForm(null);
       if (payload.action === "DELETE_REQUEST") {
         navigate(backUrl);
+      }
+      if (payload.action === "APPROVE" || payload.action === "REJECT") {
+        const dest = (location.state as any)?.from || "/purchasing/my-approvals";
+        navigate(dest);
       }
       return true;
     } catch (err) {
@@ -1037,7 +1042,12 @@ export default function RequestDetail() {
                   <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-semibold px-2.5 py-0.5 my-auto">
                     TREASURY RECORDED
                   </Badge>
-                  {request.status !== RequestStatus.Completed && request.status !== RequestStatus.Rejected && (
+                  {Boolean(
+                    request.status === RequestStatus.Purchased ||
+                    (request.status as string) === "ORDERED" ||
+                    request.status === RequestStatus.WaitingPayment ||
+                    (request.status as string) === "SENT_TO_AP"
+                  ) && (
                     <Button
                       type="button"
                       variant="outline"
@@ -1678,27 +1688,27 @@ export default function RequestDetail() {
             {activeForm?.kind === "approval" && (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Approver</label>
+                  <label className="text-sm font-medium">{activeForm.action === "REJECT" ? "Reviewer / Approver" : "Approver"}</label>
                   <Select
                     value={user?.id || approval.approver || "_current_user"}
                     disabled
                   >
                     <SelectTrigger className="w-full bg-muted/50 cursor-not-allowed opacity-80">
                       <SelectValue>
-                        {user?.full_name || user?.email || "Logged in Approver"}
+                        {user?.full_name || user?.email || "Logged in User"}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={user?.id || "_current_user"}>
-                        {user?.full_name || user?.email || "Logged in Approver"}
+                        {user?.full_name || user?.email || "Logged in User"}
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Comment</label>
+                  <label className="text-sm font-medium">{activeForm.action === "REJECT" ? "Rejection Reason / Comments" : "Comment"}</label>
                   <Textarea
-                    placeholder="Add an optional comment..."
+                    placeholder={activeForm.action === "REJECT" ? "Please provide a reason for rejecting this request..." : "Add an optional comment..."}
                     value={approval.comment ?? ""}
                     onChange={(e) => setApproval({ ...approval, comment: e.target.value })}
                     rows={3}
@@ -1748,7 +1758,14 @@ export default function RequestDetail() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActiveForm(null)}>Cancel</Button>
-            <Button onClick={submitForm} disabled={transition.isPending}>Confirm</Button>
+            <Button
+              onClick={submitForm}
+              disabled={transition.isPending}
+              variant={activeForm?.action === "REJECT" ? "destructive" : "default"}
+              className={activeForm?.action === "REJECT" ? "bg-rose-600 hover:bg-rose-700 text-white font-semibold" : ""}
+            >
+              {activeForm?.action === "REJECT" ? "Confirm Rejection" : "Confirm"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

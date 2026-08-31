@@ -452,7 +452,7 @@ export default function MyApprovals() {
                   return (
                     <TableRow
                       key={req.id}
-                      onClick={() => navigate(`/purchasing/requests/${req.id}`)}
+                      onClick={() => navigate(`/purchasing/requests/${req.id}`, { state: { from: "/purchasing/my-approvals" } })}
                       className={`cursor-pointer transition-colors hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 ${
                         isChecked ? "bg-indigo-50/40 dark:bg-indigo-950/20" : ""
                       }`}

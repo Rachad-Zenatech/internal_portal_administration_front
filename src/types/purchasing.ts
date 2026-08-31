@@ -219,6 +219,7 @@ export type PurchasingSummary = {
   recurring_due_soon_amount?: number;
   recurring_waiting_review?: number;
   recurring_reviewed?: number;
+  my_approvals_count?: number;
 };
 
 export type RequestCreateInput = {

@@ -19,6 +19,7 @@ export function usePurchasingSummary() {
     queryKey: keys.summary(),
     queryFn: purchasing.getSummary,
     refetchOnWindowFocus: true,
+    refetchInterval: 5000,
   });
 }
 
@@ -27,6 +28,7 @@ export function usePurchaseRequests(filters: RequestListFilters = {}) {
     queryKey: keys.requests(filters),
     queryFn: () => purchasing.listRequests(filters),
     refetchOnWindowFocus: true,
+    refetchInterval: 5000,
   });
 }
 
