@@ -1,3 +1,17 @@
+// Format notification text to remove underscores and capitalize status words
+function formatNotificationText(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/waiting_payment/gi, "Waiting Payment")
+    .replace(/waiting_approval/gi, "Waiting Approval")
+    .replace(/under_review/gi, "Under Review")
+    .replace(/goods_received/gi, "Goods Received")
+    .replace(/invoice_received/gi, "Invoice Received")
+    .replace(/new_request/gi, "New Request")
+    .replace(/on_hold/gi, "On Hold")
+    .replace(/_(\w)/g, (_, c) => " " + c.toUpperCase());
+}
+
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Search, Bell, Menu, ShieldCheck, Building2, FileText, Loader2, LogOut, User, Sparkles, Mail, BellRing, Settings2, CheckCheck, X, CloudDownload, ShoppingCart, RefreshCw, ReceiptText, Layers, Paperclip, Clock } from "lucide-react";
@@ -376,7 +390,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                     const dayString = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
                     const timeString = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
                     const fullDateString = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    const capitalizedTitle = notification.title ? notification.title.charAt(0).toUpperCase() + notification.title.slice(1) : "";
+                    const capitalizedTitle = notification.title ? formatNotificationText(notification.title.charAt(0).toUpperCase() + notification.title.slice(1)) : "";
 
                     return (
                       <div
@@ -421,7 +435,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                           {/* Message box if present */}
                           {notification.message && (!notification.attachments || notification.attachments.length === 0) && (
                             <div className="mt-2.5 p-3.5 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 shadow-sm leading-relaxed whitespace-pre-line">
-                              {notification.message}
+                              {formatNotificationText(notification.message)}
                             </div>
                           )}
 
