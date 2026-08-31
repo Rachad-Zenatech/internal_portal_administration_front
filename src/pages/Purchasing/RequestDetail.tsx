@@ -5,7 +5,7 @@ import { ManualPriceDialog } from "./ManualPriceDialog";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { useState, useEffect, useMemo, useRef } from "react";
 import HelpIcon from "@/components/ui/HelpIcon";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -131,6 +131,7 @@ export default function RequestDetail() {
     return trimmed;
   };
   const navigate = useNavigate();
+  const location = useLocation();
   const { data, isLoading, isError, refetch } = usePurchaseRequest(id);
   const extractProductMutation = useExtractProductInfo(id ?? "");
 
@@ -281,6 +282,10 @@ export default function RequestDetail() {
       setActiveForm(null);
       if (payload.action === "DELETE_REQUEST") {
         navigate(backUrl);
+      }
+      if (payload.action === "APPROVE" || payload.action === "REJECT") {
+        const dest = (location.state as any)?.from || "/purchasing/my-approvals";
+        navigate(dest);
       }
       return true;
     } catch (err) {

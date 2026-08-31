@@ -296,6 +296,12 @@ export default function Sidebar({
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                       </span>
                     )}
+                    {!isOpen && (item.label === "My Approvals" || item.navigationCode === "MY_APPROVALS") && (purchasingSummary?.my_approvals_count ?? 0) > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                      </span>
+                    )}
                   </div>
                   <div className={`flex items-center justify-between min-w-0 ${isOpen ? 'flex-1' : 'w-0'}`}>
                     <span
@@ -317,6 +323,15 @@ export default function Sidebar({
                       >
                         {purchasingSummary?.recurring_due_soon_count}
                       </span>
+                    )}
+                    {isOpen && (item.label === "My Approvals" || item.navigationCode === "MY_APPROVALS") && (
+                      <div className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1.5 transition-colors ${
+                        isMainActive 
+                          ? "bg-white/20 text-sidebar-primary-foreground" 
+                          : "bg-slate-200/80 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-300/60 dark:border-zinc-700/60"
+                      }`}>
+                        {purchasingSummary?.my_approvals_count ?? 0}
+                      </div>
                     )}
                   </div>
                 </Link>
