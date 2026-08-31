@@ -1037,7 +1037,12 @@ export default function RequestDetail() {
                   <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-semibold px-2.5 py-0.5 my-auto">
                     TREASURY RECORDED
                   </Badge>
-                  {request.status !== RequestStatus.Completed && request.status !== RequestStatus.Rejected && (
+                  {Boolean(
+                    request.status === RequestStatus.Purchased ||
+                    (request.status as string) === "ORDERED" ||
+                    request.status === RequestStatus.WaitingPayment ||
+                    (request.status as string) === "SENT_TO_AP"
+                  ) && (
                     <Button
                       type="button"
                       variant="outline"
