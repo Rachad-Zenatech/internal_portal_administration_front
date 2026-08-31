@@ -1688,27 +1688,27 @@ export default function RequestDetail() {
             {activeForm?.kind === "approval" && (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Approver</label>
+                  <label className="text-sm font-medium">{activeForm.action === "REJECT" ? "Reviewer / Approver" : "Approver"}</label>
                   <Select
                     value={user?.id || approval.approver || "_current_user"}
                     disabled
                   >
                     <SelectTrigger className="w-full bg-muted/50 cursor-not-allowed opacity-80">
                       <SelectValue>
-                        {user?.full_name || user?.email || "Logged in Approver"}
+                        {user?.full_name || user?.email || "Logged in User"}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={user?.id || "_current_user"}>
-                        {user?.full_name || user?.email || "Logged in Approver"}
+                        {user?.full_name || user?.email || "Logged in User"}
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Comment</label>
+                  <label className="text-sm font-medium">{activeForm.action === "REJECT" ? "Rejection Reason / Comments" : "Comment"}</label>
                   <Textarea
-                    placeholder="Add an optional comment..."
+                    placeholder={activeForm.action === "REJECT" ? "Please provide a reason for rejecting this request..." : "Add an optional comment..."}
                     value={approval.comment ?? ""}
                     onChange={(e) => setApproval({ ...approval, comment: e.target.value })}
                     rows={3}
@@ -1758,7 +1758,14 @@ export default function RequestDetail() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActiveForm(null)}>Cancel</Button>
-            <Button onClick={submitForm} disabled={transition.isPending}>Confirm</Button>
+            <Button
+              onClick={submitForm}
+              disabled={transition.isPending}
+              variant={activeForm?.action === "REJECT" ? "destructive" : "default"}
+              className={activeForm?.action === "REJECT" ? "bg-rose-600 hover:bg-rose-700 text-white font-semibold" : ""}
+            >
+              {activeForm?.action === "REJECT" ? "Confirm Rejection" : "Confirm"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
