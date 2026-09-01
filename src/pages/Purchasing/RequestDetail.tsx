@@ -29,6 +29,7 @@ import {
   Trash2,
   Download,
   Landmark,
+  Calendar,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -714,6 +715,21 @@ export default function RequestDetail() {
               <Field label="GL Code / Account" value={formatGLCode(request.gl_code)} />
               <Field label="Requested" value={formatDate(request.request_date)} />
               <Field label="Last Updated" value={formatDate(request.updated_at)} />
+              {(request.due_date || isRecurring) && (
+                <Field
+                  label="Next Due Date"
+                  value={
+                    request.due_date ? (
+                      <span className="font-semibold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                        {formatDate(request.due_date)}
+                      </span>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
+              )}
               {!(request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)) && (
                 <>
                   <Field label="SKU / Part #" value={request.sku || request.items?.[0]?.sku || "—"} />
