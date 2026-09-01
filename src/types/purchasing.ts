@@ -97,6 +97,10 @@ export type PurchaseRequest = {
   hold_reason?: string | null;
   hold_date?: string | null;
   assigned_user: string | null;
+  requester_id?: string | null;
+  requester_email?: string | null;
+  assigned_user_id?: string | null;
+  assigned_user_ids?: string[] | null;
   description: string | null;
   item_url?: string | null;
   product_info?: ProductInfo | null;
@@ -133,9 +137,11 @@ export type PurchaseOrder = {
   approval_status: ApprovalStatus;
   expected_delivery_date?: string | null;
   tracking_number: string | null;
+  shipping_note?: string | null;
   goods_received: boolean;
   goods_received_at: string | null;
   goods_received_by: string | null;
+  goods_received_note?: string | null;
   created_at: string;
 };
 

@@ -113,8 +113,8 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   const profileDepartment =
     resolveUserDepartment({ ...user, roles }, allRoles) ||
     roles.map((r) => r.department).filter(Boolean).join(", ") ||
-    user?.department ||
-    (roles.length > 0 ? roles.map((r) => r.name).join(", ") : "General");
+    (user?.department && user.department.toUpperCase() !== "REQUESTER" ? user.department : "") ||
+    "General";
   // Debounce input
   useEffect(() => {
     const handler = setTimeout(() => {

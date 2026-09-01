@@ -39,6 +39,11 @@ export function listRequests(filters: RequestListFilters = {}) {
   return apiClient.get<PurchaseRequest[]>(`${BASE}/requests${buildQuery(filters)}`);
 }
 
+export function listMyApprovals(status?: string) {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+  return apiClient.get<PurchaseRequest[]>(`${BASE}/my-approvals${qs}`);
+}
+
 export function getRequest(id: string) {
   return apiClient.get<RequestDetail>(`${BASE}/requests/${id}`);
 }

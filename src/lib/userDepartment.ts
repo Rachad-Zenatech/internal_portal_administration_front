@@ -1,5 +1,30 @@
 import type { Role } from "./AuthContext";
 
+const GENERIC_NON_DEPARTMENT_ROLES = new Set([
+  "SUPER_ADMIN",
+  "SUPER ADMIN",
+  "ADMIN",
+  "STANDARD_USER",
+  "STANDARD USER",
+  "PENDING_USER",
+  "PENDING USER",
+  "REQUESTER",
+  "LOW_LEVEL_APPROVER",
+  "HIGH_LEVEL_APPROVER",
+  "STANDARD_APPROVER",
+  "STANDARD APPROVER",
+  "SENIOR_APPROVER",
+  "SENIOR APPROVER",
+  "APPROVER",
+  "USER",
+]);
+
+function isGenericRole(nameOrCode?: string): boolean {
+  if (!nameOrCode) return true;
+  const upper = nameOrCode.toUpperCase().trim();
+  return GENERIC_NON_DEPARTMENT_ROLES.has(upper);
+}
+
 /**
  * Resolves a user's department by matching their assigned roles against the configured Roles list.
  * Inspects the user's direct department field, their assigned roles, the global roles directory,
@@ -13,10 +38,14 @@ export function resolveUserDepartment(
 
   // 1. Direct department field on user if explicitly defined
   if (typeof user.department === "string" && user.department.trim()) {
-    return user.department.trim();
+    if (!isGenericRole(user.department)) {
+      return user.department.trim();
+    }
   }
   if (typeof user.department_name === "string" && user.department_name.trim()) {
-    return user.department_name.trim();
+    if (!isGenericRole(user.department_name)) {
+      return user.department_name.trim();
+    }
   }
 
   // Super admins bypass normal role-based access and typically have no real
@@ -58,7 +87,8 @@ export function resolveUserDepartment(
     if (
       typeof roleRef === "object" &&
       typeof roleRef.department === "string" &&
-      roleRef.department.trim()
+      roleRef.department.trim() &&
+      !isGenericRole(roleRef.department)
     ) {
       return roleRef.department.trim();
     }
@@ -66,7 +96,11 @@ export function resolveUserDepartment(
     // Lookup in allRoles list
     const matched = findRole(roleRef);
     if (matched) {
-      if (typeof matched.department === "string" && matched.department.trim()) {
+      if (
+        typeof matched.department === "string" &&
+        matched.department.trim() &&
+        !isGenericRole(matched.department)
+      ) {
         return matched.department.trim();
       }
 
@@ -77,7 +111,11 @@ export function resolveUserDepartment(
         visited.add(curr.parent_role_id);
         const parent = allRoles.find((p) => p.id === curr?.parent_role_id);
         if (!parent) break;
-        if (typeof parent.department === "string" && parent.department.trim()) {
+        if (
+          typeof parent.department === "string" &&
+          parent.department.trim() &&
+          !isGenericRole(parent.department)
+        ) {
           return parent.department.trim();
         }
         curr = parent;
@@ -86,11 +124,9 @@ export function resolveUserDepartment(
       // If matched role name is a functional department
       if (
         matched.name &&
-        !["SUPER_ADMIN", "SUPER ADMIN", "STANDARD_USER", "STANDARD USER", "PENDING_USER", "REQUESTER"].includes(
-          matched.code?.toUpperCase() || matched.name.toUpperCase()
-        )
+        !isGenericRole(matched.code) &&
+        !isGenericRole(matched.name)
       ) {
-        // If department field is still empty, the role name itself often designates the functional area
         return matched.name;
       }
     }
@@ -98,9 +134,8 @@ export function resolveUserDepartment(
     if (
       typeof roleRef === "object" &&
       roleRef.name &&
-      !["SUPER_ADMIN", "SUPER ADMIN", "STANDARD_USER", "STANDARD USER", "PENDING_USER"].includes(
-        roleRef.code?.toUpperCase() || roleRef.name.toUpperCase()
-      )
+      !isGenericRole(roleRef.code) &&
+      !isGenericRole(roleRef.name)
     ) {
       return roleRef.name;
     }

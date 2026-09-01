@@ -428,20 +428,61 @@ export default function RequestDetail() {
 
   const isReviewed = request.review_status === "REVIEWED";
 
-  const quoteCurrency = request.currency || request.quote_data?.currency || "USD";
-  const itemsSum = request.items && request.items.length > 0
-    ? request.items.reduce((acc, itm) => acc + (Number(itm.total) || 0), 0)
-    : 0;
+  const isForeignQuote = Boolean(
+    request.quote_data?.conversion?.is_converted &&
+    request.quote_data?.conversion?.original_currency &&
+    request.quote_data?.conversion?.original_currency !== "USD"
+  );
+  const quoteNativeCurrency = request.quote_data?.conversion?.original_currency || request.quote_data?.currency || "USD";
+  const quoteExchangeRate = Number(request.quote_data?.conversion?.exchange_rate) || 1.0;
 
-  const quoteShipping = Number(request.quote_data?.totals?.shipping) || 0;
-  const quoteTax = Number(request.quote_data?.totals?.tax) || 0;
-  const quoteDiscount = Number(request.quote_data?.totals?.discount) || 0;
+  const rawItemsList = (request.items && request.items.length > 0) ? request.items : (request.quote_data?.items || []);
+  const itemsSumNative = rawItemsList.reduce((acc: number, itm: any) => {
+    const itmTotal = Number(itm.original_total ?? itm.total ?? (Number(itm.quantity || 1) * Number(itm.unit_price || 0)));
+    return acc + itmTotal;
+  }, 0);
 
-  const calculatedQuoteTotal = Math.round((itemsSum + quoteShipping + quoteTax - quoteDiscount) * 100) / 100;
-  const statedGrandTotal = Math.round(Number(request.amount || request.quote_data?.totals?.total || 0) * 100) / 100;
-  const totalsMatch = Math.abs(calculatedQuoteTotal - statedGrandTotal) < 0.05;
+  const quoteShippingNative = Number(request.quote_data?.conversion?.original_shipping ?? request.quote_data?.totals?.shipping) || 0;
+  const quoteTaxNative = Number(request.quote_data?.conversion?.original_tax ?? request.quote_data?.totals?.tax) || 0;
+  const quoteDiscountNative = Number(request.quote_data?.conversion?.original_discount ?? request.quote_data?.totals?.discount) || 0;
+
+  const calculatedQuoteTotalNative = Math.round((itemsSumNative + quoteShippingNative + quoteTaxNative - quoteDiscountNative) * 100) / 100;
+  const statedGrandTotalNative = Math.round(Number(request.quote_data?.conversion?.original_total ?? request.quote_data?.totals?.total ?? (isForeignQuote ? itemsSumNative : request.amount)) * 100) / 100;
+
+  const statedGrandTotalUsd = Math.round(Number(request.amount || request.quote_data?.conversion?.converted_total || (statedGrandTotalNative * quoteExchangeRate)) * 100) / 100;
+  const calculatedQuoteTotalUsd = Math.round((calculatedQuoteTotalNative * quoteExchangeRate) * 100) / 100;
+
+  const totalsMatch = Math.abs(calculatedQuoteTotalNative - statedGrandTotalNative) < 0.05 || Math.abs(calculatedQuoteTotalUsd - statedGrandTotalUsd) < 0.05;
   const vendorCompanyName = request.quote_data?.vendor?.name || (request.title?.includes(" - ") ? request.title.split(" - ")[0] : "");
   const customerCompanyName = request.quote_data?.customer?.name;
+
+  const isEditableStatus = (
+    [RequestStatus.Initial, RequestStatus.New, RequestStatus.UnderReview] as readonly RequestStatus[]
+  ).includes(request.status);
+
+  const isRequester = Boolean(
+    user && (
+      (request.requester_id && String(request.requester_id) === String(user.id)) ||
+      (request.requester && (
+        (user.full_name && request.requester.toLowerCase().trim() === user.full_name.toLowerCase().trim()) ||
+        (user.email && request.requester.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
+        (request.requester_email && user.email && request.requester_email.toLowerCase().trim() === user.email.toLowerCase().trim())
+      ))
+    )
+  );
+
+  const isAssigned = Boolean(
+    user && (
+      (request.assigned_user_id && String(request.assigned_user_id) === String(user.id)) ||
+      (request.assigned_user_ids && request.assigned_user_ids.some(uid => String(uid) === String(user.id))) ||
+      (request.assigned_user && (
+        (user.full_name && request.assigned_user.toLowerCase().includes(user.full_name.toLowerCase().trim())) ||
+        (user.email && request.assigned_user.toLowerCase().includes(user.email.toLowerCase().trim()))
+      ))
+    )
+  );
+
+  const canEditRequest = isEditableStatus && (isRequester || isAssigned || Boolean(user?.is_super_admin));
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
@@ -468,7 +509,7 @@ export default function RequestDetail() {
             <span>Activity Logs</span>
           </Button>
 
-          {(([RequestStatus.Initial, RequestStatus.New, RequestStatus.UnderReview] as readonly RequestStatus[]).includes(request.status)) && (
+          {canEditRequest && (
             <Button
               variant="outline"
               size="sm"
@@ -816,7 +857,9 @@ export default function RequestDetail() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 font-mono text-xs font-semibold">
-                      Currency: {quoteCurrency}
+                      {isForeignQuote
+                        ? `Currency: ${quoteNativeCurrency} (Converted @ 1 ${quoteNativeCurrency} = $${quoteExchangeRate} USD)`
+                        : `Currency: USD`}
                     </Badge>
                   </div>
                 </div>
@@ -853,14 +896,17 @@ export default function RequestDetail() {
                         <TableHead className="w-28 font-semibold">SKU</TableHead>
                         <TableHead className="font-semibold">Description</TableHead>
                         <TableHead className="w-20 text-right font-semibold">Qty</TableHead>
-                        <TableHead className="w-28 text-right font-semibold">Unit Price ({quoteCurrency})</TableHead>
-                        <TableHead className="w-28 text-right font-semibold">Total ({quoteCurrency})</TableHead>
+                        <TableHead className="w-28 text-right font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
+                        <TableHead className="w-28 text-right font-semibold">Total ({quoteNativeCurrency})</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {(request.items?.length ? request.items : (request.quote_data?.items || [])).map((itm: any, idx: number) => {
-                        const origCurr = itm.original_currency || request.quote_data?.conversion?.original_currency || request.quote_data?.currency;
-                        const isConverted = Boolean(request.quote_data?.conversion?.is_converted || (origCurr && origCurr !== "USD"));
+                        const rawPrice = Number(itm.original_unit_price ?? itm.unit_price ?? 0);
+                        const rawTot = Number(itm.original_total ?? itm.total ?? (rawPrice * (Number(itm.quantity) || 1)));
+                        const convPrice = Number(itm.converted_unit_price ?? (rawPrice * quoteExchangeRate));
+                        const convTot = Number(itm.converted_total ?? (rawTot * quoteExchangeRate));
+
                         return (
                           <TableRow key={itm.id || idx}>
                             <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
@@ -868,18 +914,18 @@ export default function RequestDetail() {
                             <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-sm">{itm.description}</TableCell>
                             <TableCell className="text-right text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
                             <TableCell className="text-right text-slate-600 dark:text-zinc-400">
-                              <div>{formatMoney(itm.unit_price)} {request.currency || "USD"}</div>
-                              {isConverted && (itm.original_unit_price ?? itm.unit_price) && (
+                              <div>{formatMoney(rawPrice)} {quoteNativeCurrency}</div>
+                              {isForeignQuote && (
                                 <div className="text-[10.5px] text-slate-400 font-mono">
-                                  ({formatMoney(itm.original_unit_price ?? itm.unit_price)} {origCurr})
+                                  ({formatMoney(convPrice)} USD)
                                 </div>
                               )}
                             </TableCell>
                             <TableCell className="text-right font-semibold font-mono text-slate-900 dark:text-zinc-100">
-                              <div>{formatMoney(itm.total)} {request.currency || "USD"}</div>
-                              {isConverted && (itm.original_total ?? itm.total) && (
+                              <div>{formatMoney(rawTot)} {quoteNativeCurrency}</div>
+                              {isForeignQuote && (
                                 <div className="text-[10.5px] text-slate-400 font-mono font-normal">
-                                  ({formatMoney(itm.original_total ?? itm.total)} {origCurr})
+                                  ({formatMoney(convTot)} USD)
                                 </div>
                               )}
                             </TableCell>
@@ -896,12 +942,17 @@ export default function RequestDetail() {
                     {totalsMatch ? (
                       <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 bg-emerald-50/80 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-900/60 font-medium">
                         <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-                        <span>Calculated sum (items + shipping) matches Grand Total ({formatMoney(statedGrandTotal)} {quoteCurrency})</span>
+                        <span>
+                          Calculated sum matches Grand Total ({formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
+                          {isForeignQuote ? ` / ${formatMoney(statedGrandTotalUsd)} USD` : ""})
+                        </span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md border border-amber-200 dark:border-amber-900/60">
                         <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-                        <span>Discrepancy: Calculated sum is {formatMoney(calculatedQuoteTotal)} vs stated Grand Total of {formatMoney(statedGrandTotal)} {quoteCurrency}</span>
+                        <span>
+                          Discrepancy: Calculated sum is {formatMoney(calculatedQuoteTotalNative)} {quoteNativeCurrency} vs stated Grand Total of {formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -910,29 +961,50 @@ export default function RequestDetail() {
                   <div className="text-right space-y-1 text-xs min-w-[220px]">
                     <div className="text-slate-500 flex justify-between gap-4">
                       <span>Items Subtotal:</span>
-                      <span className="font-medium font-mono text-slate-700 dark:text-zinc-300">{formatMoney(itemsSum)} {quoteCurrency}</span>
+                      <span className="font-medium font-mono text-slate-700 dark:text-zinc-300">
+                        {formatMoney(itemsSumNative)} {quoteNativeCurrency}
+                        {isForeignQuote && <span className="text-[10.5px] text-slate-400 ml-1">({formatMoney(itemsSumNative * quoteExchangeRate)} USD)</span>}
+                      </span>
                     </div>
-                    {quoteShipping > 0 && (
+                    {quoteShippingNative > 0 && (
                       <div className="text-slate-600 dark:text-zinc-300 flex justify-between gap-4 font-medium">
                         <span className="flex items-center gap-1"><Truck className="h-3 w-3 text-indigo-500" /> Shipping Fee:</span>
-                        <span className="font-mono">{formatMoney(quoteShipping)} {quoteCurrency}</span>
+                        <span className="font-mono">
+                          {formatMoney(quoteShippingNative)} {quoteNativeCurrency}
+                          {isForeignQuote && <span className="text-[10.5px] text-slate-400 ml-1">({formatMoney(quoteShippingNative * quoteExchangeRate)} USD)</span>}
+                        </span>
                       </div>
                     )}
-                    {quoteTax > 0 && (
+                    {quoteTaxNative > 0 && (
                       <div className="text-slate-500 flex justify-between gap-4">
                         <span>Tax:</span>
-                        <span className="font-medium font-mono">{formatMoney(quoteTax)} {quoteCurrency}</span>
+                        <span className="font-medium font-mono">
+                          {formatMoney(quoteTaxNative)} {quoteNativeCurrency}
+                          {isForeignQuote && <span className="text-[10.5px] text-slate-400 ml-1">({formatMoney(quoteTaxNative * quoteExchangeRate)} USD)</span>}
+                        </span>
                       </div>
                     )}
-                    {quoteDiscount > 0 && (
+                    {quoteDiscountNative > 0 && (
                       <div className="text-emerald-600 flex justify-between gap-4">
                         <span>Discount:</span>
-                        <span className="font-medium font-mono">-{formatMoney(quoteDiscount)} {quoteCurrency}</span>
+                        <span className="font-medium font-mono">
+                          -{formatMoney(quoteDiscountNative)} {quoteNativeCurrency}
+                          {isForeignQuote && <span className="text-[10.5px] text-emerald-500 ml-1">(-{formatMoney(quoteDiscountNative * quoteExchangeRate)} USD)</span>}
+                        </span>
                       </div>
                     )}
-                    <div className="pt-1.5 border-t border-slate-200 dark:border-zinc-800 text-sm flex justify-between gap-4">
+                    <div className="pt-1.5 border-t border-slate-200 dark:border-zinc-800 text-sm flex justify-between gap-4 items-baseline">
                       <span className="text-slate-900 dark:text-zinc-100 font-semibold">Grand Total:</span>
-                      <span className="font-bold text-slate-900 dark:text-zinc-100 text-base font-mono">{formatMoney(statedGrandTotal)} {quoteCurrency}</span>
+                      <div className="text-right">
+                        <div className="font-bold text-slate-900 dark:text-zinc-100 text-base font-mono">
+                          {formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
+                        </div>
+                        {isForeignQuote && (
+                          <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                            ({formatMoney(statedGrandTotalUsd)} USD)
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -950,8 +1022,8 @@ export default function RequestDetail() {
                   <Field label="Quote / PO #" value={purchase_order.quote_number ?? "—"} />
                   {!isMulti && <Field label="Quantity" value={String(request.quantity ?? 1)} />}
                   {!isMulti && <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />}
-                  {isMulti && quoteShipping > 0 && (
-                    <Field label="Shipping Fee" value={`${formatMoney(quoteShipping)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
+                  {isMulti && quoteShippingNative > 0 && (
+                    <Field label="Shipping Fee" value={`${formatMoney(quoteShippingNative)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
                   )}
                   <Field label="Total Amount (Pre-Tax)" value={`${formatMoney(purchase_order.amount || request.amount)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
                   <Field label="Total Amount (After-Tax)" value={`${formatMoney((purchase_order.amount || request.amount) * (1 + TAX_RATE))}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
@@ -959,7 +1031,9 @@ export default function RequestDetail() {
                   <Field label="Shipped To" value={purchase_order.shipped_to_location ?? "—"} />
                   <Field label="Approval" value={purchase_order.approval_status} />
                   <Field label="Tracking #" value={purchase_order.tracking_number ?? "—"} />
+                  <Field label="Shipping Note" value={purchase_order.shipping_note || "—"} />
                   <Field label="Goods Received" value={purchase_order.goods_received ? `Yes, on ${formatDate(purchase_order.goods_received_at)}` : "No"} />
+                  <Field label="Goods Received Notes" value={purchase_order.goods_received_note || "—"} />
                   {purchase_order.description && (
                     <div className="col-span-2">
                       <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Description</div>
@@ -969,9 +1043,14 @@ export default function RequestDetail() {
                 </div>
 
                 {isMulti && Boolean((request.items && request.items.length > 0) || (request.quote_data?.items && request.quote_data.items.length > 0)) && (
-                  <div className="pt-3 border-t border-slate-200 dark:border-zinc-800 space-y-2">
-                    <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                      Line Items &amp; Parts Breakdown ({(request.items?.length || request.quote_data?.items?.length)} items)
+                  <div className="pt-3 border-t border-slate-200 dark:border-zinc-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Line Items &amp; Parts Breakdown ({(request.items?.length || request.quote_data?.items?.length)} items)
+                      </div>
+                      <Badge variant="outline" className="text-[11px] font-mono">
+                        Currency: {quoteNativeCurrency}
+                      </Badge>
                     </div>
                     <div className="rounded-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
                       <Table>
@@ -981,23 +1060,97 @@ export default function RequestDetail() {
                             <TableHead className="w-28 text-xs font-semibold">SKU</TableHead>
                             <TableHead className="text-xs font-semibold">Description</TableHead>
                             <TableHead className="w-20 text-right text-xs font-semibold">Qty</TableHead>
-                            <TableHead className="w-28 text-right text-xs font-semibold">Unit Price ({purchase_order.currency || "USD"})</TableHead>
-                            <TableHead className="w-28 text-right text-xs font-semibold">Total ({purchase_order.currency || "USD"})</TableHead>
+                            <TableHead className="w-28 text-right text-xs font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
+                            <TableHead className="w-28 text-right text-xs font-semibold">Total ({quoteNativeCurrency})</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {(request.items?.length ? request.items : (request.quote_data?.items || [])).map((itm: any, idx: number) => (
-                            <TableRow key={itm.id || idx}>
-                              <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
-                              <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
-                              <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">{itm.description}</TableCell>
-                              <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
-                              <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">{formatMoney(itm.unit_price)}</TableCell>
-                              <TableCell className="text-right text-xs font-semibold font-mono text-slate-900 dark:text-zinc-100">{formatMoney(itm.total)}</TableCell>
-                            </TableRow>
-                          ))}
+                          {(request.items?.length ? request.items : (request.quote_data?.items || [])).map((itm: any, idx: number) => {
+                            const rawPrice = Number(itm.original_unit_price ?? itm.unit_price ?? 0);
+                            const rawTot = Number(itm.original_total ?? itm.total ?? (rawPrice * (Number(itm.quantity) || 1)));
+                            const convPrice = Number(itm.converted_unit_price ?? (rawPrice * quoteExchangeRate));
+                            const convTot = Number(itm.converted_total ?? (rawTot * quoteExchangeRate));
+
+                            return (
+                              <TableRow key={itm.id || idx}>
+                                <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
+                                <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
+                                <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">{itm.description}</TableCell>
+                                <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
+                                <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">
+                                  <div>{formatMoney(rawPrice)} {quoteNativeCurrency}</div>
+                                  {isForeignQuote && (
+                                    <div className="text-[10px] text-slate-400 font-mono">
+                                      ({formatMoney(convPrice)} USD)
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right text-xs font-semibold font-mono text-slate-900 dark:text-zinc-100">
+                                  <div>{formatMoney(rawTot)} {quoteNativeCurrency}</div>
+                                  {isForeignQuote && (
+                                    <div className="text-[10px] text-slate-400 font-mono font-normal">
+                                      ({formatMoney(convTot)} USD)
+                                    </div>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
+                    </div>
+
+                    {/* PO Line Items Summary Breakdown */}
+                    <div className="flex justify-end pt-1">
+                      <div className="text-right space-y-1 text-xs min-w-[220px]">
+                        <div className="text-slate-500 flex justify-between gap-4">
+                          <span>Items Subtotal:</span>
+                          <span className="font-medium font-mono text-slate-700 dark:text-zinc-300">
+                            {formatMoney(itemsSumNative)} {quoteNativeCurrency}
+                            {isForeignQuote && <span className="text-[10px] text-slate-400 ml-1">({formatMoney(itemsSumNative * quoteExchangeRate)} USD)</span>}
+                          </span>
+                        </div>
+                        {quoteShippingNative > 0 && (
+                          <div className="text-slate-600 dark:text-zinc-300 flex justify-between gap-4 font-medium">
+                            <span className="flex items-center gap-1"><Truck className="h-3 w-3 text-indigo-500" /> Shipping Fee:</span>
+                            <span className="font-mono">
+                              {formatMoney(quoteShippingNative)} {quoteNativeCurrency}
+                              {isForeignQuote && <span className="text-[10px] text-slate-400 ml-1">({formatMoney(quoteShippingNative * quoteExchangeRate)} USD)</span>}
+                            </span>
+                          </div>
+                        )}
+                        {quoteTaxNative > 0 && (
+                          <div className="text-slate-500 flex justify-between gap-4">
+                            <span>Tax &amp; Fees:</span>
+                            <span className="font-medium font-mono">
+                              {formatMoney(quoteTaxNative)} {quoteNativeCurrency}
+                              {isForeignQuote && <span className="text-[10px] text-slate-400 ml-1">({formatMoney(quoteTaxNative * quoteExchangeRate)} USD)</span>}
+                            </span>
+                          </div>
+                        )}
+                        {quoteDiscountNative > 0 && (
+                          <div className="text-emerald-600 flex justify-between gap-4">
+                            <span>Discount:</span>
+                            <span className="font-medium font-mono">
+                              -{formatMoney(quoteDiscountNative)} {quoteNativeCurrency}
+                              {isForeignQuote && <span className="text-[10px] text-emerald-500 ml-1">(-{formatMoney(quoteDiscountNative * quoteExchangeRate)} USD)</span>}
+                            </span>
+                          </div>
+                        )}
+                        <div className="pt-1.5 border-t border-slate-200 dark:border-zinc-800 text-sm flex justify-between gap-4 items-baseline">
+                          <span className="text-slate-900 dark:text-zinc-100 font-semibold">Grand Total:</span>
+                          <div className="text-right">
+                            <div className="font-bold text-slate-900 dark:text-zinc-100 text-base font-mono">
+                              {formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
+                            </div>
+                            {isForeignQuote && (
+                              <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                                ({formatMoney(statedGrandTotalUsd)} USD)
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
