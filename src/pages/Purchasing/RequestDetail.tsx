@@ -30,6 +30,7 @@ import {
   Download,
   Landmark,
   Calendar,
+  ShieldAlert,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -484,6 +485,10 @@ export default function RequestDetail() {
   );
 
   const canEditRequest = isEditableStatus && (isRequester || isAssigned || Boolean(user?.is_super_admin));
+  const isWaitingApproval = (
+    [RequestStatus.WaitingApproval, RequestStatus.UnderReview, "WAITING_APPROVAL", "UNDER_REVIEW"] as readonly string[]
+  ).includes(request.status);
+  const isSelfApprovalBlocked = isWaitingApproval && isRequester;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
@@ -667,6 +672,13 @@ export default function RequestDetail() {
               )}
             </div>
           )}
+
+          {isSelfApprovalBlocked && available_actions.filter(a => a !== "DELETE_REQUEST" && !((isRecurring || isAP) && a === "CREATE_PO")).length === 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900/60 px-2.5 py-1 rounded-md shrink-0">
+              <ShieldAlert className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+              <span>Awaiting review by another approver (self-approval prohibited)</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -681,6 +693,17 @@ export default function RequestDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* Self-Approval Restriction Banner */}
+      {isSelfApprovalBlocked && (
+        <Alert className="bg-amber-50/90 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200">
+          <ShieldAlert className="h-4 w-4 !text-amber-600 dark:!text-amber-400" />
+          <AlertTitle className="font-semibold text-xs sm:text-sm">Self-Approval Restriction</AlertTitle>
+          <AlertDescription className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+            As the requester of this purchase request, you cannot approve or reject your own request. Another eligible approver must review and take action on this submission.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {request.status === RequestStatus.OnHold && request.hold_reason && (
         <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300">
