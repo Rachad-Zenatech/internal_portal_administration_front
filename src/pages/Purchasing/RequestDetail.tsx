@@ -1973,7 +1973,7 @@ export default function RequestDetail() {
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">{label}</div>
