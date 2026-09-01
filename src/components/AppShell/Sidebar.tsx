@@ -149,16 +149,16 @@ export default function Sidebar({
           ${isOpen ? "w-52 tablet:w-56 desktop:w-60 translate-x-0" : "-translate-x-full laptop:translate-x-0 laptop:w-14"}
         `}
       >
-      <div className={`flex items-center h-10 tablet:h-11 px-2 transition-all duration-300 ease-in-out ${isOpen ? "justify-between" : "justify-center"}`}>
-        <Link to="/" className={`transition-all duration-300 ease-in-out ${isOpen ? "opacity-100" : "opacity-0 w-0 h-0 overflow-hidden"}`}>
-          <img
-            src={zenatechLogo}
-            alt="Zenatech Logo"
-            className={`transition-all duration-300 ease-in-out object-contain cursor-pointer ${
-              isOpen ? "h-8 w-auto ml-1" : "w-0 h-0"
-            }`}
-          />
-        </Link>
+      <div className={`flex items-center h-16 tablet:h-20 px-3 py-2 transition-all duration-300 ease-in-out ${isOpen ? "justify-between" : "laptop:justify-center"}`}>
+          <Link to="/" className={`flex items-center flex-1 min-w-0 transition-all duration-300 ease-in-out ${isOpen ? "opacity-100" : "opacity-0 w-0 h-0 overflow-hidden"}`}>
+            <img
+              src={zenatechLogo}
+              alt="Zenatech Logo"
+              className={`transition-all duration-300 ease-in-out object-contain cursor-pointer ${
+                isOpen ? "h-14 sm:h-16 tablet:h-20 w-auto max-w-[185px] tablet:max-w-[215px] scale-125 origin-left hover:scale-[1.3]" : "w-0 h-0"
+              }`}
+            />
+          </Link>
 
         <button
           onClick={onToggle}
