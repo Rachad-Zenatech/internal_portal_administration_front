@@ -122,16 +122,74 @@ export default function RequestDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: glCodes = [] } = useGLCodes();
 
+  const getGLAccountDetails = (code: string | null | undefined): { number: string; name: string } | null => {
+    if (!code) return null;
+    const trimmed = String(code).trim();
+    if (!trimmed || trimmed === "—") return null;
+
+    // Check in glCodes list
+    const found = glCodes.find((c) => {
+      if (c.account_number === trimmed) return true;
+      if (c.display_label === trimmed) return true;
+      if (c.account_name.toLowerCase() === trimmed.toLowerCase()) return true;
+      if (trimmed.startsWith(c.account_number + " - ")) return true;
+      if (trimmed.startsWith(c.account_number + " ")) return true;
+      return false;
+    });
+
+    if (found) {
+      return {
+        number: found.account_number,
+        name: found.account_name,
+      };
+    }
+
+    if (trimmed.includes(" - ")) {
+      const parts = trimmed.split(" - ");
+      return {
+        number: parts[0].trim(),
+        name: parts.slice(1).join(" - ").trim(),
+      };
+    }
+
+    if (trimmed.includes(" ")) {
+      const firstSpace = trimmed.indexOf(" ");
+      return {
+        number: trimmed.substring(0, firstSpace).trim(),
+        name: trimmed.substring(firstSpace + 1).trim(),
+      };
+    }
+
+    return {
+      number: trimmed,
+      name: "",
+    };
+  };
+
   const formatGLCode = (code: string | null | undefined) => {
     if (!code) return "—";
-    const trimmed = String(code).trim();
-    const found = glCodes.find(
-      (c) => c.account_number === trimmed || c.display_label === trimmed || c.account_name.toLowerCase() === trimmed.toLowerCase()
-    );
-    if (found) {
-      return found.display_label || `${found.account_number} - ${found.account_name}`;
+    const details = getGLAccountDetails(code);
+    if (!details) return String(code);
+    return details.name ? `${details.number} - ${details.name}` : details.number;
+  };
+
+  const renderGLAccountBadge = (code: string | null | undefined) => {
+    const details = getGLAccountDetails(code);
+    if (!details) {
+      return <span className="text-slate-400 italic text-xs">Unassigned</span>;
     }
-    return trimmed;
+    return (
+      <div className="flex items-center gap-2 flex-wrap text-xs">
+        <span className="font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 shrink-0">
+          {details.number}
+        </span>
+        {details.name ? (
+          <span className="font-medium text-slate-800 dark:text-zinc-200 break-words">
+            {details.name}
+          </span>
+        ) : null}
+      </div>
+    );
   };
   const navigate = useNavigate();
   const location = useLocation();
@@ -855,8 +913,8 @@ export default function RequestDetail() {
                     <div className="bg-slate-50 dark:bg-zinc-800/60 px-3 py-2 grid grid-cols-12 gap-3 font-semibold text-slate-600 dark:text-zinc-400">
                       <div className="col-span-1 text-center">#</div>
                       <div className="col-span-5">Part / Description</div>
-                      <div className="col-span-2 text-right">Amount</div>
-                      <div className="col-span-4">GL Code / Account</div>
+                      <div className="col-span-2 text-right pr-6">Amount</div>
+                      <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">GL Code / Account</div>
                     </div>
                     {multiPartsList.map((itm: any, idx: number) => {
                       const itemGL = getItemGLCode(itm, idx);
@@ -865,7 +923,7 @@ export default function RequestDetail() {
                       return (
                         <div key={itm.id || idx} className="px-3 py-2.5 grid grid-cols-12 gap-3 items-center bg-white dark:bg-zinc-900 hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
                           <div className="col-span-1 text-center font-mono text-slate-400">{idx + 1}</div>
-                          <div className="col-span-5 pr-1">
+                          <div className="col-span-5 pr-2">
                             <div className="font-medium text-slate-900 dark:text-zinc-100 break-words whitespace-normal leading-snug">
                               {itm.sku ? <span className="font-mono text-indigo-600 dark:text-indigo-400 mr-1">[{itm.sku}]</span> : null}
                               {itm.description}
@@ -874,17 +932,11 @@ export default function RequestDetail() {
                               Qty: {itm.quantity} {rawPrice > 0 ? `· ${formatMoney(rawPrice)} each` : ""}
                             </div>
                           </div>
-                          <div className="col-span-2 text-right font-mono font-semibold text-slate-800 dark:text-zinc-200">
+                          <div className="col-span-2 text-right pr-6 font-mono font-semibold text-slate-800 dark:text-zinc-200">
                             {formatMoney(rawTot)}
                           </div>
-                          <div className="col-span-4">
-                            {itemGL ? (
-                              <div className="font-medium text-slate-800 dark:text-zinc-200 break-words" title={itemGL}>
-                                {formatGLCode(itemGL)}
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 italic text-xs">Unassigned (Pending Bill)</span>
-                            )}
+                          <div className="col-span-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
+                            {renderGLAccountBadge(itemGL)}
                           </div>
                         </div>
                       );
@@ -1061,8 +1113,8 @@ export default function RequestDetail() {
                         <TableHead className="font-semibold">Description</TableHead>
                         <TableHead className="w-16 text-right font-semibold">Qty</TableHead>
                         <TableHead className="w-24 text-right font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
-                        <TableHead className="w-24 text-right font-semibold">Total ({quoteNativeCurrency})</TableHead>
-                        <TableHead className="w-36 font-semibold">GL Code</TableHead>
+                        <TableHead className="w-24 text-right pr-6 font-semibold">Total ({quoteNativeCurrency})</TableHead>
+                        <TableHead className="w-48 pl-4 border-l border-slate-200 dark:border-zinc-700 font-semibold">GL Code / Account</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1086,7 +1138,7 @@ export default function RequestDetail() {
                                 </div>
                               )}
                             </TableCell>
-                            <TableCell className="text-right font-semibold font-mono text-slate-900 dark:text-zinc-100">
+                            <TableCell className="text-right pr-6 font-semibold font-mono text-slate-900 dark:text-zinc-100">
                               <div>{formatMoney(rawTot)} {quoteNativeCurrency}</div>
                               {isForeignQuote && (
                                 <div className="text-[10.5px] text-slate-400 font-mono font-normal">
@@ -1094,14 +1146,8 @@ export default function RequestDetail() {
                                 </div>
                               )}
                             </TableCell>
-                            <TableCell className="text-xs text-slate-700 dark:text-zinc-300">
-                              {getItemGLCode(itm, idx) ? (
-                                <span className="font-medium text-slate-800 dark:text-zinc-200 break-words">
-                                  {formatGLCode(getItemGLCode(itm, idx))}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400 italic">Unassigned</span>
-                              )}
+                            <TableCell className="text-xs text-slate-700 dark:text-zinc-300 pl-4 border-l border-slate-100 dark:border-zinc-800">
+                              {renderGLAccountBadge(getItemGLCode(itm, idx))}
                             </TableCell>
                           </TableRow>
                         );
@@ -1233,9 +1279,10 @@ export default function RequestDetail() {
                             <TableHead className="w-10 text-center text-xs">#</TableHead>
                             <TableHead className="w-28 text-xs font-semibold">SKU</TableHead>
                             <TableHead className="text-xs font-semibold">Description</TableHead>
-                            <TableHead className="w-20 text-right text-xs font-semibold">Qty</TableHead>
-                            <TableHead className="w-28 text-right text-xs font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
-                            <TableHead className="w-28 text-right text-xs font-semibold">Total ({quoteNativeCurrency})</TableHead>
+                            <TableHead className="w-16 text-right text-xs font-semibold">Qty</TableHead>
+                            <TableHead className="w-24 text-right text-xs font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
+                            <TableHead className="w-24 text-right text-xs font-semibold pr-6">Total ({quoteNativeCurrency})</TableHead>
+                            <TableHead className="w-48 text-xs font-semibold pl-4 border-l border-slate-200 dark:border-zinc-700">GL Code / Account</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1259,13 +1306,16 @@ export default function RequestDetail() {
                                     </div>
                                   )}
                                 </TableCell>
-                                <TableCell className="text-right text-xs font-semibold font-mono text-slate-900 dark:text-zinc-100">
+                                <TableCell className="text-right text-xs font-semibold font-mono text-slate-900 dark:text-zinc-100 pr-6">
                                   <div>{formatMoney(rawTot)} {quoteNativeCurrency}</div>
                                   {isForeignQuote && (
                                     <div className="text-[10px] text-slate-400 font-mono font-normal">
                                       ({formatMoney(convTot)} USD)
                                     </div>
                                   )}
+                                </TableCell>
+                                <TableCell className="text-xs text-slate-700 dark:text-zinc-300 pl-4 border-l border-slate-100 dark:border-zinc-800">
+                                  {renderGLAccountBadge(getItemGLCode(itm, idx))}
                                 </TableCell>
                               </TableRow>
                             );
@@ -1374,8 +1424,8 @@ export default function RequestDetail() {
                     <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
                       <div className="bg-slate-50 dark:bg-zinc-800/50 px-3 py-1.5 grid grid-cols-12 gap-2 font-medium text-slate-500">
                         <div className="col-span-5">Item</div>
-                        <div className="col-span-2 text-right">Amount</div>
-                        <div className="col-span-4">GL Code</div>
+                        <div className="col-span-2 text-right pr-6">Amount</div>
+                        <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">GL Code</div>
                         <div className="col-span-1 text-center">Asset</div>
                       </div>
                       {inv.items.map((it, idx) => (
@@ -1383,11 +1433,11 @@ export default function RequestDetail() {
                           <div className="col-span-5 break-words whitespace-normal leading-snug font-medium text-slate-800 dark:text-zinc-200" title={it.description}>
                             {it.sku ? <span className="font-mono text-indigo-600 dark:text-indigo-400 mr-1">[{it.sku}]</span> : null}{it.description}
                           </div>
-                          <div className="col-span-2 text-right font-mono font-medium text-slate-700 dark:text-zinc-300">
+                          <div className="col-span-2 text-right pr-6 font-mono font-medium text-slate-700 dark:text-zinc-300">
                             {formatMoney(it.amount)}
                           </div>
-                          <div className="col-span-4 text-slate-700 dark:text-zinc-300 font-medium truncate" title={it.gl_code}>
-                            {formatGLCode(it.gl_code)}
+                          <div className="col-span-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
+                            {renderGLAccountBadge(it.gl_code)}
                           </div>
                           <div className="col-span-1 text-center">
                             {it.asset_flag ? <Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">Asset</Badge> : "—"}
@@ -2075,8 +2125,8 @@ export default function RequestDetail() {
                       <div className="border border-slate-200 dark:border-zinc-800 rounded-lg divide-y divide-slate-200 dark:divide-zinc-800 text-xs shadow-xs bg-white dark:bg-zinc-900">
                         <div className="bg-slate-100/80 dark:bg-zinc-800/70 px-3 py-2.5 grid grid-cols-12 gap-3 font-semibold text-slate-700 dark:text-zinc-300">
                           <div className="col-span-5">Item / Description</div>
-                          <div className="col-span-2 text-right">Amount</div>
-                          <div className="col-span-4">GL Code *</div>
+                          <div className="col-span-2 text-right pr-6">Amount</div>
+                          <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">GL Code *</div>
                           <div className="col-span-1 text-center">Asset</div>
                         </div>
                         <div className="divide-y divide-slate-100 dark:divide-zinc-800/50">
@@ -2088,10 +2138,10 @@ export default function RequestDetail() {
                                 </div>
                                 <div className="text-[11px] text-slate-500 mt-0.5">Qty: {itm.quantity}</div>
                               </div>
-                              <div className="col-span-2 text-right font-mono font-semibold text-slate-800 dark:text-zinc-200">
+                              <div className="col-span-2 text-right pr-6 font-mono font-semibold text-slate-800 dark:text-zinc-200">
                                 {formatMoney(itm.amount)}
                               </div>
-                              <div className="col-span-4">
+                              <div className="col-span-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
                                 <GLCodeAutocomplete
                                   value={itm.gl_code || ""}
                                   onChange={(v) => {
