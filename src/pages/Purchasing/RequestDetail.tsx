@@ -79,6 +79,7 @@ import type {
   PurchaseOrderInput,
   WireTransferInput,
   InvoiceInput,
+  InvoiceItemInput,
   ApprovalInput,
   TrackingInput,
   HoldInput,
@@ -209,6 +210,7 @@ export default function RequestDetail() {
     expected_delivery_date: "",
   });
   const [invoice, setInvoice] = useState<InvoiceInput>({ vendor: "", amount: 0, invoice_date: "", due_date: "", gl_code: "", asset_flag: false });
+  const [invoiceItems, setInvoiceItems] = useState<InvoiceItemInput[]>([]);
   const [approval, setApproval] = useState<ApprovalInput>({ approver: "", comment: "" });
   const [tracking, setTracking] = useState<TrackingInput>({ tracking_number: "" });
   const [hold, setHold] = useState<HoldInput>({ reason: "" });
@@ -270,7 +272,23 @@ export default function RequestDetail() {
   }
 
   const { request, purchase_order, invoice: inv, approvals, available_actions } = data;
-  const isMulti = request.item_mode === "MULTIPLE" || Boolean(request.items && request.items.length > 0);
+  const isMulti = request.item_mode === "MULTIPLE" || Boolean(request.items && request.items.length > 0) || Boolean(request.quote_data?.items && request.quote_data.items.length > 0);
+
+  const multiPartsList: any[] = (request?.items && request.items.length > 0)
+    ? request.items
+    : (request?.quote_data?.items || request?.quote_data?.line_items || []);
+
+  const getItemGLCode = (itm: any, idx: number): string | null => {
+    if (data?.invoice?.items && data.invoice.items.length > 0) {
+      const matched = data.invoice.items.find((invItm: any) =>
+        (itm.id && String(invItm.request_item_id) === String(itm.id)) ||
+        (invItm.sku && itm.sku && itm.sku.trim() !== "" && invItm.sku.trim() === itm.sku.trim())
+      ) || data.invoice.items[idx];
+      if (matched?.gl_code) return matched.gl_code;
+    }
+    if (itm.gl_code) return itm.gl_code;
+    return null;
+  };
   let flow = SPEND_FLOW;
   if (request.request_type === "ADMIN") flow = ADMIN_FLOW;
   else if (request.request_type === "ACCOUNTS_PAYABLE") flow = ACCOUNTS_PAYABLE_FLOW;
@@ -330,12 +348,30 @@ export default function RequestDetail() {
         "";
       const isDefaultAsset =
         request.request_type === 'RECURRING' || request.request_type === 'ACCOUNTS_PAYABLE';
+      const initialGL = purchase_order?.gl_code ?? request.gl_code ?? "";
+
+      const rawItems = (request.items && request.items.length > 0)
+        ? request.items
+        : (request.quote_data?.items || request.quote_data?.line_items || []);
+
+      const prefilledItems: InvoiceItemInput[] = (rawItems || []).map((itm: any) => ({
+        request_item_id: itm.id && !isNaN(Number(itm.id)) ? Number(itm.id) : undefined,
+        description: itm.description || itm.title || "Item",
+        sku: itm.sku || "",
+        quantity: Number(itm.quantity) || 1,
+        unit_price: Number(itm.unit_price) || 0,
+        amount: Number(itm.total ?? itm.amount ?? ((Number(itm.quantity) || 1) * (Number(itm.unit_price) || 0))) || 0,
+        gl_code: itm.gl_code || initialGL,
+        asset_flag: isDefaultAsset,
+      }));
+
+      setInvoiceItems(prefilledItems);
       setInvoice({
         vendor: defaultVendor,
         amount: purchase_order?.amount ?? request.amount ?? request.unit_price ?? 0,
         invoice_date: new Date().toISOString().split("T")[0],
         due_date: "",
-        gl_code: purchase_order?.gl_code ?? request.gl_code ?? "",
+        gl_code: initialGL,
         asset_flag: isDefaultAsset,
       });
       setPendingFiles([]);
@@ -394,6 +430,19 @@ export default function RequestDetail() {
       void dispatch({ action, purchase_order: { ...po, amount: Number(po.amount) || 0, quantity: Number(po.quantity) || 1, unit_price: Number(po.unit_price) || 0 } });
     } else if (kind === "invoice") {
       if (!invoice.vendor || !invoice.invoice_date) return toast.error("Vendor and bill date are required.");
+
+      const isMulti = invoiceItems.length > 1;
+      if (isMulti) {
+        const missingGl = invoiceItems.some(it => !it.gl_code || !it.gl_code.trim());
+        if (missingGl) {
+          return toast.error("GL Code is required for all line items.");
+        }
+      } else {
+        if (!invoice.gl_code || !invoice.gl_code.trim()) {
+          return toast.error("GL Code is required.");
+        }
+      }
+
       void (async () => {
         const cleanDueDate = invoice.due_date && invoice.due_date.trim() !== "" ? invoice.due_date : undefined;
         const ok = await dispatch({
@@ -403,6 +452,14 @@ export default function RequestDetail() {
             invoice_type: "Purchase",
             amount: Number(invoice.amount) || 0,
             due_date: cleanDueDate,
+            gl_code: invoice.gl_code?.trim() || (invoiceItems.length > 0 ? invoiceItems[0].gl_code?.trim() : undefined),
+            items: isMulti ? invoiceItems.map(it => ({
+              ...it,
+              amount: Number(it.amount) || 0,
+              quantity: Number(it.quantity) || 1,
+              unit_price: Number(it.unit_price) || 0,
+              gl_code: it.gl_code.trim(),
+            })) : undefined,
           },
         });
         if (ok && pendingFiles.length > 0 && id) {
@@ -718,8 +775,8 @@ export default function RequestDetail() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-8 xl:col-span-9 space-y-6">
           <Card className="border border-slate-200 dark:border-zinc-800">
             <CardHeader><CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" /> Request Details</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 text-sm">
@@ -735,7 +792,23 @@ export default function RequestDetail() {
                 }
               />
               <AssignedUsersField label="Assigned To" value={request.assigned_user ?? "—"} />
-              <Field label="GL Code / Account" value={formatGLCode(request.gl_code)} />
+              {isMulti ? (
+                <div>
+                  <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">GL Code / Account</div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Badge variant="outline" className="bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800 text-xs font-normal">
+                      Itemized per Part ({multiPartsList.length} parts)
+                    </Badge>
+                    {data?.invoice?.items && data.invoice.items.length > 0 && (
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                        • Recorded in Bill
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <Field label="GL Code / Account" value={formatGLCode(request.gl_code || data?.purchase_order?.gl_code)} />
+              )}
               <Field label="Requested" value={formatDate(request.request_date)} />
               <Field label="Last Updated" value={formatDate(request.updated_at)} />
               {(request.due_date || isRecurring) && (
@@ -767,6 +840,58 @@ export default function RequestDetail() {
                 <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Description</div>
                 <div className="text-slate-800 dark:text-zinc-200">{request.description || "—"}</div>
               </div>
+
+              {isMulti && multiPartsList.length > 0 && (
+                <div className="col-span-2 pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                      Parts &amp; GL Account Allocations ({multiPartsList.length} items)
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      Per-part accounting allocation
+                    </span>
+                  </div>
+                  <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
+                    <div className="bg-slate-50 dark:bg-zinc-800/60 px-3 py-2 grid grid-cols-12 gap-3 font-semibold text-slate-600 dark:text-zinc-400">
+                      <div className="col-span-1 text-center">#</div>
+                      <div className="col-span-5">Part / Description</div>
+                      <div className="col-span-2 text-right">Amount</div>
+                      <div className="col-span-4">GL Code / Account</div>
+                    </div>
+                    {multiPartsList.map((itm: any, idx: number) => {
+                      const itemGL = getItemGLCode(itm, idx);
+                      const rawPrice = Number(itm.original_unit_price ?? itm.unit_price ?? 0);
+                      const rawTot = Number(itm.original_total ?? itm.total ?? (rawPrice * (Number(itm.quantity) || 1)));
+                      return (
+                        <div key={itm.id || idx} className="px-3 py-2.5 grid grid-cols-12 gap-3 items-center bg-white dark:bg-zinc-900 hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                          <div className="col-span-1 text-center font-mono text-slate-400">{idx + 1}</div>
+                          <div className="col-span-5 pr-1">
+                            <div className="font-medium text-slate-900 dark:text-zinc-100 break-words whitespace-normal leading-snug">
+                              {itm.sku ? <span className="font-mono text-indigo-600 dark:text-indigo-400 mr-1">[{itm.sku}]</span> : null}
+                              {itm.description}
+                            </div>
+                            <div className="text-[11px] text-slate-500 mt-0.5">
+                              Qty: {itm.quantity} {rawPrice > 0 ? `· ${formatMoney(rawPrice)} each` : ""}
+                            </div>
+                          </div>
+                          <div className="col-span-2 text-right font-mono font-semibold text-slate-800 dark:text-zinc-200">
+                            {formatMoney(rawTot)}
+                          </div>
+                          <div className="col-span-4">
+                            {itemGL ? (
+                              <div className="font-medium text-slate-800 dark:text-zinc-200 break-words" title={itemGL}>
+                                {formatGLCode(itemGL)}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic text-xs">Unassigned (Pending Bill)</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {(request.item_url || purchase_order?.item_url) && (
                 <div className="col-span-2">
                   <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Product / Vendor Link</div>
@@ -932,11 +1057,12 @@ export default function RequestDetail() {
                     <TableHeader className="bg-slate-50 dark:bg-zinc-800/60">
                       <TableRow>
                         <TableHead className="w-10 text-center">#</TableHead>
-                        <TableHead className="w-28 font-semibold">SKU</TableHead>
+                        <TableHead className="w-24 font-semibold">SKU</TableHead>
                         <TableHead className="font-semibold">Description</TableHead>
-                        <TableHead className="w-20 text-right font-semibold">Qty</TableHead>
-                        <TableHead className="w-28 text-right font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
-                        <TableHead className="w-28 text-right font-semibold">Total ({quoteNativeCurrency})</TableHead>
+                        <TableHead className="w-16 text-right font-semibold">Qty</TableHead>
+                        <TableHead className="w-24 text-right font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
+                        <TableHead className="w-24 text-right font-semibold">Total ({quoteNativeCurrency})</TableHead>
+                        <TableHead className="w-36 font-semibold">GL Code</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -966,6 +1092,15 @@ export default function RequestDetail() {
                                 <div className="text-[10.5px] text-slate-400 font-mono font-normal">
                                   ({formatMoney(convTot)} USD)
                                 </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-700 dark:text-zinc-300">
+                              {getItemGLCode(itm, idx) ? (
+                                <span className="font-medium text-slate-800 dark:text-zinc-200 break-words">
+                                  {formatGLCode(getItemGLCode(itm, idx))}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic">Unassigned</span>
                               )}
                             </TableCell>
                           </TableRow>
@@ -1217,8 +1352,51 @@ export default function RequestDetail() {
                   )}
                 </div>
 
-                <Field label="GL Code" value={formatGLCode(inv.gl_code || request.gl_code)} />
+                <Field
+                  label="GL Code"
+                  value={
+                    inv.items && inv.items.length > 1 ? (
+                      <Badge variant="outline" className="bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-300 dark:border-zinc-700 text-xs font-normal">
+                        Split ({inv.items.length} lines)
+                      </Badge>
+                    ) : (
+                      formatGLCode(inv.gl_code || request.gl_code)
+                    )
+                  }
+                />
                 <Field label="Asset Flag" value={inv.asset_flag ? "Yes" : "No"} />
+
+                {inv.items && inv.items.length > 0 && (
+                  <div className="col-span-2 mt-2 pt-3 border-t border-slate-100 dark:border-zinc-800">
+                    <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2 flex items-center justify-between">
+                      <span>Itemized GL Allocations ({inv.items.length} items)</span>
+                    </div>
+                    <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
+                      <div className="bg-slate-50 dark:bg-zinc-800/50 px-3 py-1.5 grid grid-cols-12 gap-2 font-medium text-slate-500">
+                        <div className="col-span-5">Item</div>
+                        <div className="col-span-2 text-right">Amount</div>
+                        <div className="col-span-4">GL Code</div>
+                        <div className="col-span-1 text-center">Asset</div>
+                      </div>
+                      {inv.items.map((it, idx) => (
+                        <div key={idx} className="px-3 py-2 grid grid-cols-12 gap-2 items-center bg-white dark:bg-zinc-900">
+                          <div className="col-span-5 break-words whitespace-normal leading-snug font-medium text-slate-800 dark:text-zinc-200" title={it.description}>
+                            {it.sku ? <span className="font-mono text-indigo-600 dark:text-indigo-400 mr-1">[{it.sku}]</span> : null}{it.description}
+                          </div>
+                          <div className="col-span-2 text-right font-mono font-medium text-slate-700 dark:text-zinc-300">
+                            {formatMoney(it.amount)}
+                          </div>
+                          <div className="col-span-4 text-slate-700 dark:text-zinc-300 font-medium truncate" title={it.gl_code}>
+                            {formatGLCode(it.gl_code)}
+                          </div>
+                          <div className="col-span-1 text-center">
+                            {it.asset_flag ? <Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">Asset</Badge> : "—"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -1312,7 +1490,7 @@ export default function RequestDetail() {
         </div>
 
         {/* Activity: approvals + notifications */}
-        <div className="space-y-6">
+        <div className="lg:col-span-4 xl:col-span-3 space-y-6">
 
           <EditRequestDialog request={request} open={isEditOpen} onOpenChange={setIsEditOpen} />
 
@@ -1425,14 +1603,14 @@ export default function RequestDetail() {
                       {data.attachments.map((att) => (
                         <div
                           key={att.id}
-                          className="flex items-center justify-between gap-3 pt-2 first:pt-0 group hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 p-1.5 rounded-lg transition-colors"
+                          className="flex items-start justify-between gap-2.5 pt-2.5 first:pt-0 group hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 p-2 rounded-lg transition-colors"
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="p-1.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 shrink-0">
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            <div className="p-1.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 shrink-0 mt-0.5">
                               <Paperclip className="h-3.5 w-3.5" />
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-xs font-medium text-slate-900 dark:text-zinc-100 truncate max-w-[170px] sm:max-w-[210px]" title={att.filename}>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium text-slate-900 dark:text-zinc-100 break-all whitespace-normal leading-snug" title={att.filename}>
                                 {att.filename}
                               </p>
                               <div className="flex items-center gap-1.5 text-[10.5px] text-slate-400 dark:text-zinc-500 flex-wrap">
@@ -1476,7 +1654,19 @@ export default function RequestDetail() {
 
       {/* Action dialog */}
       <Dialog open={!!activeForm} onOpenChange={(open) => !open && setActiveForm(null)}>
-        <DialogContent aria-describedby={undefined} className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          aria-describedby={undefined}
+          className={
+            activeForm?.kind === "invoice" || activeForm?.kind === "po"
+              ? "w-[95vw] md:w-[80vw] max-w-[95vw] md:max-w-[80vw] max-h-[90vh] overflow-y-auto"
+              : "sm:max-w-xl max-h-[90vh] overflow-y-auto"
+          }
+          style={
+            activeForm?.kind === "invoice" || activeForm?.kind === "po"
+              ? { width: "80vw", maxWidth: "80vw" }
+              : undefined
+          }
+        >
           <DialogHeader>
             <DialogTitle>{activeForm ? ACTION_META[activeForm.action].label : ""}</DialogTitle>
           </DialogHeader>
@@ -1826,31 +2016,136 @@ export default function RequestDetail() {
                   <FieldInput label="Vendor" value={invoice.vendor} onChange={(v) => setInvoice({ ...invoice, vendor: v })} />
                   <FieldInput label="Price / Amount" type="number" value={String(invoice.amount)} onChange={(v) => setInvoice({ ...invoice, amount: Number(v) })} />
                 </TwoUp>
-                {request.request_type === "RECURRING" ? (
-                  <TwoUp>
-                    <FieldInput label="Bill Date" type="date" value={invoice.invoice_date} onChange={(v) => setInvoice({ ...invoice, invoice_date: v })} />
+
+                <TwoUp>
+                  <FieldInput label="Bill Date" type="date" value={invoice.invoice_date} onChange={(v) => setInvoice({ ...invoice, invoice_date: v })} />
+                  {request.request_type !== "RECURRING" ? (
+                    <FieldInput label="Date Arrived" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
+                  ) : (
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">GL Code / Account</label>
+                      <label className="text-sm font-medium">Asset Flag</label>
+                      <div className="flex items-center h-10">
+                        <input type="checkbox" className="h-4 w-4" checked={invoice.asset_flag || false} onChange={(e) => setInvoice({ ...invoice, asset_flag: e.target.checked })} />
+                        <span className="ml-2 text-sm text-slate-700">Mark as Asset</span>
+                      </div>
+                    </div>
+                  )}
+                </TwoUp>
+
+                {invoiceItems.length > 1 ? (
+                  <div className="space-y-3 pt-1">
+                    <div className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 p-3 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                          Default GL Code / Account
+                        </label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2.5 font-medium border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                          onClick={() => {
+                            if (invoice.gl_code?.trim()) {
+                              setInvoiceItems(prev => prev.map(item => ({ ...item, gl_code: invoice.gl_code || "" })));
+                              toast.success("Applied GL Code to all line items");
+                            } else {
+                              toast.error("Select a GL code above first");
+                            }
+                          }}
+                        >
+                          Apply to All Lines
+                        </Button>
+                      </div>
                       <GLCodeAutocomplete
-                        value={invoice.gl_code ?? request.gl_code ?? ""}
-                        onChange={(v) => setInvoice({ ...invoice, gl_code: v })}
+                        value={invoice.gl_code || ""}
+                        onChange={(v) => {
+                          setInvoice(prev => ({ ...prev, gl_code: v }));
+                        }}
+                        placeholder="Select GL code to apply to lines..."
                       />
                     </div>
-                  </TwoUp>
-                ) : (
-                  <>
-                    <TwoUp>
-                      <FieldInput label="Bill Date" type="date" value={invoice.invoice_date} onChange={(v) => setInvoice({ ...invoice, invoice_date: v })} />
-                      <FieldInput label="Date Arrived" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
-                    </TwoUp>
-                    <TwoUp>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">GL Code / Account</label>
-                        <GLCodeAutocomplete
-                          value={invoice.gl_code ?? data?.purchase_order?.gl_code ?? data?.request.gl_code ?? ""}
-                          onChange={(v) => setInvoice({ ...invoice, gl_code: v })}
-                        />
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
+                          Line Items GL Allocation ({invoiceItems.length} items) <span className="text-rose-500">*</span>
+                        </span>
+                        <span className="text-xs text-slate-500">GL Code is required for all items</span>
                       </div>
+                      <div className="border border-slate-200 dark:border-zinc-800 rounded-lg divide-y divide-slate-200 dark:divide-zinc-800 text-xs shadow-xs bg-white dark:bg-zinc-900">
+                        <div className="bg-slate-100/80 dark:bg-zinc-800/70 px-3 py-2.5 grid grid-cols-12 gap-3 font-semibold text-slate-700 dark:text-zinc-300">
+                          <div className="col-span-5">Item / Description</div>
+                          <div className="col-span-2 text-right">Amount</div>
+                          <div className="col-span-4">GL Code *</div>
+                          <div className="col-span-1 text-center">Asset</div>
+                        </div>
+                        <div className="divide-y divide-slate-100 dark:divide-zinc-800/50">
+                          {invoiceItems.map((itm, idx) => (
+                            <div key={idx} className="px-3 py-2.5 grid grid-cols-12 gap-3 items-center hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                              <div className="col-span-5 pr-1">
+                                <div className="font-medium text-slate-900 dark:text-zinc-100 break-words whitespace-normal leading-snug" title={itm.description}>
+                                  {itm.sku ? <span className="font-mono text-indigo-600 dark:text-indigo-400 mr-1">[{itm.sku}]</span> : null}{itm.description}
+                                </div>
+                                <div className="text-[11px] text-slate-500 mt-0.5">Qty: {itm.quantity}</div>
+                              </div>
+                              <div className="col-span-2 text-right font-mono font-semibold text-slate-800 dark:text-zinc-200">
+                                {formatMoney(itm.amount)}
+                              </div>
+                              <div className="col-span-4">
+                                <GLCodeAutocomplete
+                                  value={itm.gl_code || ""}
+                                  onChange={(v) => {
+                                    setInvoiceItems(prev => {
+                                      const updated = [...prev];
+                                      updated[idx] = { ...updated[idx], gl_code: v };
+                                      return updated;
+                                    });
+                                  }}
+                                  placeholder="Select GL code *"
+                                />
+                              </div>
+                              <div className="col-span-1 flex justify-center">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                  checked={itm.asset_flag || false}
+                                  onChange={(e) => {
+                                    setInvoiceItems(prev => {
+                                      const updated = [...prev];
+                                      updated[idx] = { ...updated[idx], asset_flag: e.target.checked };
+                                      return updated;
+                                    });
+                                  }}
+                                  title="Mark as Asset"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="bg-slate-50/80 dark:bg-zinc-900/90 px-3 py-2.5 flex items-center justify-between text-xs">
+                          <span className="text-slate-600 dark:text-zinc-400">
+                            Lines Total: <strong className="font-mono text-slate-900 dark:text-zinc-100 text-sm ml-1">{formatMoney(invoiceItems.reduce((s, it) => s + (Number(it.amount) || 0), 0))}</strong>
+                          </span>
+                          <span className="text-slate-600 dark:text-zinc-400">
+                            Invoice Amount: <strong className="font-mono text-slate-900 dark:text-zinc-100 text-sm ml-1">{formatMoney(invoice.amount)}</strong>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <TwoUp>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        GL Code / Account <span className="text-rose-500">*</span>
+                      </label>
+                      <GLCodeAutocomplete
+                        value={invoice.gl_code ?? data?.purchase_order?.gl_code ?? data?.request.gl_code ?? ""}
+                        onChange={(v) => setInvoice({ ...invoice, gl_code: v })}
+                        placeholder="Select GL Code *"
+                      />
+                    </div>
+                    {request.request_type !== "RECURRING" && (
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Asset Flag</label>
                         <div className="flex items-center h-10">
@@ -1858,9 +2153,10 @@ export default function RequestDetail() {
                           <span className="ml-2 text-sm text-slate-700">Mark as Asset</span>
                         </div>
                       </div>
-                    </TwoUp>
-                  </>
+                    )}
+                  </TwoUp>
                 )}
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Description</label>
                   <Textarea

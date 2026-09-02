@@ -145,6 +145,20 @@ export type PurchaseOrder = {
   created_at: string;
 };
 
+export type InvoiceItemDetail = {
+  id: string;
+  invoice_id: string;
+  request_item_id?: number | null;
+  description: string;
+  sku?: string | null;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  gl_code: string;
+  asset_flag: boolean;
+  created_at?: string;
+};
+
 export type Invoice = {
   id: string;
   request_id: string;
@@ -160,6 +174,7 @@ export type Invoice = {
   invoice_type?: string | null;
   description?: string | null;
   created_at: string;
+  items?: InvoiceItemDetail[];
 };
 
 export type Approval = {
@@ -266,6 +281,17 @@ export type PurchaseOrderInput = {
   gl_code?: string | null;
 };
 
+export type InvoiceItemInput = {
+  request_item_id?: number | null;
+  description: string;
+  sku?: string | null;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  gl_code: string;
+  asset_flag?: boolean;
+};
+
 export type InvoiceInput = {
   vendor: string;
   amount: number;
@@ -275,6 +301,7 @@ export type InvoiceInput = {
   asset_flag?: boolean;
   invoice_type?: string | null;
   description?: string | null;
+  items?: InvoiceItemInput[];
 };
 
 export type ApprovalInput = {

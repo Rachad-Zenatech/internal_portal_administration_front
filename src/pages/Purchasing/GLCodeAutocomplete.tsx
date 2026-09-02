@@ -23,18 +23,44 @@ export function GLCodeAutocomplete({
   const { data: glCodes = [], isLoading } = useGLCodes();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
+  // Determine whether to open upward or downward
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 280 && rect.top > spaceBelow) {
+        setOpenUpward(true);
+      } else {
+        setOpenUpward(false);
+      }
+    }
+  }, [isOpen]);
+
+  // Close dropdown on outside click or Escape key
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
 
   const selectedOption = glCodes.find(
     (item) => item.account_number === value || item.display_label === value
@@ -63,17 +89,30 @@ export function GLCodeAutocomplete({
   };
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div
+      ref={containerRef}
+      className={`relative ${isOpen ? "z-50" : "z-10"} ${className}`}
+    >
       {/* Trigger / Input Display */}
       <div
+        role="button"
+        tabIndex={0}
         onClick={() => !disabled && setIsOpen(!isOpen)}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === " ") && !disabled) {
+            e.preventDefault();
+            setIsOpen(!isOpen);
+          }
+        }}
         className={`flex items-center justify-between min-h-[38px] px-3 py-1.5 rounded-md border text-sm transition-colors cursor-pointer bg-background ${
-          isOpen ? "border-primary ring-1 ring-primary/30" : "border-input hover:border-slate-400 dark:hover:border-zinc-600"
+          isOpen
+            ? "border-primary ring-1 ring-primary/30"
+            : "border-input hover:border-slate-400 dark:hover:border-zinc-600"
         } ${disabled ? "opacity-60 cursor-not-allowed bg-muted" : ""}`}
       >
         {selectedOption ? (
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="font-semibold text-slate-800 dark:text-zinc-100 font-mono text-xs px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
+            <span className="font-semibold text-slate-800 dark:text-zinc-100 font-mono text-xs px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shrink-0">
               {selectedOption.account_number}
             </span>
             <span className="truncate text-slate-700 dark:text-zinc-200 font-medium">
@@ -91,23 +130,38 @@ export function GLCodeAutocomplete({
 
         <div className="flex items-center gap-1 shrink-0 ml-2">
           {value && !disabled && (
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               onClick={handleClear}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleClear(e as any);
+                }
+              }}
               className="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors"
               title="Clear selection"
             >
               <X className="h-3.5 w-3.5" />
-            </button>
+            </span>
           )}
-          <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+          <ChevronDown
+            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
         </div>
       </div>
 
-      {/* Popover Dropdown */}
+      {/* Popover Dropdown rendered inside Dialog DOM tree */}
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1.5 max-h-72 overflow-hidden rounded-md border border-slate-200 dark:border-zinc-800 bg-popover text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95">
-          <div className="p-2 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50">
+        <div
+          className={`absolute ${
+            openUpward ? "bottom-full mb-1.5" : "top-full mt-1.5"
+          } left-0 min-w-full w-max max-w-[480px] z-50 rounded-lg border border-slate-200 dark:border-zinc-800 bg-popover text-popover-foreground shadow-2xl overflow-hidden`}
+        >
+          <div className="p-2 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50">
             <Input
               autoFocus
               value={search}
@@ -118,7 +172,12 @@ export function GLCodeAutocomplete({
             />
           </div>
 
-          <div className="max-h-56 overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-zinc-800/60">
+          <div
+            ref={listRef}
+            onWheel={(e) => e.stopPropagation()}
+            style={{ overscrollBehavior: "contain" }}
+            className="max-h-60 overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-zinc-800/60"
+          >
             {isLoading ? (
               <div className="p-4 text-center text-xs text-muted-foreground">Loading GL codes...</div>
             ) : filteredOptions.length === 0 ? (
@@ -139,7 +198,7 @@ export function GLCodeAutocomplete({
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 border text-slate-900 dark:text-zinc-100">
+                      <span className="font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 border text-slate-900 dark:text-zinc-100 shrink-0">
                         {opt.account_number}
                       </span>
                       <span className="truncate">{opt.account_name}</span>
