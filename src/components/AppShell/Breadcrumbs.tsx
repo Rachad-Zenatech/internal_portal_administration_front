@@ -40,6 +40,28 @@ export default function Breadcrumbs() {
 
   // Define custom mapping for breadcrumb names to ensure they look pretty
   const formatName = (name: string) => {
+    const specialNames: Record<string, string> = {
+      recurring: "Recurring Payments",
+      "recurring-payments": "Recurring Payments",
+      requests: "Purchase Requests",
+      "my-approvals": "My Approvals",
+      "user-role-assignment": "User Role Assignments",
+      "role-group-permissions": "Role Group Permissions",
+      "role-api-permissions": "Role API Permissions",
+      "role-mcp-tool-permissions": "Role MCP Tool Permissions",
+      "workflow-assignments": "Workflow Assignments",
+      "chart-of-accounts": "Chart of Accounts",
+      "upload-files": "Upload Files",
+      "system-logs": "System Logs",
+      invoices: "Invoices",
+      purchasing: "Purchasing",
+      configuration: "Configuration",
+      configurations: "Configurations",
+    };
+    const key = name.toLowerCase();
+    if (specialNames[key]) {
+      return specialNames[key];
+    }
     return name
       .replace(/-/g, " ")
       .split(" ")

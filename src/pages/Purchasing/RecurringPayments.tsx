@@ -327,6 +327,20 @@ export default function RecurringPayments() {
   // Calendar month state
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
 
+  useEffect(() => {
+    document.dispatchEvent(
+      new CustomEvent("set-breadcrumb-trail", {
+        detail: {
+          path: "/purchasing/recurring",
+          items: [
+            { title: "Purchasing", path: "/purchasing/requests" },
+            { title: "Recurring Payments" },
+          ],
+        },
+      })
+    );
+  }, []);
+
   // Fetch all RECURRING requests with live polling
   const { data: requests = [], isLoading } = useQuery<PurchaseRequest[]>({
     queryKey: ["recurring-requests"],

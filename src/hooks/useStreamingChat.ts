@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type ChatMessage = {
   role: "user" | "assistant";
@@ -16,7 +17,15 @@ export type ChatStreamEvent =
   | { type: "done" };
 
 export function useStreamingChat() {
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  const invalidatePortalData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+    queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["invoices"] });
+  }, [queryClient]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -110,11 +119,14 @@ export function useStreamingChat() {
                       last.toolStatus = undefined; // clear tool status when typing
                     } else if (event.type === "tool_status") {
                       last.toolStatus = event.content;
+                    } else if (event.type === "tool_result") {
+                      invalidatePortalData();
                     } else if (event.type === "error" || event.type === "permission_error") {
                       setError(event.message);
                       last.content += `\n\n**Error:** ${event.message}`;
                     } else if (event.type === "done") {
                       last.toolStatus = undefined;
+                      invalidatePortalData();
                     }
 
                     newMessages[newMessages.length - 1] = last;
@@ -139,6 +151,7 @@ export function useStreamingChat() {
       } finally {
         setIsStreaming(false);
         abortControllerRef.current = null;
+        invalidatePortalData();
       }
     },
     [messages, isStreaming]
