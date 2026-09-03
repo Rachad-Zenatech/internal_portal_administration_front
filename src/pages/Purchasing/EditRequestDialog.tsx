@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useUpdateRequest, useUsersList, useRolesList } from "@/hooks/usePurchasing";
 import { resolveUserDepartment } from "@/lib/userDepartment";
+import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { useRef } from "react";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Maximize2, FileText, Truck, DollarSign, AlertTriangle } from "lucide-react";
@@ -155,6 +156,7 @@ export function EditRequestDialog({
     amount: "0",
     description: "",
     gl_code: "",
+    due_date: "",
   });
 
   const [items, setItems] = useState<PurchaseRequestItem[]>([]);
@@ -180,9 +182,10 @@ export function EditRequestDialog({
         item_url: request.item_url || "",
         unit_price: request.unit_price ? request.unit_price.toString() : "",
         quantity: request.quantity ? request.quantity.toString() : "1",
-        amount: request.amount ? request.amount.toString() : "0",
+        amount: request.amount ? request.amount.toString() : (request.unit_price ? request.unit_price.toString() : "0"),
         description: request.description || "",
         gl_code: request.gl_code || "",
+        due_date: request.due_date ? request.due_date.split("T")[0] : "",
       };
       setFormData(initialForm);
 
@@ -303,8 +306,8 @@ export function EditRequestDialog({
       return Math.max(0, Math.round(total * 100) / 100);
     }
     if (formData.request_type === "RECURRING") {
-      const up = formData.unit_price ? parseFloat(formData.unit_price) : (formData.amount ? parseFloat(formData.amount) : 0);
-      return Math.round(up * 100) / 100;
+      const val = formData.amount ? parseFloat(formData.amount) : (formData.unit_price ? parseFloat(formData.unit_price) : 0);
+      return Math.max(0, Math.round(val * 100) / 100);
     }
     const up = formData.unit_price ? parseFloat(formData.unit_price) : 0;
     const qty = formData.quantity ? parseInt(formData.quantity) : 1;
@@ -334,11 +337,17 @@ export function EditRequestDialog({
         department: formData.department,
         item_mode: itemMode,
         gl_code: formData.gl_code || null,
+        due_date: formData.due_date || null,
         description: formData.description || null,
         amount: calculatedAmount,
       };
 
-      if (itemMode === "SINGLE") {
+      if (formData.request_type === "RECURRING") {
+        payload.unit_price = calculatedAmount;
+        payload.quantity = 1;
+        payload.item_url = null;
+        payload.items = [];
+      } else if (itemMode === "SINGLE") {
         payload.unit_price = unitPrice;
         payload.quantity = quantity;
         payload.item_url = formData.item_url || null;
@@ -397,8 +406,8 @@ export function EditRequestDialog({
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span>Edit Purchase Request #{request?.id}</span>
-              {itemMode === "MULTIPLE" && (
+              <span>{formData.request_type === "RECURRING" ? "Edit Recurring Payment Request" : "Edit Purchase Request"} #{request?.id}</span>
+              {itemMode === "MULTIPLE" && formData.request_type !== "RECURRING" && (
                 <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border-indigo-200">
                   <FileText className="h-3 w-3 mr-1" /> Multi-Part Quote
                 </Badge>
@@ -408,7 +417,7 @@ export function EditRequestDialog({
 
           <form onSubmit={handleSubmit} className="space-y-4 py-2">
             {/* Mode Switcher */}
-            {formData.request_type !== "ACCOUNTS_PAYABLE" && (
+            {formData.request_type !== "ACCOUNTS_PAYABLE" && formData.request_type !== "RECURRING" && (
               <div className="p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700">
                 <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400 block mb-1.5">
                   Item Configuration
@@ -437,7 +446,7 @@ export function EditRequestDialog({
             )}
 
             {/* Multiple Parts Line Items Table */}
-            {itemMode === "MULTIPLE" && (
+            {itemMode === "MULTIPLE" && formData.request_type !== "RECURRING" && (
               <div className="space-y-3 p-3.5 rounded-lg border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-950/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -643,6 +652,7 @@ export function EditRequestDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="SPEND">Spend Request</SelectItem>
+                    <SelectItem value="RECURRING">Recurring Payment</SelectItem>
                     <SelectItem value="QUOTE">Quote Request (Estimate / RFQ)</SelectItem>
                     <SelectItem value="ADMIN">Admin Triage</SelectItem>
                     <SelectItem value="ACCOUNTS_PAYABLE">Accounts Payable</SelectItem>
@@ -691,62 +701,103 @@ export function EditRequestDialog({
                 </div>
               </div>
 
-              {/* Single Item fields */}
-              {itemMode === "SINGLE" && (
+              {formData.request_type === "RECURRING" ? (
                 <>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Quantity</label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Unit Price ($)</label>
+                    <label className="text-sm font-medium">Amount (USD) <span className="text-red-500">*</span></label>
                     <Input
                       type="number"
                       step="0.01"
                       min="0"
-                      value={formData.unit_price}
-                      onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+                      placeholder="0.00"
+                      value={formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: e.target.value, unit_price: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Next Due Date</label>
+                    <Input
+                      type="date"
+                      value={formData.due_date}
+                      onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                     />
                   </div>
 
                   <div className="space-y-2 col-span-2">
-                    <label className="text-sm font-medium">Est. Amount (Pre-tax)</label>
-                    <div className="h-10 px-3 py-2 rounded-md border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50 flex items-center text-sm text-slate-700 dark:text-zinc-300 font-semibold font-mono">
-                      {formatMoney(calculatedAmount)}
-                    </div>
+                    <label className="text-sm font-medium">GL Code / Account</label>
+                    <GLCodeAutocomplete
+                      value={formData.gl_code}
+                      onChange={(val) => setFormData({ ...formData, gl_code: val })}
+                    />
                   </div>
+                </>
+              ) : (
+                <>
+                  {itemMode === "SINGLE" && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Quantity</label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={formData.quantity}
+                          onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Unit Price ($)</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={formData.unit_price}
+                          onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="space-y-2 col-span-2">
+                        <label className="text-sm font-medium">Est. Amount (Pre-tax)</label>
+                        <div className="h-10 px-3 py-2 rounded-md border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50 flex items-center text-sm text-slate-700 dark:text-zinc-300 font-semibold font-mono">
+                          {formatMoney(calculatedAmount)}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 col-span-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Link / URL</label>
+                          {!isLinkEditable && (
+                            <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-normal">
+                              Locked (not editable from Waiting Approval onward)
+                            </span>
+                          )}
+                        </div>
+                        <Input
+                          type="url"
+                          value={formData.item_url}
+                          onChange={(e) => setFormData({ ...formData, item_url: e.target.value })}
+                          placeholder="https://..."
+                          disabled={!isLinkEditable}
+                          className={!isLinkEditable ? "bg-slate-100 dark:bg-zinc-800/60 cursor-not-allowed text-slate-500 dark:text-zinc-400" : ""}
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <div className="space-y-2 col-span-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">Link / URL</label>
-                      {!isLinkEditable && (
-                        <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-normal">
-                          Locked (not editable from Waiting Approval onward)
-                        </span>
-                      )}
-                    </div>
-                    <Input
-                      type="url"
-                      value={formData.item_url}
-                      onChange={(e) => setFormData({ ...formData, item_url: e.target.value })}
-                      placeholder="https://..."
-                      disabled={!isLinkEditable}
-                      className={!isLinkEditable ? "bg-slate-100 dark:bg-zinc-800/60 cursor-not-allowed text-slate-500 dark:text-zinc-400" : ""}
+                    <label className="text-sm font-medium">GL Code / Account</label>
+                    <GLCodeAutocomplete
+                      value={formData.gl_code}
+                      onChange={(val) => setFormData({ ...formData, gl_code: val })}
                     />
                   </div>
                 </>
               )}
 
-              
-
               <div className="space-y-2 col-span-2">
-                <label className="text-sm font-medium">Description</label>
+                <label className="text-sm font-medium">{formData.request_type === "RECURRING" ? "Description / Terms" : "Description"}</label>
                 <Textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
