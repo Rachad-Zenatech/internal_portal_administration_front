@@ -454,7 +454,7 @@ export default function RecurringPayments() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, payload }: { id: string; payload: any }) => {
-      return await apiClient.patch<RequestDetail>(
+      return await apiClient.put<RequestDetail>(
         `/api/purchasing/requests/${id}`,
         payload
       );
