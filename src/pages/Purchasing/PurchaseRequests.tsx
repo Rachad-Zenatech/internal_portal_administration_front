@@ -89,7 +89,6 @@ import {
 } from "./purchasingMeta";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
-import DepartmentAutocomplete from "./DepartmentAutocomplete";
 import { QuickBooksExportDialog } from "./QuickBooksExportDialog";
 
 function RequesterAutocomplete({
@@ -239,7 +238,7 @@ export function PurchaseRequests() {
 
 
 
-  const { user, hasPermission } = useAuth();
+  const { user, roles = [], hasPermission } = useAuth();
   const canCreate = Boolean(user?.is_super_admin || hasPermission("PURCHASING_CREATE"));
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
@@ -311,11 +310,21 @@ export function PurchaseRequests() {
       return;
     }
     const defaultRequester = user?.full_name || user?.email || "";
+    const matchedUser = usersList.find(
+      (u) =>
+        (u.full_name && u.full_name.toLowerCase() === defaultRequester.toLowerCase().trim()) ||
+        (u.email && u.email.toLowerCase() === defaultRequester.toLowerCase().trim()) ||
+        (user?.id && u.id === user.id)
+    );
+    const effectiveRoles = rolesList.length > 0 ? rolesList : roles;
+    const defaultDept = matchedUser
+      ? resolveUserDepartment(matchedUser, effectiveRoles)
+      : (resolveUserDepartment({ ...user, roles }, effectiveRoles) || (user?.department && user.department.toUpperCase() !== "REQUESTER" ? user.department : "") || "");
 
     setForm({
       ...EMPTY_FORM,
       requester: defaultRequester,
-      department: "",
+      department: defaultDept || "",
     });
     setItemMode("SINGLE");
     setQuoteFile(null);
@@ -326,6 +335,25 @@ export function PurchaseRequests() {
     setShowUnsavedConfirm(false);
     setIsDialogOpen(true);
   };
+
+  useEffect(() => {
+    if (isDialogOpen && !form.department && (user || usersList.length > 0)) {
+      const defaultRequester = form.requester || user?.full_name || user?.email || "";
+      const matchedUser = usersList.find(
+        (u) =>
+          (u.full_name && u.full_name.toLowerCase() === defaultRequester.toLowerCase().trim()) ||
+          (u.email && u.email.toLowerCase() === defaultRequester.toLowerCase().trim()) ||
+          (user?.id && u.id === user.id)
+      );
+      const effectiveRoles = rolesList.length > 0 ? rolesList : roles;
+      const defaultDept = matchedUser
+        ? resolveUserDepartment(matchedUser, effectiveRoles)
+        : (resolveUserDepartment({ ...user, roles }, effectiveRoles) || (user?.department && user.department.toUpperCase() !== "REQUESTER" ? user.department : "") || "");
+      if (defaultDept) {
+        setForm((prev) => (prev.department ? prev : { ...prev, department: defaultDept }));
+      }
+    }
+  }, [isDialogOpen, form.requester, form.department, user, roles, usersList, rolesList]);
 
   // Handle Quote PDF upload & extraction
   const handleQuoteFileUpload = async (file: File) => {
@@ -1206,7 +1234,15 @@ export function PurchaseRequests() {
               <RequesterAutocomplete
                 required
                 value={form.requester}
-                onChange={(val) => setForm((prev) => ({ ...prev, requester: val }))}
+                onChange={(val) => {
+                  const matched = usersList.find(
+                    (u) =>
+                      (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
+                      (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
+                  );
+                  const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
+                  setForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
+                }}
                 onSelectUser={(selectedUser) => {
                   const dept = resolveUserDepartment(selectedUser, rolesList);
                   if (dept) {
@@ -1216,12 +1252,15 @@ export function PurchaseRequests() {
                 users={usersList}
                 roles={rolesList}
               />
-              <DepartmentAutocomplete
-                label="Department"
-                required
-                value={form.department}
-                onChange={(val) => setForm((prev) => ({ ...prev, department: val }))}
-              />
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Department <span className="text-red-500">*</span></label>
+                <Input
+                  value={form.department}
+                  onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  placeholder="e.g. Technology, Operations, Marketing"
+                  required
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

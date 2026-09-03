@@ -66,7 +66,6 @@ import {
 import { toast } from "sonner";
 import GLCodeAutocomplete from "./GLCodeAutocomplete";
 import { TimezoneAutocomplete } from "./TimezoneAutocomplete";
-import DepartmentAutocomplete from "./DepartmentAutocomplete";
 
 interface CalendarCell {
   day: number;
@@ -426,10 +425,19 @@ export default function RecurringPayments() {
 
   const handleOpenCreate = () => {
     const displayName = user?.full_name || user?.email || "";
+    const matchedUser = usersList.find(
+      (u) =>
+        (u.full_name && u.full_name.toLowerCase() === displayName.toLowerCase()) ||
+        (u.email && u.email.toLowerCase() === displayName.toLowerCase())
+    );
+    const defaultDept = matchedUser
+      ? resolveUserDepartment(matchedUser, rolesList)
+      : resolveUserDepartment(user, rolesList);
+
     setNewForm({
       title: "",
       requester: displayName,
-      department: "",
+      department: defaultDept,
       amount: "",
       due_date: "",
       description: "",
@@ -439,7 +447,7 @@ export default function RecurringPayments() {
     setIsCreateOpen(true);
   };
 
-  // Auto-default requester on dialog open if not yet set
+  // Auto-default requester and department on dialog open if not yet set
   useEffect(() => {
     if (isCreateOpen && !newForm.requester) {
       const displayName = user?.full_name || user?.email || "";
@@ -448,7 +456,22 @@ export default function RecurringPayments() {
         requester: displayName,
       }));
     }
-  }, [isCreateOpen, user, newForm.requester]);
+    if (isCreateOpen && !newForm.department && (user || usersList.length > 0)) {
+      const displayName = newForm.requester || user?.full_name || user?.email || "";
+      const matchedUser = usersList.find(
+        (u) =>
+          (u.full_name && u.full_name.toLowerCase() === displayName.toLowerCase().trim()) ||
+          (u.email && u.email.toLowerCase() === displayName.toLowerCase().trim()) ||
+          (user?.id && u.id === user.id)
+      );
+      const defaultDept = matchedUser
+        ? resolveUserDepartment(matchedUser, rolesList)
+        : resolveUserDepartment(user, rolesList);
+      if (defaultDept) {
+        setNewForm((prev) => (prev.department ? prev : { ...prev, department: defaultDept }));
+      }
+    }
+  }, [isCreateOpen, user, newForm.requester, newForm.department, usersList, rolesList]);
 
   const createMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -501,11 +524,22 @@ export default function RecurringPayments() {
 
   const handleOpenEdit = (req: PurchaseRequest) => {
     setEditingRequest(req);
+    let dept = req.department || "";
+    if (!dept || dept === "General") {
+      const matched = usersList.find(
+        (u) =>
+          (u.full_name && u.full_name.toLowerCase() === (req.requester || "").toLowerCase()) ||
+          (u.email && u.email.toLowerCase() === (req.requester || "").toLowerCase())
+      );
+      if (matched) {
+        dept = resolveUserDepartment(matched, rolesList);
+      }
+    }
     setEditForm({
       id: req.id,
       title: req.title || "",
       requester: req.requester || "",
-      department: req.department || "",
+      department: dept,
       amount: req.amount ? req.amount.toString() : "",
       due_date: req.due_date ? req.due_date.split("T")[0] : "",
       description: req.description || "",
@@ -1450,7 +1484,15 @@ export default function RecurringPayments() {
                 <RequesterAutocomplete
                   required
                   value={newForm.requester}
-                  onChange={(val) => setNewForm((prev) => ({ ...prev, requester: val }))}
+                  onChange={(val) => {
+                    const matched = usersList.find(
+                      (u) =>
+                        (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
+                        (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
+                    );
+                    const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
+                    setNewForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
+                  }}
                   onSelectUser={(selectedUser) => {
                     const dept = resolveUserDepartment(selectedUser, rolesList);
                     if (dept) {
@@ -1461,12 +1503,19 @@ export default function RecurringPayments() {
                   roles={rolesList}
                 />
 
-                <DepartmentAutocomplete
-                  label="Department"
-                  required
-                  value={newForm.department}
-                  onChange={(val) => setNewForm((prev) => ({ ...prev, department: val }))}
-                />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">
+                    Department <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    value={newForm.department}
+                    onChange={(e) =>
+                      setNewForm({ ...newForm, department: e.target.value })
+                    }
+                    placeholder="e.g. Finance"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -1566,7 +1615,15 @@ export default function RecurringPayments() {
                   <RequesterAutocomplete
                     required
                     value={editForm.requester}
-                    onChange={(val) => setEditForm((prev) => ({ ...prev, requester: val }))}
+                    onChange={(val) => {
+                      const matched = usersList.find(
+                        (u) =>
+                          (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
+                          (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
+                      );
+                      const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
+                      setEditForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
+                    }}
                     onSelectUser={(selectedUser) => {
                       const dept = resolveUserDepartment(selectedUser, rolesList);
                       if (dept) {
@@ -1577,12 +1634,19 @@ export default function RecurringPayments() {
                     roles={rolesList}
                   />
 
-                  <DepartmentAutocomplete
-                    label="Department"
-                    required
-                    value={editForm.department}
-                    onChange={(val) => setEditForm((prev) => ({ ...prev, department: val }))}
-                  />
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">
+                      Department <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      value={editForm.department}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, department: e.target.value })
+                      }
+                      placeholder="e.g. Finance"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">

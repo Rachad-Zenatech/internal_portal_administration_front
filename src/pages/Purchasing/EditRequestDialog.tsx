@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useUpdateRequest, useUsersList, useRolesList } from "@/hooks/usePurchasing";
 import { resolveUserDepartment } from "@/lib/userDepartment";
+import { useAuth } from "@/lib/AuthContext";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { useRef } from "react";
 import { toast } from "sonner";
@@ -144,6 +145,7 @@ export function EditRequestDialog({
   const [itemMode, setItemMode] = useState<ItemMode>(isMulti ? "MULTIPLE" : "SINGLE");
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
+  const { user, roles = [] } = useAuth();
   const [formData, setFormData] = useState({
     title: "",
     requester: "",
@@ -168,17 +170,54 @@ export function EditRequestDialog({
   const [initialSnapshot, setInitialSnapshot] = useState<string>("");
 
   useEffect(() => {
+    if (open && (!formData.department || formData.department === "General") && (usersList.length > 0 || user)) {
+      const targetRequester = formData.requester || request?.requester || user?.full_name || user?.email || "";
+      const matched = usersList.find(
+        (u) =>
+          (u.full_name && u.full_name.toLowerCase() === targetRequester.toLowerCase().trim()) ||
+          (u.email && u.email.toLowerCase() === targetRequester.toLowerCase().trim()) ||
+          (user?.id && u.id === user.id)
+      );
+      const effectiveRoles = rolesList.length > 0 ? rolesList : roles;
+      const resolved = matched
+        ? resolveUserDepartment(matched, effectiveRoles)
+        : (resolveUserDepartment({ ...user, roles }, effectiveRoles) || (user?.department && user.department.toUpperCase() !== "REQUESTER" ? user.department : "") || "");
+      if (resolved) {
+        setFormData((prev) => (!prev.department || prev.department === "General" ? { ...prev, department: resolved } : prev));
+      }
+    }
+  }, [open, formData.requester, formData.department, usersList, rolesList, user, roles, request]);
+
+  useEffect(() => {
     if (request && open) {
       const isMultiReq = request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0);
       const initialMode: ItemMode = isMultiReq ? "MULTIPLE" : "SINGLE";
       setItemMode(initialMode);
+
+      let dept = request.department || "";
+      if (!dept || dept === "General") {
+        const targetRequester = request.requester || user?.full_name || user?.email || "";
+        const matched = usersList.find(
+          (u) =>
+            (u.full_name && u.full_name.toLowerCase() === targetRequester.toLowerCase().trim()) ||
+            (u.email && u.email.toLowerCase() === targetRequester.toLowerCase().trim()) ||
+            (user?.id && u.id === user.id)
+        );
+        const effectiveRoles = rolesList.length > 0 ? rolesList : roles;
+        const resolved = matched
+          ? resolveUserDepartment(matched, effectiveRoles)
+          : (resolveUserDepartment({ ...user, roles }, effectiveRoles) || (user?.department && user.department.toUpperCase() !== "REQUESTER" ? user.department : "") || "");
+        if (resolved) {
+          dept = resolved;
+        }
+      }
 
       const initialForm = {
         title: request.title || "",
         requester: request.requester || "",
         request_type: request.request_type || "SPEND",
         priority: request.priority || "MEDIUM",
-        department: request.department || "",
+        department: dept,
         item_url: request.item_url || "",
         unit_price: request.unit_price ? request.unit_price.toString() : "",
         quantity: request.quantity ? request.quantity.toString() : "1",
@@ -681,7 +720,15 @@ export function EditRequestDialog({
               <div className="grid grid-cols-2 gap-4 col-span-2">
                 <RequesterAutocomplete
                   value={formData.requester}
-                  onChange={(val) => setFormData((prev) => ({ ...prev, requester: val }))}
+                  onChange={(val) => {
+                    const matched = usersList.find(
+                      (u) =>
+                        (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
+                        (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
+                    );
+                    const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
+                    setFormData((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
+                  }}
                   onSelectUser={(selectedUser) => {
                     const dept = resolveUserDepartment(selectedUser, rolesList);
                     if (dept) {
