@@ -5,7 +5,7 @@ import { ManualPriceDialog } from "./ManualPriceDialog";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { useState, useEffect, useMemo, useRef } from "react";
 import HelpIcon from "@/components/ui/HelpIcon";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -192,7 +192,6 @@ export default function RequestDetail() {
     );
   };
   const navigate = useNavigate();
-  const location = useLocation();
   const { data, isLoading, isError, refetch } = usePurchaseRequest(id);
   const extractProductMutation = useExtractProductInfo(id ?? "");
 
@@ -403,10 +402,6 @@ export default function RequestDetail() {
       if (payload.action === "DELETE_REQUEST") {
         navigate(backUrl);
       }
-      if (payload.action === "APPROVE" || payload.action === "REJECT") {
-        const dest = (location.state as any)?.from || "/purchasing/my-approvals";
-        navigate(dest);
-      }
       return true;
     } catch (err) {
       toast.error((err as Error).message || "Action failed");
@@ -543,6 +538,7 @@ export default function RequestDetail() {
     if (!activeForm) return;
     const { action, kind } = activeForm;
     if (kind === "po") {
+      if (!po.quote_number || !po.quote_number.trim()) return toast.error("Quote / PO # is required.");
       if (!po.vendor || !po.item) return toast.error("Vendor and item are required.");
       if (!po.payment_method) return toast.error("Payment format is required.");
       if (!po.shipped_to_location || !po.shipped_to_location.trim()) return toast.error("Shipped to location is required.");
@@ -1895,12 +1891,32 @@ export default function RequestDetail() {
             {activeForm?.kind === "po" && (
               <>
                 <TwoUp>
-                  <FieldInput label="Quote / PO #" value={po.quote_number ?? ""} onChange={(v) => setPo({ ...po, quote_number: v })} />
-                  <FieldInput label="Vendor" value={po.vendor} onChange={(v) => setPo({ ...po, vendor: v })} />
+                  <FieldInput
+                    label={
+                      <span>
+                        Quote / PO # <span className="text-red-500">*</span>
+                      </span>
+                    }
+                    value={po.quote_number ?? ""}
+                    onChange={(v) => setPo({ ...po, quote_number: v })}
+                  />
+                  <FieldInput
+                    label={
+                      <span>
+                        Vendor <span className="text-red-500">*</span>
+                      </span>
+                    }
+                    value={po.vendor}
+                    onChange={(v) => setPo({ ...po, vendor: v })}
+                  />
                 </TwoUp>
                 <TwoUp>
                   <FieldInput
-                    label="Item"
+                    label={
+                      <span>
+                        Item <span className="text-red-500">*</span>
+                      </span>
+                    }
                     value={po.item}
                     onChange={(v) => setPo({ ...po, item: v })}
                     placeholder={isMulti ? "Multiple Parts / Items" : "Product or Item name"}

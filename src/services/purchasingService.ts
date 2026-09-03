@@ -31,8 +31,12 @@ function buildQuery(filters: RequestListFilters): string {
   return qs ? `?${qs}` : "";
 }
 
-export function getSummary() {
-  return apiClient.get<PurchasingSummary>(`${BASE}/summary`);
+export async function getSummary(): Promise<PurchasingSummary> {
+  return apiClient.get<PurchasingSummary>("/api/purchasing/summary");
+}
+
+export async function listDepartments(): Promise<string[]> {
+  return apiClient.get<string[]>("/api/purchasing/departments");
 }
 
 export function listRequests(filters: RequestListFilters = {}) {

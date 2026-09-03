@@ -73,6 +73,7 @@ export default function Sidebar({
       if (filterKey === "DUE_SOON") return purchasingSummary.recurring_due_soon_count ?? 0;
       if (filterKey === "WAITING_REVIEW") return purchasingSummary.recurring_waiting_review ?? 0;
       if (filterKey === "REVIEWED") return purchasingSummary.recurring_reviewed ?? 0;
+      if (filterKey === "REJECTED") return purchasingSummary.recurring_rejected ?? 0;
       return purchasingSummary.recurring_total ?? 0;
     }
     const searchParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 
-export type CardColorVariant = "blue" | "orange" | "fuchsia" | "green" | "violet" | "amber" | "sky" | "slate";
+export type CardColorVariant = "blue" | "orange" | "fuchsia" | "green" | "violet" | "amber" | "sky" | "slate" | "red" | "rose";
 
 export interface FilterItem {
   key: string;
@@ -99,6 +99,22 @@ const COLOR_STYLES: Record<
     badgeInactive: "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 font-bold border border-background shadow-sm",
     iconActive: "text-white",
     iconInactive: "text-slate-600 dark:text-slate-400",
+  },
+  red: {
+    active: "bg-red-600 text-white shadow-md shadow-red-500/30 ring-2 ring-red-400 border-red-600",
+    inactive: "bg-red-50/90 text-red-700 hover:bg-red-100 dark:bg-red-950/60 dark:text-red-300 dark:hover:bg-red-900/60 border-red-200/80 dark:border-red-800/80",
+    badgeActive: "bg-white text-red-700 font-bold border border-red-200 shadow-sm",
+    badgeInactive: "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 font-bold border border-background shadow-sm",
+    iconActive: "text-white",
+    iconInactive: "text-red-600 dark:text-red-400",
+  },
+  rose: {
+    active: "bg-rose-600 text-white shadow-md shadow-rose-500/30 ring-2 ring-rose-400 border-rose-600",
+    inactive: "bg-rose-50/90 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-900/60 border-rose-200/80 dark:border-rose-800/80",
+    badgeActive: "bg-white text-rose-700 font-bold border border-rose-200 shadow-sm",
+    badgeInactive: "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 font-bold border border-background shadow-sm",
+    iconActive: "text-white",
+    iconInactive: "text-rose-600 dark:text-rose-400",
   },
 };
 

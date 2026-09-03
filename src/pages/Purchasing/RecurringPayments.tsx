@@ -4,8 +4,9 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
-import type { PurchaseRequest,
-  RecurringNotificationSettings, RequestDetail } from "@/types/purchasing";
+import { RequestStatus, type PurchaseRequest,
+  type RecurringNotificationSettings, type RequestDetail } from "@/types/purchasing";
+import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   formatDate,
   formatMoney,
@@ -60,10 +61,12 @@ import {
   ChevronRight,
   ShieldAlert,
   Edit2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import GLCodeAutocomplete from "./GLCodeAutocomplete";
 import { TimezoneAutocomplete } from "./TimezoneAutocomplete";
+import DepartmentAutocomplete from "./DepartmentAutocomplete";
 
 interface CalendarCell {
   day: number;
@@ -77,12 +80,16 @@ function RequesterAutocomplete({
   onSelectUser,
   users = [],
   roles = [],
+  label = "Requester",
+  required = false,
 }: {
   value: string;
   onChange: (val: string) => void;
   onSelectUser?: (user: any) => void;
   users: Array<{ id: string; full_name?: string; email?: string; department?: string; [key: string]: any }>;
   roles?: any[];
+  label?: string;
+  required?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -113,9 +120,11 @@ function RequesterAutocomplete({
 
   return (
     <div ref={containerRef} className="relative space-y-1.5">
-      <label className="text-sm font-medium">
-        Requester <span className="text-red-500">*</span>
-      </label>
+      {label && (
+        <label className="text-sm font-medium">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
       <div className="relative">
         <Input
           value={value}
@@ -401,27 +410,31 @@ export default function RecurringPayments() {
     priority: "MEDIUM",
   });
 
-  // Auto-default requester & matching department on dialog open or when usersList/user loads
+  const handleOpenCreate = () => {
+    const displayName = user?.full_name || user?.email || "";
+    setNewForm({
+      title: "",
+      requester: displayName,
+      department: "",
+      amount: "",
+      due_date: "",
+      description: "",
+      gl_code: "",
+      priority: "MEDIUM",
+    });
+    setIsCreateOpen(true);
+  };
+
+  // Auto-default requester on dialog open if not yet set
   useEffect(() => {
     if (isCreateOpen && !newForm.requester) {
       const displayName = user?.full_name || user?.email || "";
-      const matchedUser = usersList.find(
-        (u) =>
-          (u.id && user?.id && String(u.id) === String(user.id)) ||
-          (u.email && user?.email && u.email.toLowerCase() === user.email.toLowerCase())
-      );
-      const defaultDept =
-        (matchedUser ? resolveUserDepartment(matchedUser, rolesList) : "") ||
-        userRoles.map((r) => r.department).filter(Boolean).join(", ") ||
-        "";
-
       setNewForm((prev) => ({
         ...prev,
         requester: displayName,
-        department: prev.department || defaultDept,
       }));
     }
-  }, [isCreateOpen, user, usersList, rolesList, userRoles, newForm.requester]);
+  }, [isCreateOpen, user, newForm.requester]);
 
   const createMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -564,7 +577,8 @@ export default function RecurringPayments() {
   // Helper to check if a recurring request is due within 7 days
   const isDueSoon = (r: PurchaseRequest) => {
     const dateStr = r.due_date || r.request_date;
-    if (!dateStr || r.status === "COMPLETED" || r.status === "REJECTED") return false;
+    const st = parseRequestStatus(r.status);
+    if (!dateStr || st === RequestStatus.Completed || st === RequestStatus.Rejected) return false;
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return false;
     const now = new Date();
@@ -577,6 +591,9 @@ export default function RecurringPayments() {
   // Filtered requests
   const filteredRequests = useMemo(() => {
     return requests.filter((r) => {
+      const parsedStatus = parseRequestStatus(r.status);
+      const isRejected = parsedStatus === RequestStatus.Rejected;
+
       if (
         searchTerm &&
         !r.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -589,17 +606,26 @@ export default function RecurringPayments() {
       if (cardFilter === "DUE_SOON") {
         if (!isDueSoon(r)) return false;
       } else if (cardFilter === "WAITING_REVIEW") {
+        if (isRejected) return false;
         const rev = r.review_status || "WAITING_FOR_REVIEW";
         if (rev !== "WAITING_FOR_REVIEW") return false;
       } else if (cardFilter === "REVIEWED") {
+        if (isRejected) return false;
         if (r.review_status !== "REVIEWED") return false;
+      } else if (cardFilter === "REJECTED") {
+        if (!isRejected) return false;
+      } else if (cardFilter === "ALL") {
+        if (isRejected) return false;
       }
       if (reviewFilter !== "ALL") {
         const rev = r.review_status || "WAITING_FOR_REVIEW";
         if (rev !== reviewFilter) return false;
       }
-      if (statusFilter !== "ALL" && r.status !== statusFilter) {
-        return false;
+      if (statusFilter !== "ALL") {
+        const targetStatus = parseRequestStatus(statusFilter);
+        if (parsedStatus !== targetStatus && r.status !== statusFilter) {
+          return false;
+        }
       }
       return true;
     });
@@ -607,16 +633,18 @@ export default function RecurringPayments() {
 
   // Summary statistics
   const stats = useMemo(() => {
-    const total = requests.length;
+    const activeSubs = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
+    const total = activeSubs.length;
     const dueSoon = requests.filter(isDueSoon).length;
-    const waitingReview = requests.filter(
+    const waitingReview = activeSubs.filter(
       (r) => (r.review_status || "WAITING_FOR_REVIEW") === "WAITING_FOR_REVIEW"
     ).length;
-    const reviewed = requests.filter(
+    const reviewed = activeSubs.filter(
       (r) => r.review_status === "REVIEWED"
     ).length;
-    const totalAmount = requests.reduce((sum, r) => sum + (r.amount || 0), 0);
-    return { total, dueSoon, waitingReview, reviewed, totalAmount };
+    const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length;
+    const totalAmount = activeSubs.reduce((sum, r) => sum + (r.amount || 0), 0);
+    return { total, dueSoon, waitingReview, reviewed, rejected, totalAmount };
   }, [requests]);
 
   if (!canAccess) {
@@ -737,7 +765,7 @@ export default function RecurringPayments() {
 
             <Button
               size="sm"
-              onClick={() => setIsCreateOpen(true)}
+              onClick={handleOpenCreate}
               className="h-9 gap-1.5 bg-sky-600 hover:bg-sky-700 text-white shadow-xs"
             >
               <Plus size={16} />
@@ -778,6 +806,13 @@ export default function RecurringPayments() {
             icon: CheckCircle2,
             color: "sky",
           },
+          {
+            key: "REJECTED",
+            label: "Rejected",
+            count: stats.rejected,
+            icon: XCircle,
+            color: "rose",
+          },
         ]}
         activeKey={cardFilter}
         onSelect={handleCardFilterChange}
@@ -789,7 +824,7 @@ export default function RecurringPayments() {
       />
 
       {/* Compact Interactive KPI Filter Cards */}
-      <div ref={kpiRef} className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
+      <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
         {/* 1. All Subscriptions */}
         <Card
           onClick={() => handleCardFilterChange("ALL")}
@@ -805,7 +840,7 @@ export default function RecurringPayments() {
               <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight mt-0.5">
                 {stats.total}
               </h3>
-              <p className="text-[10px] text-muted-foreground mt-0.5">All recurring orders</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">All active recurring</p>
             </div>
             <div className="p-1.5 rounded-md bg-blue-50 dark:bg-blue-950 flex items-center justify-center text-blue-600 shrink-0">
               <RefreshCw size={16} />
@@ -885,6 +920,29 @@ export default function RecurringPayments() {
             </div>
           </CardContent>
         </Card>
+
+        {/* 5. Rejected */}
+        <Card
+          onClick={() => handleCardFilterChange(cardFilter === "REJECTED" ? "ALL" : "REJECTED")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-rose-300 ${
+            cardFilter === "REJECTED" ? "ring-2 ring-rose-500 bg-rose-50/20 dark:bg-rose-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">
+                Rejected
+              </p>
+              <h3 className="text-base sm:text-lg font-bold text-rose-600 dark:text-rose-400 leading-tight mt-0.5">
+                {stats.rejected}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Rejected subscriptions</p>
+            </div>
+            <div className="p-1.5 rounded-md bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-rose-600 shrink-0">
+              <XCircle size={16} />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filter Bar */}
@@ -924,6 +982,7 @@ export default function RecurringPayments() {
               <SelectItem value="WAITING_PAYMENT">Waiting Payment</SelectItem>
               <SelectItem value="INVOICE_RECEIVED">Invoice Received</SelectItem>
               <SelectItem value="COMPLETED">Completed</SelectItem>
+              <SelectItem value="REJECTED">Rejected</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1375,6 +1434,7 @@ export default function RecurringPayments() {
 
               <div className="grid grid-cols-2 gap-3">
                 <RequesterAutocomplete
+                  required
                   value={newForm.requester}
                   onChange={(val) => setNewForm((prev) => ({ ...prev, requester: val }))}
                   onSelectUser={(selectedUser) => {
@@ -1387,19 +1447,12 @@ export default function RecurringPayments() {
                   roles={rolesList}
                 />
 
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">
-                    Department <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={newForm.department}
-                    onChange={(e) =>
-                      setNewForm({ ...newForm, department: e.target.value })
-                    }
-                    placeholder="e.g. Finance"
-                    required
-                  />
-                </div>
+                <DepartmentAutocomplete
+                  label="Department"
+                  required
+                  value={newForm.department}
+                  onChange={(val) => setNewForm((prev) => ({ ...prev, department: val }))}
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -1497,6 +1550,7 @@ export default function RecurringPayments() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <RequesterAutocomplete
+                    required
                     value={editForm.requester}
                     onChange={(val) => setEditForm((prev) => ({ ...prev, requester: val }))}
                     onSelectUser={(selectedUser) => {
@@ -1509,19 +1563,12 @@ export default function RecurringPayments() {
                     roles={rolesList}
                   />
 
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">
-                      Department <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      value={editForm.department}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, department: e.target.value })
-                      }
-                      placeholder="e.g. Finance"
-                      required
-                    />
-                  </div>
+                  <DepartmentAutocomplete
+                    label="Department"
+                    required
+                    value={editForm.department}
+                    onChange={(val) => setEditForm((prev) => ({ ...prev, department: val }))}
+                  />
                 </div>
 
                 <div className="space-y-1.5">

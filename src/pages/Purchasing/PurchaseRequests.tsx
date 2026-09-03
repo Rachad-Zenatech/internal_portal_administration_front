@@ -89,6 +89,7 @@ import {
 } from "./purchasingMeta";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
+import DepartmentAutocomplete from "./DepartmentAutocomplete";
 import { QuickBooksExportDialog } from "./QuickBooksExportDialog";
 
 function RequesterAutocomplete({
@@ -238,7 +239,7 @@ export function PurchaseRequests() {
 
 
 
-  const { user, roles = [], hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const canCreate = Boolean(user?.is_super_admin || hasPermission("PURCHASING_CREATE"));
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
@@ -310,22 +311,11 @@ export function PurchaseRequests() {
       return;
     }
     const defaultRequester = user?.full_name || user?.email || "";
-    const matchedUser = usersList.find(
-      (u) =>
-        u.id === user?.id ||
-        (u.email && user?.email && u.email.toLowerCase() === user.email.toLowerCase()) ||
-        (u.full_name && user?.full_name && u.full_name.toLowerCase() === user.full_name.toLowerCase())
-    );
-    const defaultDept =
-      resolveUserDepartment({ ...user, roles }, rolesList) ||
-      resolveUserDepartment(matchedUser, rolesList) ||
-      roles.map((r) => r.department).filter(Boolean).join(", ") ||
-      "";
 
     setForm({
       ...EMPTY_FORM,
       requester: defaultRequester,
-      department: defaultDept,
+      department: "",
     });
     setItemMode("SINGLE");
     setQuoteFile(null);
@@ -336,25 +326,6 @@ export function PurchaseRequests() {
     setShowUnsavedConfirm(false);
     setIsDialogOpen(true);
   };
-
-  // If dialog is open and department is not yet filled, try to auto-fill once usersList/rolesList loads
-  useEffect(() => {
-    if (isDialogOpen && !form.department && (usersList.length > 0 || rolesList.length > 0)) {
-      const matchedUser = usersList.find(
-        (u) =>
-          u.id === user?.id ||
-          (u.email && user?.email && u.email.toLowerCase() === user.email.toLowerCase()) ||
-          (u.full_name && user?.full_name && u.full_name.toLowerCase() === user.full_name.toLowerCase()) ||
-          (u.full_name && form.requester && u.full_name.toLowerCase() === form.requester.toLowerCase())
-      );
-      const dept =
-        resolveUserDepartment({ ...user, roles }, rolesList) ||
-        resolveUserDepartment(matchedUser, rolesList);
-      if (dept) {
-        setForm((prev) => ({ ...prev, department: dept }));
-      }
-    }
-  }, [isDialogOpen, usersList, rolesList, user, roles, form.department, form.requester]);
 
   // Handle Quote PDF upload & extraction
   const handleQuoteFileUpload = async (file: File) => {
@@ -1221,7 +1192,9 @@ export function PurchaseRequests() {
 
             {/* Standard Request Form Fields */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Title</label>
+              <label className="text-sm font-medium">
+                Title <span className="text-red-500">*</span>
+              </label>
               <Input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -1231,6 +1204,7 @@ export function PurchaseRequests() {
 
             <div className="grid grid-cols-2 gap-4">
               <RequesterAutocomplete
+                required
                 value={form.requester}
                 onChange={(val) => setForm((prev) => ({ ...prev, requester: val }))}
                 onSelectUser={(selectedUser) => {
@@ -1242,14 +1216,12 @@ export function PurchaseRequests() {
                 users={usersList}
                 roles={rolesList}
               />
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Department</label>
-                <Input
-                  value={form.department}
-                  onChange={(e) => setForm({ ...form, department: e.target.value })}
-                  placeholder="e.g. Production"
-                />
-              </div>
+              <DepartmentAutocomplete
+                label="Department"
+                required
+                value={form.department}
+                onChange={(val) => setForm((prev) => ({ ...prev, department: val }))}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

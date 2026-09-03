@@ -12,7 +12,16 @@ const keys = {
   request: (id: string) => [...keys.all, "request", id] as const,
   invoices: (paymentStatus?: string) => [...keys.all, "invoices", paymentStatus ?? "all"] as const,
   notifications: () => [...keys.all, "notifications"] as const,
+  departments: () => [...keys.all, "departments"] as const,
 };
+
+export function useDepartments() {
+  return useQuery({
+    queryKey: keys.departments(),
+    queryFn: purchasing.listDepartments,
+    staleTime: 5 * 60 * 1000,
+  });
+}
 
 export function usePurchasingSummary() {
   return useQuery({
@@ -48,11 +57,14 @@ export function useCreateRequest() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: RequestCreateInput) => purchasing.createRequest(payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.all });
-      qc.invalidateQueries({ queryKey: ["recurring-requests"] });
-      qc.invalidateQueries({ queryKey: ["notifications"] });
-      qc.invalidateQueries({ queryKey: ["invoices"] });
+    onSuccess: (data) => {
+      if (data?.request?.id) {
+        qc.setQueryData(keys.request(data.request.id), data);
+      }
+      qc.invalidateQueries({ queryKey: keys.summary(), refetchType: "active" });
+      qc.invalidateQueries({ queryKey: keys.all, refetchType: "active" });
+      qc.invalidateQueries({ queryKey: ["recurring-requests"], refetchType: "active" });
+      qc.invalidateQueries({ queryKey: ["notifications"], refetchType: "active" });
     },
     onError: (err: any) => {
       toast.error(err?.message ?? "Failed to create request");
@@ -66,7 +78,7 @@ export function useExtractProductInfo(requestId?: string) {
     mutationFn: (id?: string | void) => purchasing.extractProductInfo(typeof id === 'string' && id ? id : (requestId || "")),
     onSuccess: (data) => {
       qc.setQueryData(keys.request(data.request.id), data);
-      qc.invalidateQueries({ queryKey: keys.all });
+      qc.invalidateQueries({ queryKey: keys.all, refetchType: "active" });
       toast.success("Product info refreshed");
     },
     onError: (err: any) => {
@@ -81,10 +93,11 @@ export function useTransitionRequest(requestId: string) {
     mutationFn: (payload: TransitionInput) => purchasing.transitionRequest(requestId, payload),
     onSuccess: (data) => {
       qc.setQueryData(keys.request(requestId), data);
-      qc.invalidateQueries({ queryKey: keys.all });
-      qc.invalidateQueries({ queryKey: ["recurring-requests"] });
-      qc.invalidateQueries({ queryKey: ["notifications"] });
-      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: keys.summary(), refetchType: "active" });
+      qc.invalidateQueries({ queryKey: keys.all, refetchType: "active" });
+      qc.invalidateQueries({ queryKey: ["recurring-requests"], refetchType: "active" });
+      qc.invalidateQueries({ queryKey: ["notifications"], refetchType: "active" });
+      qc.invalidateQueries({ queryKey: ["invoices"], refetchType: "active" });
     },
     onError: (err: any) => {
       toast.error(err?.message ?? "Action failed");
