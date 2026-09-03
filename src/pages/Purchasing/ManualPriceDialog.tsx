@@ -41,7 +41,9 @@ export function ManualPriceDialog({ requestId, isOpen, onOpenChange }: Props) {
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Unit Price</label>
+              <label className="text-sm font-medium">
+                Unit Price <span className="text-red-500">*</span>
+              </label>
               <Input
                 type="number"
                 step="0.01"
@@ -52,7 +54,9 @@ export function ManualPriceDialog({ requestId, isOpen, onOpenChange }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Currency</label>
+              <label className="text-sm font-medium">
+                Currency <span className="text-red-500">*</span>
+              </label>
               <CurrencyAutocomplete value={currency} onChange={setCurrency} />
             </div>
           </div>

@@ -2250,12 +2250,38 @@ export default function RequestDetail() {
             {activeForm?.kind === "invoice" && (
               <>
                 <TwoUp>
-                  <FieldInput label="Vendor" value={invoice.vendor} onChange={(v) => setInvoice({ ...invoice, vendor: v })} />
-                  <FieldInput label="Price / Amount" type="number" value={String(invoice.amount)} onChange={(v) => setInvoice({ ...invoice, amount: Number(v) })} />
+                  <FieldInput
+                    label={
+                      <span>
+                        Vendor <span className="text-red-500">*</span>
+                      </span>
+                    }
+                    value={invoice.vendor}
+                    onChange={(v) => setInvoice({ ...invoice, vendor: v })}
+                  />
+                  <FieldInput
+                    label={
+                      <span>
+                        Price / Amount <span className="text-red-500">*</span>
+                      </span>
+                    }
+                    type="number"
+                    value={String(invoice.amount)}
+                    onChange={(v) => setInvoice({ ...invoice, amount: Number(v) })}
+                  />
                 </TwoUp>
 
                 <TwoUp>
-                  <FieldInput label="Bill Date" type="date" value={invoice.invoice_date} onChange={(v) => setInvoice({ ...invoice, invoice_date: v })} />
+                  <FieldInput
+                    label={
+                      <span>
+                        Bill Date <span className="text-red-500">*</span>
+                      </span>
+                    }
+                    type="date"
+                    value={invoice.invoice_date}
+                    onChange={(v) => setInvoice({ ...invoice, invoice_date: v })}
+                  />
                   {request.request_type !== "RECURRING" ? (
                     <FieldInput label="Date Arrived" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
                   ) : (
@@ -2443,7 +2469,15 @@ export default function RequestDetail() {
             )}
             {activeForm?.kind === "tracking" && (
               <>
-                <FieldInput label="Tracking Number" value={tracking.tracking_number} onChange={(v) => setTracking({ ...tracking, tracking_number: v })} />
+                <FieldInput
+                  label={
+                    <span>
+                      Tracking Number <span className="text-red-500">*</span>
+                    </span>
+                  }
+                  value={tracking.tracking_number}
+                  onChange={(v) => setTracking({ ...tracking, tracking_number: v })}
+                />
                 <label className="text-sm font-medium">Note</label>
                 <Textarea
                   rows={3}
