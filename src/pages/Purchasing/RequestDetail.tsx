@@ -116,7 +116,7 @@ import {
   TAX_RATE,
 } from "./purchasingMeta";
 
-type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "hold";
+type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "hold" | "complete";
 
 export default function RequestDetail() {
   const { id } = useParams<{ id: string }>();
@@ -272,6 +272,48 @@ export default function RequestDetail() {
   const [approval, setApproval] = useState<ApprovalInput>({ approver: "", comment: "" });
   const [tracking, setTracking] = useState<TrackingInput>({ tracking_number: "" });
   const [hold, setHold] = useState<HoldInput>({ reason: "" });
+  const [completeData, setCompleteData] = useState<{
+    selectionType: "PERIOD" | "DATE";
+    period: "BI_WEEKLY" | "MONTHLY" | "ANNUALLY";
+    next_due_date: string;
+    comment: string;
+  }>({
+    selectionType: "PERIOD",
+    period: "MONTHLY",
+    next_due_date: "",
+    comment: "",
+  });
+
+  const calculateNextDueDate = (baseDateStr: string | null | undefined, period: "BI_WEEKLY" | "MONTHLY" | "ANNUALLY"): string => {
+    const today = new Date();
+    let base: Date;
+    if (baseDateStr && /^\d{4}-\d{2}-\d{2}/.test(baseDateStr)) {
+      const [y, m, d] = baseDateStr.slice(0, 10).split("-").map(Number);
+      base = new Date(y, m - 1, d);
+    } else {
+      base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    }
+
+    const target = new Date(base.getTime());
+
+    if (period === "BI_WEEKLY") {
+      target.setDate(target.getDate() + 14);
+    } else if (period === "MONTHLY") {
+      const curMonth = target.getMonth();
+      const curDay = target.getDate();
+      target.setMonth(curMonth + 1);
+      if (target.getDate() !== curDay) {
+        target.setDate(0);
+      }
+    } else if (period === "ANNUALLY") {
+      target.setFullYear(target.getFullYear() + 1);
+    }
+
+    const yyyy = target.getFullYear();
+    const mm = String(target.getMonth() + 1).padStart(2, "0");
+    const dd = String(target.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
   const [confirmGoods, setConfirmGoods] = useState({ description: "" });
   const [isActivityLogsOpen, setIsActivityLogsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -393,6 +435,25 @@ export default function RequestDetail() {
     }
 
     const meta = ACTION_META[action];
+    if (action === "COMPLETE") {
+      // The next due date calculation dialog only shows for recurring payment cycles, not standard requests
+      if (isRecurring) {
+        const baseDate = request.due_date || request.request_date || new Date().toISOString().split("T")[0];
+        const initialCalculated = calculateNextDueDate(baseDate, "MONTHLY");
+        setCompleteData({
+          selectionType: "PERIOD",
+          period: "MONTHLY",
+          next_due_date: initialCalculated,
+          comment: "",
+        });
+        setActiveForm({ kind: "complete", action: "COMPLETE" });
+        return;
+      }
+      // Standard requests complete directly without recurring schedule prompt
+      void dispatch({ action });
+      return;
+    }
+
     if (!meta.form) {
       void dispatch({ action });
       return;
@@ -540,8 +601,48 @@ export default function RequestDetail() {
     } else if (kind === "hold") {
       if (!hold.reason || !hold.reason.trim()) return toast.error("Hold reason is required.");
       void dispatch({ action, hold });
+    } else if (kind === "complete") {
+      if (!completeData.next_due_date || !completeData.next_due_date.trim()) {
+        return toast.error("Next due date is required.");
+      }
+      void dispatch({
+        action,
+        next_due_date: completeData.next_due_date,
+        comment: completeData.comment?.trim() || undefined,
+      });
     }
   };
+
+  // Crawled product foreign currency & original price resolution
+  const pInfo = request.product_info;
+  const pVendor = (pInfo?.vendor || "").toLowerCase();
+  const isCaVendor = pVendor.includes(".ca") || pVendor.includes("amazon.ca") || (request.item_url || "").toLowerCase().includes("amazon.ca");
+  
+  let crawledOrigPrice: number | null = null;
+  let crawledOrigCurr: string | null = null;
+
+  if (pInfo?.original_price && pInfo?.original_currency) {
+    crawledOrigPrice = Number(pInfo.original_price);
+    crawledOrigCurr = pInfo.original_currency;
+  } else if (pInfo?.currency && pInfo.currency.toUpperCase() !== "USD" && pInfo.currency.toUpperCase() !== "N/A" && pInfo.price && pInfo.price !== "N/A") {
+    crawledOrigPrice = Number(String(pInfo.price).replace(/[^0-9.]/g, ""));
+    crawledOrigCurr = pInfo.currency;
+  } else if (isCaVendor) {
+    crawledOrigCurr = "CAD";
+    if (pInfo?.price && pInfo.price !== "N/A") {
+      const pNum = Number(String(pInfo.price).replace(/[^0-9.]/g, ""));
+      crawledOrigPrice = pNum > 0 ? Math.round((pNum / 0.73) * 100) / 100 : null;
+    } else if (request.unit_price) {
+      crawledOrigPrice = Math.round((request.unit_price / 0.73) * 100) / 100;
+    }
+  }
+
+  const hasCrawledForeignPrice = Boolean(
+    crawledOrigPrice &&
+    crawledOrigPrice > 0 &&
+    crawledOrigCurr &&
+    crawledOrigCurr.toUpperCase() !== (request.currency || "USD").toUpperCase()
+  );
 
   const isReviewed = request.review_status === "REVIEWED";
 
@@ -695,15 +796,30 @@ export default function RequestDetail() {
                   reviewMutation.mutate({ id: request.id, review_status: newRev });
                 }}
                 disabled={reviewMutation.isPending}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-xs hover:opacity-80 shrink-0 ${
+                className={`group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-xs hover:scale-105 active:scale-95 shrink-0 ${
                   isReviewed
-                    ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800"
-                    : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
+                    ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800"
+                    : "bg-amber-50 text-amber-900 border-amber-400 hover:bg-amber-100 ring-2 ring-amber-300/50 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700"
                 }`}
-                title="Click to toggle Review Status"
+                title={isReviewed ? "Click to revert to Waiting for Review" : "Click to mark as Reviewed"}
               >
-                {isReviewed ? <CheckCircle2 size={13} /> : <Clock size={13} />}
-                {isReviewed ? "Reviewed" : "Waiting for Review"}
+                {isReviewed ? (
+                  <>
+                    <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Reviewed</span>
+                    <span className="text-[10px] opacity-60 group-hover:opacity-100 font-normal ml-0.5">
+                      (Click to undo)
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Clock size={13} className="text-amber-600 dark:text-amber-400 shrink-0 animate-pulse" />
+                    <span>Waiting for Review</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-200/90 dark:bg-amber-900 text-amber-800 dark:text-amber-200 group-hover:bg-amber-300 transition-colors">
+                      Click to Review ➔
+                    </span>
+                  </>
+                )}
               </button>
             )}
 
@@ -741,6 +857,18 @@ export default function RequestDetail() {
                 <span className="text-xs text-slate-500 dark:text-zinc-400 italic">
                   Waiting for product details...
                 </span>
+              )}
+              {isRecurring && !isReviewed && available_actions.includes("RECORD_INVOICE") && (
+                <Button
+                  size="sm"
+                  disabled={reviewMutation.isPending}
+                  onClick={() => reviewMutation.mutate({ id: request.id, review_status: "REVIEWED" })}
+                  className="h-8 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white border-none shadow-sm flex items-center gap-1.5 cursor-pointer animate-pulse"
+                  title="Click to mark as Reviewed and enable Record Invoice"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Mark as Reviewed
+                </Button>
               )}
               {available_actions
                 .filter(a => {
@@ -782,7 +910,7 @@ export default function RequestDetail() {
                 })}
               {isRecurring && !isReviewed && available_actions.includes("RECORD_INVOICE") && (
                 <span className="text-xs text-amber-600 dark:text-amber-400 font-medium italic ml-1">
-                  (Mark as 'Reviewed' above to enable Record Invoice)
+                  ← Click 'Mark as Reviewed' to enable Record Invoice
                 </span>
               )}
             </div>
@@ -888,11 +1016,47 @@ export default function RequestDetail() {
                 <>
                   <Field label="SKU / Part #" value={request.sku || request.items?.[0]?.sku || "—"} />
                   <Field label="Quantity" value={String(request.quantity ?? 1)} />
-                  <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />
+                  <Field
+                    label="Unit Price"
+                    value={
+                      <span>
+                        {formatMoney(request.unit_price ?? 0)} {request.currency || "USD"}
+                        {hasCrawledForeignPrice && (
+                          <span className="text-slate-500 text-xs ml-1.5 font-normal">
+                            ({formatMoney(crawledOrigPrice!)} {crawledOrigCurr})
+                          </span>
+                        )}
+                      </span>
+                    }
+                  />
                 </>
               )}
-              <Field label="Total Amount (Pre-Tax)" value={formatMoney(request.amount ?? 0)} />
-              <Field label="Total Amount (After-Tax)" value={formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} />
+              <Field
+                label="Total Amount (Pre-Tax)"
+                value={
+                  <span>
+                    {formatMoney(request.amount ?? 0)} {request.currency || "USD"}
+                    {hasCrawledForeignPrice && (
+                      <span className="text-slate-500 text-xs ml-1.5 font-normal">
+                        ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1))} {crawledOrigCurr})
+                      </span>
+                    )}
+                  </span>
+                }
+              />
+              <Field
+                label="Total Amount (After-Tax)"
+                value={
+                  <span>
+                    {formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} {request.currency || "USD"}
+                    {hasCrawledForeignPrice && (
+                      <span className="text-slate-500 text-xs ml-1.5 font-normal">
+                        ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1) * (1 + TAX_RATE))} {crawledOrigCurr})
+                      </span>
+                    )}
+                  </span>
+                }
+              />
               <Field label="Currency" value={request.currency || "USD"} />
               <div className="col-span-2">
                 <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Description</div>
@@ -987,9 +1151,16 @@ export default function RequestDetail() {
                           </div>
                           <div>
                             <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Price</div>
-                            <div className="font-semibold text-emerald-600 dark:text-emerald-400">
-                              {request.product_info.price}
-                              {request.product_info.currency && request.product_info.currency.toUpperCase() !== "N/A" ? ` ${request.product_info.currency}` : ""}
+                            <div className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-baseline gap-2 flex-wrap">
+                              <span>
+                                {request.product_info.price ? (request.product_info.price.startsWith("$") ? request.product_info.price : `$${request.product_info.price}`) : "—"}
+                                {request.product_info.currency && request.product_info.currency.toUpperCase() !== "N/A" ? ` ${request.product_info.currency}` : ""}
+                              </span>
+                              {hasCrawledForeignPrice && (
+                                <span className="text-xs font-semibold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700">
+                                  ({formatMoney(crawledOrigPrice!)} {crawledOrigCurr})
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div>
@@ -2291,6 +2462,117 @@ export default function RequestDetail() {
                   value={hold.reason}
                   onChange={(e) => setHold({ reason: e.target.value })}
                 />
+              </div>
+            )}
+            {activeForm?.kind === "complete" && (
+              <div className="space-y-4">
+                {/* Current Reference Info */}
+                <div className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 p-3.5 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-700 dark:text-zinc-300">Request:</span>
+                    <span className="font-medium text-slate-900 dark:text-zinc-100">{request.title}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-700 dark:text-zinc-300">Current Due Date:</span>
+                    <span className="font-mono text-slate-800 dark:text-zinc-200 font-semibold">
+                      {request.due_date ? formatDate(request.due_date) : "Not Set (Using Today)"}
+                    </span>
+                  </div>
+                  {isRecurring && (
+                    <div className="text-[11.5px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2 rounded border border-amber-200 dark:border-amber-900/60 mt-1 leading-relaxed">
+                      ℹ️ Marking as complete will finalize the current cycle and advance this recurring request to <strong>Under Review</strong> for the upcoming cycle due on the date chosen below.
+                    </div>
+                  )}
+                </div>
+
+                {/* Mode Selection / Quick Period Buttons */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                    Select Period (Auto-Calculate)
+                  </label>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {(
+                      [
+                        { id: "BI_WEEKLY", label: "Bi-Weekly", sub: "+14 Days" },
+                        { id: "MONTHLY", label: "Monthly", sub: "+1 Month" },
+                        { id: "ANNUALLY", label: "Annually", sub: "+1 Year" },
+                      ] as const
+                    ).map((opt) => {
+                      const isSelected = completeData.selectionType === "PERIOD" && completeData.period === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            const baseDate = request.due_date || request.request_date || new Date().toISOString().split("T")[0];
+                            const nextDue = calculateNextDueDate(baseDate, opt.id);
+                            setCompleteData({
+                              ...completeData,
+                              selectionType: "PERIOD",
+                              period: opt.id,
+                              next_due_date: nextDue,
+                            });
+                          }}
+                          className={cn(
+                            "flex flex-col items-center justify-center p-3 rounded-lg border text-center transition-all cursor-pointer",
+                            isSelected
+                              ? "border-indigo-600 bg-indigo-50/90 text-indigo-900 font-semibold ring-2 ring-indigo-400/40 dark:border-indigo-500 dark:bg-indigo-950/70 dark:text-indigo-200"
+                              : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 shadow-xs"
+                          )}
+                        >
+                          <span className="text-xs font-semibold">{opt.label}</span>
+                          <span className="text-[11px] opacity-70 mt-0.5">{opt.sub}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Target Next Due Date Picker */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Next Due Date <span className="text-red-500">*</span>
+                    </label>
+                    {completeData.selectionType === "PERIOD" && (
+                      <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">
+                        Calculated by {completeData.period === "BI_WEEKLY" ? "Bi-Weekly" : completeData.period === "MONTHLY" ? "Monthly" : "Annually"}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type="date"
+                    value={completeData.next_due_date}
+                    onChange={(e) => {
+                      setCompleteData({
+                        ...completeData,
+                        selectionType: "DATE",
+                        next_due_date: e.target.value,
+                      });
+                    }}
+                    className="font-mono text-sm bg-white dark:bg-zinc-900 cursor-pointer"
+                  />
+                  <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-zinc-400 font-medium pt-0.5">
+                    <Calendar className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                    <span>
+                      Next Due Date: <strong className="text-slate-900 dark:text-zinc-100">{formatDate(completeData.next_due_date)}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Optional Note / Comment */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-700 dark:text-zinc-300">
+                    Completion Note / Memo <span className="text-slate-400 text-[11px]">(Optional)</span>
+                  </label>
+                  <Textarea
+                    rows={2}
+                    placeholder="e.g., Cycle payment finalized and marked complete..."
+                    value={completeData.comment}
+                    onChange={(e) => setCompleteData({ ...completeData, comment: e.target.value })}
+                    className="text-xs bg-white dark:bg-zinc-900"
+                  />
+                </div>
               </div>
             )}
           </div>

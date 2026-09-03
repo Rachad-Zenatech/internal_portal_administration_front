@@ -131,7 +131,7 @@ export const STATUS_FILTER_OPTIONS: readonly RequestStatus[] = [
   RequestStatus.OnHold,
 ];
 
-export const ACTION_META: Record<WorkflowAction, { label: string; form?: "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "hold"; variant?: "default" | "destructive" | "outline" }> = {
+export const ACTION_META: Record<WorkflowAction, { label: string; form?: "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "hold" | "complete"; variant?: "default" | "destructive" | "outline" }> = {
   SUBMIT_REQUEST: { label: "Submit Request", variant: "default" },
   DELETE_REQUEST: { label: "Delete Request", variant: "destructive" },
   START_REVIEW: { label: "Start Review", variant: "default" },

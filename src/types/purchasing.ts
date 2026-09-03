@@ -81,6 +81,8 @@ export type ProductInfo = {
   description: string;
   vendor: string;
   currency: string;
+  original_price?: string | null;
+  original_currency?: string | null;
 };
 
 export type PurchaseRequest = {
@@ -383,6 +385,8 @@ export type TransitionInput = {
   confirm_goods?: ConfirmGoodsInput;
   description?: string;
   comment?: string;
+  next_due_date?: string;
+  due_date?: string;
 };
 
 
