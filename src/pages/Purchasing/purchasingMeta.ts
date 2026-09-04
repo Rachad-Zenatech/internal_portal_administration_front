@@ -183,9 +183,19 @@ export function formatDateTime(iso: string | null | undefined): string {
   }
 }
 
-export function formatMoney(val: number | null | undefined): string {
-  if (val == null) return "$0.00";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
+export function formatMoney(val: number | null | undefined, currency: string = "USD"): string {
+  if (val == null) val = 0;
+  const curr = (currency || "USD").toUpperCase().trim();
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: curr,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(val);
+  } catch {
+    return `${curr} ${val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
 }
 
 

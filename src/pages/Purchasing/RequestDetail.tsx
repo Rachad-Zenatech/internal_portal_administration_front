@@ -31,6 +31,7 @@ import {
   Landmark,
   Calendar,
   ShieldAlert,
+  DollarSign,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -255,6 +256,8 @@ export default function RequestDetail() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [poItems, setPoItems] = useState<any[]>([]);
   const [poShippingFee, setPoShippingFee] = useState<number>(0);
+  const [poItemCurrency, setPoItemCurrency] = useState<string>("USD");
+  const [poFxRate, setPoFxRate] = useState<number>(1.0);
   const [po, setPo] = useState<PurchaseOrderInput>({
     vendor: "",
     item: "",
@@ -500,28 +503,63 @@ export default function RequestDetail() {
         ? request.items
         : (request.quote_data?.items || request.quote_data?.line_items || []);
 
-      const parsedPoItems = rawItems.map((i: any, idx: number) => ({
-        id: i.id,
-        sku: i.sku || "",
-        description: i.description || `Part ${idx + 1}`,
-        quantity: Number(i.quantity) || 1,
-        unit_price: Number(i.unit_price) || 0,
-        total: Number(i.total) || (Math.round((Number(i.quantity) || 1) * Number(i.unit_price || 0) * 100) / 100),
-      }));
+      const quoteCurr = (
+        request.quote_data?.conversion?.original_currency ||
+        request.quote_data?.currency ||
+        (request.items && request.items[0]?.original_currency) ||
+        request.currency ||
+        "USD"
+      ).toUpperCase();
+      const quoteConv = request.quote_data?.conversion;
+      const isForeign = Boolean(quoteConv?.is_converted) || (quoteCurr !== "USD");
+      const fxRate = (isForeign && Number(quoteConv?.exchange_rate)) ? Number(quoteConv.exchange_rate) : 1.0;
+
+      setPoItemCurrency(isForeign ? quoteCurr : "USD");
+      setPoFxRate(fxRate);
+
+      const parsedPoItems = rawItems.map((i: any, idx: number) => {
+        const q = Number(i.quantity) || 1;
+        const p = Number(i.original_unit_price ?? i.unit_price ?? 0);
+        const t = Number(i.original_total ?? i.total ?? (Math.round(q * p * 100) / 100));
+        return {
+          id: i.id,
+          sku: i.sku || "",
+          description: i.description || `Part ${idx + 1}`,
+          quantity: q,
+          unit_price: p,
+          total: t,
+        };
+      });
       setPoItems(parsedPoItems);
-      const initShipping = Number(request.quote_data?.totals?.shipping) || 0;
+
+      const initShipping = Number(request.quote_data?.conversion?.original_shipping ?? request.quote_data?.totals?.shipping) || 0;
       setPoShippingFee(initShipping);
 
+      const itemsSumNative = parsedPoItems.reduce((acc: number, it: any) => acc + (Number(it.total) || 0), 0);
       const isMultiReq = request.item_mode === "MULTIPLE" || parsedPoItems.length > 0;
+
+      // Totals ALWAYS show USD. Foreign items sum and shipping immediately convert to USD:
+      const totalNative = isMultiReq
+        ? (itemsSumNative + initShipping)
+        : (Number(request.quantity ?? 1) * Number(parsedPoItems[0]?.unit_price ?? request.unit_price ?? 0) + initShipping);
+
+      const usdAmount = isForeign
+        ? (request.amount && Math.abs(Number(request.amount) - (totalNative * fxRate)) < 1 ? Number(request.amount) : Math.round(totalNative * fxRate * 100) / 100)
+        : Math.round(totalNative * 100) / 100;
+
+      const singleUnitPrice = isMultiReq
+        ? 0
+        : (parsedPoItems[0]?.unit_price ? parsedPoItems[0].unit_price : (request.unit_price ?? 0));
+
       setPo({
         vendor: quoteVendor || (info && isUsable(info.vendor) ? info.vendor : ""),
         item: isMultiReq ? (parsedPoItems.length ? `Multi Parts (${parsedPoItems.length} parts)` : (request.title || "Multi Parts")) : (request.title || (info && isUsable(info.name) ? info.name : "")),
         quantity: isMultiReq ? (parsedPoItems.length || 1) : (request.quantity ?? 1),
-        unit_price: isMultiReq ? 0 : (request.unit_price ?? 0),
-        amount: request.amount ?? 0,
+        unit_price: singleUnitPrice,
+        amount: usdAmount,
         quote_number: quoteNum || "",
         description: (info && isUsable(info.description) ? info.description : (request.description || "")),
-        currency: request.currency ?? (info && isUsable(info.currency) ? info.currency.toUpperCase() : "USD"),
+        currency: "USD",
         payment_method: undefined,
         shipped_to_location: "",
         expected_delivery_date: "",
@@ -542,7 +580,7 @@ export default function RequestDetail() {
       if (!po.vendor || !po.item) return toast.error("Vendor and item are required.");
       if (!po.payment_method) return toast.error("Payment format is required.");
       if (!po.shipped_to_location || !po.shipped_to_location.trim()) return toast.error("Shipped to location is required.");
-      void dispatch({ action, purchase_order: { ...po, amount: Number(po.amount) || 0, quantity: Number(po.quantity) || 1, unit_price: Number(po.unit_price) || 0 } });
+      void dispatch({ action, purchase_order: { ...po, amount: Number(po.amount) || 0, quantity: Number(po.quantity) || 1, unit_price: Number(po.unit_price) || 0, currency: po.currency || "USD", items: poItems } });
     } else if (kind === "invoice") {
       if (!invoice.vendor || !invoice.invoice_date) return toast.error("Vendor and bill date are required.");
 
@@ -640,15 +678,56 @@ export default function RequestDetail() {
     crawledOrigCurr.toUpperCase() !== (request.currency || "USD").toUpperCase()
   );
 
+  const recalculatePoUsdTotal = (items: any[], shippingFeeNative: number, rate: number) => {
+    const sumNative = items.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
+    const subtotalUsd = Math.round(sumNative * rate * 100) / 100;
+    const shippingUsd = Math.round(shippingFeeNative * rate * 100) / 100;
+    const totalUsd = Math.round((subtotalUsd + shippingUsd) * 100) / 100;
+    return { sumNative, subtotalUsd, shippingUsd, totalUsd };
+  };
+
+  const handlePoItemCurrencyChange = async (newCurr: string) => {
+    const targetCurr = (newCurr || "USD").toUpperCase();
+    setPoItemCurrency(targetCurr);
+    if (targetCurr === "USD") {
+      setPoFxRate(1.0);
+      const { totalUsd } = recalculatePoUsdTotal(poItems, poShippingFee, 1.0);
+      setPo((prev) => ({ ...prev, amount: totalUsd, currency: "USD" }));
+      return;
+    }
+
+    try {
+      let rate = 1.0;
+      if (targetCurr === quoteNativeCurrency && quoteExchangeRate > 0) {
+        rate = quoteExchangeRate;
+      } else {
+        const res = await purchasingService.getExchangeRate(targetCurr, "USD");
+        rate = Number(res?.exchange_rate) || 1.0;
+      }
+      setPoFxRate(rate);
+
+      const { totalUsd } = recalculatePoUsdTotal(poItems, poShippingFee, rate);
+      setPo((prev) => ({ ...prev, amount: totalUsd, currency: "USD" }));
+      toast.info(`Item currency: ${targetCurr} (Rate: 1 ${targetCurr} = $${rate.toFixed(4)} USD)`);
+    } catch (err: any) {
+      toast.error(`Failed to fetch exchange rate for ${targetCurr}: ${err?.message || "Unknown error"}`);
+    }
+  };
+
   const isReviewed = request.review_status === "REVIEWED";
 
-  const isForeignQuote = Boolean(
-    request.quote_data?.conversion?.is_converted &&
-    request.quote_data?.conversion?.original_currency &&
-    request.quote_data?.conversion?.original_currency !== "USD"
-  );
-  const quoteNativeCurrency = request.quote_data?.conversion?.original_currency || request.quote_data?.currency || "USD";
+  const quoteNativeCurrency = (
+    request.quote_data?.conversion?.original_currency ||
+    request.quote_data?.currency ||
+    (request.items && request.items[0]?.original_currency) ||
+    request.currency ||
+    "USD"
+  ).toUpperCase();
   const quoteExchangeRate = Number(request.quote_data?.conversion?.exchange_rate) || 1.0;
+  const isForeignQuote = Boolean(
+    (request.quote_data?.conversion?.is_converted && quoteNativeCurrency !== "USD") ||
+    (quoteNativeCurrency !== "USD")
+  );
 
   const rawItemsList = (request.items && request.items.length > 0) ? request.items : (request.quote_data?.items || []);
   const itemsSumNative = rawItemsList.reduce((acc: number, itm: any) => {
@@ -1080,6 +1159,11 @@ export default function RequestDetail() {
                       const itemGL = getItemGLCode(itm, idx);
                       const rawPrice = Number(itm.original_unit_price ?? itm.unit_price ?? 0);
                       const rawTot = Number(itm.original_total ?? itm.total ?? (rawPrice * (Number(itm.quantity) || 1)));
+                      const itemCurr = (itm.original_currency || (isForeignQuote ? quoteNativeCurrency : request.currency) || "USD").toUpperCase();
+                      const isItemForeign = itemCurr !== "USD" && isForeignQuote;
+                      const usdEquivalent = isItemForeign && quoteExchangeRate > 0 ? Math.round(rawTot * quoteExchangeRate * 100) / 100 : null;
+                      const usdUnitEquivalent = isItemForeign && quoteExchangeRate > 0 ? Math.round(rawPrice * quoteExchangeRate * 100) / 100 : null;
+
                       return (
                         <div key={itm.id || idx} className="px-3 py-2.5 grid grid-cols-12 gap-3 items-center bg-white dark:bg-zinc-900 hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
                           <div className="col-span-1 text-center font-mono text-slate-400">{idx + 1}</div>
@@ -1089,11 +1173,19 @@ export default function RequestDetail() {
                               {itm.description}
                             </div>
                             <div className="text-[11px] text-slate-500 mt-0.5">
-                              Qty: {itm.quantity} {rawPrice > 0 ? `· ${formatMoney(rawPrice)} each` : ""}
+                              Qty: {itm.quantity} {rawPrice > 0 ? `· ${formatMoney(rawPrice, itemCurr)} each` : ""}
+                              {usdUnitEquivalent !== null && (
+                                <span className="text-slate-400 ml-1 font-normal">(≈ {formatMoney(usdUnitEquivalent, "USD")} USD)</span>
+                              )}
                             </div>
                           </div>
                           <div className="col-span-2 text-right pr-6 font-mono font-semibold text-slate-800 dark:text-zinc-200">
-                            {formatMoney(rawTot)}
+                            <div>{formatMoney(rawTot, itemCurr)}</div>
+                            {usdEquivalent !== null && (
+                              <div className="text-[11px] font-normal text-slate-500 dark:text-zinc-400">
+                                ≈ {formatMoney(usdEquivalent, "USD")} USD
+                              </div>
+                            )}
                           </div>
                           <div className="col-span-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
                             {renderGLAccountBadge(itemGL)}
@@ -1660,7 +1752,25 @@ export default function RequestDetail() {
                   <Field label="New Vendor?" value={data.wire_transfer.is_new_vendor ? "Yes" : "No"} />
                   <Field label="Invoice #" value={data.wire_transfer.invoice_number || "—"} />
                   <Field label="Amount" value={`${formatMoney(data.wire_transfer.amount || 0)} ${data.wire_transfer.currency || "USD"}`} />
-                  <Field label="Conversion" value={data.wire_transfer.conversion_rate || "—"} />
+                  <Field
+                    label="Conversion Rate"
+                    value={
+                      data.wire_transfer.conversion_rate
+                        ? `${data.wire_transfer.conversion_rate}${
+                            data.wire_transfer.currency &&
+                            data.wire_transfer.currency.toUpperCase() !== "USD" &&
+                            parseFloat(data.wire_transfer.conversion_rate) > 0
+                              ? ` (≈ $${(
+                                  Number(data.wire_transfer.amount || 0) *
+                                  parseFloat(data.wire_transfer.conversion_rate)
+                                ).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD)`
+                              : ""
+                          }`
+                        : (data.wire_transfer.currency || "USD").toUpperCase() === "USD"
+                        ? "1.00 (USD)"
+                        : "—"
+                    }
+                  />
                   <Field label="Vendor Email" value={data.wire_transfer.vendor_email || "—"} />
                   <Field label="Bank Name" value={data.wire_transfer.bank_name || "—"} />
                   <Field label="Bank Country" value={data.wire_transfer.bank_country || "—"} />
@@ -1950,13 +2060,14 @@ export default function RequestDetail() {
                         value={String(po.quantity ?? 1)}
                         onChange={(e) => {
                           const q = Math.max(1, Number(e.target.value) || 1);
-                          const itemsCost = Math.round(q * (po.unit_price || 0) * 100) / 100;
-                          setPo({ ...po, quantity: q, amount: Math.round((itemsCost + poShippingFee) * 100) / 100 });
+                          const itemsCostNative = Math.round(q * (po.unit_price || 0) * 100) / 100;
+                          const totalUsd = Math.round((itemsCostNative * poFxRate + poShippingFee * poFxRate) * 100) / 100;
+                          setPo((prev) => ({ ...prev, quantity: q, amount: totalUsd, currency: "USD" }));
                         }}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Unit Price</label>
+                      <label className="text-xs font-medium">Unit Price ({poItemCurrency})</label>
                       <Input
                         type="number"
                         min="0"
@@ -1964,15 +2075,16 @@ export default function RequestDetail() {
                         value={String(po.unit_price ?? 0)}
                         onChange={(e) => {
                           const p = Math.max(0, Number(e.target.value) || 0);
-                          const itemsCost = Math.round((po.quantity || 1) * p * 100) / 100;
-                          setPo({ ...po, unit_price: p, amount: Math.round((itemsCost + poShippingFee) * 100) / 100 });
+                          const itemsCostNative = Math.round((po.quantity || 1) * p * 100) / 100;
+                          const totalUsd = Math.round((itemsCostNative * poFxRate + poShippingFee * poFxRate) * 100) / 100;
+                          setPo((prev) => ({ ...prev, unit_price: p, amount: totalUsd, currency: "USD" }));
                         }}
                       />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium flex items-center gap-1">
                         <Truck className="h-3 w-3 text-indigo-500" />
-                        <span>Shipping</span>
+                        <span>Shipping ({poItemCurrency})</span>
                       </label>
                       <Input
                         type="number"
@@ -1982,14 +2094,15 @@ export default function RequestDetail() {
                         onChange={(e) => {
                           const sf = Math.max(0, Number(e.target.value) || 0);
                           setPoShippingFee(sf);
-                          const itemsCost = Math.round((po.quantity || 1) * (po.unit_price || 0) * 100) / 100;
-                          setPo({ ...po, amount: Math.round((itemsCost + sf) * 100) / 100 });
+                          const itemsCostNative = Math.round((po.quantity || 1) * (po.unit_price || 0) * 100) / 100;
+                          const totalUsd = Math.round((itemsCostNative * poFxRate + sf * poFxRate) * 100) / 100;
+                          setPo((prev) => ({ ...prev, amount: totalUsd, currency: "USD" }));
                         }}
                         className="font-mono"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total (Pre-Tax)</label>
+                      <label className="text-xs font-medium">Total Pre-Tax (USD)</label>
                       <Input
                         type="number"
                         min="0"
@@ -1997,13 +2110,13 @@ export default function RequestDetail() {
                         value={String(po.amount)}
                         onChange={(e) => {
                           const amt = Math.max(0, Number(e.target.value) || 0);
-                          setPo({ ...po, amount: amt });
+                          setPo((prev) => ({ ...prev, amount: amt, currency: "USD" }));
                         }}
                         className="font-mono bg-white dark:bg-zinc-900 font-semibold"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total (After-Tax)</label>
+                      <label className="text-xs font-medium">Total After-Tax (USD)</label>
                       <Input
                         type="number"
                         min="0"
@@ -2012,32 +2125,59 @@ export default function RequestDetail() {
                         onChange={(e) => {
                           const afterTax = Math.max(0, Number(e.target.value) || 0);
                           const preTax = Math.round((afterTax / (1 + TAX_RATE)) * 100) / 100;
-                          setPo({ ...po, amount: preTax });
+                          setPo((prev) => ({ ...prev, amount: preTax, currency: "USD" }));
                         }}
                         className="font-semibold font-mono bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Currency</label>
-                      <CurrencyAutocomplete value={po.currency ?? ""} onChange={(v) => setPo({ ...po, currency: v })} />
+                      <label className="text-xs font-medium">Item Currency</label>
+                      <CurrencyAutocomplete value={poItemCurrency} onChange={handlePoItemCurrencyChange} />
                     </div>
+                    {poItemCurrency && poItemCurrency !== "USD" && (
+                      <div className="col-span-full mt-1 p-2 bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-lg flex items-center justify-between text-xs text-blue-900 dark:text-blue-200">
+                        <div className="flex items-center gap-1.5">
+                          <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                          <span>
+                            <strong>FX Rate Conversion:</strong> 1 {poItemCurrency} = ${poFxRate.toFixed(6)} USD via CurrencyConverter
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
+                          Item prices in {poItemCurrency} automatically convert to USD totals
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Items Subtotal</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium">Items Subtotal (USD)</label>
+                        {poItemCurrency !== "USD" && (
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {poItemCurrency}
+                          </span>
+                        )}
+                      </div>
                       <Input
-                        type="number"
-                        value={String(Math.round(poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0) * 100) / 100)}
+                        type="text"
+                        value={`$${(Math.round(poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0) * poFxRate * 100) / 100).toFixed(2)}`}
                         disabled
-                        className="font-mono bg-slate-50 dark:bg-zinc-800 text-slate-500"
+                        className="font-mono bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium flex items-center gap-1">
-                        <Truck className="h-3.5 w-3.5 text-indigo-500" />
-                        <span>Shipping Fee</span>
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium flex items-center gap-1">
+                          <Truck className="h-3.5 w-3.5 text-indigo-500" />
+                          <span>Shipping Fee {poItemCurrency !== "USD" ? `(${poItemCurrency})` : "(USD)"}</span>
+                        </label>
+                        {poItemCurrency !== "USD" && (
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            ≈ ${(poShippingFee * poFxRate).toFixed(2)} USD
+                          </span>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         min="0"
@@ -2046,14 +2186,14 @@ export default function RequestDetail() {
                         onChange={(e) => {
                           const sf = Math.max(0, Number(e.target.value) || 0);
                           setPoShippingFee(sf);
-                          const itemsSum = poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
-                          setPo((prev) => ({ ...prev, amount: Math.round((itemsSum + sf) * 100) / 100 }));
+                          const { totalUsd } = recalculatePoUsdTotal(poItems, sf, poFxRate);
+                          setPo((prev) => ({ ...prev, amount: totalUsd, currency: "USD" }));
                         }}
                         className="font-mono bg-white dark:bg-zinc-900"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total (Pre-Tax)</label>
+                      <label className="text-xs font-medium">Total Pre-Tax (USD)</label>
                       <Input
                         type="number"
                         min="0"
@@ -2061,13 +2201,13 @@ export default function RequestDetail() {
                         value={String(po.amount)}
                         onChange={(e) => {
                           const amt = Math.max(0, Number(e.target.value) || 0);
-                          setPo({ ...po, amount: amt });
+                          setPo((prev) => ({ ...prev, amount: amt, currency: "USD" }));
                         }}
                         className="font-mono bg-white dark:bg-zinc-900 font-semibold"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total (After-Tax)</label>
+                      <label className="text-xs font-medium">Total After-Tax (USD)</label>
                       <Input
                         type="number"
                         min="0"
@@ -2076,15 +2216,28 @@ export default function RequestDetail() {
                         onChange={(e) => {
                           const afterTax = Math.max(0, Number(e.target.value) || 0);
                           const preTax = Math.round((afterTax / (1 + TAX_RATE)) * 100) / 100;
-                          setPo({ ...po, amount: preTax });
+                          setPo((prev) => ({ ...prev, amount: preTax, currency: "USD" }));
                         }}
                         className="font-semibold font-mono bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Currency</label>
-                      <CurrencyAutocomplete value={po.currency ?? ""} onChange={(v) => setPo({ ...po, currency: v })} />
+                      <label className="text-xs font-medium">Item Currency</label>
+                      <CurrencyAutocomplete value={poItemCurrency} onChange={handlePoItemCurrencyChange} />
                     </div>
+                    {poItemCurrency && poItemCurrency !== "USD" && (
+                      <div className="col-span-full mt-1 p-2 bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-lg flex items-center justify-between text-xs text-blue-900 dark:text-blue-200">
+                        <div className="flex items-center gap-1.5">
+                          <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                          <span>
+                            <strong>FX Rate Conversion:</strong> 1 {poItemCurrency} = ${poFxRate.toFixed(6)} USD via CurrencyConverter
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
+                          Table items in {poItemCurrency} automatically convert to USD totals
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2112,8 +2265,8 @@ export default function RequestDetail() {
                             },
                           ];
                           setPoItems(next);
-                          const sum = next.reduce((acc, itm) => acc + (Number(itm.total) || 0), 0);
-                          setPo((prev) => ({ ...prev, amount: Math.round(sum * 100) / 100 }));
+                          const { totalUsd } = recalculatePoUsdTotal(next, poShippingFee, poFxRate);
+                          setPo((prev) => ({ ...prev, amount: totalUsd, currency: "USD" }));
                         }}
                         className="h-7 text-xs flex items-center gap-1"
                       >
@@ -2129,8 +2282,8 @@ export default function RequestDetail() {
                             <th className="p-2 w-24">SKU</th>
                             <th className="p-2">Description</th>
                             <th className="p-2 w-20 text-right">Qty</th>
-                            <th className="p-2 w-24 text-right">Unit Price</th>
-                            <th className="p-2 w-24 text-right">Total</th>
+                            <th className="p-2 w-28 text-right">Unit Price ({poItemCurrency})</th>
+                            <th className="p-2 w-32 text-right">Total ({poItemCurrency})</th>
                             <th className="p-2 w-8 text-center"></th>
                           </tr>
                         </thead>
@@ -2174,8 +2327,8 @@ export default function RequestDetail() {
                                     const tot = Math.round(q * Number(next[idx].unit_price || 0) * 100) / 100;
                                     next[idx] = { ...next[idx], quantity: q, total: tot };
                                     setPoItems(next);
-                                    const sum = next.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
-                                    setPo((prev) => ({ ...prev, amount: Math.round(sum * 100) / 100 }));
+                                    const { totalUsd } = recalculatePoUsdTotal(next, poShippingFee, poFxRate);
+                                    setPo((prev) => ({ ...prev, amount: totalUsd, currency: "USD" }));
                                   }}
                                   className="h-7 text-xs text-right"
                                 />
@@ -2192,14 +2345,19 @@ export default function RequestDetail() {
                                     const tot = Math.round(Number(next[idx].quantity || 1) * p * 100) / 100;
                                     next[idx] = { ...next[idx], unit_price: p, total: tot };
                                     setPoItems(next);
-                                    const sum = next.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
-                                    setPo((prev) => ({ ...prev, amount: Math.round(sum * 100) / 100 }));
+                                    const { totalUsd } = recalculatePoUsdTotal(next, poShippingFee, poFxRate);
+                                    setPo((prev) => ({ ...prev, amount: totalUsd, currency: "USD" }));
                                   }}
                                   className="h-7 text-xs text-right font-mono"
                                 />
                               </td>
-                              <td className="p-2 w-24 text-right font-mono font-semibold text-slate-800 dark:text-zinc-200">
-                                {formatMoney(itm.total || 0)}
+                              <td className="p-2 w-32 text-right font-mono font-semibold text-slate-800 dark:text-zinc-200">
+                                <div>{formatMoney(itm.total || 0, poItemCurrency)}</div>
+                                {poItemCurrency !== "USD" && (
+                                  <div className="text-[10px] font-normal text-slate-500 dark:text-zinc-400">
+                                    ≈ ${(Math.round(Number(itm.total || 0) * poFxRate * 100) / 100).toFixed(2)} USD
+                                  </div>
+                                )}
                               </td>
                               <td className="p-2 text-center w-8">
                                 <Button
@@ -2210,8 +2368,8 @@ export default function RequestDetail() {
                                   onClick={() => {
                                     const next = poItems.filter((_, i) => i !== idx);
                                     setPoItems(next);
-                                    const sum = next.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
-                                    setPo((prev) => ({ ...prev, amount: Math.round(sum * 100) / 100 }));
+                                    const { totalUsd } = recalculatePoUsdTotal(next, poShippingFee, poFxRate);
+                                    setPo((prev) => ({ ...prev, amount: totalUsd, currency: "USD" }));
                                   }}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />

@@ -213,6 +213,28 @@ function resolveActionMeta(method: string, endpoint: string, body?: unknown, cus
     };
   }
 
+  // Notifications
+  if (lower.includes("/notifications")) {
+    if (m === "DELETE") {
+      return {
+        title: "Clearing Notifications",
+        subtitle: "Please wait while notifications are being cleared...",
+      };
+    }
+    if (lower.includes("/read-all")) {
+      return {
+        title: "Marking All as Read",
+        subtitle: "Updating all notifications as read...",
+      };
+    }
+    if (lower.includes("/read")) {
+      return {
+        title: "Updating Notification",
+        subtitle: "Marking notification as read...",
+      };
+    }
+  }
+
   // Safe general defaults based on method
   if (m === "DELETE") {
     return {

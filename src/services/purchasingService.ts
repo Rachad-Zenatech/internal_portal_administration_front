@@ -107,6 +107,12 @@ export function getCurrencies() {
   return apiClient.get<Currency[]>(`${BASE}/currencies`).catch(() => []);
 }
 
+export function getExchangeRate(fromCurrency: string, toCurrency: string = "USD") {
+  return apiClient.get<import("@/types/purchasing").ExchangeRateResult>(
+    `${BASE}/exchange-rate?from_currency=${encodeURIComponent(fromCurrency)}&to_currency=${encodeURIComponent(toCurrency)}`
+  );
+}
+
 export function listAttachments(requestId: string) {
   return apiClient.get<AttachmentInfo[]>(`${BASE}/requests/${requestId}/attachments`);
 }

@@ -54,6 +54,14 @@ export type Currency = {
   symbol: string;
 };
 
+export interface ExchangeRateResult {
+  from_currency: string;
+  to_currency: string;
+  exchange_rate: number;
+  rate_date: string;
+  source: string;
+}
+
 export type NotificationStatus = "SENT" | "READ";
 
 export type WorkflowAction =
@@ -282,6 +290,7 @@ export type PurchaseOrderInput = {
   payment_method?: PaymentMethod | null;
   shipped_to_location?: string | null;
   gl_code?: string | null;
+  items?: any[] | null;
 };
 
 export type InvoiceItemInput = {

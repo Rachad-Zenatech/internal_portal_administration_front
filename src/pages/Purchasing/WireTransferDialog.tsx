@@ -33,8 +33,14 @@ import {
   MapPin,
   SendHorizontal,
   AlertCircle,
+  ArrowRightLeft,
+  Check,
+  Sparkles,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
-import { getTreasuryUsers } from "@/services/purchasingService";
+import { getTreasuryUsers, getExchangeRate } from "@/services/purchasingService";
+import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import type { WireTransferInput, PurchaseOrder, PurchaseRequest } from "@/types/purchasing";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -60,6 +66,21 @@ const COMMON_PAY_FROM = [
   "Zenatech",
 ];
 
+const COMMON_CURRENCIES = ["USD", "CAD", "EUR", "GBP", "AUD", "CNY"];
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$",
+  CAD: "C$",
+  EUR: "€",
+  GBP: "£",
+  AUD: "A$",
+  CNY: "¥",
+  JPY: "¥",
+  CHF: "Fr",
+  MXN: "Mex$",
+  INR: "₹",
+};
+
 export function WireTransferDialog({
   open,
   onOpenChange,
@@ -79,12 +100,14 @@ export function WireTransferDialog({
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [isFetchingRate, setIsFetchingRate] = useState(false);
+  const [fxSourceInfo, setFxSourceInfo] = useState<{ source?: string; rate_date?: string } | null>(null);
 
   const todayStr = new Date().toISOString().split("T")[0];
 
   const [form, setForm] = useState<WireTransferInput>({
-    entered_by: user?.full_name || "",
-    entered_by_user_id: user?.id || undefined,
+    entered_by: "",
+    entered_by_user_id: undefined,
     entry_date: todayStr,
     due_date: request.due_date || "",
     payment_date: todayStr,
@@ -131,6 +154,17 @@ export function WireTransferDialog({
         .then((res: any) => {
           const list = Array.isArray(res) ? res : (res?.data || []);
           setTreasuryUsers(list);
+          // Default to the first treasurer set in the role if no initial data
+          if (!initialData?.entered_by && list.length > 0) {
+            const firstTreasurer = list[0];
+            const defaultName = (firstTreasurer.full_name || "").trim();
+            setEnteredByQuery(defaultName);
+            setForm((prev) => ({
+              ...prev,
+              entered_by: defaultName,
+              entered_by_user_id: firstTreasurer.id,
+            }));
+          }
         })
         .catch(() => setTreasuryUsers([]));
 
@@ -147,7 +181,9 @@ export function WireTransferDialog({
           pay_date: initialData.pay_date || "Same Day",
           amount: initialData.amount || purchaseOrder?.amount || request.amount || 0,
           currency: initialData.currency || purchaseOrder?.currency || request.currency || "USD",
-          conversion_rate: initialData.conversion_rate || "",
+          conversion_rate: initialData.conversion_rate || (
+            (initialData.currency || purchaseOrder?.currency || request.currency || "USD").toUpperCase() === "USD" ? "1.0" : ""
+          ),
           pay_from: initialData.pay_from || "",
           invoice_number: initialData.invoice_number || "",
           comments: initialData.comments || "",
@@ -177,18 +213,31 @@ export function WireTransferDialog({
           contact_name_china: initialData.contact_name_china || "",
         });
       } else {
-        const initialEnteredBy = user?.full_name || "";
+        const defaultTreasurer = treasuryUsers.length > 0 ? treasuryUsers[0] : null;
+        const initialEnteredBy = defaultTreasurer ? (defaultTreasurer.full_name || "").trim() : "";
+        const initialEnteredById = defaultTreasurer ? defaultTreasurer.id : undefined;
         setEnteredByQuery(initialEnteredBy);
         setForm((prev) => ({
           ...prev,
           entered_by: initialEnteredBy,
-          entered_by_user_id: user?.id || undefined,
+          entered_by_user_id: initialEnteredById,
           entry_date: todayStr,
           payment_date: todayStr,
           vendor: purchaseOrder?.vendor || request.product_info?.vendor || prev.vendor,
           amount: purchaseOrder?.amount || request.amount || prev.amount,
           currency: purchaseOrder?.currency || request.currency || prev.currency || "USD",
+          conversion_rate: (purchaseOrder?.currency || request.currency || prev.currency || "USD").toUpperCase() === "USD" ? "1.0" : "",
         }));
+
+        const initCurr = (purchaseOrder?.currency || request.currency || "USD").toUpperCase();
+        if (initCurr !== "USD") {
+          getExchangeRate(initCurr).then((res) => {
+            if (res && res.exchange_rate) {
+              setForm((prev) => ({ ...prev, conversion_rate: String(res.exchange_rate) }));
+              setFxSourceInfo({ source: res.source, rate_date: res.rate_date });
+            }
+          }).catch(() => {});
+        }
       }
     }
   }, [open, request, purchaseOrder, user, todayStr, initialData]);
@@ -207,6 +256,47 @@ export function WireTransferDialog({
   const handleInvoiceChange = (val: string) => {
     const sanitized = val.replace(/[^a-zA-Z0-9\-_]/g, "");
     setForm({ ...form, invoice_number: sanitized });
+  };
+
+  const handleCurrencyChange = async (newCurrency: string) => {
+    const code = (newCurrency || "USD").trim().toUpperCase();
+    setForm((prev) => ({
+      ...prev,
+      currency: code,
+    }));
+
+    if (code === "USD") {
+      setForm((prev) => ({
+        ...prev,
+        currency: "USD",
+        conversion_rate: "1.0",
+      }));
+      setFxSourceInfo(null);
+      return;
+    }
+
+    setIsFetchingRate(true);
+    try {
+      const res = await getExchangeRate(code);
+      if (res && res.exchange_rate) {
+        setForm((prev) => ({
+          ...prev,
+          currency: code,
+          conversion_rate: String(res.exchange_rate),
+        }));
+        setFxSourceInfo({
+          source: res.source,
+          rate_date: res.rate_date,
+        });
+        toast.success(`Exchange rate fetched: 1 ${code} = $${res.exchange_rate} USD`, {
+          description: `${res.source} (${res.rate_date})`,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch exchange rate for", code, err);
+    } finally {
+      setIsFetchingRate(false);
+    }
   };
 
   const cleanDate = (d?: string | null) => {
@@ -264,40 +354,61 @@ export function WireTransferDialog({
             e.preventDefault();
             setShowDiscardConfirm(true);
           }}
-          className="!w-[92vw] !max-w-[1000px] sm:!max-w-[1000px] max-h-[90vh] overflow-y-auto"
+          className="!w-[92vw] !max-w-[1000px] sm:!max-w-[1000px] h-[90vh] max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 shadow-2xl rounded-2xl"
           style={{ width: "92vw", maxWidth: "1000px" }}
         >
-          {/* HEADER */}
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Landmark className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-              <span>{isEditMode ? `Edit Wire Transfer · Request #${request.id}` : `Wire Transfer Information · Request #${request.id}`}</span>
-              <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border-indigo-200 text-xs font-semibold">
-                TREASURY STAGE
-              </Badge>
-            </DialogTitle>
-          </DialogHeader>
+          {/* FIXED HEADER */}
+          <div className="px-6 py-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/90 dark:bg-zinc-900/70 shrink-0">
+            <DialogHeader className="p-0">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-200/50 dark:border-indigo-800/50">
+                    <Landmark className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <DialogTitle className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 truncate flex items-center gap-2">
+                      <span>{isEditMode ? "Edit Wire Transfer" : "Wire Transfer Information"}</span>
+                      <span className="text-muted-foreground font-normal text-sm">· Request #{request.id}</span>
+                    </DialogTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {isEditMode
+                        ? "Update the wire payment and banking details."
+                        : "Complete the wire payment details to record this transaction."}
+                    </p>
+                  </div>
+                </div>
+                <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-xs font-semibold shrink-0 py-1 px-2.5">
+                  TREASURY STAGE
+                </Badge>
+              </div>
+            </DialogHeader>
+          </div>
 
           {/* FORM */}
-          <form onSubmit={handleSubmit} className="space-y-4 py-2">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-              <TabsList className="grid grid-cols-3 w-full max-w-md">
-                <TabsTrigger value="general" className="flex items-center gap-1.5 text-xs">
-                  <FileText className="w-3.5 h-3.5" />
-                  General & Payment
-                </TabsTrigger>
-                <TabsTrigger value="banking" className="flex items-center gap-1.5 text-xs">
-                  <Building2 className="w-3.5 h-3.5" />
-                  Bank & Routing
-                </TabsTrigger>
-                <TabsTrigger value="international" className="flex items-center gap-1.5 text-xs">
-                  <Globe2 className="w-3.5 h-3.5" />
-                  International
-                </TabsTrigger>
-              </TabsList>
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+              {/* FIXED TABS SELECTOR */}
+              <div className="px-6 pt-3.5 pb-2.5 bg-white dark:bg-zinc-950 border-b border-slate-100 dark:border-zinc-800/80 shrink-0">
+                <TabsList className="grid grid-cols-3 w-full max-w-md h-9">
+                  <TabsTrigger value="general" className="flex items-center gap-1.5 text-xs">
+                    <FileText className="w-3.5 h-3.5" />
+                    General & Payment
+                  </TabsTrigger>
+                  <TabsTrigger value="banking" className="flex items-center gap-1.5 text-xs">
+                    <Building2 className="w-3.5 h-3.5" />
+                    Bank & Routing
+                  </TabsTrigger>
+                  <TabsTrigger value="international" className="flex items-center gap-1.5 text-xs">
+                    <Globe2 className="w-3.5 h-3.5" />
+                    International
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-              {/* TAB 1: GENERAL & PAYMENT */}
-              <TabsContent value="general" className="space-y-4 mt-0">
+              {/* SCROLLABLE BODY */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                {/* TAB 1: GENERAL & PAYMENT */}
+                <TabsContent value="general" className="space-y-4 mt-0">
                 {/* Assignment & Scheduling */}
                 <div className="p-3.5 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-3">
                   <div className="flex items-center gap-2">
@@ -342,19 +453,26 @@ export function WireTransferDialog({
                       </div>
 
                       {showUserDropdown && filteredTreasuryUsers.length > 0 && (
-                        <div className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg shadow-xl py-1">
+                        <div
+                          data-radix-scroll-lock-ignore=""
+                          onWheel={(e) => e.stopPropagation()}
+                          onTouchMove={(e) => e.stopPropagation()}
+                          style={{ scrollbarWidth: "thin", overscrollBehavior: "contain" }}
+                          className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto overscroll-contain bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg shadow-xl py-1"
+                        >
                           {filteredTreasuryUsers.map((u) => (
                             <button
                               key={u.id}
                               type="button"
                               className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors"
                               onClick={() => {
+                                const selectedName = (u.full_name || "").trim();
                                 setForm({
                                   ...form,
-                                  entered_by: u.full_name,
+                                  entered_by: selectedName,
                                   entered_by_user_id: u.id,
                                 });
-                                setEnteredByQuery(u.full_name);
+                                setEnteredByQuery(selectedName);
                                 setShowUserDropdown(false);
                                 setValidationErrors((prev) => ({ ...prev, entered_by: false }));
                               }}
@@ -489,38 +607,63 @@ export function WireTransferDialog({
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-medium">
-                          Amount <span className="text-red-500">*</span>
+                          Amount <span className="text-red-500">*</span>{" "}
+                          <span className="text-indigo-600 dark:text-indigo-400 font-normal text-[11px]">
+                            ({form.currency || "USD"})
+                          </span>
                         </label>
                         {validationErrors.amount && (
                           <span className="text-[10px] text-red-500 font-medium">Required</span>
                         )}
                       </div>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        required
-                        value={form.amount ?? ""}
-                        onChange={(e) => {
-                          setForm({ ...form, amount: parseFloat(e.target.value) || 0 });
-                          if (validationErrors.amount) {
-                            setValidationErrors((prev) => ({ ...prev, amount: false }));
-                          }
-                        }}
-                        placeholder="0.00"
-                        className={`h-9 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-zinc-900 ${
-                          validationErrors.amount ? "border-red-500 focus-visible:ring-red-500" : ""
-                        }`}
-                      />
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-2.5 text-xs font-semibold text-slate-400 select-none">
+                          {CURRENCY_SYMBOLS[(form.currency || "USD").toUpperCase()] || "$"}
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          required
+                          value={form.amount ?? ""}
+                          onChange={(e) => {
+                            setForm({ ...form, amount: parseFloat(e.target.value) || 0 });
+                            if (validationErrors.amount) {
+                              setValidationErrors((prev) => ({ ...prev, amount: false }));
+                            }
+                          }}
+                          placeholder="0.00"
+                          className={`h-9 text-xs font-semibold pl-8 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-zinc-900 ${
+                            validationErrors.amount ? "border-red-500 focus-visible:ring-red-500" : ""
+                          }`}
+                        />
+                      </div>
                     </div>
 
                     {/* Currency */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Currency</label>
-                      <Input
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium">Currency</label>
+                        <div className="flex items-center gap-1">
+                          {COMMON_CURRENCIES.slice(0, 4).map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => handleCurrencyChange(c)}
+                              className={`text-[10px] px-1.5 py-0.5 rounded font-medium border transition-colors ${
+                                (form.currency || "USD").toUpperCase() === c
+                                  ? "bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-950 dark:border-indigo-700 dark:text-indigo-300 font-bold"
+                                  : "bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100"
+                              }`}
+                            >
+                              {c}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <CurrencyAutocomplete
                         value={form.currency || "USD"}
-                        onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase() })}
-                        placeholder="USD, CAD..."
-                        className="h-9 text-xs uppercase bg-white dark:bg-zinc-900"
+                        onChange={handleCurrencyChange}
+                        disabled={isSubmitting}
                       />
                     </div>
 
@@ -578,15 +721,118 @@ export function WireTransferDialog({
                       />
                     </div>
 
-                    {/* Conversion */}
+                    {/* Conversion Rate */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Conversion</label>
-                      <Input
-                        value={form.conversion_rate || ""}
-                        onChange={(e) => setForm({ ...form, conversion_rate: e.target.value })}
-                        placeholder="e.g. 41566.25"
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium">
+                          Conversion Rate{" "}
+                          <span className="text-slate-400 font-normal text-[11px]">(FX Rate)</span>
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          {form.currency && form.currency.toUpperCase() !== "USD" && form.conversion_rate && (
+                            <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400">
+                              1 {form.currency} = ${form.conversion_rate}
+                            </span>
+                          )}
+                          {form.currency && form.currency.toUpperCase() !== "USD" && (
+                            <button
+                              type="button"
+                              onClick={() => handleCurrencyChange(form.currency || "USD")}
+                              disabled={isFetchingRate}
+                              title="Fetch latest rate from Python Currency Service"
+                              className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 inline-flex items-center gap-0.5 hover:underline disabled:opacity-50"
+                            >
+                              <RefreshCw className={`h-2.5 w-2.5 ${isFetchingRate ? "animate-spin" : ""}`} />
+                              <span>Fetch Live</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="relative">
+                        <ArrowRightLeft className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                        <Input
+                          value={form.conversion_rate || ""}
+                          onChange={(e) => setForm({ ...form, conversion_rate: e.target.value })}
+                          disabled={isFetchingRate}
+                          placeholder={
+                            (form.currency || "USD").toUpperCase() === "USD"
+                              ? "1.00 (USD)"
+                              : isFetchingRate
+                              ? "Fetching live rate..."
+                              : (form.currency || "").toUpperCase() === "CAD"
+                              ? "e.g. 0.7400"
+                              : (form.currency || "").toUpperCase() === "EUR"
+                              ? "e.g. 1.0850"
+                              : (form.currency || "").toUpperCase() === "GBP"
+                              ? "e.g. 1.2800"
+                              : "e.g. 1.0000"
+                          }
+                          className="h-9 text-xs font-mono pl-8 pr-8 bg-white dark:bg-zinc-900"
+                        />
+                        {isFetchingRate && (
+                          <div className="absolute right-2.5 top-2.5">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                          </div>
+                        )}
+                      </div>
+                      {fxSourceInfo && form.currency && form.currency.toUpperCase() !== "USD" && (
+                        <div className="text-[10px] text-slate-500 dark:text-zinc-400 flex items-center justify-between px-0.5">
+                          <span className="truncate">Source: {fxSourceInfo.source}</span>
+                          <span className="shrink-0 font-mono text-[9px] text-slate-400">{fxSourceInfo.rate_date}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* FX CONVERSION SUMMARY BANNER */}
+                    <div className="sm:col-span-4 -mt-1">
+                      {(form.currency || "USD").toUpperCase() !== "USD" ? (
+                        parseFloat(form.conversion_rate || "0") > 0 && Number(form.amount) > 0 ? (
+                          <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/80 rounded-lg text-xs">
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                              <span className="text-slate-700 dark:text-zinc-300">
+                                Estimated USD Settlement:{" "}
+                                <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300 font-mono">
+                                  ${(
+                                    Number(form.amount) * parseFloat(form.conversion_rate || "1")
+                                  ).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
+                                  USD
+                                </span>
+                              </span>
+                              <span className="text-[11px] text-muted-foreground">
+                                ({Number(form.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })} {form.currency} ×{" "}
+                                {form.conversion_rate})
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentRate = parseFloat(form.conversion_rate || "0");
+                                if (currentRate > 0) {
+                                  const inverted = (1 / currentRate).toFixed(6).replace(/\.?0+$/, "");
+                                  setForm({ ...form, conversion_rate: inverted });
+                                }
+                              }}
+                              className="text-[10px] text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-medium underline underline-offset-2 transition-colors"
+                              title="Invert FX rate (1 / rate)"
+                            >
+                              Invert Rate (1/x)
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-lg text-xs text-amber-700 dark:text-amber-300">
+                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                            <span>
+                              Wiring in <strong>{form.currency || "Foreign Currency"}</strong>. Enter the conversion rate (FX rate to USD) above to calculate estimated USD equivalent.
+                            </span>
+                          </div>
+                        )
+                      ) : (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-zinc-900/50 border border-slate-200/60 dark:border-zinc-800 rounded-lg text-xs text-slate-500 dark:text-zinc-400">
+                          <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Standard currency is USD. Conversion rate defaults to 1.00.</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Comments */}
@@ -907,33 +1153,37 @@ export function WireTransferDialog({
                   </div>
                 </div>
               </TabsContent>
+              </div>
             </Tabs>
 
-            {/* FOOTER */}
-            <DialogFooter className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 dark:border-zinc-800">
-              <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                <span>Treasury settlement audit trail will be logged upon submission.</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowDiscardConfirm(true)}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                >
-                  <SendHorizontal className="h-4 w-4 mr-1.5" />
-                  {isEditMode ? "Save Changes" : "Confirm Wire & Mark Purchased"}
-                </Button>
-              </div>
-            </DialogFooter>
+            {/* FIXED FOOTER */}
+            <div className="px-6 py-4 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/90 dark:bg-zinc-900/70 shrink-0">
+              <DialogFooter className="p-0 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>Treasury settlement audit trail will be logged upon submission.</span>
+                </div>
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowDiscardConfirm(true)}
+                    disabled={isSubmitting}
+                    className="h-9 px-4 text-xs font-medium"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="h-9 px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5"
+                  >
+                    <SendHorizontal className="h-4 w-4" />
+                    {isEditMode ? "Save Changes" : "Confirm Wire & Mark Purchased"}
+                  </Button>
+                </div>
+              </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

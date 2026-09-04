@@ -43,7 +43,7 @@ import ThemeSwitch from "./ThemeSwitch";
 import { useGlobalSearch } from "@/hooks/useSearch";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
-import { useNotifications, useUnreadNotificationCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, useClearReadNotifications } from "@/hooks/useNotifications";
+import { useNotifications, useUnreadNotificationCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, useClearAllNotifications } from "@/hooks/useNotifications";
 import FloatingChat from "./FloatingChat";
 
 
@@ -128,7 +128,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   const { data: unreadCountData } = useUnreadNotificationCount();
   const { mutate: markAsRead } = useMarkNotificationAsRead();
   const { mutate: markAllAsRead, isPending: isMarkingAll } = useMarkAllNotificationsAsRead();
-  const { mutate: clearRead } = useClearReadNotifications();
+  const { mutate: clearAll, isPending: isClearingAll } = useClearAllNotifications();
   const unreadCount = unreadCountData?.count ?? 0;
 
   const queryClient = useQueryClient();
@@ -137,7 +137,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
     // Connect to SSE stream
     const token = sessionStorage.getItem("token") || "";
     const eventSource = new EventSource(`${BASE_URL || ""}/api/notifications/stream?token=${token}`, { withCredentials: true });
-    
+
     eventSource.onmessage = (event) => {
       try {
         const newNotif = JSON.parse(event.data);
@@ -150,17 +150,17 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
         queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
         queryClient.invalidateQueries({ queryKey: ["invoices"] });
-        
+
         if (inAppAlerts) {
           const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "";
           toast(
-            <div 
+            <div
               className="cursor-pointer w-full flex flex-col gap-1"
               onClick={() => newNotif.link_url && navigate(newNotif.link_url)}
             >
               <div className="font-medium">{capitalizedTitle}</div>
               <div className="text-sm text-slate-500 dark:text-zinc-400 whitespace-pre-line">{newNotif.message}</div>
-            </div>, 
+            </div>,
             {
               position: "bottom-right",
               duration: 5000,
@@ -250,8 +250,8 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
         )}
         <div ref={containerRef} className="relative w-full max-w-[220px] sm:max-w-[300px] md:max-w-[360px] desktop:max-w-[400px] z-50">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search for anything here..." 
+          <Input
+            placeholder="Search for anything here..."
             className="w-full pl-9 bg-muted/60 border-none rounded-full h-8.5 sm:h-9 text-xs sm:text-sm shadow-inner focus-visible:ring-1 focus-visible:ring-ring"
             value={inputValue}
             onChange={(e) => {
@@ -262,7 +262,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               if (inputValue.trim().length > 0) setIsOpen(true);
             }}
           />
-          
+
           {isOpen && debouncedValue.length > 0 && (
             <div className="absolute top-full left-0 w-[360px] sm:w-[440px] md:w-[480px] max-w-[calc(100vw-2rem)] mt-2 bg-card border border-border shadow-2xl rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
               {isLoading || isFetching ? (
@@ -273,7 +273,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               ) : results.length > 0 ? (
                 <div className="max-h-[400px] overflow-y-auto py-2">
                   {results.map((result, idx) => (
-                    <div 
+                    <div
                       key={`${result.type}-${result.id}-${idx}`}
                       className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
                       onClick={() => handleResultClick(result.url || "/")}
@@ -294,10 +294,10 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                       </div>
                     </div>
                   ))}
-                  
+
                   <div className="px-4 py-2 border-t border-border/50 mt-2">
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       className="w-full justify-start gap-3 h-14 rounded-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300"
                       onClick={() => {
                         setIsOpen(false);
@@ -321,8 +321,8 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   <span className="text-sm text-muted-foreground mb-4">
                     No results found for "{debouncedValue}"
                   </span>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="gap-2 rounded-xl border-blue-200 hover:border-blue-300 hover:bg-blue-50 dark:border-blue-900/50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors"
                     onClick={() => {
                       setIsOpen(false);
@@ -340,7 +340,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
           )}
         </div>
       </div>
-      
+
       <div className="flex items-center gap-2.5 sm:gap-3.5 md:gap-4.5 shrink-0">
                 <TopBarClock />
         <TooltipProvider delayDuration={0}>
@@ -476,22 +476,34 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               {/* Footer Actions */}
               <div className="p-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-950">
                 <div className="flex items-center gap-2">
-                  <Button 
-                    variant="ghost" 
-                    className="h-9 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-bold tracking-tight transition-colors gap-2" 
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); markAllAsRead(); }} 
+                  <Button
+                    variant="ghost"
+                    className="h-9 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-bold tracking-tight transition-colors gap-2"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      markAllAsRead(undefined, {
+                        onSuccess: () => toast.success("All notifications marked as read"),
+                      });
+                    }}
                     disabled={isMarkingAll}
                   >
                     <CheckCheck className={`h-4 w-4 ${isMarkingAll ? "animate-pulse" : ""}`} />
                     Mark all as read
                   </Button>
                 </div>
-                <Button 
+                <Button
                   className="h-9 px-5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition-colors"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearRead(); }}
-                  disabled={notifications.length === 0}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    clearAll(undefined, {
+                      onSuccess: () => toast.success("Notifications cleared"),
+                    });
+                  }}
+                  disabled={notifications.length === 0 || isClearingAll}
                 >
-                  Clear All
+                  {isClearingAll ? "Clearing..." : "Clear All"}
                 </Button>
               </div>
             </DropdownMenuContent>
@@ -517,7 +529,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             <div className="px-2 py-2 border-b border-border/50 pb-2.5 mb-1">
               <p className="text-sm font-semibold text-foreground leading-tight">{user?.full_name || "User"}</p>
               <p className="text-xs text-muted-foreground truncate mt-0.5">{user?.email}</p>
-              
+
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
                 <Badge variant="secondary" className="h-5 inline-flex items-center justify-center px-2 text-[10px] font-medium leading-none">
                   <span className="leading-none">{user?.is_super_admin ? "Super Admin" : roles.length > 0 ? roles[0].name : "Standard User"}</span>
@@ -535,8 +547,8 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               <span>Profile</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={() => setIsLogoutOpen(true)} 
+            <DropdownMenuItem
+              onClick={() => setIsLogoutOpen(true)}
               className="cursor-pointer text-xs text-red-600 focus:text-red-600 focus:bg-red-100 dark:focus:bg-red-900/30"
             >
               <LogOut className="mr-2 h-3.5 w-3.5" />
@@ -559,7 +571,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               </DialogDescription>
             </div>
           </div>
-          
+
           <Tabs defaultValue="general" className="w-full flex-1 flex flex-col">
             <div className="px-8 pt-6">
               <TabsList className="grid w-full grid-cols-2 h-11 bg-muted/50">
@@ -575,7 +587,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                     <Label htmlFor="firstName" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Full Name</Label>
                     <Input id="firstName" readOnly defaultValue={user?.full_name || ""} className="bg-muted/30 border-border focus-visible:ring-primary/30 h-11" />
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Department</Label>
@@ -642,7 +654,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                       </Label>
                       <p className="text-xs text-muted-foreground">Show push notifications</p>
                     </div>
-                    <div 
+                    <div
                       className={`h-5 w-9 rounded-full relative cursor-pointer transition-colors ${inAppAlerts ? 'bg-primary' : 'bg-muted-foreground/30'}`}
                       onClick={() => {
                         const newVal = !inAppAlerts;
@@ -657,7 +669,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               </TabsContent>
             </div>
           </Tabs>
-          
+
         </DialogContent>
       </Dialog>
 
@@ -677,12 +689,12 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             <Button variant="outline" onClick={() => setIsLogoutOpen(false)} className="flex-1 rounded-xl h-11 font-semibold">
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={() => {
                 setIsLogoutOpen(false);
                 logout();
-              }} 
+              }}
               className="flex-1 rounded-xl h-11 bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all font-semibold"
             >
               Log Out
