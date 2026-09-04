@@ -20,7 +20,8 @@ env:
   S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME || secrets.BUCKET_NAME || secrets.AWS_S3_BUCKET }}
   CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID || secrets.DISTRIBUTION_ID || secrets.DISTRIBUTION_NAME }}
   VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || secrets.API_BASE_URL }}
-  ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_ARN || secrets.ROLE_ARN || (secrets.AWS_ACCOUNT_ID != '' && format('arn:aws:iam::{0}:role/{1}', secrets.AWS_ACCOUNT_ID, secrets.AWS_ROLE_NAME || secrets.ROLE_NAME || 'github-actions-role')) || (secrets.ACCOUNT_ID != '' && format('arn:aws:iam::{0}:role/{1}', secrets.ACCOUNT_ID, secrets.AWS_ROLE_NAME || secrets.ROLE_NAME || 'github-actions-role')) }}
+  ROLE_NAME: ${{ secrets.AWS_ROLE_NAME || secrets.ROLE_NAME || 'github-actions-role' }}
+  ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_ARN || secrets.ROLE_ARN }}
 
 jobs:
   build-and-deploy:
@@ -31,56 +32,84 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate deployment configuration
+      - name: Validate environment variables and secrets
         shell: bash
         run: |
           set -euo pipefail
 
+          echo "=========================================="
+          echo "       ENVIRONMENT VARIABLES CHECK        "
+          echo "=========================================="
+          echo "GitHub Repository : ${{ github.repository }}"
+          echo "GitHub Ref        : ${{ github.ref }}"
+          echo "GitHub Actor      : ${{ github.actor }}"
+          echo "GitHub Workflow   : ${{ github.workflow }}"
+          echo "GitHub Environment: Zenatech"
+          echo "------------------------------------------"
+
           missing=0
 
+          # 1. AWS Region
           if [ -z "${AWS_REGION:-}" ]; then
             echo "::error title=Missing AWS region::Neither AWS_REGION nor REGION secret is set."
             missing=1
           else
-            echo "AWS_REGION=${AWS_REGION}"
+            echo "✓ AWS_REGION                 : ${AWS_REGION}"
           fi
 
-          if [ -z "${ROLE_TO_ASSUME:-}" ]; then
-            echo "::error title=Missing AWS role configuration::Neither AWS_ROLE_ARN, ROLE_ARN, nor AWS_ACCOUNT_ID/ACCOUNT_ID secret is set."
+          # 2. AWS Account ID
+          if [ -z "${AWS_ACCOUNT_ID:-}" ]; then
+            echo "::warning title=Missing AWS Account ID::Neither AWS_ACCOUNT_ID nor ACCOUNT_ID secret is set."
+            echo "⚠ AWS_ACCOUNT_ID             : (not set)"
+          else
+            echo "✓ AWS_ACCOUNT_ID             : ${AWS_ACCOUNT_ID}"
+          fi
+
+          # 3. IAM Role to Assume
+          ROLE="${ROLE_TO_ASSUME:-}"
+          if [ -z "${ROLE}" ] && [ -n "${AWS_ACCOUNT_ID:-}" ]; then
+            ROLE="arn:aws:iam::${AWS_ACCOUNT_ID}:role/${ROLE_NAME:-github-actions-role}"
+          fi
+
+          if [ -z "${ROLE}" ]; then
+            echo "::error title=Missing AWS role::Could not determine IAM role to assume. Please set AWS_ROLE_ARN or AWS_ACCOUNT_ID."
             missing=1
           else
-            echo "ROLE_TO_ASSUME configured."
+            echo "✓ ROLE_TO_ASSUME             : ${ROLE}"
+            echo "ROLE_TO_ASSUME=${ROLE}" >> "$GITHUB_ENV"
           fi
 
+          # 4. S3 Bucket Name
           if [ -z "${S3_BUCKET_NAME:-}" ]; then
             echo "::error title=Missing S3 bucket::Neither S3_BUCKET_NAME nor BUCKET_NAME secret is set."
             missing=1
           else
-            echo "S3_BUCKET_NAME=${S3_BUCKET_NAME}"
+            echo "✓ S3_BUCKET_NAME             : ${S3_BUCKET_NAME}"
           fi
 
+          # 5. CloudFront Distribution ID
           if [ -z "${CLOUDFRONT_DISTRIBUTION_ID:-}" ]; then
-            echo "::warning title=Missing CloudFront ID::Neither CLOUDFRONT_DISTRIBUTION_ID nor DISTRIBUTION_ID secret is set. CloudFront invalidation will be skipped."
+            echo "::warning title=Missing CloudFront ID::Neither CLOUDFRONT_DISTRIBUTION_ID nor DISTRIBUTION_ID secret is set. Invalidation will be skipped."
+            echo "⚠ CLOUDFRONT_DISTRIBUTION_ID : (not set - will skip invalidation)"
           else
-            echo "CLOUDFRONT_DISTRIBUTION_ID configured."
+            echo "✓ CLOUDFRONT_DISTRIBUTION_ID : ${CLOUDFRONT_DISTRIBUTION_ID}"
           fi
 
+          # 6. Vite API Base URL
           if [ -z "${VITE_API_BASE_URL:-}" ]; then
-            echo "::warning title=Empty VITE_API_BASE_URL::Neither VITE_API_BASE_URL nor API_BASE_URL secret is set. API calls will default to relative URLs."
+            echo "::warning title=Empty VITE_API_BASE_URL::Neither VITE_API_BASE_URL nor API_BASE_URL secret is set. Frontend will default to relative API calls."
+            echo "⚠ VITE_API_BASE_URL          : (not set - relative /)"
           else
-            echo "VITE_API_BASE_URL is configured."
+            echo "✓ VITE_API_BASE_URL          : ${VITE_API_BASE_URL}"
           fi
 
-          echo "--- OIDC DIAGNOSTICS ---"
-          echo "GitHub Repository: ${{ github.repository }}"
-          echo "GitHub Ref: ${{ github.ref }}"
-          echo "GitHub Environment: Zenatech"
-          echo "Expected OIDC 'sub' claim:"
+          echo "------------------------------------------"
+          echo "Expected OIDC 'sub' claim for IAM Trust Policy:"
           echo "  repo:${{ github.repository }}:environment:Zenatech"
-          echo "------------------------"
+          echo "=========================================="
 
           if [ "$missing" -ne 0 ]; then
-            echo "::error::Deployment configuration validation failed due to missing required secrets."
+            echo "::error::Deployment configuration validation failed due to missing required environment variables/secrets."
             exit 1
           fi
 
