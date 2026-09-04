@@ -33,6 +33,20 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Trim leading/trailing whitespace from secrets
+          AWS_REGION="$(echo -n "${AWS_REGION:-}" | xargs)"
+          AWS_ACCOUNT_ID="$(echo -n "${AWS_ACCOUNT_ID:-}" | xargs)"
+          S3_BUCKET_NAME="$(echo -n "${S3_BUCKET_NAME:-}" | xargs)"
+          CLOUDFRONT_DISTRIBUTION_ID="$(echo -n "${CLOUDFRONT_DISTRIBUTION_ID:-}" | xargs)"
+          VITE_API_BASE_URL="$(echo -n "${VITE_API_BASE_URL:-}" | xargs)"
+
+          # Export sanitized variables to subsequent steps
+          echo "AWS_REGION=${AWS_REGION}" >> "$GITHUB_ENV"
+          echo "AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}" >> "$GITHUB_ENV"
+          echo "S3_BUCKET_NAME=${S3_BUCKET_NAME}" >> "$GITHUB_ENV"
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${CLOUDFRONT_DISTRIBUTION_ID}" >> "$GITHUB_ENV"
+          echo "VITE_API_BASE_URL=${VITE_API_BASE_URL}" >> "$GITHUB_ENV"
+
           missing=0
 
           if [ -z "${AWS_REGION:-}" ]; then
