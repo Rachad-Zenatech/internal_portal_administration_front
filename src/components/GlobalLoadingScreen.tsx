@@ -1,15 +1,26 @@
 import { useEffect, useState } from "react";
 import { useIsMutating } from "@tanstack/react-query";
 import { subscribeToApiActions, type ActiveApiAction } from "@/services/apiClient";
-import { Sparkles } from "lucide-react";
+import { Sparkles, FileText } from "lucide-react";
 
 export default function GlobalLoadingScreen() {
   const [activeActions, setActiveActions] = useState<ActiveApiAction[]>([]);
   const isQueryMutating = useIsMutating();
+  const [lastMeta, setLastMeta] = useState<{ title: string; subtitle: string }>({
+    title: "Processing Request",
+    subtitle: "Please wait while your request is being processed...",
+  });
 
   useEffect(() => {
     return subscribeToApiActions((actions) => {
       setActiveActions(actions);
+      if (actions.length > 0) {
+        const latest = actions[actions.length - 1];
+        setLastMeta({
+          title: latest.title,
+          subtitle: latest.subtitle,
+        });
+      }
     });
   }, []);
 
@@ -34,10 +45,15 @@ export default function GlobalLoadingScreen() {
 
   if (!visible) return null;
 
-  // Determine title and subtitle
+  // Determine title and subtitle: prioritize active action, retain lastMeta during transition, then fallback
   const latestAction = activeActions[activeActions.length - 1];
-  const title = latestAction?.title || "Saving Changes";
-  const subtitle = latestAction?.subtitle || "Please wait while your changes are being saved...";
+  const title = latestAction?.title || lastMeta.title;
+  const subtitle = latestAction?.subtitle || lastMeta.subtitle;
+  const isExtraction =
+    title.toLowerCase().includes("extract") ||
+    title.toLowerCase().includes("ocr") ||
+    title.toLowerCase().includes("quote") ||
+    title.toLowerCase().includes("pdf");
 
   return (
     <div
@@ -52,12 +68,23 @@ export default function GlobalLoadingScreen() {
         <div className="absolute -bottom-12 -right-12 w-36 h-36 bg-sky-500/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Dual-ring spinning orbital badge */}
-        <div className="relative mb-4 flex items-center justify-center">
+        <div className="relative mb-3 flex items-center justify-center">
           <div className="w-14 h-14 rounded-full border-[3px] border-indigo-100 dark:border-indigo-950/80 border-t-indigo-600 dark:border-t-indigo-400 animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+            {isExtraction ? (
+              <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+            ) : (
+              <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+            )}
           </div>
         </div>
+
+        {isExtraction && (
+          <div className="mb-2 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1">
+            <Sparkles className="h-3 w-3" />
+            <span>AI Document OCR</span>
+          </div>
+        )}
 
         {/* Action Title */}
         <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100 mb-1 tracking-tight">

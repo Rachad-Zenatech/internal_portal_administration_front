@@ -31,11 +31,22 @@ function notifyActionListeners() {
   });
 }
 
-function resolveActionMeta(method: string, endpoint: string, body?: unknown, customLabel?: string): { title: string; subtitle: string } {
+export interface ApiRequestOptions extends RequestInit {
+  actionLabel?: string;
+  actionSubtitle?: string;
+}
+
+function resolveActionMeta(
+  method: string,
+  endpoint: string,
+  body?: unknown,
+  customLabel?: string,
+  customSubtitle?: string
+): { title: string; subtitle: string } {
   if (customLabel) {
     return {
       title: customLabel,
-      subtitle: "Please wait while your changes are being saved...",
+      subtitle: customSubtitle || "Please wait while your changes are being saved...",
     };
   }
 
@@ -155,7 +166,29 @@ function resolveActionMeta(method: string, endpoint: string, body?: unknown, cus
     };
   }
 
-  // 6. Existing Request Updates (e.g. /requests/123)
+  // 6. Extraction & OCR (Multi-Part Quote PDF, Product Info, etc.)
+  if (lower.includes("/quotes/extract") || (lower.includes("/quotes") && lower.includes("/extract"))) {
+    return {
+      title: "Extracting Multi-Part Quote",
+      subtitle: "Analyzing PDF layout, OCR text, and extracting line items...",
+    };
+  }
+
+  if (lower.includes("/extract-product-info") || lower.includes("/extract-product")) {
+    return {
+      title: "Extracting Product Details",
+      subtitle: "Retrieving product title, vendor, and price from URL...",
+    };
+  }
+
+  if (lower.includes("/extract")) {
+    return {
+      title: "Extracting Document Data",
+      subtitle: "Analyzing file contents and extracting line items...",
+    };
+  }
+
+  // 7. Existing Request Updates (e.g. /requests/123)
   const isExistingRequest = /\/requests\/\w+/.test(lower);
   if (isExistingRequest) {
     if (m === "DELETE") {
@@ -268,7 +301,7 @@ const PERFORMANCE_DEDUPLICATION_MS = 60_000;
 const performanceReportTimes: number[] = [];
 const recentPerformanceReports = new Map<string, number>();
 
-async function monitoredFetch(endpoint: string, options: RequestInit): Promise<Response> {
+async function monitoredFetch(endpoint: string, options: ApiRequestOptions): Promise<Response> {
   const started = performance.now();
   let statusCode = 0;
   
@@ -300,8 +333,9 @@ async function monitoredFetch(endpoint: string, options: RequestInit): Promise<R
   let actionId: string | null = null;
   if (isMutating && !isIgnored) {
     actionId = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-    const customLabel = (options as any)?.actionLabel;
-    const meta = resolveActionMeta(method, targetEndpoint, options.body, customLabel);
+    const customLabel = options.actionLabel;
+    const customSubtitle = options.actionSubtitle;
+    const meta = resolveActionMeta(method, targetEndpoint, options.body, customLabel, customSubtitle);
     activeActions.set(actionId, {
       id: actionId,
       method,
@@ -367,7 +401,7 @@ async function monitoredFetch(endpoint: string, options: RequestInit): Promise<R
 }
 
 export const apiClient = {
-  async get<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  async get<T>(endpoint: string, options?: ApiRequestOptions): Promise<T> {
     const res = await monitoredFetch(endpoint, {
       ...options, 
       method: "GET",
@@ -380,7 +414,7 @@ export const apiClient = {
     return handleResponse<T>(res);
   },
   
-  async post<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<T> {
+  async post<T>(endpoint: string, body?: unknown, options?: ApiRequestOptions): Promise<T> {
     const isFormData = body instanceof FormData;
     const res = await monitoredFetch(endpoint, {
       ...options,
@@ -396,7 +430,7 @@ export const apiClient = {
     return handleResponse<T>(res);
   },
   
-  async patch<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<T> {
+  async patch<T>(endpoint: string, body?: unknown, options?: ApiRequestOptions): Promise<T> {
     const res = await monitoredFetch(endpoint, {
       ...options,
       method: "PATCH",
@@ -411,7 +445,7 @@ export const apiClient = {
     return handleResponse<T>(res);
   },
   
-  async put<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<T> {
+  async put<T>(endpoint: string, body?: unknown, options?: ApiRequestOptions): Promise<T> {
     const res = await monitoredFetch(endpoint, {
       ...options,
       method: "PUT",
@@ -426,7 +460,7 @@ export const apiClient = {
     return handleResponse<T>(res);
   },
   
-  async delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  async delete<T>(endpoint: string, options?: ApiRequestOptions): Promise<T> {
     const res = await monitoredFetch(endpoint, {
       ...options, 
       method: "DELETE",

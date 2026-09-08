@@ -55,7 +55,10 @@ export function getRequest(id: string) {
 export function extractQuote(file: File) {
   const formData = new FormData();
   formData.append("file", file);
-  return apiClient.post<any>(`${BASE}/quotes/extract`, formData);
+  return apiClient.post<any>(`${BASE}/quotes/extract`, formData, {
+    actionLabel: "Extracting Multi-Part Quote",
+    actionSubtitle: "Analyzing PDF layout, OCR text, and extracting line items...",
+  });
 }
 
 export function createRequest(payload: RequestCreateInput) {
@@ -63,7 +66,10 @@ export function createRequest(payload: RequestCreateInput) {
 }
 
 export function extractProductInfo(id: string) {
-  return apiClient.post<RequestDetail>(`${BASE}/requests/${id}/extract-product-info`, {});
+  return apiClient.post<RequestDetail>(`${BASE}/requests/${id}/extract-product-info`, {}, {
+    actionLabel: "Extracting Product Details",
+    actionSubtitle: "Retrieving product title, vendor, and price from URL...",
+  });
 }
 
 export function transitionRequest(id: string, payload: TransitionInput) {
