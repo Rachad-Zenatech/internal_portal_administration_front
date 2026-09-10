@@ -125,6 +125,25 @@ export function CurrencyAutocomplete({
     }
   };
 
+
+  // Explicit non-passive wheel listener for guaranteed smooth mouse-wheel scrolling inside modals
+  useEffect(() => {
+    const el = listRef.current;
+    if (!open || !el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.stopPropagation();
+      if (el.scrollHeight > el.clientHeight) {
+        el.scrollTop += e.deltaY;
+      }
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, [open, filteredCurrencies]);
+
   const isCustomCode =
     searchQuery.trim().length >= 2 &&
     !currencies.some((c) => c.code.toUpperCase() === searchQuery.trim().toUpperCase());

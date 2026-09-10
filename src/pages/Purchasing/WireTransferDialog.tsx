@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,90 +18,258 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Landmark,
-  User,
-  DollarSign,
+  Building2,
   Globe2,
   FileText,
-  Building2,
-  ShieldCheck,
-  MapPin,
-  SendHorizontal,
   AlertCircle,
-  ArrowRightLeft,
-  Check,
-  Sparkles,
-  RefreshCw,
-  Loader2,
+  SendHorizontal,
+  ShieldCheck,
+  Plus,
+  X,
 } from "lucide-react";
-import { getTreasuryUsers, getExchangeRate } from "@/services/purchasingService";
-import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
-import type { WireTransferInput, PurchaseOrder, PurchaseRequest } from "@/types/purchasing";
-import { useAuth } from "@/lib/AuthContext";
+import { toast } from "sonner";
+import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
+import { CountryAutocomplete } from "./CountryAutocomplete";
+import {
+  getCountryBankingSpec,
+  type CountryBankingSpec,
+} from "@/services/purchasingService";
+import type {
+  PurchaseRequest,
+  PurchaseOrder,
+  WireTransferInput,
+} from "@/types/purchasing";
+
+interface FieldDef {
+  id: string;
+  label: string;
+  placeholder?: string;
+  helperText?: string;
+  isMono?: boolean;
+  isUpper?: boolean;
+}
+
+const BANK_DETAILS_CATALOG: FieldDef[] = [
+  { id: "bank_country", label: "Bank Country", helperText: "Beneficiary bank jurisdiction" },
+  { id: "bank_name", label: "Bank Name", placeholder: "e.g. CIBC, JPMorgan Chase, HSBC" },
+  { id: "bank_account_number", label: "Bank Account #", placeholder: "Beneficiary account number", isMono: true },
+  { id: "tax_id", label: "Tax ID / EIN", placeholder: "Tax ID or national business number" },
+  { id: "region", label: "Region / Province / State", placeholder: "e.g. California, Ontario, Bavaria" },
+];
+
+const CLEARING_CODES_CATALOG: FieldDef[] = [
+  { id: "routing_wire", label: "Routing (Wire)", placeholder: "9-digit Wire Routing Number", isMono: true },
+  { id: "routing_ach", label: "Routing (ACH)", placeholder: "9-digit ACH Routing Number", isMono: true },
+  { id: "aba", label: "ABA Number", placeholder: "ABA Routing Number", isMono: true },
+  { id: "swift_code", label: "SWIFT/BIC Code", placeholder: "8 or 11 character SWIFT/BIC", isMono: true, isUpper: true },
+  { id: "iban", label: "IBAN", placeholder: "International Bank Account Number", isMono: true, isUpper: true },
+  { id: "sort_code", label: "Sort Code", placeholder: "6-digit clearing code (e.g. 12-34-56)", isMono: true },
+  { id: "transit_code_ca", label: "Transit Code", placeholder: "5-digit Canadian Transit Code", isMono: true },
+  { id: "institution_code", label: "Institution Code", placeholder: "3-digit Canadian Institution Code", isMono: true },
+  { id: "branch_code", label: "Branch Code", placeholder: "Branch / sub-branch code", isMono: true },
+  { id: "bsb_australia", label: "BSB", placeholder: "6-digit BSB code (e.g. 123-456)", isMono: true },
+  { id: "clearing_code", label: "Clearing Code", placeholder: "Local clearing or national routing code", isMono: true },
+  { id: "bank_code", label: "Bank Code", placeholder: "National bank code / CNAPS", isMono: true },
+  { id: "contact_name_china", label: "Contact Name", placeholder: "Local recipient contact name" },
+];
+
+// Fallback defaults mapped against AccountsPayableLog and schwifty requirements
+function getLocalCountryDefaults(countryStr?: string) {
+  const c = (countryStr || "").trim().toLowerCase();
+  if (c.includes("united states") || c === "us" || c === "usa") {
+    return {
+      required: ["bank_name", "bank_country", "bank_account_number", "routing_wire"],
+      bankFields: ["bank_country", "bank_name", "bank_account_number"],
+      clearingFields: ["routing_wire", "routing_ach", "swift_code"],
+    };
+  }
+  if (c.includes("canada") || c === "ca") {
+    return {
+      required: ["bank_name", "bank_country", "bank_account_number", "transit_code_ca", "institution_code"],
+      bankFields: ["bank_country", "bank_name", "bank_account_number"],
+      clearingFields: ["transit_code_ca", "institution_code", "swift_code"],
+    };
+  }
+  if (c.includes("united kingdom") || c === "gb" || c === "uk") {
+    return {
+      required: ["bank_name", "bank_country", "iban", "sort_code", "swift_code"],
+      bankFields: ["bank_country", "bank_name", "bank_account_number"],
+      clearingFields: ["iban", "sort_code", "swift_code"],
+    };
+  }
+  if (c.includes("australia") || c === "au") {
+    return {
+      required: ["bank_name", "bank_country", "bank_account_number", "bsb_australia"],
+      bankFields: ["bank_country", "bank_name", "bank_account_number"],
+      clearingFields: ["bsb_australia", "swift_code"],
+    };
+  }
+  if (c.includes("china") || c === "cn") {
+    return {
+      required: ["bank_name", "bank_country", "bank_account_number", "swift_code", "contact_name_china"],
+      bankFields: ["bank_country", "bank_name", "bank_account_number"],
+      clearingFields: ["swift_code", "contact_name_china", "bank_code"],
+    };
+  }
+  // European / SEPA / IBAN countries (IBAN replaces bank account number)
+  const ibanCountries = [
+    "germany", "de", "france", "fr", "ireland", "ie", "spain", "es", "italy", "it",
+    "netherlands", "nl", "poland", "pl", "belgium", "be", "switzerland", "ch", "austria", "at",
+    "portugal", "pt", "sweden", "se", "norway", "no", "denmark", "dk", "finland", "fi",
+    "lithuania", "lt", "latvia", "lv", "estonia", "ee", "czech", "cz", "hungary", "hu",
+    "greece", "gr", "luxembourg", "lu"
+  ];
+  if (ibanCountries.some(name => c === name || c.includes(name))) {
+    return {
+      required: ["bank_name", "bank_country", "iban", "swift_code"],
+      bankFields: ["bank_country", "bank_name"],
+      clearingFields: ["iban", "swift_code"],
+    };
+  }
+  // Generic / Default
+  return {
+    required: ["bank_name", "bank_country", "bank_account_number", "swift_code"],
+    bankFields: ["bank_country", "bank_name", "bank_account_number"],
+    clearingFields: ["swift_code", "clearing_code"],
+  };
+}
 
 interface WireTransferDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   request: PurchaseRequest;
   purchaseOrder?: PurchaseOrder | null;
+  onConfirm: (data: WireTransferInput) => void;
   initialData?: WireTransferInput | null;
   isEditMode?: boolean;
-  onConfirm: (data: WireTransferInput) => void;
   isSubmitting?: boolean;
+  defaultTab?: "general" | "banking" | "international";
+  visibleTabs?: Array<"general" | "banking" | "international">;
+  title?: string;
+  submitLabel?: string;
 }
-
-const COMMON_PAY_FROM = [
-  "Weddle",
-  "Laventure",
-  "DaaS",
-  "A&J",
-  "Rampart",
-  "Spiewack",
-  "Wallace",
-  "Zenatech",
-];
-
-const COMMON_CURRENCIES = ["USD", "CAD", "EUR", "GBP", "AUD", "CNY"];
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: "$",
-  CAD: "C$",
-  EUR: "€",
-  GBP: "£",
-  AUD: "A$",
-  CNY: "¥",
-  JPY: "¥",
-  CHF: "Fr",
-  MXN: "Mex$",
-  INR: "₹",
-};
 
 export function WireTransferDialog({
   open,
   onOpenChange,
   request,
   purchaseOrder,
+  onConfirm,
   initialData,
   isEditMode = false,
-  onConfirm,
   isSubmitting = false,
+  defaultTab = "general",
+  visibleTabs,
+  title,
+  submitLabel,
 }: WireTransferDialogProps) {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("general");
-  const [treasuryUsers, setTreasuryUsers] = useState<
-    Array<{ id: string; full_name: string; email: string; department?: string }>
-  >([]);
-  const [enteredByQuery, setEnteredByQuery] = useState("");
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  // Normalize visible tabs: combine banking and international into "banking"
+  const normalizedTabs = useMemo(() => {
+    if (!visibleTabs) return ["general", "banking"];
+    const set = new Set<string>();
+    visibleTabs.forEach((t) => {
+      if (t === "general") set.add("general");
+      if (t === "banking" || t === "international") set.add("banking");
+    });
+    return Array.from(set);
+  }, [visibleTabs]);
+
+  const initialTab = defaultTab === "international" ? "banking" : (defaultTab || normalizedTabs[0] || "general");
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-  const [isFetchingRate, setIsFetchingRate] = useState(false);
-  const [fxSourceInfo, setFxSourceInfo] = useState<{ source?: string; rate_date?: string } | null>(null);
+
+  // Routing ACH same as Wire Routing checkbox
+  const [achSameAsWire, setAchSameAsWire] = useState(false);
+
+  // Dynamic field tracking (clean defaults matching AccountsPayableLog and schwifty)
+  const [visibleBankFields, setVisibleBankFields] = useState<string[]>([
+    "bank_country",
+    "bank_name",
+    "bank_account_number",
+  ]);
+  const [visibleClearingFields, setVisibleClearingFields] = useState<string[]>([
+    "routing_wire",
+    "routing_ach",
+    "swift_code",
+  ]);
+  const [requiredFieldKeys, setRequiredFieldKeys] = useState<Set<string>>(
+    new Set(["bank_country", "bank_name", "bank_account_number", "routing_wire"])
+  );
+  const [countrySpec, setCountrySpec] = useState<CountryBankingSpec | null>(null);
+
+  // Available fields that are NOT currently displayed (prevents duplicates)
+  const availableBankFields = useMemo(() => {
+    return BANK_DETAILS_CATALOG.filter((f) => !visibleBankFields.includes(f.id));
+  }, [visibleBankFields]);
+
+  const availableClearingFields = useMemo(() => {
+    return CLEARING_CODES_CATALOG.filter(
+      (f) => !visibleClearingFields.includes(f.id)
+    );
+  }, [visibleClearingFields]);
+
+
+  // Add field dropdown popovers & refs for in-tree scrolling
+  const [addBankFieldOpen, setAddBankFieldOpen] = useState(false);
+  const [addClearingFieldOpen, setAddClearingFieldOpen] = useState(false);
+
+  const addBankRef = useRef<HTMLDivElement>(null);
+  const bankScrollRef = useRef<HTMLDivElement>(null);
+  const addClearingRef = useRef<HTMLDivElement>(null);
+  const clearingScrollRef = useRef<HTMLDivElement>(null);
+
+  // Close add-field menus on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (addClearingRef.current && !addClearingRef.current.contains(event.target as Node)) {
+        setAddClearingFieldOpen(false);
+      }
+      if (addBankRef.current && !addBankRef.current.contains(event.target as Node)) {
+        setAddBankFieldOpen(false);
+      }
+    }
+    if (addClearingFieldOpen || addBankFieldOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [addClearingFieldOpen, addBankFieldOpen]);
+
+  // Non-passive wheel handler for guaranteed scroll on Add Clearing Code dropdown
+  useEffect(() => {
+    const el = clearingScrollRef.current;
+    if (!addClearingFieldOpen || !el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.stopPropagation();
+      if (el.scrollHeight > el.clientHeight) {
+        el.scrollTop += e.deltaY;
+      }
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [addClearingFieldOpen, availableClearingFields]);
+
+  // Non-passive wheel handler for guaranteed scroll on Add Bank Field dropdown
+  useEffect(() => {
+    const el = bankScrollRef.current;
+    if (!addBankFieldOpen || !el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.stopPropagation();
+      if (el.scrollHeight > el.clientHeight) {
+        el.scrollTop += e.deltaY;
+      }
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [addBankFieldOpen, availableBankFields]);
+
 
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -116,12 +284,10 @@ export function WireTransferDialog({
     pay_date: "Same Day",
     amount: purchaseOrder?.amount || request.amount || 0,
     currency: purchaseOrder?.currency || request.currency || "USD",
-    conversion_rate: "",
     pay_from: "",
     invoice_number: "",
     comments: request.title ? `Payment for ${request.title}` : "",
     vendor_address: "",
-    bank_address: "",
     vendor_email: "",
     bank_name: "",
     tax_id: "",
@@ -132,7 +298,6 @@ export function WireTransferDialog({
     swift_code: "",
     sort_code: "",
     transit_code_ca: "",
-    transit_number_ca: "",
     institution_code: "",
     branch_code: "",
     bsb_australia: "",
@@ -140,36 +305,100 @@ export function WireTransferDialog({
     bank_code: "",
     iban: "",
     bic: "",
-    transit: "",
-    aba: "",
     region: "",
     contact_name_china: "",
   });
 
+  // Apply country spec dynamically
+  const applyCountryIntelligence = (countryName: string, specData?: CountryBankingSpec | null) => {
+    if (specData) {
+      setCountrySpec(specData);
+      const reqs = new Set<string>(["bank_country"]);
+      specData.default_bank_fields.forEach((f) => {
+        if (f.required) reqs.add(f.id);
+      });
+      specData.default_clearing_fields.forEach((f) => {
+        if (f.required) reqs.add(f.id);
+      });
+      setRequiredFieldKeys(reqs);
+
+      // Union country defaults with currently populated values so user data is never hidden
+      const bSet = new Set(specData.default_bank_fields.map((f) => f.id));
+      const cSet = new Set(specData.default_clearing_fields.map((f) => f.id));
+
+      // Include existing populated fields
+      BANK_DETAILS_CATALOG.forEach((f) => {
+        const val = form[f.id as keyof WireTransferInput];
+        if (val && String(val).trim()) bSet.add(f.id);
+      });
+      CLEARING_CODES_CATALOG.forEach((f) => {
+        const val = form[f.id as keyof WireTransferInput];
+        if (val && String(val).trim()) cSet.add(f.id);
+      });
+
+      setVisibleBankFields(Array.from(bSet));
+      setVisibleClearingFields(Array.from(cSet));
+    } else {
+      const local = getLocalCountryDefaults(countryName);
+      const reqs = new Set<string>(local.required);
+      setRequiredFieldKeys(reqs);
+
+      const bSet = new Set(local.bankFields);
+      const cSet = new Set(local.clearingFields);
+
+      BANK_DETAILS_CATALOG.forEach((f) => {
+        const val = form[f.id as keyof WireTransferInput];
+        if (val && String(val).trim()) bSet.add(f.id);
+      });
+      CLEARING_CODES_CATALOG.forEach((f) => {
+        const val = form[f.id as keyof WireTransferInput];
+        if (val && String(val).trim()) cSet.add(f.id);
+      });
+
+      setVisibleBankFields(Array.from(bSet));
+      setVisibleClearingFields(Array.from(cSet));
+    }
+  };
+
+  const handleCountryChange = (countryName: string) => {
+    setForm((prev) => ({ ...prev, bank_country: countryName }));
+    setValidationErrors((prev) => ({ ...prev, bank_country: false }));
+
+    // Apply immediate local heuristics for instant responsiveness
+    applyCountryIntelligence(countryName, null);
+
+    // Call schwifty backend endpoint
+    getCountryBankingSpec(countryName)
+      .then((spec) => {
+        if (spec && spec.code) {
+          applyCountryIntelligence(countryName, spec);
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not load backend country banking spec:", err);
+      });
+  };
+
+  // Sync ACH routing if checkbox is checked
+  useEffect(() => {
+    if (achSameAsWire && form.routing_wire !== undefined) {
+      setForm((prev) => ({ ...prev, routing_ach: prev.routing_wire || "" }));
+    }
+  }, [achSameAsWire, form.routing_wire]);
+
   useEffect(() => {
     if (open) {
-      setActiveTab("general");
+      const nextTab = defaultTab === "international" ? "banking" : (defaultTab || normalizedTabs[0] || "general");
+      setActiveTab(nextTab);
       setValidationErrors({});
-      getTreasuryUsers()
-        .then((res: any) => {
-          const list = Array.isArray(res) ? res : (res?.data || []);
-          setTreasuryUsers(list);
-          // Default to the first treasurer set in the role if no initial data
-          if (!initialData?.entered_by && list.length > 0) {
-            const firstTreasurer = list[0];
-            const defaultName = (firstTreasurer.full_name || "").trim();
-            setEnteredByQuery(defaultName);
-            setForm((prev) => ({
-              ...prev,
-              entered_by: defaultName,
-              entered_by_user_id: firstTreasurer.id,
-            }));
-          }
-        })
-        .catch(() => setTreasuryUsers([]));
 
       if (initialData) {
-        setEnteredByQuery(initialData.entered_by || "");
+        const initialCountry = initialData.bank_country || "United States";
+        const isSame =
+          Boolean(initialData.routing_wire) &&
+          initialData.routing_wire === initialData.routing_ach;
+        setAchSameAsWire(isSame);
+
         setForm({
           entered_by: initialData.entered_by || "",
           entered_by_user_id: initialData.entered_by_user_id || undefined,
@@ -181,123 +410,48 @@ export function WireTransferDialog({
           pay_date: initialData.pay_date || "Same Day",
           amount: initialData.amount || purchaseOrder?.amount || request.amount || 0,
           currency: initialData.currency || purchaseOrder?.currency || request.currency || "USD",
-          conversion_rate: initialData.conversion_rate || (
-            (initialData.currency || purchaseOrder?.currency || request.currency || "USD").toUpperCase() === "USD" ? "1.0" : ""
-          ),
           pay_from: initialData.pay_from || "",
           invoice_number: initialData.invoice_number || "",
           comments: initialData.comments || "",
           vendor_address: initialData.vendor_address || "",
-          bank_address: initialData.bank_address || "",
           vendor_email: initialData.vendor_email || "",
           bank_name: initialData.bank_name || "",
           tax_id: initialData.tax_id || "",
-          bank_country: initialData.bank_country || "",
+          bank_country: initialCountry,
           routing_wire: initialData.routing_wire || "",
           routing_ach: initialData.routing_ach || "",
           bank_account_number: initialData.bank_account_number || "",
-          swift_code: initialData.swift_code || "",
+          swift_code: initialData.swift_code || initialData.bic || "",
           sort_code: initialData.sort_code || "",
           transit_code_ca: initialData.transit_code_ca || "",
-          transit_number_ca: initialData.transit_number_ca || "",
           institution_code: initialData.institution_code || "",
           branch_code: initialData.branch_code || "",
           bsb_australia: initialData.bsb_australia || "",
           clearing_code: initialData.clearing_code || "",
           bank_code: initialData.bank_code || "",
           iban: initialData.iban || "",
-          bic: initialData.bic || "",
-          transit: initialData.transit || "",
-          aba: initialData.aba || "",
+          bic: initialData.bic || initialData.swift_code || "",
           region: initialData.region || "",
           contact_name_china: initialData.contact_name_china || "",
         });
+
+        // Trigger intelligence for initial country
+        handleCountryChange(initialCountry);
       } else {
-        const defaultTreasurer = treasuryUsers.length > 0 ? treasuryUsers[0] : null;
-        const initialEnteredBy = defaultTreasurer ? (defaultTreasurer.full_name || "").trim() : "";
-        const initialEnteredById = defaultTreasurer ? defaultTreasurer.id : undefined;
-        setEnteredByQuery(initialEnteredBy);
+        const defaultCountry = "United States";
         setForm((prev) => ({
           ...prev,
-          entered_by: initialEnteredBy,
-          entered_by_user_id: initialEnteredById,
           entry_date: todayStr,
           payment_date: todayStr,
-          vendor: purchaseOrder?.vendor || request.product_info?.vendor || prev.vendor,
+          vendor: purchaseOrder?.vendor || request.product_info?.vendor || request.requester || prev.vendor,
           amount: purchaseOrder?.amount || request.amount || prev.amount,
           currency: purchaseOrder?.currency || request.currency || prev.currency || "USD",
-          conversion_rate: (purchaseOrder?.currency || request.currency || prev.currency || "USD").toUpperCase() === "USD" ? "1.0" : "",
+          bank_country: defaultCountry,
         }));
-
-        const initCurr = (purchaseOrder?.currency || request.currency || "USD").toUpperCase();
-        if (initCurr !== "USD") {
-          getExchangeRate(initCurr).then((res) => {
-            if (res && res.exchange_rate) {
-              setForm((prev) => ({ ...prev, conversion_rate: String(res.exchange_rate) }));
-              setFxSourceInfo({ source: res.source, rate_date: res.rate_date });
-            }
-          }).catch(() => {});
-        }
+        handleCountryChange(defaultCountry);
       }
     }
-  }, [open, request, purchaseOrder, user, todayStr, initialData]);
-
-  const filteredTreasuryUsers = useMemo(() => {
-    if (!enteredByQuery.trim()) return treasuryUsers;
-    const q = enteredByQuery.toLowerCase();
-    return treasuryUsers.filter(
-      (u) =>
-        u.full_name?.toLowerCase().includes(q) ||
-        u.email?.toLowerCase().includes(q) ||
-        u.department?.toLowerCase().includes(q)
-    );
-  }, [treasuryUsers, enteredByQuery]);
-
-  const handleInvoiceChange = (val: string) => {
-    const sanitized = val.replace(/[^a-zA-Z0-9\-_]/g, "");
-    setForm({ ...form, invoice_number: sanitized });
-  };
-
-  const handleCurrencyChange = async (newCurrency: string) => {
-    const code = (newCurrency || "USD").trim().toUpperCase();
-    setForm((prev) => ({
-      ...prev,
-      currency: code,
-    }));
-
-    if (code === "USD") {
-      setForm((prev) => ({
-        ...prev,
-        currency: "USD",
-        conversion_rate: "1.0",
-      }));
-      setFxSourceInfo(null);
-      return;
-    }
-
-    setIsFetchingRate(true);
-    try {
-      const res = await getExchangeRate(code);
-      if (res && res.exchange_rate) {
-        setForm((prev) => ({
-          ...prev,
-          currency: code,
-          conversion_rate: String(res.exchange_rate),
-        }));
-        setFxSourceInfo({
-          source: res.source,
-          rate_date: res.rate_date,
-        });
-        toast.success(`Exchange rate fetched: 1 ${code} = $${res.exchange_rate} USD`, {
-          description: `${res.source} (${res.rate_date})`,
-        });
-      }
-    } catch (err) {
-      console.error("Failed to fetch exchange rate for", code, err);
-    } finally {
-      setIsFetchingRate(false);
-    }
-  };
+  }, [open, request, purchaseOrder, todayStr, initialData, defaultTab, normalizedTabs]);
 
   const cleanDate = (d?: string | null) => {
     if (!d || d.trim() === "" || d === "null" || d === "undefined") return undefined;
@@ -308,16 +462,36 @@ export function WireTransferDialog({
     e.preventDefault();
     const newErrors: Record<string, boolean> = {};
 
-    if (!form.entered_by?.trim()) newErrors.entered_by = true;
-    if (!form.entry_date?.trim()) newErrors.entry_date = true;
-    if (!form.vendor?.trim()) newErrors.vendor = true;
-    if (!form.amount || Number(form.amount) <= 0) newErrors.amount = true;
-    if (!form.pay_from?.trim()) newErrors.pay_from = true;
+    // Validate Tab 1 if visible
+    if (normalizedTabs.includes("general")) {
+      if (!form.entered_by?.trim()) newErrors.entered_by = true;
+      if (!form.entry_date?.trim()) newErrors.entry_date = true;
+      if (!form.vendor?.trim()) newErrors.vendor = true;
+      if (!form.amount || Number(form.amount) <= 0) newErrors.amount = true;
+      if (!form.pay_from?.trim()) newErrors.pay_from = true;
+
+      if (Object.keys(newErrors).length > 0) {
+        setValidationErrors(newErrors);
+        toast.error("Please fill in all required fields marked with * in General & Payment.");
+        setActiveTab("general");
+        return;
+      }
+    }
+
+    // Validate Bank & Clearing required fields
+    for (const reqKey of requiredFieldKeys) {
+      const val = form[reqKey as keyof WireTransferInput];
+      if (val === undefined || val === null || String(val).trim() === "") {
+        newErrors[reqKey] = true;
+      }
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setValidationErrors(newErrors);
-      toast.error("Please fill in all required fields marked with * (Entered By, Date, Vendor, Amount, Pay From).");
-      setActiveTab("general");
+      if (normalizedTabs.includes("banking")) {
+        setActiveTab("banking");
+      }
+      toast.error("Please fill in all required fields marked with *.");
       return;
     }
 
@@ -329,8 +503,37 @@ export function WireTransferDialog({
       entry_date: cleanDate(form.entry_date),
       due_date: cleanDate(form.due_date),
       payment_date: cleanDate(form.payment_date),
+      bic: form.swift_code || form.bic, // keep bic synced
     });
   };
+
+  // Add / Remove Field Handlers (NO DUPLICATES ALLOWED)
+  const addBankField = (fieldId: string) => {
+    if (!visibleBankFields.includes(fieldId)) {
+      setVisibleBankFields((prev) => [...prev, fieldId]);
+    }
+    setAddBankFieldOpen(false);
+  };
+
+  const removeBankField = (fieldId: string) => {
+    if (requiredFieldKeys.has(fieldId)) return;
+    setVisibleBankFields((prev) => prev.filter((id) => id !== fieldId));
+    setForm((prev) => ({ ...prev, [fieldId]: "" }));
+  };
+
+  const addClearingField = (fieldId: string) => {
+    if (!visibleClearingFields.includes(fieldId)) {
+      setVisibleClearingFields((prev) => [...prev, fieldId]);
+    }
+    setAddClearingFieldOpen(false);
+  };
+
+  const removeClearingField = (fieldId: string) => {
+    if (requiredFieldKeys.has(fieldId)) return;
+    setVisibleClearingFields((prev) => prev.filter((id) => id !== fieldId));
+    setForm((prev) => ({ ...prev, [fieldId]: "" }));
+  };
+
 
   return (
     <>
@@ -367,19 +570,17 @@ export function WireTransferDialog({
                   </div>
                   <div className="min-w-0">
                     <DialogTitle className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 truncate flex items-center gap-2">
-                      <span>{isEditMode ? "Edit Wire Transfer" : "Wire Transfer Information"}</span>
+                      <span>{title || (isEditMode ? "Edit Wire Transfer" : "Wire Transfer Information")}</span>
                       <span className="text-muted-foreground font-normal text-sm">· Request #{request.id}</span>
                     </DialogTitle>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
                       {isEditMode
-                        ? "Update the wire payment and banking details."
-                        : "Complete the wire payment details to record this transaction."}
+                        ? "Update wire payment instructions, routing, and beneficiary clearing details."
+                        : "Complete the wire transfer and clearing details according to the beneficiary bank jurisdiction."}
                     </p>
                   </div>
                 </div>
-                <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-xs font-semibold shrink-0 py-1 px-2.5">
-                  TREASURY STAGE
-                </Badge>
+
               </div>
             </DialogHeader>
           </div>
@@ -387,799 +588,958 @@ export function WireTransferDialog({
           {/* FORM */}
           <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-              {/* FIXED TABS SELECTOR */}
-              <div className="px-6 pt-3.5 pb-2.5 bg-white dark:bg-zinc-950 border-b border-slate-100 dark:border-zinc-800/80 shrink-0">
-                <TabsList className="grid grid-cols-3 w-full max-w-md h-9">
-                  <TabsTrigger value="general" className="flex items-center gap-1.5 text-xs">
-                    <FileText className="w-3.5 h-3.5" />
-                    General & Payment
-                  </TabsTrigger>
-                  <TabsTrigger value="banking" className="flex items-center gap-1.5 text-xs">
-                    <Building2 className="w-3.5 h-3.5" />
-                    Bank & Routing
-                  </TabsTrigger>
-                  <TabsTrigger value="international" className="flex items-center gap-1.5 text-xs">
-                    <Globe2 className="w-3.5 h-3.5" />
-                    International
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+              {/* TABS SELECTOR (Hidden if only 1 tab is visible, saving space) */}
+              {normalizedTabs.length > 1 && (
+                <div className="px-6 pt-3.5 pb-2.5 bg-white dark:bg-zinc-950 border-b border-slate-100 dark:border-zinc-800/80 shrink-0">
+                  <TabsList className="grid grid-cols-2 max-w-sm w-full h-9">
+                    {normalizedTabs.includes("general") && (
+                      <TabsTrigger value="general" className="flex items-center gap-1.5 text-xs">
+                        <FileText className="w-3.5 h-3.5" />
+                        General &amp; Payment
+                      </TabsTrigger>
+                    )}
+                    {normalizedTabs.includes("banking") && (
+                      <TabsTrigger value="banking" className="flex items-center gap-1.5 text-xs">
+                        <Building2 className="w-3.5 h-3.5" />
+                        Bank &amp; Clearing Details
+                      </TabsTrigger>
+                    )}
+                  </TabsList>
+                </div>
+              )}
 
               {/* SCROLLABLE BODY */}
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3.5">
                 {/* TAB 1: GENERAL & PAYMENT */}
-                <TabsContent value="general" className="space-y-4 mt-0">
-                {/* Assignment & Scheduling */}
-                <div className="p-3.5 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-zinc-300">
-                      Assignment & Scheduling
-                    </label>
-                  </div>
+                {normalizedTabs.includes("general") && (
+                  <TabsContent value="general" className="space-y-4 mt-0">
+                    <WireGeneralPaymentFields
+                      form={form}
+                      setForm={setForm}
+                      validationErrors={validationErrors}
+                      onClearValidationError={(k) =>
+                        setValidationErrors((prev) => ({ ...prev, [k]: false }))
+                      }
+                      isSubmitting={isSubmitting}
+                    />
+                  </TabsContent>
+                )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    {/* Entered By */}
-                    <div className="relative space-y-1.5 sm:col-span-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium">
-                          Entered By <span className="text-red-500">*</span>{" "}
-                          <span className="text-slate-400 font-normal text-[11px]">(Treasury User)</span>
-                        </label>
-                        {validationErrors.entered_by && (
-                          <span className="text-[10px] text-red-500 font-medium flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" /> Required
-                          </span>
-                        )}
-                      </div>
-                      <div className="relative">
-                        <Input
-                          value={enteredByQuery}
-                          onChange={(e) => {
-                            setEnteredByQuery(e.target.value);
-                            setForm({ ...form, entered_by: e.target.value, entered_by_user_id: undefined });
-                            setShowUserDropdown(true);
-                            if (validationErrors.entered_by) {
-                              setValidationErrors((prev) => ({ ...prev, entered_by: false }));
-                            }
-                          }}
-                          onFocus={() => setShowUserDropdown(true)}
-                          placeholder="Type or select Treasury assignee..."
-                          className={`h-9 text-xs pl-8 bg-white dark:bg-zinc-900 ${
-                            validationErrors.entered_by ? "border-red-500 focus-visible:ring-red-500" : ""
-                          }`}
-                        />
-                        <User className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                      </div>
-
-                      {showUserDropdown && filteredTreasuryUsers.length > 0 && (
-                        <div
-                          data-radix-scroll-lock-ignore=""
-                          onWheel={(e) => e.stopPropagation()}
-                          onTouchMove={(e) => e.stopPropagation()}
-                          style={{ scrollbarWidth: "thin", overscrollBehavior: "contain" }}
-                          className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto overscroll-contain bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg shadow-xl py-1"
-                        >
-                          {filteredTreasuryUsers.map((u) => (
-                            <button
-                              key={u.id}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors"
-                              onClick={() => {
-                                const selectedName = (u.full_name || "").trim();
-                                setForm({
-                                  ...form,
-                                  entered_by: selectedName,
-                                  entered_by_user_id: u.id,
-                                });
-                                setEnteredByQuery(selectedName);
-                                setShowUserDropdown(false);
-                                setValidationErrors((prev) => ({ ...prev, entered_by: false }));
-                              }}
-                            >
-                              <div>
-                                <div className="font-semibold text-slate-800 dark:text-zinc-200">{u.full_name}</div>
-                                <div className="text-[11px] text-muted-foreground">{u.email}</div>
-                              </div>
-                              {u.department && (
-                                <Badge variant="secondary" className="text-[10px]">{u.department}</Badge>
+                {/* COMBINED TAB 2: BANK & CLEARING DETAILS */}
+                {normalizedTabs.includes("banking") && (
+                  <TabsContent value="banking" className="space-y-4 mt-0">
+                    {/* CARD 1: BENEFICIARY BANK DETAILS */}
+                    <div className="rounded-xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-4 shadow-2xs space-y-4">
+                      {/* CARD HEADER */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-zinc-800">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-7 w-7 rounded-md bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                            <Building2 className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200 flex items-center gap-2">
+                              <span>Beneficiary Bank Details</span>
+                              {countrySpec?.has_iban && (
+                                <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-300 dark:text-emerald-400">
+                                  IBAN Country ({countrySpec.iban_length} chars)
+                                </Badge>
                               )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Date */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium">
-                          Date <span className="text-red-500">*</span>
-                        </label>
-                        {validationErrors.entry_date && (
-                          <span className="text-[10px] text-red-500 font-medium">Required</span>
-                        )}
-                      </div>
-                      <Input
-                        type="date"
-                        value={form.entry_date || ""}
-                        onChange={(e) => {
-                          setForm({ ...form, entry_date: e.target.value });
-                          if (validationErrors.entry_date) {
-                            setValidationErrors((prev) => ({ ...prev, entry_date: false }));
-                          }
-                        }}
-                        className={`h-9 text-xs bg-white dark:bg-zinc-900 ${
-                          validationErrors.entry_date ? "border-red-500 focus-visible:ring-red-500" : ""
-                        }`}
-                      />
-                    </div>
-
-                    {/* Payment Date */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Payment Date</label>
-                      <Input
-                        type="date"
-                        value={form.payment_date || ""}
-                        onChange={(e) => setForm({ ...form, payment_date: e.target.value })}
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Due Date */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Due Date</label>
-                      <Input
-                        type="date"
-                        value={form.due_date || ""}
-                        onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Pay Date */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Pay Date (Terms)</label>
-                      <Input
-                        value={form.pay_date || ""}
-                        onChange={(e) => setForm({ ...form, pay_date: e.target.value })}
-                        placeholder="e.g. Same Day, Net 30"
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* New Vendor */}
-                    <div className="flex items-center sm:col-span-2 pt-6">
-                      <label
-                        htmlFor="is_new_vendor"
-                        className="inline-flex items-center gap-2 text-xs font-medium cursor-pointer select-none"
-                      >
-                        <Checkbox
-                          id="is_new_vendor"
-                          checked={form.is_new_vendor}
-                          onCheckedChange={(checked) => setForm({ ...form, is_new_vendor: !!checked })}
-                        />
-                        <span>New Vendor?</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment & Settlement */}
-                <div className="p-3.5 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-zinc-300">
-                      Payment & Settlement
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    {/* Vendor */}
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium">
-                          Vendor <span className="text-red-500">*</span>
-                        </label>
-                        {validationErrors.vendor && (
-                          <span className="text-[10px] text-red-500 font-medium flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" /> Required
-                          </span>
-                        )}
-                      </div>
-                      <Input
-                        required
-                        value={form.vendor || ""}
-                        onChange={(e) => {
-                          setForm({ ...form, vendor: e.target.value });
-                          if (validationErrors.vendor) {
-                            setValidationErrors((prev) => ({ ...prev, vendor: false }));
-                          }
-                        }}
-                        placeholder="Vendor Name"
-                        className={`h-9 text-xs font-medium bg-white dark:bg-zinc-900 ${
-                          validationErrors.vendor ? "border-red-500 focus-visible:ring-red-500" : ""
-                        }`}
-                      />
-                    </div>
-
-                    {/* Amount */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium">
-                          Amount <span className="text-red-500">*</span>{" "}
-                          <span className="text-indigo-600 dark:text-indigo-400 font-normal text-[11px]">
-                            ({form.currency || "USD"})
-                          </span>
-                        </label>
-                        {validationErrors.amount && (
-                          <span className="text-[10px] text-red-500 font-medium">Required</span>
-                        )}
-                      </div>
-                      <div className="relative">
-                        <span className="absolute left-2.5 top-2.5 text-xs font-semibold text-slate-400 select-none">
-                          {CURRENCY_SYMBOLS[(form.currency || "USD").toUpperCase()] || "$"}
-                        </span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          required
-                          value={form.amount ?? ""}
-                          onChange={(e) => {
-                            setForm({ ...form, amount: parseFloat(e.target.value) || 0 });
-                            if (validationErrors.amount) {
-                              setValidationErrors((prev) => ({ ...prev, amount: false }));
-                            }
-                          }}
-                          placeholder="0.00"
-                          className={`h-9 text-xs font-semibold pl-8 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-zinc-900 ${
-                            validationErrors.amount ? "border-red-500 focus-visible:ring-red-500" : ""
-                          }`}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Currency */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium">Currency</label>
-                        <div className="flex items-center gap-1">
-                          {COMMON_CURRENCIES.slice(0, 4).map((c) => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => handleCurrencyChange(c)}
-                              className={`text-[10px] px-1.5 py-0.5 rounded font-medium border transition-colors ${
-                                (form.currency || "USD").toUpperCase() === c
-                                  ? "bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-950 dark:border-indigo-700 dark:text-indigo-300 font-bold"
-                                  : "bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100"
-                              }`}
-                            >
-                              {c}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <CurrencyAutocomplete
-                        value={form.currency || "USD"}
-                        onChange={handleCurrencyChange}
-                        disabled={isSubmitting}
-                      />
-                    </div>
-
-                    {/* Pay From */}
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium">
-                          Pay From (Entity) <span className="text-red-500">*</span>
-                        </label>
-                        <div className="flex items-center gap-1">
-                          {COMMON_PAY_FROM.slice(0, 4).map((pf) => (
-                            <button
-                              key={pf}
-                              type="button"
-                              onClick={() => {
-                                setForm({ ...form, pay_from: pf });
-                                setValidationErrors((prev) => ({ ...prev, pay_from: false }));
-                              }}
-                              className={`text-[10px] px-1.5 py-0.5 rounded font-medium border transition-colors ${
-                                form.pay_from === pf
-                                  ? "bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-950 dark:border-indigo-700 dark:text-indigo-300"
-                                  : "bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100"
-                              }`}
-                            >
-                              {pf}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <Input
-                        value={form.pay_from || ""}
-                        onChange={(e) => {
-                          setForm({ ...form, pay_from: e.target.value });
-                          if (validationErrors.pay_from) {
-                            setValidationErrors((prev) => ({ ...prev, pay_from: false }));
-                          }
-                        }}
-                        placeholder="e.g. Weddle, DaaS, Laventure, Rampart..."
-                        className={`h-9 text-xs bg-white dark:bg-zinc-900 ${
-                          validationErrors.pay_from ? "border-red-500 focus-visible:ring-red-500" : ""
-                        }`}
-                      />
-                    </div>
-
-                    {/* Invoice */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">
-                        Invoice <span className="text-slate-400 font-normal">(alphanumeric)</span>
-                      </label>
-                      <Input
-                        value={form.invoice_number || ""}
-                        onChange={(e) => handleInvoiceChange(e.target.value)}
-                        placeholder="e.g. 40408"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Conversion Rate */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium">
-                          Conversion Rate{" "}
-                          <span className="text-slate-400 font-normal text-[11px]">(FX Rate)</span>
-                        </label>
-                        <div className="flex items-center gap-1.5">
-                          {form.currency && form.currency.toUpperCase() !== "USD" && form.conversion_rate && (
-                            <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400">
-                              1 {form.currency} = ${form.conversion_rate}
-                            </span>
-                          )}
-                          {form.currency && form.currency.toUpperCase() !== "USD" && (
-                            <button
-                              type="button"
-                              onClick={() => handleCurrencyChange(form.currency || "USD")}
-                              disabled={isFetchingRate}
-                              title="Fetch latest rate from Python Currency Service"
-                              className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 inline-flex items-center gap-0.5 hover:underline disabled:opacity-50"
-                            >
-                              <RefreshCw className={`h-2.5 w-2.5 ${isFetchingRate ? "animate-spin" : ""}`} />
-                              <span>Fetch Live</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="relative">
-                        <ArrowRightLeft className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                        <Input
-                          value={form.conversion_rate || ""}
-                          onChange={(e) => setForm({ ...form, conversion_rate: e.target.value })}
-                          disabled={isFetchingRate}
-                          placeholder={
-                            (form.currency || "USD").toUpperCase() === "USD"
-                              ? "1.00 (USD)"
-                              : isFetchingRate
-                              ? "Fetching live rate..."
-                              : (form.currency || "").toUpperCase() === "CAD"
-                              ? "e.g. 0.7400"
-                              : (form.currency || "").toUpperCase() === "EUR"
-                              ? "e.g. 1.0850"
-                              : (form.currency || "").toUpperCase() === "GBP"
-                              ? "e.g. 1.2800"
-                              : "e.g. 1.0000"
-                          }
-                          className="h-9 text-xs font-mono pl-8 pr-8 bg-white dark:bg-zinc-900"
-                        />
-                        {isFetchingRate && (
-                          <div className="absolute right-2.5 top-2.5">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                            </h4>
+                            <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+                              Bank jurisdiction, institution identity, and beneficiary account
+                            </p>
                           </div>
-                        )}
-                      </div>
-                      {fxSourceInfo && form.currency && form.currency.toUpperCase() !== "USD" && (
-                        <div className="text-[10px] text-slate-500 dark:text-zinc-400 flex items-center justify-between px-0.5">
-                          <span className="truncate">Source: {fxSourceInfo.source}</span>
-                          <span className="shrink-0 font-mono text-[9px] text-slate-400">{fxSourceInfo.rate_date}</span>
                         </div>
-                      )}
-                    </div>
 
-                    {/* FX CONVERSION SUMMARY BANNER */}
-                    <div className="sm:col-span-4 -mt-1">
-                      {(form.currency || "USD").toUpperCase() !== "USD" ? (
-                        parseFloat(form.conversion_rate || "0") > 0 && Number(form.amount) > 0 ? (
-                          <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/80 rounded-lg text-xs">
-                            <div className="flex items-center gap-2">
-                              <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                              <span className="text-slate-700 dark:text-zinc-300">
-                                Estimated USD Settlement:{" "}
-                                <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300 font-mono">
-                                  ${(
-                                    Number(form.amount) * parseFloat(form.conversion_rate || "1")
-                                  ).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
-                                  USD
-                                </span>
-                              </span>
-                              <span className="text-[11px] text-muted-foreground">
-                                ({Number(form.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })} {form.currency} ×{" "}
-                                {form.conversion_rate})
-                              </span>
+                        {/* ADD BANK FIELD (NO DUPLICATES, IN-TREE SCROLLABLE DROPDOWN) */}
+                        <div ref={addBankRef} className="relative flex items-center gap-2 shrink-0">
+                          {availableBankFields.length > 0 ? (
+                            <>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setAddBankFieldOpen(!addBankFieldOpen)}
+                                className="h-8 text-xs font-medium gap-1.5 border-dashed border-slate-300 dark:border-zinc-700 hover:bg-indigo-50/50 hover:text-indigo-600 hover:border-indigo-300"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                <span>Add Bank Field</span>
+                              </Button>
+
+                              {addBankFieldOpen && (
+                                <div
+                                  data-radix-scroll-lock-ignore=""
+                                  className="absolute right-0 top-full mt-1 w-56 p-1 z-50 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-2xl flex flex-col overflow-hidden"
+                                  style={{
+                                    boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
+                                  }}
+                                >
+                                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-2 py-1.5 border-b border-slate-100 dark:border-zinc-800">
+                                    Available Fields
+                                  </div>
+                                  <div
+                                    ref={bankScrollRef}
+                                    data-radix-scroll-lock-ignore=""
+                                    className="py-1 max-h-56 overflow-y-auto overscroll-contain"
+                                    style={{ scrollbarWidth: "thin", overscrollBehavior: "contain" }}
+                                  >
+                                    {availableBankFields.map((f) => (
+                                      <button
+                                        key={f.id}
+                                        type="button"
+                                        onClick={() => addBankField(f.id)}
+                                        className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-800 rounded flex items-center justify-between transition-colors"
+                                      >
+                                        <span>{f.label}</span>
+                                        <Plus className="h-3 w-3 text-slate-400" />
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">All bank fields active</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* FIELDS GRID */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                        {/* Bank Country (Autocomplete) */}
+                        {visibleBankFields.includes("bank_country") && (
+                          <div className="space-y-1.5 sm:col-span-2 md:col-span-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                                Bank Country <span className="text-red-500 font-bold">*</span>
+                              </label>
+                              {validationErrors.bank_country && (
+                                <span className="text-[10px] text-red-500 font-medium">Required</span>
+                              )}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const currentRate = parseFloat(form.conversion_rate || "0");
-                                if (currentRate > 0) {
-                                  const inverted = (1 / currentRate).toFixed(6).replace(/\.?0+$/, "");
-                                  setForm({ ...form, conversion_rate: inverted });
-                                }
+                            <CountryAutocomplete
+                              value={form.bank_country || ""}
+                              onChange={handleCountryChange}
+                              placeholder="Select bank country..."
+                            />
+                          </div>
+                        )}
+
+                        {/* Bank Name */}
+                        {visibleBankFields.includes("bank_name") && (
+                          <div className="space-y-1.5 sm:col-span-2 md:col-span-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                                Bank Name
+                                {requiredFieldKeys.has("bank_name") && (
+                                  <span className="text-red-500 font-bold ml-0.5">*</span>
+                                )}
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                {validationErrors.bank_name && (
+                                  <span className="text-[10px] text-red-500 font-medium">Required</span>
+                                )}
+                                {!requiredFieldKeys.has("bank_name") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeBankField("bank_name")}
+                                    className="text-slate-400 hover:text-red-500 transition-colors"
+                                    title="Remove field"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <Input
+                              value={form.bank_name || ""}
+                              onChange={(e) => {
+                                setForm({ ...form, bank_name: e.target.value });
+                                setValidationErrors((prev) => ({ ...prev, bank_name: false }));
                               }}
-                              className="text-[10px] text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-medium underline underline-offset-2 transition-colors"
-                              title="Invert FX rate (1 / rate)"
-                            >
-                              Invert Rate (1/x)
-                            </button>
+                              placeholder="e.g. CIBC, JPMorgan Chase, HSBC"
+                              className={`h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50 ${
+                                validationErrors.bank_name ? "border-red-500 focus-visible:ring-red-500" : ""
+                              }`}
+                            />
                           </div>
-                        ) : (
-                          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-lg text-xs text-amber-700 dark:text-amber-300">
-                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                            <span>
-                              Wiring in <strong>{form.currency || "Foreign Currency"}</strong>. Enter the conversion rate (FX rate to USD) above to calculate estimated USD equivalent.
-                            </span>
+                        )}
+
+                        {/* Bank Account Number */}
+                        {visibleBankFields.includes("bank_account_number") && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                                Bank Account #
+                                {requiredFieldKeys.has("bank_account_number") && (
+                                  <span className="text-red-500 font-bold ml-0.5">*</span>
+                                )}
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                {validationErrors.bank_account_number && (
+                                  <span className="text-[10px] text-red-500 font-medium">Required</span>
+                                )}
+                                {!requiredFieldKeys.has("bank_account_number") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeBankField("bank_account_number")}
+                                    className="text-slate-400 hover:text-red-500 transition-colors"
+                                    title="Remove field"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <Input
+                              value={form.bank_account_number || ""}
+                              onChange={(e) => {
+                                setForm({ ...form, bank_account_number: e.target.value });
+                                setValidationErrors((prev) => ({ ...prev, bank_account_number: false }));
+                              }}
+                              placeholder="Account Number"
+                              className={`h-9 text-xs font-mono font-medium bg-slate-50/50 dark:bg-zinc-800/50 ${
+                                validationErrors.bank_account_number ? "border-red-500 focus-visible:ring-red-500" : ""
+                              }`}
+                            />
                           </div>
-                        )
-                      ) : (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-zinc-900/50 border border-slate-200/60 dark:border-zinc-800 rounded-lg text-xs text-slate-500 dark:text-zinc-400">
-                          <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Standard currency is USD. Conversion rate defaults to 1.00.</span>
+                        )}
+
+                        {/* Tax ID */}
+                        {visibleBankFields.includes("tax_id") && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                                Tax ID / EIN
+                                {requiredFieldKeys.has("tax_id") && (
+                                  <span className="text-red-500 font-bold ml-0.5">*</span>
+                                )}
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                {validationErrors.tax_id && (
+                                  <span className="text-[10px] text-red-500 font-medium">Required</span>
+                                )}
+                                {!requiredFieldKeys.has("tax_id") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeBankField("tax_id")}
+                                    className="text-slate-400 hover:text-red-500 transition-colors"
+                                    title="Remove field"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <Input
+                              value={form.tax_id || ""}
+                              onChange={(e) => {
+                                setForm({ ...form, tax_id: e.target.value });
+                                setValidationErrors((prev) => ({ ...prev, tax_id: false }));
+                              }}
+                              placeholder="Tax ID Number"
+                              className={`h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50 ${
+                                validationErrors.tax_id ? "border-red-500 focus-visible:ring-red-500" : ""
+                              }`}
+                            />
+                          </div>
+                        )}
+
+                        {/* Region / Province */}
+                        {visibleBankFields.includes("region") && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                                Region / Province / State
+                                {requiredFieldKeys.has("region") && (
+                                  <span className="text-red-500 font-bold ml-0.5">*</span>
+                                )}
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                {validationErrors.region && (
+                                  <span className="text-[10px] text-red-500 font-medium">Required</span>
+                                )}
+                                {!requiredFieldKeys.has("region") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeBankField("region")}
+                                    className="text-slate-400 hover:text-red-500 transition-colors"
+                                    title="Remove field"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <Input
+                              value={form.region || ""}
+                              onChange={(e) => {
+                                setForm({ ...form, region: e.target.value });
+                                setValidationErrors((prev) => ({ ...prev, region: false }));
+                              }}
+                              placeholder="e.g. Ontario, California, Bavaria"
+                              className={`h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50 ${
+                                validationErrors.region ? "border-red-500 focus-visible:ring-red-500" : ""
+                              }`}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* CARD 2: GLOBAL & REGIONAL CLEARING CODES */}
+                    <div className="rounded-xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-4 shadow-2xs space-y-4">
+                      {/* CARD HEADER */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-zinc-800">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-7 w-7 rounded-md bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                            <Globe2 className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200 flex items-center gap-2">
+                              <span>Global &amp; Regional Clearing Codes</span>
+                              <Badge variant="outline" className="text-[10px] text-indigo-600 border-indigo-300 dark:text-indigo-400">
+                                {form.bank_country || "Selected Country"}
+                              </Badge>
+                            </h4>
+                            <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+                              Routing numbers, SWIFT/BIC, IBAN, and domestic clearing identifiers
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* ADD CLEARING FIELD BUTTON (NO DUPLICATES, IN-TREE SCROLLABLE DROPDOWN) */}
+                        <div ref={addClearingRef} className="relative flex items-center gap-2 shrink-0">
+                          {availableClearingFields.length > 0 ? (
+                            <>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setAddClearingFieldOpen(!addClearingFieldOpen)}
+                                className="h-8 text-xs font-medium gap-1.5 border-dashed border-slate-300 dark:border-zinc-700 hover:bg-emerald-50/50 hover:text-emerald-600 hover:border-emerald-300"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                <span>Add Clearing Code</span>
+                              </Button>
+
+                              {addClearingFieldOpen && (
+                                <div
+                                  data-radix-scroll-lock-ignore=""
+                                  className="absolute right-0 top-full mt-1 w-60 p-1 z-50 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-2xl flex flex-col overflow-hidden"
+                                  style={{
+                                    boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
+                                  }}
+                                >
+                                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-2.5 py-1.5 border-b border-slate-100 dark:border-zinc-800">
+                                    Available Clearing Codes
+                                  </div>
+                                  <div
+                                    ref={clearingScrollRef}
+                                    data-radix-scroll-lock-ignore=""
+                                    className="py-1 max-h-56 overflow-y-auto overscroll-contain"
+                                    style={{
+                                      scrollbarWidth: "thin",
+                                      overscrollBehavior: "contain",
+                                      WebkitOverflowScrolling: "touch",
+                                    }}
+                                  >
+                                    {availableClearingFields.map((f) => (
+                                      <button
+                                        key={f.id}
+                                        type="button"
+                                        onClick={() => addClearingField(f.id)}
+                                        className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-800 rounded flex items-center justify-between transition-colors"
+                                      >
+                                        <span>{f.label}</span>
+                                        <Plus className="h-3 w-3 text-slate-400" />
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">All clearing codes active</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* DYNAMIC CLEARING CODES GRID */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                        {/* Routing Wire */}
+                        {visibleClearingFields.includes("routing_wire") && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                                Routing (Wire)
+                                {requiredFieldKeys.has("routing_wire") && (
+                                  <span className="text-red-500 font-bold ml-0.5">*</span>
+                                )}
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                {validationErrors.routing_wire && (
+                                  <span className="text-[10px] text-red-500 font-medium">Required</span>
+                                )}
+                                {!requiredFieldKeys.has("routing_wire") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeClearingField("routing_wire")}
+                                    className="text-slate-400 hover:text-red-500 transition-colors"
+                                    title="Remove field"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <Input
+                              value={form.routing_wire || ""}
+                              onChange={(e) => {
+                                setForm({ ...form, routing_wire: e.target.value });
+                                setValidationErrors((prev) => ({ ...prev, routing_wire: false }));
+                              }}
+                              placeholder="9-digit Wire Routing Number"
+                              className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
+                                validationErrors.routing_wire ? "border-red-500 focus-visible:ring-red-500" : ""
+                              }`}
+                            />
+                          </div>
+                        )}
+
+                        {/* Routing ACH (with checkmark for same as Wire) */}
+                        {visibleClearingFields.includes("routing_ach") && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                                Routing (ACH)
+                                {requiredFieldKeys.has("routing_ach") && (
+                                  <span className="text-red-500 font-bold ml-0.5">*</span>
+                                )}
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                {validationErrors.routing_ach && (
+                                  <span className="text-[10px] text-red-500 font-medium">Required</span>
+                                )}
+                                {!requiredFieldKeys.has("routing_ach") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeClearingField("routing_ach")}
+                                    className="text-slate-400 hover:text-red-500 transition-colors"
+                                    title="Remove field"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <Input
+                              disabled={achSameAsWire}
+                              value={form.routing_ach || ""}
+                              onChange={(e) => {
+                                setForm({ ...form, routing_ach: e.target.value });
+                                setValidationErrors((prev) => ({ ...prev, routing_ach: false }));
+                              }}
+                              placeholder="9-digit ACH Routing Number"
+                              className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
+                                achSameAsWire ? "opacity-75 cursor-not-allowed bg-slate-100 dark:bg-zinc-800" : ""
+                              } ${validationErrors.routing_ach ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                            />
+                            <div className="flex items-center gap-2 pt-0.5">
+                              <Checkbox
+                                id="ach_same_wire"
+                                checked={achSameAsWire}
+                                onCheckedChange={(checked) => {
+                                  const isChecked = !!checked;
+                                  setAchSameAsWire(isChecked);
+                                  if (isChecked) {
+                                    setForm((prev) => ({ ...prev, routing_ach: prev.routing_wire || "" }));
+                                    setValidationErrors((prev) => ({ ...prev, routing_ach: false }));
+                                  }
+                                }}
+                              />
+                              <label
+                                htmlFor="ach_same_wire"
+                                className="text-[11px] text-slate-600 dark:text-zinc-400 cursor-pointer select-none"
+                              >
+                                Routing (ACH) is same as Routing (Wire)
+                              </label>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ABA */}
+                        {visibleClearingFields.includes("aba") && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                                ABA Number
+                                {requiredFieldKeys.has("aba") && (
+                                  <span className="text-red-500 font-bold ml-0.5">*</span>
+                                )}
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                {validationErrors.aba && (
+                                  <span className="text-[10px] text-red-500 font-medium">Required</span>
+                                )}
+                                {!requiredFieldKeys.has("aba") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeClearingField("aba")}
+                                    className="text-slate-400 hover:text-red-500 transition-colors"
+                                    title="Remove field"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <Input
+                              value={form.aba || ""}
+                              onChange={(e) => {
+                                setForm({ ...form, aba: e.target.value });
+                                setValidationErrors((prev) => ({ ...prev, aba: false }));
+                              }}
+                              placeholder="ABA Number"
+                              className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
+                                validationErrors.aba ? "border-red-500 focus-visible:ring-red-500" : ""
+                              }`}
+                            />
+                          </div>
+                        )}
+
+                        {/* SWIFT / BIC Code */}
+                        {visibleClearingFields.includes("swift_code") && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                                SWIFT/BIC Code
+                                {requiredFieldKeys.has("swift_code") && (
+                                  <span className="text-red-500 font-bold ml-0.5">*</span>
+                                )}
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                {validationErrors.swift_code && (
+                                  <span className="text-[10px] text-red-500 font-medium">Required</span>
+                                )}
+                                {!requiredFieldKeys.has("swift_code") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeClearingField("swift_code")}
+                                    className="text-slate-400 hover:text-red-500 transition-colors"
+                                    title="Remove field"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <Input
+                              value={form.swift_code || form.bic || ""}
+                              onChange={(e) => {
+                                const val = e.target.value.toUpperCase();
+                                setForm({ ...form, swift_code: val, bic: val });
+                                setValidationErrors((prev) => ({ ...prev, swift_code: false }));
+                              }}
+                              placeholder="e.g. CIBCCATT or CHASUS33"
+                              className={`h-9 text-xs font-mono uppercase bg-slate-50/50 dark:bg-zinc-800/50 ${
+                                validationErrors.swift_code ? "border-red-500 focus-visible:ring-red-500" : ""
+                              }`}
+                            />
+                          </div>
+                        )}
+
+                        {/* IBAN */}
+                        {visibleClearingFields.includes("iban") && (
+                          <div className="space-y-1.5 sm:col-span-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                                IBAN
+                                {requiredFieldKeys.has("iban") && (
+                                  <span className="text-red-500 font-bold ml-0.5">*</span>
+                                )}
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                {validationErrors.iban && (
+                                  <span className="text-[10px] text-red-500 font-medium">Required</span>
+                                )}
+                                {!requiredFieldKeys.has("iban") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeClearingField("iban")}
+                                    className="text-slate-400 hover:text-red-500 transition-colors"
+                                    title="Remove field"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <Input
+                            value={form.iban || ""}
+                            onChange={(e) => {
+                              const val = e.target.value.toUpperCase();
+                              setForm({ ...form, iban: val });
+                              setValidationErrors((prev) => ({ ...prev, iban: false }));
+                            }}
+                            placeholder={countrySpec?.iban_length ? `IBAN (${countrySpec.iban_length} characters)` : "International Bank Account Number"}
+                            className={`h-9 text-xs font-mono uppercase bg-slate-50/50 dark:bg-zinc-800/50 ${
+                              validationErrors.iban ? "border-red-500 focus-visible:ring-red-500" : ""
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {/* Sort Code */}
+                      {visibleClearingFields.includes("sort_code") && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                              Sort Code
+                              {requiredFieldKeys.has("sort_code") && (
+                                <span className="text-red-500 font-bold ml-0.5">*</span>
+                              )}
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              {validationErrors.sort_code && (
+                                <span className="text-[10px] text-red-500 font-medium">Required</span>
+                              )}
+                              {!requiredFieldKeys.has("sort_code") && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeClearingField("sort_code")}
+                                  className="text-slate-400 hover:text-red-500 transition-colors"
+                                  title="Remove field"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <Input
+                            value={form.sort_code || ""}
+                            onChange={(e) => {
+                              setForm({ ...form, sort_code: e.target.value });
+                              setValidationErrors((prev) => ({ ...prev, sort_code: false }));
+                            }}
+                            placeholder="6-digit code (e.g. 20-00-00)"
+                            className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
+                              validationErrors.sort_code ? "border-red-500 focus-visible:ring-red-500" : ""
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {/* Transit Code */}
+                      {visibleClearingFields.includes("transit_code_ca") && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                              Transit Code
+                              {requiredFieldKeys.has("transit_code_ca") && (
+                                <span className="text-red-500 font-bold ml-0.5">*</span>
+                              )}
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              {validationErrors.transit_code_ca && (
+                                <span className="text-[10px] text-red-500 font-medium">Required</span>
+                              )}
+                              {!requiredFieldKeys.has("transit_code_ca") && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeClearingField("transit_code_ca")}
+                                  className="text-slate-400 hover:text-red-500 transition-colors"
+                                  title="Remove field"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <Input
+                            value={form.transit_code_ca || ""}
+                            onChange={(e) => {
+                              setForm({ ...form, transit_code_ca: e.target.value });
+                              setValidationErrors((prev) => ({ ...prev, transit_code_ca: false }));
+                            }}
+                            placeholder="5-digit Transit Code (e.g. 00303)"
+                            className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
+                              validationErrors.transit_code_ca ? "border-red-500 focus-visible:ring-red-500" : ""
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {/* Institution Code */}
+                      {visibleClearingFields.includes("institution_code") && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                              Institution Code
+                              {requiredFieldKeys.has("institution_code") && (
+                                <span className="text-red-500 font-bold ml-0.5">*</span>
+                              )}
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              {validationErrors.institution_code && (
+                                <span className="text-[10px] text-red-500 font-medium">Required</span>
+                              )}
+                              {!requiredFieldKeys.has("institution_code") && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeClearingField("institution_code")}
+                                  className="text-slate-400 hover:text-red-500 transition-colors"
+                                  title="Remove field"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <Input
+                            value={form.institution_code || ""}
+                            onChange={(e) => {
+                              setForm({ ...form, institution_code: e.target.value });
+                              setValidationErrors((prev) => ({ ...prev, institution_code: false }));
+                            }}
+                            placeholder="3-digit Institution Code (e.g. 0010)"
+                            className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
+                              validationErrors.institution_code ? "border-red-500 focus-visible:ring-red-500" : ""
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {/* BSB */}
+                      {visibleClearingFields.includes("bsb_australia") && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                              BSB
+                              {requiredFieldKeys.has("bsb_australia") && (
+                                <span className="text-red-500 font-bold ml-0.5">*</span>
+                              )}
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              {validationErrors.bsb_australia && (
+                                <span className="text-[10px] text-red-500 font-medium">Required</span>
+                              )}
+                              {!requiredFieldKeys.has("bsb_australia") && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeClearingField("bsb_australia")}
+                                  className="text-slate-400 hover:text-red-500 transition-colors"
+                                  title="Remove field"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <Input
+                            value={form.bsb_australia || ""}
+                            onChange={(e) => {
+                              setForm({ ...form, bsb_australia: e.target.value });
+                              setValidationErrors((prev) => ({ ...prev, bsb_australia: false }));
+                            }}
+                            placeholder="6-digit BSB (e.g. 123-456)"
+                            className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
+                              validationErrors.bsb_australia ? "border-red-500 focus-visible:ring-red-500" : ""
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {/* Bank Code */}
+                      {visibleClearingFields.includes("bank_code") && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                              Bank Code / CNAPS
+                              {requiredFieldKeys.has("bank_code") && (
+                                <span className="text-red-500 font-bold ml-0.5">*</span>
+                              )}
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              {validationErrors.bank_code && (
+                                <span className="text-[10px] text-red-500 font-medium">Required</span>
+                              )}
+                              {!requiredFieldKeys.has("bank_code") && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeClearingField("bank_code")}
+                                  className="text-slate-400 hover:text-red-500 transition-colors"
+                                  title="Remove field"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <Input
+                            value={form.bank_code || ""}
+                            onChange={(e) => {
+                              setForm({ ...form, bank_code: e.target.value });
+                              setValidationErrors((prev) => ({ ...prev, bank_code: false }));
+                            }}
+                            placeholder="Bank Code"
+                            className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
+                              validationErrors.bank_code ? "border-red-500 focus-visible:ring-red-500" : ""
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {/* Branch Code */}
+                      {visibleClearingFields.includes("branch_code") && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                              Branch Code
+                              {requiredFieldKeys.has("branch_code") && (
+                                <span className="text-red-500 font-bold ml-0.5">*</span>
+                              )}
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              {validationErrors.branch_code && (
+                                <span className="text-[10px] text-red-500 font-medium">Required</span>
+                              )}
+                              {!requiredFieldKeys.has("branch_code") && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeClearingField("branch_code")}
+                                  className="text-slate-400 hover:text-red-500 transition-colors"
+                                  title="Remove field"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <Input
+                            value={form.branch_code || ""}
+                            onChange={(e) => {
+                              setForm({ ...form, branch_code: e.target.value });
+                              setValidationErrors((prev) => ({ ...prev, branch_code: false }));
+                            }}
+                            placeholder="Branch Code"
+                            className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
+                              validationErrors.branch_code ? "border-red-500 focus-visible:ring-red-500" : ""
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {/* Clearing Code */}
+                      {visibleClearingFields.includes("clearing_code") && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                              Clearing Code
+                              {requiredFieldKeys.has("clearing_code") && (
+                                <span className="text-red-500 font-bold ml-0.5">*</span>
+                              )}
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              {validationErrors.clearing_code && (
+                                <span className="text-[10px] text-red-500 font-medium">Required</span>
+                              )}
+                              {!requiredFieldKeys.has("clearing_code") && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeClearingField("clearing_code")}
+                                  className="text-slate-400 hover:text-red-500 transition-colors"
+                                  title="Remove field"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <Input
+                            value={form.clearing_code || ""}
+                            onChange={(e) => {
+                              setForm({ ...form, clearing_code: e.target.value });
+                              setValidationErrors((prev) => ({ ...prev, clearing_code: false }));
+                            }}
+                            placeholder="Clearing Code / CLABE / IFSC"
+                            className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
+                              validationErrors.clearing_code ? "border-red-500 focus-visible:ring-red-500" : ""
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {/* Contact Name */}
+                      {visibleClearingFields.includes("contact_name_china") && (
+                        <div className="space-y-1.5 sm:col-span-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                              Contact Name
+                              {requiredFieldKeys.has("contact_name_china") && (
+                                <span className="text-red-500 font-bold ml-0.5">*</span>
+                              )}
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              {validationErrors.contact_name_china && (
+                                <span className="text-[10px] text-red-500 font-medium">Required</span>
+                              )}
+                              {!requiredFieldKeys.has("contact_name_china") && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeClearingField("contact_name_china")}
+                                  className="text-slate-400 hover:text-red-500 transition-colors"
+                                  title="Remove field"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <Input
+                            value={form.contact_name_china || ""}
+                            onChange={(e) => {
+                              setForm({ ...form, contact_name_china: e.target.value });
+                              setValidationErrors((prev) => ({ ...prev, contact_name_china: false }));
+                            }}
+                            placeholder="Recipient contact person full name"
+                            className={`h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50 ${
+                              validationErrors.contact_name_china ? "border-red-500 focus-visible:ring-red-500" : ""
+                            }`}
+                          />
                         </div>
                       )}
                     </div>
-
-                    {/* Comments */}
-                    <div className="space-y-1.5 sm:col-span-4">
-                      <label className="text-xs font-medium">Comments / Memo</label>
-                      <Input
-                        value={form.comments || ""}
-                        onChange={(e) => setForm({ ...form, comments: e.target.value })}
-                        placeholder="e.g. August Rent Payment, vendor deposit..."
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
                   </div>
-                </div>
-
-                {/* Vendor Contact & Location */}
-                <div className="p-3.5 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-slate-600 dark:text-zinc-400" />
-                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-zinc-300">
-                      Vendor Contact & Location
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    {/* Vendor Email */}
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <label className="text-xs font-medium">Vendor Email</label>
-                      <Input
-                        type="email"
-                        value={form.vendor_email || ""}
-                        onChange={(e) => setForm({ ...form, vendor_email: e.target.value })}
-                        placeholder="vendor-billing@domain.com"
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Contact Name China */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Contact (China)</label>
-                      <Input
-                        value={form.contact_name_china || ""}
-                        onChange={(e) => setForm({ ...form, contact_name_china: e.target.value })}
-                        placeholder="Name for CN transfers"
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Region */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Region / State</label>
-                      <Input
-                        value={form.region || ""}
-                        onChange={(e) => setForm({ ...form, region: e.target.value })}
-                        placeholder="Region / State"
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Vendor Address */}
-                    <div className="space-y-1.5 sm:col-span-4">
-                      <label className="text-xs font-medium">Vendor Address</label>
-                      <Input
-                        value={form.vendor_address || ""}
-                        onChange={(e) => setForm({ ...form, vendor_address: e.target.value })}
-                        placeholder="Street Address, City, State/Province, Postal Code, Country..."
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* TAB 2: BANK & ROUTING */}
-              <TabsContent value="banking" className="space-y-4 mt-0">
-                <div className="p-3.5 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-zinc-300">
-                      Beneficiary Bank Details
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {/* Bank Name */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Bank Name</label>
-                      <Input
-                        value={form.bank_name || ""}
-                        onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
-                        placeholder="e.g. CIBC, JPMorgan Chase"
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Bank Country */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Bank Country</label>
-                      <Input
-                        value={form.bank_country || ""}
-                        onChange={(e) => setForm({ ...form, bank_country: e.target.value })}
-                        placeholder="e.g. Canada, United States, China"
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Tax ID */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Tax ID / EIN</label>
-                      <Input
-                        value={form.tax_id || ""}
-                        onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
-                        placeholder="Tax ID Number"
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Bank Account Number */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Bank Account #</label>
-                      <Input
-                        value={form.bank_account_number || ""}
-                        onChange={(e) => setForm({ ...form, bank_account_number: e.target.value })}
-                        placeholder="Account Number"
-                        className="h-9 text-xs font-mono font-medium bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Routing Wire */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Routing (Wire)</label>
-                      <Input
-                        value={form.routing_wire || ""}
-                        onChange={(e) => setForm({ ...form, routing_wire: e.target.value })}
-                        placeholder="Wire Routing Number"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Routing ACH */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Routing (ACH)</label>
-                      <Input
-                        value={form.routing_ach || ""}
-                        onChange={(e) => setForm({ ...form, routing_ach: e.target.value })}
-                        placeholder="ACH Routing Number"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* ABA */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">ABA Number</label>
-                      <Input
-                        value={form.aba || ""}
-                        onChange={(e) => setForm({ ...form, aba: e.target.value })}
-                        placeholder="ABA Number"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Bank Address */}
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <label className="text-xs font-medium">Bank Branch Address</label>
-                      <Input
-                        value={form.bank_address || ""}
-                        onChange={(e) => setForm({ ...form, bank_address: e.target.value })}
-                        placeholder="Branch Address, City, Country, Postal Code..."
-                        className="h-9 text-xs bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* TAB 3: INTERNATIONAL CODES */}
-              <TabsContent value="international" className="space-y-4 mt-0">
-                <div className="p-3.5 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Globe2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-zinc-300">
-                      Global & Regional Clearing Codes
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    {/* SWIFT */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">SWIFT Code</label>
-                      <Input
-                        value={form.swift_code || ""}
-                        onChange={(e) => setForm({ ...form, swift_code: e.target.value.toUpperCase() })}
-                        placeholder="e.g. CIBCCATT"
-                        className="h-9 text-xs font-mono uppercase bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* BIC */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">BIC Code</label>
-                      <Input
-                        value={form.bic || ""}
-                        onChange={(e) => setForm({ ...form, bic: e.target.value.toUpperCase() })}
-                        placeholder="BIC Code"
-                        className="h-9 text-xs font-mono uppercase bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* IBAN */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">IBAN</label>
-                      <Input
-                        value={form.iban || ""}
-                        onChange={(e) => setForm({ ...form, iban: e.target.value.toUpperCase() })}
-                        placeholder="IBAN Number"
-                        className="h-9 text-xs font-mono uppercase bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Sort Code */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Sort Code (UK)</label>
-                      <Input
-                        value={form.sort_code || ""}
-                        onChange={(e) => setForm({ ...form, sort_code: e.target.value })}
-                        placeholder="6-digit code"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Transit Code Canada */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Transit Code (CA)</label>
-                      <Input
-                        value={form.transit_code_ca || ""}
-                        onChange={(e) => setForm({ ...form, transit_code_ca: e.target.value })}
-                        placeholder="e.g. 00303"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Transit Number Canada */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Transit # (CA)</label>
-                      <Input
-                        value={form.transit_number_ca || ""}
-                        onChange={(e) => setForm({ ...form, transit_number_ca: e.target.value })}
-                        placeholder="Transit Number"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Institution Code */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Institution Code</label>
-                      <Input
-                        value={form.institution_code || ""}
-                        onChange={(e) => setForm({ ...form, institution_code: e.target.value })}
-                        placeholder="e.g. 0010"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Branch Code */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Branch Code</label>
-                      <Input
-                        value={form.branch_code || ""}
-                        onChange={(e) => setForm({ ...form, branch_code: e.target.value })}
-                        placeholder="Branch Code"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* BSB Australia */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">BSB (Australia)</label>
-                      <Input
-                        value={form.bsb_australia || ""}
-                        onChange={(e) => setForm({ ...form, bsb_australia: e.target.value })}
-                        placeholder="e.g. 000-000"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Clearing Code */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Clearing Code</label>
-                      <Input
-                        value={form.clearing_code || ""}
-                        onChange={(e) => setForm({ ...form, clearing_code: e.target.value })}
-                        placeholder="Clearing Code"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Bank Code */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Bank Code</label>
-                      <Input
-                        value={form.bank_code || ""}
-                        onChange={(e) => setForm({ ...form, bank_code: e.target.value })}
-                        placeholder="Bank Code"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-
-                    {/* Transit */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Transit</label>
-                      <Input
-                        value={form.transit || ""}
-                        onChange={(e) => setForm({ ...form, transit: e.target.value })}
-                        placeholder="Transit"
-                        className="h-9 text-xs font-mono bg-white dark:bg-zinc-900"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
+                </TabsContent>
+              )}
               </div>
             </Tabs>
 
-            {/* FIXED FOOTER */}
-            <div className="px-6 py-4 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/90 dark:bg-zinc-900/70 shrink-0">
-              <DialogFooter className="p-0 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-                <div className="text-xs text-muted-foreground flex items-center gap-2">
+            {/* FIXED FOOTER WITH GENEROUS PADDING & MARGIN */}
+            <div className="px-8 py-5 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/95 dark:bg-zinc-900/80 shrink-0 mt-auto">
+              <DialogFooter className="p-0 m-0 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-xs text-muted-foreground flex items-center gap-2 py-1">
                   <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Treasury settlement audit trail will be logged upon submission.</span>
+                  <span>Treasury & AP settlement audit trail will be logged upon submission.</span>
                 </div>
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex items-center gap-3 shrink-0 my-0.5">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setShowDiscardConfirm(true)}
                     disabled={isSubmitting}
-                    className="h-9 px-4 text-xs font-medium"
+                    className="h-10 px-5 text-sm font-medium rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="h-9 px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5"
+                    className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-all rounded-lg flex items-center gap-2"
                   >
                     <SendHorizontal className="h-4 w-4" />
-                    {isEditMode ? "Save Changes" : "Confirm Wire & Mark Purchased"}
+                    {submitLabel || (isEditMode ? "Save Changes" : "Confirm Wire & Mark Purchased")}
                   </Button>
                 </div>
               </DialogFooter>

@@ -21,9 +21,10 @@ import { useAuth } from "@/lib/AuthContext";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { useRef } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Maximize2, FileText, Truck, DollarSign, AlertTriangle } from "lucide-react";
+import { Loader2, Plus, Trash2, Maximize2, FileText, Truck, DollarSign, AlertTriangle, Landmark, ShoppingCart, Clock, FileSpreadsheet } from "lucide-react";
 import { formatMoney } from "./purchasingMeta";
-import { RequestStatus, type ItemMode, type PurchaseRequestItem } from "@/types/purchasing";
+import { RequestStatus, type ItemMode, type PurchaseRequestItem, type WireTransferInput } from "@/types/purchasing";
+import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
 import { parseRequestStatus } from "@/lib/requestStatus";
 
 
@@ -134,10 +135,12 @@ export function EditRequestDialog({
   request,
   open,
   onOpenChange,
+  wireTransfer,
 }: {
   request: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  wireTransfer?: WireTransferInput | null;
 }) {
   const isMulti = request?.item_mode === "MULTIPLE" || (request?.items && request.items.length > 0);
   const parsedStatus = parseRequestStatus(request?.status);
@@ -168,6 +171,46 @@ export function EditRequestDialog({
   const [isFullScreenTable, setIsFullScreenTable] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState<string>("");
+  const [apWireForm, setApWireForm] = useState<WireTransferInput>(() => ({
+    entered_by: wireTransfer?.entered_by || "",
+    entered_by_user_id: wireTransfer?.entered_by_user_id || undefined,
+    entry_date: wireTransfer?.entry_date || new Date().toISOString().split("T")[0],
+    due_date: wireTransfer?.due_date || request?.due_date?.split("T")[0] || "",
+    payment_date: wireTransfer?.payment_date || new Date().toISOString().split("T")[0],
+    vendor: wireTransfer?.vendor || "",
+    is_new_vendor: wireTransfer?.is_new_vendor || false,
+    pay_date: wireTransfer?.pay_date || "Same Day",
+    amount: wireTransfer?.amount ?? (request?.amount || 0),
+    currency: wireTransfer?.currency || "USD",
+    conversion_rate: wireTransfer?.conversion_rate ? String(wireTransfer.conversion_rate) : "1.0",
+    pay_from: wireTransfer?.pay_from || "",
+    invoice_number: wireTransfer?.invoice_number || "",
+    comments: wireTransfer?.comments || "",
+    vendor_address: wireTransfer?.vendor_address || "",
+    bank_address: wireTransfer?.bank_address || "",
+    vendor_email: wireTransfer?.vendor_email || "",
+    bank_name: wireTransfer?.bank_name || "",
+    tax_id: wireTransfer?.tax_id || "",
+    bank_country: wireTransfer?.bank_country || "",
+    routing_wire: wireTransfer?.routing_wire || "",
+    routing_ach: wireTransfer?.routing_ach || "",
+    bank_account_number: wireTransfer?.bank_account_number || "",
+    swift_code: wireTransfer?.swift_code || "",
+    sort_code: wireTransfer?.sort_code || "",
+    transit_code_ca: wireTransfer?.transit_code_ca || "",
+    transit_number_ca: wireTransfer?.transit_number_ca || "",
+    institution_code: wireTransfer?.institution_code || "",
+    branch_code: wireTransfer?.branch_code || "",
+    bsb_australia: wireTransfer?.bsb_australia || "",
+    clearing_code: wireTransfer?.clearing_code || "",
+    bank_code: wireTransfer?.bank_code || "",
+    iban: wireTransfer?.iban || "",
+    bic: wireTransfer?.bic || "",
+    transit: wireTransfer?.transit || "",
+    aba: wireTransfer?.aba || "",
+    region: wireTransfer?.region || "",
+    contact_name_china: wireTransfer?.contact_name_china || "",
+  }));
 
   useEffect(() => {
     if (open && (!formData.department || formData.department === "General") && (usersList.length > 0 || user)) {
@@ -262,6 +305,48 @@ export function EditRequestDialog({
       setTaxFee(calculatedTax);
       setDiscountFee(calculatedDiscount);
 
+      const initialWt: WireTransferInput = {
+        entered_by: wireTransfer?.entered_by || request?.wire_transfer?.entered_by || "",
+        entered_by_user_id: wireTransfer?.entered_by_user_id || request?.wire_transfer?.entered_by_user_id || undefined,
+        entry_date: wireTransfer?.entry_date || request?.wire_transfer?.entry_date || new Date().toISOString().split("T")[0],
+        due_date: wireTransfer?.due_date || request?.wire_transfer?.due_date || (request?.due_date ? request.due_date.split("T")[0] : ""),
+        payment_date: wireTransfer?.payment_date || request?.wire_transfer?.payment_date || new Date().toISOString().split("T")[0],
+        vendor: wireTransfer?.vendor || request?.wire_transfer?.vendor || "",
+        is_new_vendor: wireTransfer?.is_new_vendor ?? request?.wire_transfer?.is_new_vendor ?? false,
+        pay_date: wireTransfer?.pay_date || request?.wire_transfer?.pay_date || "Same Day",
+        amount: wireTransfer?.amount ?? request?.wire_transfer?.amount ?? (request?.amount || 0),
+        currency: wireTransfer?.currency || request?.wire_transfer?.currency || "USD",
+        conversion_rate: wireTransfer?.conversion_rate ? String(wireTransfer.conversion_rate) : (request?.wire_transfer?.conversion_rate ? String(request.wire_transfer.conversion_rate) : "1.0"),
+        pay_from: wireTransfer?.pay_from || request?.wire_transfer?.pay_from || "",
+        invoice_number: wireTransfer?.invoice_number || request?.wire_transfer?.invoice_number || "",
+        comments: wireTransfer?.comments || request?.wire_transfer?.comments || "",
+        vendor_address: wireTransfer?.vendor_address || request?.wire_transfer?.vendor_address || "",
+        bank_address: wireTransfer?.bank_address || request?.wire_transfer?.bank_address || "",
+        vendor_email: wireTransfer?.vendor_email || request?.wire_transfer?.vendor_email || "",
+        bank_name: wireTransfer?.bank_name || request?.wire_transfer?.bank_name || "",
+        tax_id: wireTransfer?.tax_id || request?.wire_transfer?.tax_id || "",
+        bank_country: wireTransfer?.bank_country || request?.wire_transfer?.bank_country || "",
+        routing_wire: wireTransfer?.routing_wire || request?.wire_transfer?.routing_wire || "",
+        routing_ach: wireTransfer?.routing_ach || request?.wire_transfer?.routing_ach || "",
+        bank_account_number: wireTransfer?.bank_account_number || request?.wire_transfer?.bank_account_number || "",
+        swift_code: wireTransfer?.swift_code || request?.wire_transfer?.swift_code || "",
+        sort_code: wireTransfer?.sort_code || request?.wire_transfer?.sort_code || "",
+        transit_code_ca: wireTransfer?.transit_code_ca || request?.wire_transfer?.transit_code_ca || "",
+        transit_number_ca: wireTransfer?.transit_number_ca || request?.wire_transfer?.transit_number_ca || "",
+        institution_code: wireTransfer?.institution_code || request?.wire_transfer?.institution_code || "",
+        branch_code: wireTransfer?.branch_code || request?.wire_transfer?.branch_code || "",
+        bsb_australia: wireTransfer?.bsb_australia || request?.wire_transfer?.bsb_australia || "",
+        clearing_code: wireTransfer?.clearing_code || request?.wire_transfer?.clearing_code || "",
+        bank_code: wireTransfer?.bank_code || request?.wire_transfer?.bank_code || "",
+        iban: wireTransfer?.iban || request?.wire_transfer?.iban || "",
+        bic: wireTransfer?.bic || request?.wire_transfer?.bic || "",
+        transit: wireTransfer?.transit || request?.wire_transfer?.transit || "",
+        aba: wireTransfer?.aba || request?.wire_transfer?.aba || "",
+        region: wireTransfer?.region || request?.wire_transfer?.region || "",
+        contact_name_china: wireTransfer?.contact_name_china || request?.wire_transfer?.contact_name_china || "",
+      };
+      setApWireForm(initialWt);
+
       // Save initial snapshot for dirty tracking
       setInitialSnapshot(
         JSON.stringify({
@@ -271,11 +356,12 @@ export function EditRequestDialog({
           shippingFee: calculatedShipping,
           taxFee: calculatedTax,
           discountFee: calculatedDiscount,
+          apWireForm: initialWt,
         })
       );
       setShowUnsavedConfirm(false);
     }
-  }, [request, open]);
+  }, [request, open, wireTransfer]);
 
   const isDirty = useMemo(() => {
     if (!open || !initialSnapshot) return false;
@@ -286,9 +372,10 @@ export function EditRequestDialog({
       shippingFee,
       taxFee,
       discountFee,
+      apWireForm,
     });
     return currentSnapshot !== initialSnapshot;
-  }, [open, initialSnapshot, formData, itemMode, items, shippingFee, taxFee, discountFee]);
+  }, [open, initialSnapshot, formData, itemMode, items, shippingFee, taxFee, discountFee, apWireForm]);
 
   const handleRequestClose = () => {
     if (isDirty) {
@@ -344,6 +431,12 @@ export function EditRequestDialog({
       const total = itemsSubtotal + Number(shippingFee || 0) + Number(taxFee || 0) - Number(discountFee || 0);
       return Math.max(0, Math.round(total * 100) / 100);
     }
+    if (formData.request_type === "ACCOUNTS_PAYABLE") {
+      const val = apWireForm.amount !== undefined && apWireForm.amount !== null && !isNaN(Number(apWireForm.amount))
+        ? Number(apWireForm.amount)
+        : (formData.amount ? parseFloat(formData.amount) : 0);
+      return Math.max(0, Math.round(val * 100) / 100);
+    }
     if (formData.request_type === "RECURRING") {
       const val = formData.amount ? parseFloat(formData.amount) : (formData.unit_price ? parseFloat(formData.unit_price) : 0);
       return Math.max(0, Math.round(val * 100) / 100);
@@ -351,7 +444,7 @@ export function EditRequestDialog({
     const up = formData.unit_price ? parseFloat(formData.unit_price) : 0;
     const qty = formData.quantity ? parseInt(formData.quantity) : 1;
     return Math.round(up * qty * 100) / 100;
-  }, [itemMode, itemsSubtotal, shippingFee, taxFee, discountFee, formData.unit_price, formData.quantity, formData.request_type, formData.amount]);
+  }, [itemMode, itemsSubtotal, shippingFee, taxFee, discountFee, formData.unit_price, formData.quantity, formData.request_type, formData.amount, apWireForm.amount]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -381,10 +474,22 @@ export function EditRequestDialog({
         amount: calculatedAmount,
       };
 
-      if (formData.request_type === "RECURRING") {
+      if (formData.request_type === "ACCOUNTS_PAYABLE") {
+        payload.amount = calculatedAmount;
         payload.unit_price = calculatedAmount;
         payload.quantity = 1;
-        payload.item_url = null;
+        payload.item_url = formData.item_url || null;
+        payload.items = [];
+        payload.due_date = apWireForm.due_date || formData.due_date || null;
+        payload.wire_transfer = {
+          ...apWireForm,
+          amount: calculatedAmount,
+          vendor: apWireForm.vendor || formData.title,
+        };
+      } else if (formData.request_type === "RECURRING") {
+        payload.unit_price = calculatedAmount;
+        payload.quantity = 1;
+        payload.item_url = formData.item_url || null;
         payload.items = [];
       } else if (itemMode === "SINGLE") {
         payload.unit_price = unitPrice;
@@ -445,7 +550,7 @@ export function EditRequestDialog({
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span>{formData.request_type === "RECURRING" ? "Edit Recurring Payment Request" : "Edit Purchase Request"} #{request?.id}</span>
+              <span>{formData.request_type === "RECURRING" ? "Edit Recurring Payment Request" : formData.request_type === "ACCOUNTS_PAYABLE" ? "Edit Accounts Payable Request" : "Edit Purchase Request"} #{request?.id}</span>
               {itemMode === "MULTIPLE" && formData.request_type !== "RECURRING" && (
                 <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border-indigo-200">
                   <FileText className="h-3 w-3 mr-1" /> Multi-Part Quote
@@ -454,11 +559,56 @@ export function EditRequestDialog({
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4 py-2">
-            {/* Mode Switcher */}
+          <form onSubmit={handleSubmit} className="space-y-4 py-1">
+            {/* 1. Request Type Selector (Clean Segmented Cards at Top) */}
+            <div className="space-y-1.5 pb-3 border-b border-slate-100 dark:border-zinc-800">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                Request Type <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {[
+                  { value: "SPEND", label: "Spend Request", icon: ShoppingCart, desc: "Hardware & purchases" },
+                  { value: "RECURRING", label: "Recurring", icon: Clock, desc: "Scheduled cycles" },
+                  { value: "QUOTE", label: "Quote Request", icon: FileSpreadsheet, desc: "Estimates & RFQs" },
+                  { value: "ADMIN", label: "Admin Triage", icon: FileText, desc: "Administrative & misc" },
+                  { value: "ACCOUNTS_PAYABLE", label: "Accounts Payable", icon: Landmark, desc: "Vendor invoices & wires" },
+                ].map((opt) => {
+                  const isSelected = formData.request_type === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, request_type: opt.value }));
+                        if (opt.value === "ACCOUNTS_PAYABLE" || opt.value === "RECURRING") {
+                          setItemMode("SINGLE");
+                        }
+                      }}
+                      className={`flex flex-col items-start p-2.5 rounded-lg border text-left transition-all relative ${
+                        isSelected
+                          ? "bg-indigo-50/80 border-indigo-500 dark:bg-indigo-950/40 dark:border-indigo-500 shadow-2xs ring-1 ring-indigo-500/30"
+                          : "bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-0.5 w-full">
+                        <opt.icon className={`h-3.5 w-3.5 shrink-0 ${isSelected ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400"}`} />
+                        <span className={`text-xs font-semibold ${isSelected ? "text-indigo-900 dark:text-indigo-100" : "text-slate-800 dark:text-zinc-200"}`}>
+                          {opt.label}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 leading-tight line-clamp-1">
+                        {opt.desc}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Mode Switcher (Single vs Multiple) - Only for Spend, Quote, Admin */}
             {formData.request_type !== "ACCOUNTS_PAYABLE" && formData.request_type !== "RECURRING" && (
-              <div className="p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400 block mb-1.5">
+              <div className="p-3 bg-slate-50/70 dark:bg-zinc-800/40 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400 block">
                   Item Configuration
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -484,8 +634,8 @@ export function EditRequestDialog({
               </div>
             )}
 
-            {/* Multiple Parts Line Items Table */}
-            {itemMode === "MULTIPLE" && formData.request_type !== "RECURRING" && (
+            {/* 3. Multiple Parts Line Items Table */}
+            {itemMode === "MULTIPLE" && formData.request_type !== "ACCOUNTS_PAYABLE" && formData.request_type !== "RECURRING" && (
               <div className="space-y-3 p-3.5 rounded-lg border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-950/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -669,55 +819,23 @@ export function EditRequestDialog({
               </div>
             )}
 
-            {/* General Fields */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 col-span-2">
-                <label className="text-sm font-medium">Title <span className="text-red-500">*</span></label>
+            {/* 4. General Details: Title + 3-Column Meta Row (Requester | Department | Priority) */}
+            <div className="space-y-3.5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Request Title <span className="text-red-500">*</span>
+                </label>
                 <Input
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Request Title"
+                  className="h-9 text-xs font-medium"
                   required
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Type <span className="text-red-500">*</span></label>
-                <Select
-                  value={formData.request_type}
-                  onValueChange={(val) => setFormData({ ...formData, request_type: val })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SPEND">Spend Request</SelectItem>
-                    <SelectItem value="RECURRING">Recurring Payment</SelectItem>
-                    <SelectItem value="QUOTE">Quote Request (Estimate / RFQ)</SelectItem>
-                    <SelectItem value="ADMIN">Admin Triage</SelectItem>
-                    <SelectItem value="ACCOUNTS_PAYABLE">Accounts Payable</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Priority <span className="text-red-500">*</span></label>
-                <Select
-                  value={formData.priority}
-                  onValueChange={(val) => setFormData({ ...formData, priority: val })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HIGH">High</SelectItem>
-                    <SelectItem value="URGENT">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 col-span-2">
+              {/* Priority NOT at top - Clean 3-Column Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <RequesterAutocomplete
                   value={formData.requester}
                   onChange={(val) => {
@@ -738,20 +856,73 @@ export function EditRequestDialog({
                   users={usersList}
                   roles={rolesList}
                 />
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Department <span className="text-red-500">*</span></label>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Department <span className="text-red-500">*</span>
+                  </label>
                   <Input
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    className="h-9 text-xs"
                     required
                   />
                 </div>
-              </div>
 
-              {formData.request_type === "RECURRING" ? (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Amount (USD) <span className="text-red-500">*</span></label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Priority <span className="text-red-500">*</span>
+                  </label>
+                  <Select
+                    value={formData.priority}
+                    onValueChange={(val) => setFormData({ ...formData, priority: val })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LOW">Low</SelectItem>
+                      <SelectItem value="MEDIUM">Medium</SelectItem>
+                      <SelectItem value="HIGH">High</SelectItem>
+                      <SelectItem value="URGENT">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. Conditional Type Fields: ACCOUNTS_PAYABLE vs RECURRING vs SINGLE ITEM */}
+            {formData.request_type === "ACCOUNTS_PAYABLE" ? (
+              <div className="space-y-3.5 pt-1">
+                <WireGeneralPaymentFields
+                  form={apWireForm}
+                  setForm={setApWireForm}
+                  onAmountChange={(amt) => {
+                    setFormData((f) => ({ ...f, amount: String(amt), unit_price: String(amt) }));
+                  }}
+                  onDueDateChange={(d) => {
+                    setFormData((f) => ({ ...f, due_date: d }));
+                  }}
+                  onVendorChange={(v) => {
+                    if (!formData.title || formData.title === apWireForm.vendor) {
+                      setFormData((f) => ({ ...f, title: v }));
+                    }
+                  }}
+                />
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
+                  <GLCodeAutocomplete
+                    value={formData.gl_code}
+                    onChange={(val) => setFormData({ ...formData, gl_code: val })}
+                  />
+                </div>
+              </div>
+            ) : formData.request_type === "RECURRING" ? (
+              <div className="space-y-3.5 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Amount (USD) <span className="text-red-500">*</span></label>
                     <Input
                       type="number"
                       step="0.01"
@@ -759,98 +930,111 @@ export function EditRequestDialog({
                       placeholder="0.00"
                       value={formData.amount}
                       onChange={(e) => setFormData({ ...formData, amount: e.target.value, unit_price: e.target.value })}
+                      className="h-9 text-xs font-mono"
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Next Due Date</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
                     <Input
                       type="date"
                       value={formData.due_date}
                       onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                      className="h-9 text-xs"
                     />
                   </div>
+                </div>
 
-                  <div className="space-y-2 col-span-2">
-                    <label className="text-sm font-medium">GL Code / Account</label>
-                    <GLCodeAutocomplete
-                      value={formData.gl_code}
-                      onChange={(val) => setFormData({ ...formData, gl_code: val })}
-                    />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
+                  <GLCodeAutocomplete
+                    value={formData.gl_code}
+                    onChange={(val) => setFormData({ ...formData, gl_code: val })}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3.5 pt-1">
+                {itemMode === "SINGLE" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Quantity</label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={formData.quantity}
+                        onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Unit Price ($)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.unit_price}
+                        onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+                        className="h-9 text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Est. Amount (Pre-tax)</label>
+                      <div className="h-9 px-3 py-2 rounded-md border border-slate-200 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-900/50 flex items-center text-xs text-slate-700 dark:text-zinc-300 font-semibold font-mono">
+                        {formatMoney(calculatedAmount)}
+                      </div>
+                    </div>
                   </div>
-                </>
-              ) : (
-                <>
-                  {itemMode === "SINGLE" && (
-                    <>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Quantity</label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={formData.quantity}
-                          onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                        />
-                      </div>
+                )}
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Unit Price ($)</label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={formData.unit_price}
-                          onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
-                        />
-                      </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
+                  <GLCodeAutocomplete
+                    value={formData.gl_code}
+                    onChange={(val) => setFormData({ ...formData, gl_code: val })}
+                  />
+                </div>
+              </div>
+            )}
 
-                      <div className="space-y-2 col-span-2">
-                        <label className="text-sm font-medium">Est. Amount (Pre-tax)</label>
-                        <div className="h-10 px-3 py-2 rounded-md border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50 flex items-center text-sm text-slate-700 dark:text-zinc-300 font-semibold font-mono">
-                          {formatMoney(calculatedAmount)}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 col-span-2">
-                        <div className="flex items-center justify-between">
-                          <label className="text-sm font-medium">Link / URL</label>
-                          {!isLinkEditable && (
-                            <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-normal">
-                              Locked (not editable from Waiting Approval onward)
-                            </span>
-                          )}
-                        </div>
-                        <Input
-                          type="url"
-                          value={formData.item_url}
-                          onChange={(e) => setFormData({ ...formData, item_url: e.target.value })}
-                          placeholder="https://..."
-                          disabled={!isLinkEditable}
-                          className={!isLinkEditable ? "bg-slate-100 dark:bg-zinc-800/60 cursor-not-allowed text-slate-500 dark:text-zinc-400" : ""}
-                        />
-                      </div>
-                    </>
+            {/* Product / Website Link (Shown for Single Item and Accounts Payable, optional, above Description) */}
+            {(formData.request_type === "ACCOUNTS_PAYABLE" || (formData.request_type !== "RECURRING" && itemMode === "SINGLE")) && (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Product / Website Link <span className="text-slate-400 font-normal">(optional, e.g. Amazon URL or Vendor invoice link)</span>
+                  </label>
+                  {!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE" && (
+                    <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-normal">
+                      Locked (not editable from Waiting Approval onward)
+                    </span>
                   )}
-
-                  <div className="space-y-2 col-span-2">
-                    <label className="text-sm font-medium">GL Code / Account</label>
-                    <GLCodeAutocomplete
-                      value={formData.gl_code}
-                      onChange={(val) => setFormData({ ...formData, gl_code: val })}
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="space-y-2 col-span-2">
-                <label className="text-sm font-medium">{formData.request_type === "RECURRING" ? "Description / Terms" : "Description"}</label>
-                <Textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
+                </div>
+                <Input
+                  type="url"
+                  value={formData.item_url || ""}
+                  onChange={(e) => setFormData({ ...formData, item_url: e.target.value })}
+                  placeholder="https://..."
+                  disabled={!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE"}
+                  className={`h-9 text-xs ${!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE" ? "bg-slate-100 dark:bg-zinc-800/60 cursor-not-allowed text-slate-500 dark:text-zinc-400" : ""}`}
                 />
               </div>
+            )}
+
+            {/* 6. Description / Terms */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                {formData.request_type === "RECURRING" ? "Description / Terms" : "Description / Notes"}
+              </label>
+              <Textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+                className="text-xs bg-white dark:bg-zinc-900"
+              />
             </div>
 
             <DialogFooter className="pt-2">

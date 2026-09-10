@@ -27,7 +27,7 @@ const ROLE_STATES_MAP: Record<string, string[]> = {
   "EXECUTIVE": ["Waiting Approval (≥ $10k)"],
   "DIRECTOR": ["Waiting Approval"],
   "VP": ["Waiting Approval"],
-  "AP": ["Goods Received (Debit / Wire)", "Waiting Payment (Debit Card / Invoices)"],
+  "AP": ["Goods Received (Debit / Wire)", "Waiting Payment (Debit Card / Invoices)", "Waiting Payment (Wire Transfer)"],
   "RECEIVING": ["Shipped", "Goods Received"],
   "TREASURY": ["Waiting Payment (Wire Transfer)", "Completed"],
 };

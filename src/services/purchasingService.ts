@@ -185,6 +185,56 @@ export function getTreasuryUsers() {
   return apiClient.get<Array<{ id: string; full_name: string; email: string; department?: string }>>(BASE + "/treasury-users");
 }
 
+export function getAPUsers() {
+  return apiClient.get<Array<{ id: string; full_name: string; email: string; department?: string }>>(BASE + "/ap-users");
+}
+
+export function getKnownVendors() {
+  return apiClient.get<string[]>(BASE + "/vendors");
+}
+
+export function getPayFromEntities() {
+  return apiClient.get<string[]>(BASE + "/pay-from-entities");
+}
+
 export function updateWireTransfer(requestId: string | number, payload: WireTransferInput) {
   return apiClient.put<RequestDetail>(`${BASE}/requests/${requestId}/wire-transfer`, payload);
+}
+
+
+export interface BankingCountry {
+  code: string;
+  name: string;
+  flag: string;
+  has_iban: boolean;
+  iban_length?: number | null;
+  in_sepa: boolean;
+}
+
+export interface BankingFieldSpec {
+  id: string;
+  label: string;
+  required: boolean;
+  placeholder?: string;
+  type?: string;
+  has_same_as_wire?: boolean;
+}
+
+export interface CountryBankingSpec {
+  code: string;
+  name: string;
+  has_iban: boolean;
+  iban_length?: number | null;
+  in_sepa: boolean;
+  bban_positions: Record<string, { start: number; end: number }>;
+  default_bank_fields: BankingFieldSpec[];
+  default_clearing_fields: BankingFieldSpec[];
+}
+
+export function getBankingCountries() {
+  return apiClient.get<BankingCountry[]>(`${BASE}/banking-specs/countries`);
+}
+
+export function getCountryBankingSpec(country: string) {
+  return apiClient.get<CountryBankingSpec>(`${BASE}/banking-specs/spec?country=${encodeURIComponent(country)}`);
 }

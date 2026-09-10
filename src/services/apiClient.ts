@@ -46,7 +46,7 @@ function resolveActionMeta(
   if (customLabel) {
     return {
       title: customLabel,
-      subtitle: customSubtitle || "Please wait while your changes are being saved...",
+      subtitle: customSubtitle || "Please wait while your request is being processed...",
     };
   }
 
@@ -65,7 +65,15 @@ function resolveActionMeta(
     parsedBody = body;
   }
 
-  // 1. Workflow Transition
+  // 1. Authentication & Session
+  if (lower.includes("/auth/logout") || lower.includes("/logout")) {
+    return {
+      title: "Signing Out",
+      subtitle: "Ending your session safely...",
+    };
+  }
+
+  // 2. Workflow Transition & Status Actions
   if (lower.includes("/transition")) {
     const action = String(parsedBody?.action || "").toUpperCase();
     if (action === "COMPLETE") {
@@ -128,20 +136,92 @@ function resolveActionMeta(
     };
   }
 
-  // 2. Review Status
-  if (lower.includes("/review")) {
+  // 3. Batch Approval / Reject / Notify Operations
+  if (lower.includes("/batch-approve")) {
+    return {
+      title: "Batch Approving Requests",
+      subtitle: "Approving selected requests and updating workflow status...",
+    };
+  }
+
+  if (lower.includes("/batch-reject")) {
+    return {
+      title: "Batch Rejecting Requests",
+      subtitle: "Rejecting selected requests and updating workflow status...",
+    };
+  }
+
+  if (lower.includes("/batch-notify")) {
+    return {
+      title: "Sending Reminders",
+      subtitle: "Dispatching notification reminders to assignees...",
+    };
+  }
+
+  if (lower.includes("/batch-notification-settings")) {
+    return {
+      title: "Saving Notification Settings",
+      subtitle: "Updating batch notification schedules and preferences...",
+    };
+  }
+
+  // 4. Recurring Payments
+  if (lower.includes("/recurring/notification-settings")) {
+    return {
+      title: "Saving Notification Settings",
+      subtitle: "Updating recurring due date reminder preferences...",
+    };
+  }
+
+  if (lower.includes("/recurring/send-due-reminders")) {
+    return {
+      title: "Dispatching Due Reminders",
+      subtitle: "Triggering notifications for upcoming recurring payments...",
+    };
+  }
+
+  // 5. Review Status
+  if (lower.includes("/review-status") || lower.includes("/review")) {
     return {
       title: "Updating Review Status",
       subtitle: "Saving review state and updating request...",
     };
   }
 
-  // 3. Invoice & Invoicing
+  // 6. Manual Price Adjustment
+  if (lower.includes("/manual-price")) {
+    return {
+      title: "Updating Manual Price",
+      subtitle: "Saving price adjustment and currency...",
+    };
+  }
+
+  // 7. Wire Transfer
+  if (lower.includes("/wire-transfer") || lower.includes("/wire")) {
+    return {
+      title: "Saving Wire Transfer",
+      subtitle: "Updating treasury payment instructions...",
+    };
+  }
+
+  // 8. Invoice & Invoicing
   if (lower.includes("/invoice") || lower.includes("/bill")) {
     if (lower.includes("/pay")) {
       return {
         title: "Processing Payment",
         subtitle: "Recording payment and updating invoice status...",
+      };
+    }
+    if (m === "DELETE") {
+      return {
+        title: "Deleting Invoice",
+        subtitle: "Removing invoice record from the system...",
+      };
+    }
+    if (m === "POST") {
+      return {
+        title: "Recording Invoice",
+        subtitle: "Saving invoice details and GL account allocations...",
       };
     }
     return {
@@ -150,23 +230,21 @@ function resolveActionMeta(
     };
   }
 
-  // 4. Wire Transfer
-  if (lower.includes("/wire")) {
-    return {
-      title: "Saving Wire Transfer",
-      subtitle: "Updating treasury payment instructions...",
-    };
-  }
-
-  // 5. Attachments / Uploads
+  // 9. Attachments / Uploads / Files
   if (lower.includes("/attachments") || lower.includes("/upload")) {
+    if (m === "DELETE") {
+      return {
+        title: "Deleting Document",
+        subtitle: "Removing file from the system...",
+      };
+    }
     return {
       title: "Uploading Documents",
       subtitle: "Processing files and saving attachments...",
     };
   }
 
-  // 6. Extraction & OCR (Multi-Part Quote PDF, Product Info, etc.)
+  // 10. Extraction & OCR (Multi-Part Quote PDF, Product Info, etc.)
   if (lower.includes("/quotes/extract") || (lower.includes("/quotes") && lower.includes("/extract"))) {
     return {
       title: "Extracting Multi-Part Quote",
@@ -188,7 +266,7 @@ function resolveActionMeta(
     };
   }
 
-  // 7. Existing Request Updates (e.g. /requests/123)
+  // 11. Existing Request Updates vs Creating Brand-New Request
   const isExistingRequest = /\/requests\/\w+/.test(lower);
   if (isExistingRequest) {
     if (m === "DELETE") {
@@ -203,7 +281,6 @@ function resolveActionMeta(
     };
   }
 
-  // 7. Creating Brand-New Request (only POST /requests with no child path)
   if (lower.endsWith("/requests") || lower.endsWith("/requests/")) {
     if (m === "POST") {
       return {
@@ -213,7 +290,21 @@ function resolveActionMeta(
     }
   }
 
-  // 8. Users & Roles
+  // 12. User Management
+  if (lower.includes("/users/bulk-delete") || (lower.includes("/users") && lower.includes("/bulk-delete"))) {
+    return {
+      title: "Deleting Users",
+      subtitle: "Removing selected user accounts from the system...",
+    };
+  }
+
+  if (lower.includes("/users") && lower.includes("/roles")) {
+    return {
+      title: "Updating User Roles",
+      subtitle: "Assigning selected roles to user...",
+    };
+  }
+
   if (lower.includes("/users")) {
     const isExistingUser = /\/users\/\w+/.test(lower);
     if (m === "DELETE") {
@@ -225,20 +316,68 @@ function resolveActionMeta(
     return { title: "Creating User", subtitle: "Adding new user account to the system..." };
   }
 
+  // 13. Roles & Permissions Management
+  if (lower.includes("/permission-groups")) {
+    return {
+      title: "Updating Permission Groups",
+      subtitle: "Saving assigned permission groups...",
+    };
+  }
+
+  if (lower.includes("/mcp-tool-permissions")) {
+    return {
+      title: "Updating AI Tool Permissions",
+      subtitle: "Saving tool access controls...",
+    };
+  }
+
+  if (lower.includes("/navigation-permissions")) {
+    return {
+      title: "Updating Navigation Permissions",
+      subtitle: "Saving menu access permissions...",
+    };
+  }
+
   if (lower.includes("/roles")) {
+    if (m === "DELETE") {
+      return { title: "Deleting Role", subtitle: "Removing role from the system..." };
+    }
+    if (m === "POST") {
+      return { title: "Creating Role", subtitle: "Adding new role to the system..." };
+    }
     return {
       title: "Updating Roles & Permissions",
       subtitle: "Saving permission configurations...",
     };
   }
 
+  // 14. Chart of Accounts
   if (lower.includes("/chart-of-accounts")) {
+    if (m === "DELETE") {
+      return {
+        title: "Deleting Account",
+        subtitle: "Removing account from Chart of Accounts...",
+      };
+    }
+    if (lower.includes("/status")) {
+      return {
+        title: "Updating Account Status",
+        subtitle: "Changing chart of accounts active status...",
+      };
+    }
+    if (m === "POST") {
+      return {
+        title: "Creating Account",
+        subtitle: "Adding new account to Chart of Accounts...",
+      };
+    }
     return {
       title: "Updating Chart of Accounts",
       subtitle: "Saving account codes and categories...",
     };
   }
 
+  // 15. Workflow Assignments
   if (lower.includes("/workflow-assignments")) {
     return {
       title: "Updating Workflow Assignments",
@@ -246,7 +385,7 @@ function resolveActionMeta(
     };
   }
 
-  // Notifications
+  // 16. Notifications
   if (lower.includes("/notifications")) {
     if (m === "DELETE") {
       return {
@@ -268,7 +407,7 @@ function resolveActionMeta(
     }
   }
 
-  // Safe general defaults based on method
+  // 17. Safe General Fallbacks Based on HTTP Method
   if (m === "DELETE") {
     return {
       title: "Deleting Record",
@@ -276,7 +415,13 @@ function resolveActionMeta(
     };
   }
 
-  // Standard update/save default (never assumes new record unless explicitly top-level POST)
+  if (m === "POST") {
+    return {
+      title: "Creating Record",
+      subtitle: "Please wait while the new record is created...",
+    };
+  }
+
   return {
     title: "Saving Changes",
     subtitle: "Please wait while your changes are being saved...",

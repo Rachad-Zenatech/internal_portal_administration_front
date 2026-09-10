@@ -273,6 +273,8 @@ export type RequestCreateInput = {
   items?: PurchaseRequestItem[];
   quote_file_id?: string | null;
   quote_data?: any;
+  due_date?: string | null;
+  wire_transfer?: WireTransferInput;
 };
 
 export type PurchaseOrderInput = {

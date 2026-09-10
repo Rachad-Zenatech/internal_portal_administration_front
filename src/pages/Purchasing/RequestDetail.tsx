@@ -237,6 +237,7 @@ export default function RequestDetail() {
   const transition = useTransitionRequest(id ?? "");
   const updateWireTransfer = useUpdateWireTransfer(id ?? "");
   const [isEditWireOpen, setIsEditWireOpen] = useState(false);
+  const [isAPReviewWireOpen, setIsAPReviewWireOpen] = useState(false);
 
   const handleUpdateWire = async (wireData: WireTransferInput) => {
     try {
@@ -423,7 +424,22 @@ export default function RequestDetail() {
     }
   };
 
+  const handleConfirmAPStartReview = async (wireData: WireTransferInput) => {
+    const ok = await dispatch({
+      action: "START_REVIEW",
+      wire_transfer: wireData,
+    });
+    if (ok) {
+      setIsAPReviewWireOpen(false);
+      toast.success("Banking & routing details saved and review started.");
+    }
+  };
+
   const onAction = (action: WorkflowAction) => {
+    if (action === "START_REVIEW" && request.request_type === "ACCOUNTS_PAYABLE") {
+      setIsAPReviewWireOpen(true);
+      return;
+    }
     const isWire =
       purchase_order?.payment_method === "W" ||
       (purchase_order?.payment_method as any) === "WIRE";
@@ -1722,6 +1738,7 @@ export default function RequestDetail() {
                     TREASURY RECORDED
                   </Badge>
                   {Boolean(
+                    request.request_type === "ACCOUNTS_PAYABLE" ||
                     request.status === RequestStatus.Purchased ||
                     (request.status as string) === "ORDERED" ||
                     request.status === RequestStatus.WaitingPayment ||
@@ -1819,7 +1836,7 @@ export default function RequestDetail() {
         {/* Activity: approvals + notifications */}
         <div className="lg:col-span-4 xl:col-span-3 space-y-6">
 
-          <EditRequestDialog request={request} open={isEditOpen} onOpenChange={setIsEditOpen} />
+          <EditRequestDialog request={request} open={isEditOpen} onOpenChange={setIsEditOpen} wireTransfer={data?.wire_transfer} />
 
           <Dialog open={isActivityLogsOpen} onOpenChange={setIsActivityLogsOpen}>
             <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -2816,6 +2833,19 @@ export default function RequestDetail() {
             isEditMode={true}
             onConfirm={handleUpdateWire}
             isSubmitting={updateWireTransfer.isPending}
+          />
+          <WireTransferDialog
+            open={isAPReviewWireOpen}
+            onOpenChange={setIsAPReviewWireOpen}
+            request={data.request}
+            purchaseOrder={data.purchase_order}
+            initialData={data.wire_transfer}
+            defaultTab="banking"
+            visibleTabs={["banking"]}
+            title="Start Review - Wire Transfer Banking Details"
+            submitLabel="Save Banking Details & Start Review"
+            onConfirm={handleConfirmAPStartReview}
+            isSubmitting={transition.isPending}
           />
         </>
       )}

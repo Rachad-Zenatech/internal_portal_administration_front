@@ -27,9 +27,9 @@ import {
   Maximize2,
   AlertCircle,
   Loader2,
-  Building2,
   Truck,
   AlertTriangle,
+  Landmark,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -76,7 +76,9 @@ import {
   type ItemMode,
   type PurchaseRequestItem,
   type QuoteExtractionResponse,
+  type WireTransferInput,
 } from "@/types/purchasing";
+import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   PRIORITY_BADGE,
@@ -202,6 +204,47 @@ function RequesterAutocomplete({
   );
 }
 
+const EMPTY_WIRE_FORM: WireTransferInput = {
+  entered_by: "",
+  entered_by_user_id: undefined,
+  entry_date: new Date().toISOString().split("T")[0],
+  due_date: "",
+  payment_date: new Date().toISOString().split("T")[0],
+  vendor: "",
+  is_new_vendor: false,
+  pay_date: "Same Day",
+  amount: 0,
+  currency: "USD",
+  conversion_rate: "1.0",
+  pay_from: "",
+  invoice_number: "",
+  comments: "",
+  vendor_address: "",
+  bank_address: "",
+  vendor_email: "",
+  bank_name: "",
+  tax_id: "",
+  bank_country: "",
+  routing_wire: "",
+  routing_ach: "",
+  bank_account_number: "",
+  swift_code: "",
+  sort_code: "",
+  transit_code_ca: "",
+  transit_number_ca: "",
+  institution_code: "",
+  branch_code: "",
+  bsb_australia: "",
+  clearing_code: "",
+  bank_code: "",
+  iban: "",
+  bic: "",
+  transit: "",
+  aba: "",
+  region: "",
+  contact_name_china: "",
+};
+
 const EMPTY_FORM: RequestCreateInput = {
   title: "",
   requester: "",
@@ -225,6 +268,7 @@ export function PurchaseRequests() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [itemMode, setItemMode] = useState<ItemMode>("SINGLE");
   const [form, setForm] = useState<RequestCreateInput>(EMPTY_FORM);
+  const [apWireForm, setApWireForm] = useState<WireTransferInput>(EMPTY_WIRE_FORM);
 
   // Multi-parts Quote OCR state
   const [_quoteFile, setQuoteFile] = useState<File | null>(null);
@@ -325,6 +369,11 @@ export function PurchaseRequests() {
       ...EMPTY_FORM,
       requester: defaultRequester,
       department: defaultDept || "",
+    });
+    setApWireForm({
+      ...EMPTY_WIRE_FORM,
+      entry_date: new Date().toISOString().split("T")[0],
+      payment_date: new Date().toISOString().split("T")[0],
     });
     setItemMode("SINGLE");
     setQuoteFile(null);
@@ -510,8 +559,19 @@ export function PurchaseRequests() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title || !form.requester || !form.department) {
+    const isAP = form.request_type === "ACCOUNTS_PAYABLE";
+    let effectiveTitle = form.title;
+    if (isAP && !effectiveTitle && apWireForm.vendor) {
+      effectiveTitle = `Payment for ${apWireForm.vendor}${apWireForm.invoice_number ? ` - Inv #${apWireForm.invoice_number}` : ""}`;
+    }
+
+    if (!effectiveTitle || !form.requester || !form.department) {
       toast.error("Title, requester and department are required.");
+      return;
+    }
+
+    if (isAP && (!apWireForm.vendor?.trim() || !apWireForm.amount || Number(apWireForm.amount) <= 0 || !apWireForm.pay_from?.trim())) {
+      toast.error("Please fill in all required wire transfer fields (Vendor, Amount, Pay From, Entered By, Date).");
       return;
     }
 
@@ -537,12 +597,19 @@ export function PurchaseRequests() {
 
       const payload: RequestCreateInput = {
         ...form,
-        item_mode: itemMode,
-        amount: finalUsdAmount,
-        currency: "USD",
-        items: finalItems,
-        quote_file_id: quoteExtraction?.file_id || undefined,
-        quote_data: quoteExtraction?.extraction || undefined,
+        title: effectiveTitle,
+        item_mode: isAP ? "SINGLE" : itemMode,
+        amount: isAP ? (Number(apWireForm.amount) || 0) : finalUsdAmount,
+        currency: isAP ? (apWireForm.currency || "USD") : "USD",
+        due_date: isAP ? (apWireForm.due_date || undefined) : undefined,
+        items: isAP ? undefined : finalItems,
+        quote_file_id: isAP ? undefined : (quoteExtraction?.file_id || undefined),
+        quote_data: isAP ? undefined : (quoteExtraction?.extraction || undefined),
+        wire_transfer: isAP ? {
+          ...apWireForm,
+          amount: Number(apWireForm.amount) || 0,
+          vendor: apWireForm.vendor || effectiveTitle,
+        } : undefined,
       };
 
       const detail = await createMutation.mutateAsync(payload);
@@ -827,7 +894,7 @@ export function PurchaseRequests() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span>New Purchase Request</span>
-              {itemMode === "MULTIPLE" && (
+              {form.request_type !== "ACCOUNTS_PAYABLE" && itemMode === "MULTIPLE" && (
                 <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border-indigo-200">
                   <Sparkles className="h-3 w-3 mr-1" /> Multi-Part Quote OCR
                 </Badge>
@@ -835,10 +902,55 @@ export function PurchaseRequests() {
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4 py-2">
-            {/* Mode Selector */}
-            <div className="p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400 block mb-1.5">
+          <form onSubmit={handleSubmit} className="space-y-4 py-1">
+            {/* 1. Request Type Selector (Clean Segmented Cards at Top) */}
+            <div className="space-y-1.5 pb-3 border-b border-slate-100 dark:border-zinc-800">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                Request Type <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { value: "SPEND", label: "Spend Request", icon: ShoppingCart, desc: "Purchases, parts & hardware" },
+                  { value: "QUOTE", label: "Quote Request", icon: FileSpreadsheet, desc: "Estimates & RFQs" },
+                  { value: "ADMIN", label: "Admin Triage", icon: FileText, desc: "Administrative & general" },
+                  { value: "ACCOUNTS_PAYABLE", label: "Accounts Payable", icon: Landmark, desc: "Vendor invoices & wire payments" },
+                ].map((opt) => {
+                  const isSelected = form.request_type === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setForm((prev) => ({ ...prev, request_type: opt.value as RequestType }));
+                        if (opt.value === "ACCOUNTS_PAYABLE") {
+                          setItemMode("SINGLE");
+                        }
+                      }}
+                      className={`flex flex-col items-start p-2.5 rounded-lg border text-left transition-all relative ${
+                        isSelected
+                          ? "bg-indigo-50/80 border-indigo-500 dark:bg-indigo-950/40 dark:border-indigo-500 shadow-2xs ring-1 ring-indigo-500/30"
+                          : "bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-0.5 w-full">
+                        <opt.icon className={`h-4 w-4 shrink-0 ${isSelected ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400"}`} />
+                        <span className={`text-xs font-semibold ${isSelected ? "text-indigo-900 dark:text-indigo-100" : "text-slate-800 dark:text-zinc-200"}`}>
+                          {opt.label}
+                        </span>
+                      </div>
+                      <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 leading-tight line-clamp-1">
+                        {opt.desc}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Mode Selector (Single Item vs Multiple Parts) - Only for Spend, Quote, Admin */}
+            {form.request_type !== "ACCOUNTS_PAYABLE" && (
+              <div className="p-3 bg-slate-50/70 dark:bg-zinc-800/40 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400 block">
                   Item Configuration
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -860,9 +972,10 @@ export function PurchaseRequests() {
                   </Button>
                 </div>
               </div>
+            )}
 
-            {/* Multiple Parts PDF Dropzone & AI Extraction + Always-Visible Line Items Table */}
-            {itemMode === "MULTIPLE" && (
+            {/* 3. Multiple Parts PDF Dropzone & AI Extraction + Line Items Table */}
+            {form.request_type !== "ACCOUNTS_PAYABLE" && itemMode === "MULTIPLE" && (
               <div className="space-y-4 p-4 rounded-xl bg-gradient-to-b from-indigo-50/50 to-transparent dark:from-indigo-950/20 dark:to-transparent border border-indigo-200/80 dark:border-indigo-900/60 shadow-xs">
                 {/* PDF Upload (Optional) */}
                 <div className="space-y-2">
@@ -891,54 +1004,48 @@ export function PurchaseRequests() {
                       type="file"
                       accept=".pdf"
                       onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) handleQuoteFileUpload(f);
+                        const file = e.target.files?.[0];
+                        if (file) handleQuoteFileUpload(file);
                       }}
-                      className="bg-white dark:bg-zinc-900 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                      disabled={extractQuoteMutation.isPending}
+                      className="cursor-pointer file:cursor-pointer text-xs"
                     />
                     {extractQuoteMutation.isPending && (
-                      <div className="flex items-center gap-2 text-xs text-indigo-600 font-medium whitespace-nowrap">
+                      <div className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 shrink-0 font-medium">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Analyzing PDF layout &amp; line items...
+                        <span>Extracting line items...</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Extraction Summary Preview (if PDF was uploaded & analyzed) */}
+                {/* AI Extracted Quote Summary */}
                 {quoteExtraction && (
-                  <div className="space-y-3 pt-3 border-t border-indigo-100 dark:border-indigo-900/50">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-xs text-slate-600 dark:text-zinc-300 flex items-center gap-2">
-                        {quoteExtraction.extraction.vendor?.name && (
-                          <span className="font-semibold text-slate-900 dark:text-zinc-100 flex items-center gap-1">
-                            <Building2 className="h-3.5 w-3.5 text-indigo-600" />
-                            {quoteExtraction.extraction.vendor.name}
+                  <div className="space-y-3 pt-2 border-t border-indigo-100 dark:border-indigo-900/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                        <span className="text-xs font-semibold text-slate-900 dark:text-zinc-100">
+                          Extracted Quote Data
+                        </span>
+                        {quoteExtraction.extraction.vendor && (
+                          <span className="text-xs text-slate-500">
+                            • Vendor: <strong>{quoteExtraction.extraction.vendor?.name || (typeof quoteExtraction.extraction.vendor === "string" ? quoteExtraction.extraction.vendor : "")}</strong>
                           </span>
                         )}
                         {quoteExtraction.extraction.quote_number && (
-                          <span className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-800 text-[11px] font-mono">
-                            Ref: {quoteExtraction.extraction.quote_number}
+                          <span className="text-xs text-slate-500">
+                            • Quote #: <strong>{quoteExtraction.extraction.quote_number}</strong>
                           </span>
                         )}
                       </div>
-
                       <div className="flex items-center gap-2">
-                        {quoteExtraction.extraction.conversion?.is_converted ? (
-                          <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300 font-mono text-xs">
-                            💱 Converted to USD ({quoteExtraction.extraction.currency} @ 1 {quoteExtraction.extraction.currency} = ${quoteExtraction.extraction.conversion.exchange_rate} USD)
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 font-mono text-xs">
-                            Currency: {quoteExtraction.extraction.currency || "USD"}
-                          </Badge>
-                        )}
                         <Badge
                           variant="outline"
                           className={
-                            quoteExtraction.confidence_score >= 0.85
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                              : "bg-amber-50 text-amber-700 border-amber-300"
+                            quoteExtraction.confidence_score >= 0.8
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]"
+                              : "bg-amber-50 text-amber-700 border-amber-200 text-[10px]"
                           }
                         >
                           {Math.round(quoteExtraction.confidence_score * 100)}% Confidence
@@ -968,7 +1075,7 @@ export function PurchaseRequests() {
                   </div>
                 )}
 
-                {/* Interactive Line Items Breakdown Table - ALWAYS VISIBLE in Multiple Parts mode */}
+                {/* Interactive Line Items Breakdown Table */}
                 <div className="space-y-2 pt-3 border-t border-indigo-100 dark:border-indigo-900/50">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
@@ -1050,27 +1157,27 @@ export function PurchaseRequests() {
                                 />
                               </td>
                               <td className="p-2 w-36">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={itm.unit_price}
-                                  onChange={(e) => handleItemChange(idx, "unit_price", Number(e.target.value))}
-                                  className="h-8 text-sm text-right font-mono font-medium"
-                                />
-                                {isForeign && (
-                                  <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono block text-right mt-0.5 whitespace-nowrap">
-                                    ({formatMoney(usdUnitPrice)} USD)
-                                  </span>
-                                )}
-                              </td>
-                              <td className="p-2 w-36 text-right">
-                                <div className="font-semibold font-mono text-sm text-slate-900 dark:text-zinc-100">
-                                  {formatMoney(itm.total)}
+                                <div className="space-y-1">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={itm.unit_price}
+                                    onChange={(e) => handleItemChange(idx, "unit_price", Number(e.target.value))}
+                                    className="h-8 text-sm text-right font-mono"
+                                  />
+                                  {isForeign && (
+                                    <div className="text-[10.5px] text-right text-slate-500 dark:text-zinc-400 font-mono">
+                                      {formatMoney(usdUnitPrice)} USD
+                                    </div>
+                                  )}
                                 </div>
+                              </td>
+                              <td className="p-2 w-36 text-right font-semibold font-mono text-sm text-slate-900 dark:text-zinc-100">
+                                <div>{formatMoney(itm.total)} {quoteCurr}</div>
                                 {isForeign && (
-                                  <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono block text-right whitespace-nowrap">
-                                    ({formatMoney(usdTotal)} USD)
-                                  </span>
+                                  <div className="text-[10.5px] font-normal text-slate-500 dark:text-zinc-400 font-mono">
+                                    {formatMoney(usdTotal)} USD
+                                  </div>
                                 )}
                               </td>
                               <td className="p-2 text-center w-10">
@@ -1150,20 +1257,17 @@ export function PurchaseRequests() {
                                 <Truck className="h-3.5 w-3.5 text-indigo-500" />
                                 <span>Shipping Fee ({quoteCurr}):</span>
                               </span>
-                              <div className="flex flex-col items-end gap-0.5">
-                                <div className="flex items-center gap-1">
-                                  <span className="text-slate-400 font-mono text-xs">{quoteCurr === "EUR" ? "€" : (quoteCurr === "GBP" ? "£" : "$")}</span>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={shippingFee}
-                                    onChange={(e) => setShippingFee(Math.max(0, Number(e.target.value) || 0))}
-                                    placeholder="0.00"
-                                    className="h-7 w-28 text-right text-xs font-mono bg-white dark:bg-zinc-900 font-semibold"
-                                  />
-                                </div>
-                                {isForeign && Number(shippingFee || 0) > 0 && (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={shippingFee === 0 ? "" : shippingFee}
+                                  onChange={(e) => setShippingFee(Number(e.target.value) || 0)}
+                                  placeholder="0.00"
+                                  className="h-7 w-28 text-right font-mono text-xs"
+                                />
+                                {isForeign && (
                                   <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono">
                                     ({formatMoney(usdShipping)} USD)
                                   </span>
@@ -1172,23 +1276,20 @@ export function PurchaseRequests() {
                             </div>
 
                             <div className="flex items-center justify-between gap-4">
-                              <span className="text-slate-600 dark:text-zinc-400 font-medium">
-                                <span>Tax Fee ({quoteCurr}):</span>
+                              <span className="text-slate-700 dark:text-zinc-300 font-medium">
+                                Tax &amp; Customs ({quoteCurr}):
                               </span>
-                              <div className="flex flex-col items-end gap-0.5">
-                                <div className="flex items-center gap-1">
-                                  <span className="text-slate-400 font-mono text-xs">{quoteCurr === "EUR" ? "€" : (quoteCurr === "GBP" ? "£" : "$")}</span>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={taxFee}
-                                    onChange={(e) => setTaxFee(Math.max(0, Number(e.target.value) || 0))}
-                                    placeholder="0.00"
-                                    className="h-7 w-28 text-right text-xs font-mono bg-white dark:bg-zinc-900"
-                                  />
-                                </div>
-                                {isForeign && Number(taxFee || 0) > 0 && (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={taxFee === 0 ? "" : taxFee}
+                                  onChange={(e) => setTaxFee(Number(e.target.value) || 0)}
+                                  placeholder="0.00"
+                                  className="h-7 w-28 text-right font-mono text-xs"
+                                />
+                                {isForeign && (
                                   <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono">
                                     ({formatMoney(usdTax)} USD)
                                   </span>
@@ -1218,126 +1319,143 @@ export function PurchaseRequests() {
               </div>
             )}
 
-            {/* Standard Request Form Fields */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Title <span className="text-red-500">*</span>
-              </label>
-              <Input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="e.g. Dell laptop for new hire or Quote Q-10294"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <RequesterAutocomplete
-                required
-                value={form.requester}
-                onChange={(val) => {
-                  const matched = usersList.find(
-                    (u) =>
-                      (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
-                      (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
-                  );
-                  const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
-                  setForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
-                }}
-                onSelectUser={(selectedUser) => {
-                  const dept = resolveUserDepartment(selectedUser, rolesList);
-                  if (dept) {
-                    setForm((prev) => ({ ...prev, department: dept }));
-                  }
-                }}
-                users={usersList}
-                roles={rolesList}
-              />
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Department <span className="text-red-500">*</span></label>
+            {/* 4. Request Details: Title + 3-Column Meta Row (Requester | Department | Priority) */}
+            <div className="space-y-3.5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Request Title <span className="text-red-500">*</span>
+                </label>
                 <Input
-                  value={form.department}
-                  onChange={(e) => setForm({ ...form, department: e.target.value })}
-                  placeholder="e.g. Technology, Operations, Marketing"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  placeholder={
+                    form.request_type === "ACCOUNTS_PAYABLE"
+                      ? "e.g. Payment for Dell Technologies (Invoice #1049)"
+                      : "e.g. Dell laptop for new hire or Quote Q-10294"
+                  }
+                  className="h-9 text-xs font-medium"
                   required
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Type</label>
-                <Select
-                  value={form.request_type}
-                  onValueChange={(v: RequestType) => setForm({ ...form, request_type: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SPEND">Spend Request</SelectItem>
-                    <SelectItem value="QUOTE">Quote Request (Estimate / RFQ)</SelectItem>
-                    <SelectItem value="ADMIN">Admin Triage</SelectItem>
-                    <SelectItem value="ACCOUNTS_PAYABLE">Accounts Payable</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Priority NOT at top - Clean 3-Column Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <RequesterAutocomplete
+                  required
+                  value={form.requester}
+                  onChange={(val) => {
+                    const matched = usersList.find(
+                      (u) =>
+                        (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
+                        (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
+                    );
+                    const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
+                    setForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
+                  }}
+                  onSelectUser={(selectedUser) => {
+                    const dept = resolveUserDepartment(selectedUser, rolesList);
+                    if (dept) {
+                      setForm((prev) => ({ ...prev, department: dept }));
+                    }
+                  }}
+                  users={usersList}
+                  roles={rolesList}
+                />
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Priority</label>
-                <Select
-                  value={form.priority}
-                  onValueChange={(v) => setForm({ ...form, priority: v as Priority })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HIGH">High</SelectItem>
-                    <SelectItem value="URGENT">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Single Item specific URL & Quantity */}
-            {itemMode === "SINGLE" && (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Product / Website Link (e.g. Amazon URL)</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Department <span className="text-red-500">*</span>
+                  </label>
                   <Input
-                    value={form.item_url ?? ""}
-                    onChange={(e) => setForm({ ...form, item_url: e.target.value })}
-                    placeholder="https://www.amazon.com/dp/..."
+                    value={form.department}
+                    onChange={(e) => setForm({ ...form, department: e.target.value })}
+                    placeholder="e.g. Technology, Operations"
+                    className="h-9 text-xs"
+                    required
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Quantity</label>
-                    <Input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={form.quantity ?? 1}
-                      onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
-                    />
-                  </div>
-
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Priority <span className="text-red-500">*</span>
+                  </label>
+                  <Select
+                    value={form.priority}
+                    onValueChange={(v) => setForm({ ...form, priority: v as Priority })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LOW">Low</SelectItem>
+                      <SelectItem value="MEDIUM">Medium</SelectItem>
+                      <SelectItem value="HIGH">High</SelectItem>
+                      <SelectItem value="URGENT">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </>
+              </div>
+            </div>
+
+            {/* 5. Accounts Payable Wire Transfer Information */}
+            {form.request_type === "ACCOUNTS_PAYABLE" && (
+              <div className="pt-1">
+                <WireGeneralPaymentFields
+                  form={apWireForm}
+                  setForm={setApWireForm}
+                  onAmountChange={(amt) => setForm((p) => ({ ...p, amount: amt, unit_price: amt }))}
+                  onCurrencyChange={(curr) => setForm((p) => ({ ...p, currency: curr }))}
+                  onDueDateChange={(dd) => setForm((p) => ({ ...p, due_date: dd }))}
+                  onVendorChange={(v) => {
+                    if (!form.title || form.title.startsWith("Payment for")) {
+                      setForm((p) => ({ ...p, title: `Payment for ${v}` }));
+                    }
+                  }}
+                />
+              </div>
             )}
 
+            {/* 6. Single Item specific Quantity (Hidden for Accounts Payable) */}
+            {form.request_type !== "ACCOUNTS_PAYABLE" && itemMode === "SINGLE" && (
+              <div className="space-y-1.5 pt-1 max-w-[200px]">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Quantity</label>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.quantity ?? 1}
+                  onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
+                  className="h-9 text-xs"
+                />
+              </div>
+            )}
 
+            {/* 7. Product / Website Link (Shown for Accounts Payable & Single Item, Optional, above Description) */}
+            {(form.request_type === "ACCOUNTS_PAYABLE" || itemMode === "SINGLE") && (
+              <div className="space-y-1.5 pt-1">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Product / Website Link <span className="text-slate-400 font-normal">(optional, e.g. Amazon URL or Vendor invoice link)</span>
+                </label>
+                <Input
+                  value={form.item_url ?? ""}
+                  onChange={(e) => setForm({ ...form, item_url: e.target.value })}
+                  placeholder="https://..."
+                  className="h-9 text-xs"
+                />
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
+            {/* 7. Description / Notes */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                Description / Justification
+              </label>
               <Textarea
                 value={form.description ?? ""}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="What is being requested and why?"
                 rows={3}
+                className="text-xs bg-white dark:bg-zinc-900"
               />
             </div>
 
