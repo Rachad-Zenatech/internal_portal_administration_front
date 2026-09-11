@@ -69,21 +69,21 @@ export function CurrencyAutocomplete({
     setOpen(false);
   }, [currencies, onChange, onSelectCurrency]);
 
-  // Focus search input and scroll to selected currency when popover opens
+  // Focus search input and go directly to selected currency when popover opens
   useEffect(() => {
     if (open) {
       setSearchQuery("");
       setHighlightedIndex(-1);
       setTimeout(() => {
         inputRef.current?.focus();
-        // Automatically scroll to the selected currency in the list
+        // Go straight to the selected currency in the list without smooth scrolling animation
         if (currentCode) {
           const el = itemRefs.current.get(currentCode);
           if (el) {
-            el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            el.scrollIntoView({ block: "nearest" });
           }
         }
-      }, 60);
+      }, 0);
     }
   }, [open, currentCode]);
 
@@ -93,7 +93,7 @@ export function CurrencyAutocomplete({
     if (curr) {
       const el = itemRefs.current.get(curr.code.toUpperCase());
       if (el) {
-        el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        el.scrollIntoView({ block: "nearest" });
       }
     }
   };
