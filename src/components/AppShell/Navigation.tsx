@@ -88,6 +88,7 @@ export const navigation = [
       { label: "Workflow Assignments", path: "/configurations/workflow-assignments", navigationCode: "CONFIG_USER_ROLE_ASSIGNMENT" },
       { label: "Chart of Accounts", path: "/configurations/chart-of-accounts", navigationCode: "CONFIG_CHART_OF_ACCOUNTS" },
       { label: "Payable Contacts", path: "/configurations/payable-contacts", navigationCode: "CONFIG_CHART_OF_ACCOUNTS" },
+      { label: "Entities", path: "/configurations/entities", navigationCode: "CONFIG_CHART_OF_ACCOUNTS" },
 
     ]
   },

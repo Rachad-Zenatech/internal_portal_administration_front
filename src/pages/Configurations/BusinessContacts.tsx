@@ -14,6 +14,7 @@ import {
   flexRender,
   getCoreRowModel,
   getPaginationRowModel,
+  getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
@@ -209,6 +210,7 @@ function ContactSection({
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
   });
 
   const handleBatchDelete = async () => {
