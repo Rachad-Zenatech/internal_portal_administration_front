@@ -605,7 +605,7 @@ export function PurchaseRequests() {
         currency: isAP ? (apWireForm.currency || "USD") : "USD",
         due_date: isAP ? (apWireForm.due_date || undefined) : undefined,
         items: isAP ? undefined : finalItems,
-        quote_file_id: isAP ? undefined : (quoteExtraction?.file_id || undefined),
+        quote_file_id: undefined,
         quote_data: isAP ? undefined : (quoteExtraction?.extraction || undefined),
         wire_transfer: isAP ? {
           ...apWireForm,
