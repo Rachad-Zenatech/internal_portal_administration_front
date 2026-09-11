@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { ManualPriceDialog } from "./ManualPriceDialog";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
+import { VendorAutocomplete } from "./VendorAutocomplete";
 import { useState, useEffect, useMemo, useRef } from "react";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { useNavigate, useParams } from "react-router-dom";
@@ -791,7 +792,12 @@ export default function RequestDetail() {
     )
   );
 
-  const canEditRequest = isEditableStatus && (isRequester || isAssigned || Boolean(user?.is_super_admin));
+  const isUnderReview = request.status === RequestStatus.UnderReview || (request.status as string) === "UNDER_REVIEW";
+  const canEditRequest = isEditableStatus && (
+    isUnderReview
+      ? (!isRequester && (isAssigned || Boolean(user?.is_super_admin)))
+      : (isRequester || isAssigned || Boolean(user?.is_super_admin))
+  );
   const isWaitingApproval = (
     [RequestStatus.WaitingApproval, RequestStatus.UnderReview, "WAITING_APPROVAL", "UNDER_REVIEW"] as readonly string[]
   ).includes(request.status);
@@ -1525,7 +1531,7 @@ export default function RequestDetail() {
                   <Field label="Payment Format" value={purchase_order.payment_method ? PAYMENT_METHOD_LABEL[purchase_order.payment_method] : "—"} />
                   <Field label="Shipped To" value={purchase_order.shipped_to_location ?? "—"} />
                   <Field label="Approval" value={purchase_order.approval_status} />
-                  <Field label="Tracking #" value={purchase_order.tracking_number ?? "—"} />
+                  <Field label="Tracking #" value={purchase_order.tracking_number && purchase_order.tracking_number !== "SHIPPED" ? purchase_order.tracking_number : "—"} />
                   <Field label="Shipping Note" value={purchase_order.shipping_note || "—"} />
                   <Field label="Goods Received" value={purchase_order.goods_received ? `Yes, on ${formatDate(purchase_order.goods_received_at)}` : "No"} />
                   <Field label="Goods Received Notes" value={purchase_order.goods_received_note || "—"} />
@@ -2027,15 +2033,16 @@ export default function RequestDetail() {
                     value={po.quote_number ?? ""}
                     onChange={(v) => setPo({ ...po, quote_number: v })}
                   />
-                  <FieldInput
-                    label={
-                      <span>
-                        Vendor <span className="text-red-500">*</span>
-                      </span>
-                    }
-                    value={po.vendor}
-                    onChange={(v) => setPo({ ...po, vendor: v })}
-                  />
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Vendor <span className="text-red-500">*</span>
+                    </label>
+                    <VendorAutocomplete
+                      value={po.vendor}
+                      onChange={(v) => setPo({ ...po, vendor: v })}
+                      placeholder="Search or enter vendor name..."
+                    />
+                  </div>
                 </TwoUp>
                 <TwoUp>
                   <FieldInput
@@ -2425,15 +2432,16 @@ export default function RequestDetail() {
             {activeForm?.kind === "invoice" && (
               <>
                 <TwoUp>
-                  <FieldInput
-                    label={
-                      <span>
-                        Vendor <span className="text-red-500">*</span>
-                      </span>
-                    }
-                    value={invoice.vendor}
-                    onChange={(v) => setInvoice({ ...invoice, vendor: v })}
-                  />
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Vendor <span className="text-red-500">*</span>
+                    </label>
+                    <VendorAutocomplete
+                      value={invoice.vendor}
+                      onChange={(v) => setInvoice({ ...invoice, vendor: v })}
+                      placeholder="Search or enter vendor name..."
+                    />
+                  </div>
                   <FieldInput
                     label={
                       <span>
