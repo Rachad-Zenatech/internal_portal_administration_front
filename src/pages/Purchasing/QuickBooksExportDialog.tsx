@@ -3,9 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { FileSpreadsheet, Download, Calendar, Loader2, CheckCircle2 } from "lucide-react";
+import { FileSpreadsheet, Download, Calendar, Loader2, CheckCircle2, FolderArchive, FileText, Layers, Check } from "lucide-react";
 import { toast } from "sonner";
-import { exportQuickBooksXlsx } from "@/services/purchasingService";
+import {
+  exportQuickBooksXlsx,
+  exportQuickBooksBundle,
+  exportQuickBooksDocuments,
+  exportQuickBooksReconciliation,
+} from "@/services/purchasingService";
 
 interface QuickBooksExportDialogProps {
   open: boolean;
@@ -28,12 +33,13 @@ const MONTHS = [
   { value: "12", label: "December (12)" },
 ];
 
+type ExportMode = "XLSX" | "BUNDLE" | "DOCUMENTS" | "RECONCILIATION";
+
 export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportDialogProps) {
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1; // 1-12
 
-  // Build years list dynamically starting with currentYear down 5 years
   const years = [
     { value: String(currentYear), label: `${currentYear} (Current Year)` },
     { value: String(currentYear - 1), label: String(currentYear - 1) },
@@ -43,9 +49,9 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
     { value: "ALL", label: "All Years" },
   ];
 
-  // Default to current month and year
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
   const [selectedMonth, setSelectedMonth] = useState<string>(String(currentMonth));
+  const [exportMode, setExportMode] = useState<ExportMode>("XLSX");
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
@@ -55,9 +61,20 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
       const yearParam = selectedYear !== "ALL" ? parseInt(selectedYear, 10) : null;
       const monthParam = selectedMonth !== "ALL" ? parseInt(selectedMonth, 10) : null;
 
-      // Strictly export Completed transactions
-      await exportQuickBooksXlsx(undefined, "COMPLETED", yearParam, monthParam);
-      toast.success("QuickBooks export downloaded successfully", { id: "qb-export" });
+      if (exportMode === "BUNDLE") {
+        await exportQuickBooksBundle(undefined, "COMPLETED", yearParam, monthParam);
+        toast.success("Complete QuickBooks bundle downloaded successfully", { id: "qb-export" });
+      } else if (exportMode === "DOCUMENTS") {
+        await exportQuickBooksDocuments(undefined, "COMPLETED", yearParam, monthParam);
+        toast.success("PDF document package downloaded successfully", { id: "qb-export" });
+      } else if (exportMode === "RECONCILIATION") {
+        await exportQuickBooksReconciliation(undefined, "COMPLETED", yearParam, monthParam);
+        toast.success("Reconciliation manifest downloaded successfully", { id: "qb-export" });
+      } else {
+        await exportQuickBooksXlsx(undefined, "COMPLETED", yearParam, monthParam);
+        toast.success("QuickBooks Excel export downloaded successfully", { id: "qb-export" });
+      }
+
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to export QuickBooks file", { id: "qb-export" });
@@ -68,7 +85,7 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden bg-card border-border shadow-xl">
+      <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden bg-card border-border shadow-xl">
         <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-border/60 bg-muted/20">
           <div className="flex items-center gap-3 pr-6">
             <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-700 dark:text-emerald-300 shrink-0">
@@ -76,17 +93,137 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
             </div>
             <div>
               <DialogTitle className="text-base font-bold text-foreground">
-                Export to QuickBooks (.xlsx)
+                Export to QuickBooks
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Export completed transactions formatted for QuickBooks.
+                Export completed transactions, renamed PDFs, and reconciliation manifests.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         <div className="p-4 sm:p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          {/* Export Mode Selection Cards */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+              Export Package Type
+            </Label>
+            <div className="grid grid-cols-1 gap-2">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setExportMode("XLSX")}
+                onKeyDown={(e) => e.key === "Enter" && setExportMode("XLSX")}
+                className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors text-left ${
+                  exportMode === "XLSX"
+                    ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs"
+                    : "border-border/70 hover:bg-muted/30"
+                }`}
+              >
+                <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
+                  exportMode === "XLSX" ? "border-emerald-600 bg-emerald-600 text-white" : "border-muted-foreground/50"
+                }`}>
+                  {exportMode === "XLSX" && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                </div>
+                <div className="space-y-0.5 flex-1">
+                  <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>QuickBooks Transactions (.xlsx)</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    12 standardized columns formatted for direct QuickBooks Online bill import.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setExportMode("BUNDLE")}
+                onKeyDown={(e) => e.key === "Enter" && setExportMode("BUNDLE")}
+                className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors text-left ${
+                  exportMode === "BUNDLE"
+                    ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs"
+                    : "border-border/70 hover:bg-muted/30"
+                }`}
+              >
+                <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
+                  exportMode === "BUNDLE" ? "border-emerald-600 bg-emerald-600 text-white" : "border-muted-foreground/50"
+                }`}>
+                  {exportMode === "BUNDLE" && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                </div>
+                <div className="space-y-0.5 flex-1">
+                  <div className="text-xs font-semibold text-foreground flex items-center gap-1.5 flex-wrap">
+                    <FolderArchive className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Complete QuickBooks Package (.zip)</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 px-1.5 py-0.2 rounded font-medium">
+                      Recommended
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Includes Excel file, all systematically renamed PDF attachments, and Reconciliation Manifest.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setExportMode("DOCUMENTS")}
+                onKeyDown={(e) => e.key === "Enter" && setExportMode("DOCUMENTS")}
+                className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors text-left ${
+                  exportMode === "DOCUMENTS"
+                    ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs"
+                    : "border-border/70 hover:bg-muted/30"
+                }`}
+              >
+                <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
+                  exportMode === "DOCUMENTS" ? "border-emerald-600 bg-emerald-600 text-white" : "border-muted-foreground/50"
+                }`}>
+                  {exportMode === "DOCUMENTS" && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                </div>
+                <div className="space-y-0.5 flex-1">
+                  <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <FolderArchive className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                    <span>Renamed PDF Documents Package (.zip)</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    All receipts and invoice PDFs renamed to PUR-000123_Invoice.pdf for QB bulk receipt upload.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setExportMode("RECONCILIATION")}
+                onKeyDown={(e) => e.key === "Enter" && setExportMode("RECONCILIATION")}
+                className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors text-left ${
+                  exportMode === "RECONCILIATION"
+                    ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs"
+                    : "border-border/70 hover:bg-muted/30"
+                }`}
+              >
+                <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
+                  exportMode === "RECONCILIATION" ? "border-emerald-600 bg-emerald-600 text-white" : "border-muted-foreground/50"
+                }`}>
+                  {exportMode === "RECONCILIATION" && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                </div>
+                <div className="space-y-0.5 flex-1">
+                  <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                    <span>Reconciliation Manifest (.csv)</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Summary table mapping transaction amounts, GL codes, and attached document filenames.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 pt-1">
             {/* Year Selector */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
@@ -132,7 +269,7 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
           <div className="rounded-lg border border-border/70 bg-muted/40 p-2.5 text-xs text-muted-foreground flex items-start gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
             <span className="text-[11px] leading-tight">
-              Only completed &amp; paid requests are exported with mapped Vendor, GL Code, Amount, and Attachments.
+              Only completed &amp; paid requests are exported with mapped Vendor, GL Code, Department, and Document attachments.
             </span>
           </div>
         </div>
