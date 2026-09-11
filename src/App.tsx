@@ -17,6 +17,7 @@ const RoleApiPermissions = lazy(() => import("./pages/Configurations/RoleApiPerm
 const RoleMcpToolPermissions = lazy(() => import("./pages/Configurations/RoleMcpToolPermissions"));
 const WorkflowAssignments = lazy(() => import("./pages/Configurations/WorkflowAssignments"));
 const ChartOfAccounts = lazy(() => import("./pages/Configurations/ChartOfAccounts"));
+const PayableContacts = lazy(() => import("./pages/Configurations/PayableContacts"));
 
 const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
 const PurchaseRequests = lazy(() => import("./pages/Purchasing/PurchaseRequests"));
@@ -109,6 +110,14 @@ function App() {
               {/* Chart of Accounts */}
               <Route path="/configuration/chart-of-accounts" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><ChartOfAccounts /></ProtectedRoute>} />
               <Route path="/configurations/chart-of-accounts" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><ChartOfAccounts /></ProtectedRoute>} />
+
+              {/* Payable Contacts */}
+              <Route path="/configuration/payable-contacts" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><PayableContacts /></ProtectedRoute>} />
+              <Route path="/configurations/payable-contacts" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><PayableContacts /></ProtectedRoute>} />
+              <Route path="/purchasing/payable-contacts" element={<ProtectedRoute><PayableContacts /></ProtectedRoute>} />
+              <Route path="/purchasing/vendors" element={<ProtectedRoute><PayableContacts /></ProtectedRoute>} />
+              <Route path="/configuration/business-contacts" element={<ProtectedRoute><PayableContacts /></ProtectedRoute>} />
+              <Route path="/configurations/business-contacts" element={<ProtectedRoute><PayableContacts /></ProtectedRoute>} />
 
               {/* Logs */}
               <Route path="/log" element={<Navigate to="/log/system-logs" replace />} />

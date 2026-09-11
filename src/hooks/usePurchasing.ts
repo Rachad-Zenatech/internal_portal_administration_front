@@ -298,3 +298,15 @@ export function useUpdateWireTransfer(requestId: string) {
     },
   });
 }
+
+
+export function useKnownVendors() {
+  return useQuery({
+    queryKey: ["purchasing_vendors"],
+    queryFn: async () => {
+      const list = await apiClient.get<string[]>("/api/purchasing/vendors");
+      return Array.isArray(list) ? list : [];
+    },
+    staleTime: 30 * 1000,
+  });
+}
