@@ -273,6 +273,7 @@ export function PurchaseRequests() {
   // Multi-parts Quote OCR state
   const [_quoteFile, setQuoteFile] = useState<File | null>(null);
   const [quoteExtraction, setQuoteExtraction] = useState<QuoteExtractionResponse | null>(null);
+  const quoteFileInputRef = useRef<HTMLInputElement | null>(null);
   const [quoteItems, setQuoteItems] = useState<PurchaseRequestItem[]>([]);
   const [shippingFee, setShippingFee] = useState<number>(0);
   const [taxFee, setTaxFee] = useState<number>(0);
@@ -984,7 +985,7 @@ export function PurchaseRequests() {
                       <FileSpreadsheet className="h-4 w-4 text-indigo-600" />
                       <span>Upload Quote / Quotation PDF ([Optional] auto-extracts line items)</span>
                     </label>
-                    {quoteExtraction && (
+                    {(quoteExtraction || quoteItems.length > 0) && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -992,6 +993,16 @@ export function PurchaseRequests() {
                         onClick={() => {
                           setQuoteExtraction(null);
                           setQuoteFile(null);
+                          setQuoteItems([]);
+                          setShippingFee(0);
+                          setTaxFee(0);
+                          setForm((prev) => ({
+                            ...prev,
+                            quote_data: undefined,
+                          }));
+                          if (quoteFileInputRef.current) {
+                            quoteFileInputRef.current.value = "";
+                          }
                         }}
                         className="h-6 text-[11px] text-slate-500 hover:text-red-600 px-2"
                       >
@@ -1001,6 +1012,7 @@ export function PurchaseRequests() {
                   </div>
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     <Input
+                      ref={quoteFileInputRef}
                       type="file"
                       accept=".pdf"
                       onChange={(e) => {

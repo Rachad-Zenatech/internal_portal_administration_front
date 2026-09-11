@@ -1,3 +1,4 @@
+import { compressAttachmentBeforeUpload, compressAttachmentsBeforeUpload } from "@/utils/compressAttachment";
 // API wrappers for the Purchasing + Accounts Payable workflow.
 // Services contain API calls only; React Query orchestration lives in hooks.
 import { apiClient } from "./apiClient";
@@ -52,9 +53,10 @@ export function getRequest(id: string) {
   return apiClient.get<RequestDetail>(`${BASE}/requests/${id}`);
 }
 
-export function extractQuote(file: File) {
+export async function extractQuote(file: File) {
+  const optimizedFile = await compressAttachmentBeforeUpload(file);
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append("file", optimizedFile);
   return apiClient.post<any>(`${BASE}/quotes/extract`, formData, {
     actionLabel: "Extracting Multi-Part Quote",
     actionSubtitle: "Analyzing PDF layout, OCR text, and extracting line items...",
@@ -123,9 +125,10 @@ export function listAttachments(requestId: string) {
   return apiClient.get<AttachmentInfo[]>(`${BASE}/requests/${requestId}/attachments`);
 }
 
-export function uploadAttachments(requestId: string, files: File[]) {
+export async function uploadAttachments(requestId: string, files: File[]) {
+  const optimizedFiles = await compressAttachmentsBeforeUpload(files);
   const form = new FormData();
-  files.forEach((file) => form.append("files", file));
+  optimizedFiles.forEach((file) => form.append("files", file));
   return apiClient.post<AttachmentInfo[]>(`${BASE}/requests/${requestId}/attachments`, form);
 }
 
