@@ -1,20 +1,7 @@
-// Format notification text to remove underscores and capitalize status words
-function formatNotificationText(text: string): string {
-  if (!text) return "";
-  return text
-    .replace(/waiting_payment/gi, "Waiting Payment")
-    .replace(/waiting_approval/gi, "Waiting Approval")
-    .replace(/under_review/gi, "Under Review")
-    .replace(/goods_received/gi, "Goods Received")
-    .replace(/invoice_received/gi, "Invoice Received")
-    .replace(/new_request/gi, "New Request")
-    .replace(/on_hold/gi, "On Hold")
-    .replace(/_(\w)/g, (_, c) => " " + c.toUpperCase());
-}
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Search, Bell, Menu, ShieldCheck, Building2, FileText, Loader2, LogOut, User, Sparkles, Mail, BellRing, Settings2, CheckCheck, X, CloudDownload, ShoppingCart, RefreshCw, ReceiptText, Layers, Paperclip, Clock } from "lucide-react";
+import { Bell, Menu, ShieldCheck, LogOut, User, Mail, BellRing, Settings2, Laptop } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -40,10 +27,10 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, BASE_URL } from "@/services/apiClient";
 import ThemeSwitch from "./ThemeSwitch";
-import { useGlobalSearch } from "@/hooks/useSearch";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
-import { useNotifications, useUnreadNotificationCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, useClearAllNotifications } from "@/hooks/useNotifications";
+import { useUnreadNotificationCount } from "@/hooks/useNotifications";
+import { NotificationDropdownContent } from "./NotificationDropdown";
 import FloatingChat from "./FloatingChat";
 
 
@@ -93,15 +80,121 @@ function formatWorkflowRole(role: string): string {
   return WORKFLOW_ROLE_LABELS[role.toUpperCase()] || role;
 }
 
+function sendWindowsNotification(
+  title: string,
+  message: string,
+  linkUrl?: string,
+  onNavigate?: (url: string) => void
+) {
+  if (typeof window === "undefined" || !("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+
+  try {
+    const notif = new Notification(title, {
+      body: message,
+      icon: "/favicon.svg",
+      tag: `zenatech-${Date.now()}`,
+      silent: false,
+    });
+
+    notif.onclick = (e) => {
+      e.preventDefault();
+      try {
+        window.focus();
+      } catch {
+        // window.focus might be restricted in some browser contexts
+      }
+      if (linkUrl) {
+        if (onNavigate) {
+          onNavigate(linkUrl);
+        } else {
+          window.location.href = linkUrl;
+        }
+      }
+      notif.close();
+    };
+  } catch (err) {
+    console.warn("Failed to show Windows desktop notification:", err);
+  }
+}
+
 export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
-  const [inputValue, setInputValue] = useState("");
-  const [debouncedValue, setDebouncedValue] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [inAppAlerts, setInAppAlerts] = useState(() => localStorage.getItem("inAppAlerts") !== "false");
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [windowsNotifications, setWindowsNotifications] = useState(() => {
+    const stored = localStorage.getItem("windowsNotifications");
+    if (stored !== null) return stored === "true";
+    return typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted";
+  });
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
+    return typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default";
+  });
+
+  const handleToggleWindowsNotifications = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error("Desktop notifications are not supported by your browser.");
+      return;
+    }
+
+    if (Notification.permission === "denied") {
+      toast.error("Notifications are blocked by your browser settings. Please allow notifications in site settings.");
+      return;
+    }
+
+    if (Notification.permission === "default") {
+      try {
+        const result = await Notification.requestPermission();
+        setNotificationPermission(result);
+        if (result === "granted") {
+          setWindowsNotifications(true);
+          localStorage.setItem("windowsNotifications", "true");
+          sendWindowsNotification(
+            "Windows Notifications Enabled",
+            "You will now receive desktop notifications for purchase requests and updates."
+          );
+          toast.success("Windows desktop notifications enabled!");
+        } else {
+          setWindowsNotifications(false);
+          localStorage.setItem("windowsNotifications", "false");
+          toast.info("Notification permission was not granted.");
+        }
+      } catch (e) {
+        console.error("Error requesting notification permission:", e);
+      }
+      return;
+    }
+
+    const nextVal = !windowsNotifications;
+    setWindowsNotifications(nextVal);
+    localStorage.setItem("windowsNotifications", String(nextVal));
+    if (nextVal) {
+      toast.success("Windows desktop notifications enabled");
+    } else {
+      toast.info("Windows desktop notifications disabled");
+    }
+  };
+
+  const handleTestWindowsNotification = () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error("Desktop notifications are not supported.");
+      return;
+    }
+
+    if (Notification.permission !== "granted") {
+      handleToggleWindowsNotifications();
+      return;
+    }
+
+    sendWindowsNotification(
+      "Zenatech Admin Portal",
+      "This is a test Windows notification! Your desktop alerts are configured correctly.",
+      "/purchasing/requests",
+      (url) => navigate(url)
+    );
+    toast.success("Test notification sent to Windows!");
+  };
   const navigate = useNavigate();
   const { user, roles, workflow_roles = [], logout } = useAuth();
 
@@ -115,20 +208,8 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
     roles.map((r) => r.department).filter(Boolean).join(", ") ||
     (user?.department && user.department.toUpperCase() !== "REQUESTER" ? user.department : "") ||
     "General";
-  // Debounce input
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(inputValue);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [inputValue]);
 
-  const { data: results = [], isLoading, isFetching } = useGlobalSearch(debouncedValue);
-  const { data: notifications = [] } = useNotifications();
   const { data: unreadCountData } = useUnreadNotificationCount();
-  const { mutate: markAsRead } = useMarkNotificationAsRead();
-  const { mutate: markAllAsRead, isPending: isMarkingAll } = useMarkAllNotificationsAsRead();
-  const { mutate: clearAll, isPending: isClearingAll } = useClearAllNotifications();
   const unreadCount = unreadCountData?.count ?? 0;
 
   const queryClient = useQueryClient();
@@ -151,8 +232,9 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
         queryClient.invalidateQueries({ queryKey: ["invoices"] });
 
+        const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "Zenatech Portal";
+
         if (inAppAlerts) {
-          const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "";
           toast(
             <div
               className="cursor-pointer w-full flex flex-col gap-1"
@@ -168,6 +250,15 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             }
           );
         }
+
+        if (windowsNotifications && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+          sendWindowsNotification(
+            capitalizedTitle,
+            newNotif.message || "New notification received",
+            newNotif.link_url,
+            (url) => navigate(url)
+          );
+        }
       } catch (err) {
         console.error("Failed to parse SSE notification:", err);
       }
@@ -181,58 +272,9 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
     return () => {
       eventSource.close();
     };
-  }, [inAppAlerts, navigate, queryClient]);
+  }, [inAppAlerts, windowsNotifications, navigate, queryClient]);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case "request":
-      case "purchase_request":
-        return <ShoppingCart className="h-4 w-4 text-blue-500" />;
-      case "recurring":
-      case "recurring_payment":
-        return <RefreshCw className="h-4 w-4 text-sky-500" />;
-      case "invoice":
-      case "accounts_payable":
-        return <ReceiptText className="h-4 w-4 text-emerald-500" />;
-      case "user":
-        return <User className="h-4 w-4 text-purple-500" />;
-      case "role":
-        return <ShieldCheck className="h-4 w-4 text-indigo-500" />;
-      case "page":
-      case "navigation":
-        return <Layers className="h-4 w-4 text-amber-500" />;
-      case "audit":
-      case "audit_log":
-        return <Clock className="h-4 w-4 text-slate-500" />;
-      case "file":
-      case "attachment":
-        return <Paperclip className="h-4 w-4 text-teal-500" />;
-      case "company":
-        return <Building2 className="h-4 w-4 text-blue-500" />;
-      default:
-        return <Search className="h-4 w-4 text-muted-foreground" />;
-    }
-  };
-
-  const handleResultClick = (url: string) => {
-    setIsOpen(false);
-    setInputValue("");
-    setDebouncedValue("");
-    if (url) {
-      navigate(url);
-    }
-  };
 
   return (
     <header className="h-14 border-b border-border bg-card text-card-foreground flex items-center justify-between px-4 sm:px-6 shrink-0 transition-all duration-300 gap-3 sm:gap-4 relative z-40">
@@ -248,98 +290,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             <Menu className="h-4 w-4" />
           </Button>
         )}
-        <div ref={containerRef} className="relative w-full max-w-[220px] sm:max-w-[300px] md:max-w-[360px] desktop:max-w-[400px] z-50">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search for anything here..."
-            className="w-full pl-9 bg-muted/60 border-none rounded-full h-8.5 sm:h-9 text-xs sm:text-sm shadow-inner focus-visible:ring-1 focus-visible:ring-ring"
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              setIsOpen(true);
-            }}
-            onFocus={() => {
-              if (inputValue.trim().length > 0) setIsOpen(true);
-            }}
-          />
-
-          {isOpen && debouncedValue.length > 0 && (
-            <div className="absolute top-full left-0 w-[360px] sm:w-[440px] md:w-[480px] max-w-[calc(100vw-2rem)] mt-2 bg-card border border-border shadow-2xl rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
-              {isLoading || isFetching ? (
-                <div className="p-6 flex items-center justify-center text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  <span className="text-sm">Searching...</span>
-                </div>
-              ) : results.length > 0 ? (
-                <div className="max-h-[400px] overflow-y-auto py-2">
-                  {results.map((result, idx) => (
-                    <div
-                      key={`${result.type}-${result.id}-${idx}`}
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
-                      onClick={() => handleResultClick(result.url || "/")}
-                    >
-                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 border border-border/50 shadow-2xs">
-                        {getIcon(result.type)}
-                      </div>
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground truncate">{result.title}</span>
-                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded uppercase bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 shrink-0">
-                            {result.type}
-                          </span>
-                        </div>
-                        {result.subtitle && (
-                          <span className="text-xs text-muted-foreground truncate">{result.subtitle}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  <div className="px-4 py-2 border-t border-border/50 mt-2">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start gap-3 h-14 rounded-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300"
-                      onClick={() => {
-                        setIsOpen(false);
-                        setInputValue("");
-                        setDebouncedValue("");
-                        window.dispatchEvent(new CustomEvent('ask-ai', { detail: { query: debouncedValue } }));
-                      }}
-                    >
-                      <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
-                        <Sparkles className="h-4 w-4" />
-                      </div>
-                      <div className="flex flex-col items-start min-w-0">
-                        <span className="text-sm font-semibold truncate">Ask AI "{debouncedValue}"</span>
-                        <span className="text-xs opacity-80 truncate">Can't find what you need? Ask our AI assistant</span>
-                      </div>
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-8 flex flex-col items-center justify-center text-center">
-                  <span className="text-sm text-muted-foreground mb-4">
-                    No results found for "{debouncedValue}"
-                  </span>
-                  <Button
-                    variant="outline"
-                    className="gap-2 rounded-xl border-blue-200 hover:border-blue-300 hover:bg-blue-50 dark:border-blue-900/50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors"
-                    onClick={() => {
-                      setIsOpen(false);
-                      setInputValue("");
-                      setDebouncedValue("");
-                      window.dispatchEvent(new CustomEvent('ask-ai', { detail: { query: debouncedValue } }));
-                    }}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Ask AI "{debouncedValue}"
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+</div>
 
       <div className="flex items-center gap-2.5 sm:gap-3.5 md:gap-4.5 shrink-0">
                 <TopBarClock />
@@ -363,149 +314,8 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[480px] p-0 rounded-2xl overflow-hidden bg-white dark:bg-zinc-950 shadow-2xl border border-slate-200 dark:border-zinc-800">
-              {/* Header */}
-              <div className="flex items-center justify-between pt-5 px-5 pb-3">
-                <span className="text-2xl font-bold text-slate-900 dark:text-zinc-100 tracking-tight">Notifications</span>
-                <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg border-slate-200 dark:border-zinc-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800" onClick={() => setIsNotificationsOpen(false)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* Tabs */}
-              <div className="px-5 border-b border-slate-100 dark:border-zinc-800 flex gap-6">
-                <button className="text-sm font-semibold text-slate-900 dark:text-zinc-100 border-b-2 border-slate-900 dark:border-zinc-100 pb-3">View all</button>
-              </div>
-
-              {/* List */}
-              <div className="max-h-[400px] overflow-y-auto py-2">
-                {notifications.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-slate-500 dark:text-zinc-400">
-                    You have no notifications.
-                  </div>
-                ) : (
-                  notifications.map((notification) => {
-                    const isUnread = !notification.is_read;
-                    const dateObj = new Date(notification.created_at);
-                    const dayString = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-                    const timeString = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                    const fullDateString = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    const capitalizedTitle = notification.title ? formatNotificationText(notification.title.charAt(0).toUpperCase() + notification.title.slice(1)) : "";
-
-                    return (
-                      <div
-                        key={notification.id}
-                        onClick={() => {
-                          if (!notification.is_read) {
-                            markAsRead(notification.id);
-                          }
-                          if (notification.link_url) {
-                            setIsNotificationsOpen(false);
-                            navigate(notification.link_url);
-                          }
-                        }}
-                        className={`px-5 py-5 cursor-pointer transition-colors duration-200 flex gap-4 group ${
-                          isUnread ? "bg-slate-50/50 hover:bg-slate-50 dark:bg-zinc-900/30 dark:hover:bg-zinc-900/50" : "hover:bg-slate-50 dark:hover:bg-zinc-900/30"
-                        }`}
-                      >
-                        {/* Avatar */}
-                        <div className="shrink-0 relative">
-                           {notification.sender_avatar ? (
-                            <div className="h-10 w-10 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden shadow-sm">
-                              <img src={notification.sender_avatar} alt={notification.sender_name || "Sender"} className="h-full w-full object-cover" />
-                            </div>
-                          ) : (
-                            <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200 dark:border-blue-800 shadow-sm">
-                              <Bell className="h-4 w-4" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          {/* Sender name + action */}
-                          <div className="flex justify-between items-start">
-                            <p className="text-sm font-medium text-slate-900 dark:text-zinc-100 leading-snug pr-4">
-                              {capitalizedTitle}
-                            </p>
-                            {/* Unread Dot */}
-                            {isUnread && <div className="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-500 shrink-0 mt-1 shadow-sm" />}
-                          </div>
-
-                          {/* Message box if present */}
-                          {notification.message && (!notification.attachments || notification.attachments.length === 0) && (
-                            <div className="mt-2.5 p-3.5 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm font-medium text-slate-700 dark:text-zinc-300 shadow-sm leading-relaxed whitespace-pre-line">
-                              {formatNotificationText(notification.message)}
-                            </div>
-                          )}
-
-                          {/* Attachments if present */}
-                          {notification.attachments && notification.attachments.length > 0 && (
-                            <div className="mt-3 flex flex-col gap-2">
-                              {notification.attachments.map((att: any, i: number) => (
-                                <div key={i} className="flex items-center justify-between bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 shadow-sm hover:border-slate-300 dark:hover:border-zinc-700 transition-colors">
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-12 h-10 bg-slate-50 dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-lg flex items-center justify-center shrink-0">
-                                      <FileText className="h-5 w-5 text-slate-400" />
-                                    </div>
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="text-sm font-semibold text-slate-900 dark:text-zinc-100 truncate">{att.filename || 'Attachment'}</span>
-                                      <span className="text-xs font-medium text-slate-500 dark:text-zinc-400 mt-0.5">{att.size ? `${Math.round(att.size / 1024 / 1024)} MB` : '14 MB'}</span>
-                                    </div>
-                                  </div>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-slate-900 dark:hover:text-zinc-100 shrink-0">
-                                    <CloudDownload className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Footer times */}
-                          <div className="flex items-center justify-between mt-3 text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                            <span>{dayString} {timeString}</span>
-                            <span>{fullDateString}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Footer Actions */}
-              <div className="p-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-950">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    className="h-9 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-bold tracking-tight transition-colors gap-2"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      markAllAsRead(undefined, {
-                        onSuccess: () => toast.success("All notifications marked as read"),
-                      });
-                    }}
-                    disabled={isMarkingAll}
-                  >
-                    <CheckCheck className={`h-4 w-4 ${isMarkingAll ? "animate-pulse" : ""}`} />
-                    Mark all as read
-                  </Button>
-                </div>
-                <Button
-                  className="h-9 px-5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition-colors"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    clearAll(undefined, {
-                      onSuccess: () => toast.success("Notifications cleared"),
-                    });
-                  }}
-                  disabled={notifications.length === 0 || isClearingAll}
-                >
-                  {isClearingAll ? "Clearing..." : "Clear All"}
-                </Button>
-              </div>
+            <DropdownMenuContent align="end" className="w-[520px] max-w-[calc(100vw-1.5rem)] p-0 rounded-2xl overflow-hidden bg-white dark:bg-zinc-950 shadow-2xl border border-slate-200 dark:border-zinc-800">
+              <NotificationDropdownContent onClose={() => setIsNotificationsOpen(false)} />
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -652,7 +462,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                       <Label className="text-sm font-medium flex items-center gap-1.5">
                         <BellRing className="h-3.5 w-3.5" /> In-App Alerts
                       </Label>
-                      <p className="text-xs text-muted-foreground">Show push notifications</p>
+                      <p className="text-xs text-muted-foreground">Show in-app toast popups</p>
                     </div>
                     <div
                       className={`h-5 w-9 rounded-full relative cursor-pointer transition-colors ${inAppAlerts ? 'bg-primary' : 'bg-muted-foreground/30'}`}
@@ -663,6 +473,70 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                       }}
                     >
                       <div className={`h-4 w-4 bg-background rounded-full absolute top-0.5 transition-all ${inAppAlerts ? 'right-0.5' : 'left-0.5'}`} />
+                    </div>
+                  </div>
+
+                  {/* Windows Desktop Notifications */}
+                  <div className="flex flex-col gap-2.5 p-3 rounded-lg border bg-card">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-medium flex items-center gap-1.5">
+                          <Laptop className="h-3.5 w-3.5" /> Windows Desktop Notifications
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Receive desktop toast alerts in Windows Action Center
+                        </p>
+                      </div>
+                      <div
+                        className={`h-5 w-9 rounded-full relative cursor-pointer transition-colors ${
+                          windowsNotifications && notificationPermission === "granted"
+                            ? 'bg-primary'
+                            : 'bg-muted-foreground/30'
+                        }`}
+                        onClick={handleToggleWindowsNotifications}
+                        title={
+                          notificationPermission === "denied"
+                            ? "Notifications blocked by browser settings"
+                            : "Toggle Windows notifications"
+                        }
+                      >
+                        <div
+                          className={`h-4 w-4 bg-background rounded-full absolute top-0.5 transition-all ${
+                            windowsNotifications && notificationPermission === "granted"
+                              ? 'right-0.5'
+                              : 'left-0.5'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-border/50 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">Permission:</span>
+                        {notificationPermission === "granted" ? (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-500/30 text-green-600 dark:text-green-400 bg-green-500/10">
+                            Granted
+                          </Badge>
+                        ) : notificationPermission === "denied" ? (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-red-500/30 text-red-600 dark:text-red-400 bg-red-500/10">
+                            Blocked
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                            Needs Permission
+                          </Badge>
+                        )}
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs px-2.5"
+                        onClick={handleTestWindowsNotification}
+                      >
+                        Send Test Notification
+                      </Button>
                     </div>
                   </div>
                 </div>
