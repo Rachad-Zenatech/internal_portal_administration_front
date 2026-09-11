@@ -156,35 +156,114 @@ export function getGLCodes(search?: string) {
 }
 
 export function exportQuickBooksXlsx(ids?: string[], status?: string, year?: number | null, month?: number | null) {
-  const params = new URLSearchParams();
-  if (ids && ids.length > 0) {
-    params.set("ids", ids.join(","));
+    const params = new URLSearchParams();
+    if (ids && ids.length > 0) {
+      params.set("ids", ids.join(","));
+    }
+    if (status && status !== "ALL") {
+      params.set("status", status);
+    }
+    if (year) {
+      params.set("year", String(year));
+    }
+    if (month) {
+      params.set("month", String(month));
+    }
+    const qs = params.toString() ? `?${params.toString()}` : "";
+  
+    const nameParts = ["QuickBooks_Export"];
+    if (year) nameParts.push(String(year));
+    if (month) nameParts.push(String(month).padStart(2, "0"));
+    if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
+    const filename = `${nameParts.join("_")}.xlsx`;
+  
+    return apiClient.downloadFile(`${BASE}/export/quickbooks/xlsx${qs}`, filename);
   }
-  if (status && status !== "ALL") {
-    params.set("status", status);
+
+  export function exportQuickBooksBundle(ids?: string[], status?: string, year?: number | null, month?: number | null) {
+    const params = new URLSearchParams();
+    if (ids && ids.length > 0) {
+      params.set("ids", ids.join(","));
+    }
+    if (status && status !== "ALL") {
+      params.set("status", status);
+    }
+    if (year) {
+      params.set("year", String(year));
+    }
+    if (month) {
+      params.set("month", String(month));
+    }
+    const qs = params.toString() ? `?${params.toString()}` : "";
+  
+    const nameParts = ["QuickBooks_Export_Bundle"];
+    if (year) nameParts.push(String(year));
+    if (month) nameParts.push(String(month).padStart(2, "0"));
+    if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
+    const filename = `${nameParts.join("_")}.zip`;
+  
+    return apiClient.downloadFile(`${BASE}/export/quickbooks/bundle${qs}`, filename);
   }
-  if (year) {
-    params.set("year", String(year));
+
+  export function exportQuickBooksDocuments(ids?: string[], status?: string, year?: number | null, month?: number | null) {
+    const params = new URLSearchParams();
+    if (ids && ids.length > 0) {
+      params.set("ids", ids.join(","));
+    }
+    if (status && status !== "ALL") {
+      params.set("status", status);
+    }
+    if (year) {
+      params.set("year", String(year));
+    }
+    if (month) {
+      params.set("month", String(month));
+    }
+    const qs = params.toString() ? `?${params.toString()}` : "";
+  
+    const nameParts = ["QuickBooks_Documents"];
+    if (year) nameParts.push(String(year));
+    if (month) nameParts.push(String(month).padStart(2, "0"));
+    if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
+    const filename = `${nameParts.join("_")}.zip`;
+  
+    return apiClient.downloadFile(`${BASE}/export/quickbooks/documents${qs}`, filename);
   }
-  if (month) {
-    params.set("month", String(month));
+
+  export function exportQuickBooksReconciliation(ids?: string[], status?: string, year?: number | null, month?: number | null) {
+    const params = new URLSearchParams();
+    if (ids && ids.length > 0) {
+      params.set("ids", ids.join(","));
+    }
+    if (status && status !== "ALL") {
+      params.set("status", status);
+    }
+    if (year) {
+      params.set("year", String(year));
+    }
+    if (month) {
+      params.set("month", String(month));
+    }
+    const qs = params.toString() ? `?${params.toString()}` : "";
+  
+    const nameParts = ["QuickBooks_Reconciliation"];
+    if (year) nameParts.push(String(year));
+    if (month) nameParts.push(String(month).padStart(2, "0"));
+    if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
+    const filename = `${nameParts.join("_")}.csv`;
+  
+    return apiClient.downloadFile(`${BASE}/export/quickbooks/reconciliation${qs}`, filename);
   }
-  const qs = params.toString() ? `?${params.toString()}` : "";
+  
+  export function exportSingleRequestQuickBooksXlsx(requestId: string) {
+    return apiClient.downloadFile(`${BASE}/requests/${requestId}/export/quickbooks/xlsx`, `QuickBooks_Export_REQ_${requestId}.xlsx`);
+  }
 
-  const nameParts = ["QuickBooks_Export"];
-  if (year) nameParts.push(String(year));
-  if (month) nameParts.push(String(month).padStart(2, "0"));
-  if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
-  const filename = `${nameParts.join("_")}.xlsx`;
+  export function exportSingleRequestQuickBooksBundle(requestId: string) {
+    return apiClient.downloadFile(`${BASE}/requests/${requestId}/export/quickbooks/bundle`, `QuickBooks_Export_REQ_${requestId}_Bundle.zip`);
+  }
 
-  return apiClient.downloadFile(`${BASE}/export/quickbooks/xlsx${qs}`, filename);
-}
-
-export function exportSingleRequestQuickBooksXlsx(requestId: string) {
-  return apiClient.downloadFile(`${BASE}/requests/${requestId}/export/quickbooks/xlsx`, `QuickBooks_Export_REQ_${requestId}.xlsx`);
-}
-
-export function getTreasuryUsers() {
+  export function getTreasuryUsers() {
   return apiClient.get<Array<{ id: string; full_name: string; email: string; department?: string }>>(BASE + "/treasury-users");
 }
 
