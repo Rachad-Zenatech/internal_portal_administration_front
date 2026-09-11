@@ -92,6 +92,7 @@ import {
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 import { QuickBooksExportDialog } from "./QuickBooksExportDialog";
+import { uploadAttachments } from "@/services/purchasingService";
 
 function RequesterAutocomplete({
   value,
@@ -271,7 +272,7 @@ export function PurchaseRequests() {
   const [apWireForm, setApWireForm] = useState<WireTransferInput>(EMPTY_WIRE_FORM);
 
   // Multi-parts Quote OCR state
-  const [_quoteFile, setQuoteFile] = useState<File | null>(null);
+  const [quoteFile, setQuoteFile] = useState<File | null>(null);
   const [quoteExtraction, setQuoteExtraction] = useState<QuoteExtractionResponse | null>(null);
   const quoteFileInputRef = useRef<HTMLInputElement | null>(null);
   const [quoteItems, setQuoteItems] = useState<PurchaseRequestItem[]>([]);
@@ -614,6 +615,14 @@ export function PurchaseRequests() {
       };
 
       const detail = await createMutation.mutateAsync(payload);
+      if (quoteFile) {
+        try {
+          await uploadAttachments(detail.request.id, [quoteFile]);
+        } catch (attErr) {
+          console.error("Failed to upload quote attachment:", attErr);
+          toast.error("Request created, but failed to upload quote attachment.");
+        }
+      }
       toast.success(`Request ${detail.request.id} created`);
       setIsDialogOpen(false);
       navigate(`/purchasing/requests/${detail.request.id}`);

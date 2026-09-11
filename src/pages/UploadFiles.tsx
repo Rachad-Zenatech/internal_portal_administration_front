@@ -42,13 +42,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { uploadArchiveService } from "@/services/uploadArchiveService";
-import type { ArchivedUpload, UploadType } from "@/types/uploadArchive";
-
-type FilterValue = "all" | UploadType;
+import type { ArchivedUpload } from "@/types/uploadArchive";
 
 export default function UploadFiles() {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<FilterValue>("all");
   const [previewFile, setPreviewFile] = useState<ArchivedUpload | null>(null);
   const [previewText, setPreviewText] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
@@ -67,12 +64,18 @@ export default function UploadFiles() {
     isLoading,
     error: queryError,
   } = useQuery({
-    queryKey: ["uploadArchive", filter],
-    queryFn: () => uploadArchiveService.list(filter === "all" ? undefined : filter),
+    queryKey: ["uploadArchive"],
+    queryFn: () => uploadArchiveService.list(),
   });
 
-  const files = data?.files ?? [];
-  const uploadTypes = data?.upload_types ?? [];
+  const files = useMemo(() => {
+    return (data?.files ?? []).filter(
+      (f: any) =>
+        f.upload_type !== "bank-statement-preview" &&
+        f.upload_type !== "bank-statement" &&
+        f.upload_type !== "general-ledger"
+    );
+  }, [data?.files]);
   const error = queryError instanceof Error ? queryError.message : null;
 
   // Derive paginated files
@@ -94,16 +97,7 @@ export default function UploadFiles() {
     );
   }, [files]);
 
-  const filterOptions = useMemo(
-    () => [{ value: "all" as const, label: "All" }, ...uploadTypes],
-    [uploadTypes]
-  );
 
-  const handleFilterChange = (newFilter: FilterValue) => {
-    setFilter(newFilter);
-    setPage(1);
-    setSelectedRows(new Set());
-  };
 
   async function handlePreview(file: ArchivedUpload) {
     setPreviewFile(file);
@@ -186,21 +180,7 @@ export default function UploadFiles() {
         </div>
       </header>
 
-      <div className="flex mb-6 gap-2">
-        {filterOptions.map((option) => (
-          <button
-            key={option.value}
-            onClick={() => handleFilterChange(option.value as FilterValue)}
-            className={`relative px-6 py-3 text-sm font-semibold transition-colors duration-200 focus:outline-none
-              ${filter === option.value
-                ? 'text-primary after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-primary'
-                : 'text-muted-foreground hover:text-foreground'
-              }`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+
 
       {error && (
         <Alert variant="destructive">
