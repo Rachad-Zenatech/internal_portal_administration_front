@@ -20,6 +20,7 @@ import {
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { CreatableCombobox } from "./CreatableCombobox";
 import type { WireTransferInput } from "@/types/purchasing";
+import { useKnownVendors } from "@/hooks/usePurchasing";
 
 export const COMMON_PAY_FROM = [
   "Weddle",
@@ -70,6 +71,7 @@ export function WireGeneralPaymentFields({
   onDueDateChange,
   onVendorChange,
 }: WireGeneralPaymentFieldsProps) {
+  const { data: knownVendors = [] } = useKnownVendors();
   const [apUsers, setApUsers] = useState<
     Array<{ id: string; full_name: string; email: string; department?: string }>
   >([]);
@@ -273,6 +275,7 @@ export function WireGeneralPaymentFields({
                 onVendorChange?.(val);
                 onClearValidationError?.("vendor");
               }}
+              options={knownVendors}
               fetchOptions={getKnownVendors}
               placeholder="Search or enter vendor name (e.g. Acme Corp)"
               addLabelPrefix="Add new vendor"
