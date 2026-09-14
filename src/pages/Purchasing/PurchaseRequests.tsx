@@ -665,7 +665,7 @@ export function PurchaseRequests() {
             className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
           >
             <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Export to QuickBooks (.xlsx)</span>
+            <span>Export to QuickBooks (.csv)</span>
           </Button>
           {canCreate && (
             <Button onClick={openCreate} className="w-full sm:w-auto gap-2 font-medium shadow-sm">

@@ -155,6 +155,48 @@ export function getGLCodes(search?: string) {
   return apiClient.get<GLCodeOption[]>(`${BASE}/gl-codes${qs}`);
 }
 
+export function exportQuickBooksCsv(
+  ids?: string[],
+  status?: string,
+  year?: number | null,
+  month?: number | null,
+  start_datetime?: string | null,
+  end_datetime?: string | null
+) {
+  const params = new URLSearchParams();
+  if (ids && ids.length > 0) {
+    params.set("ids", ids.join(","));
+  }
+  if (status && status !== "ALL") {
+    params.set("status", status);
+  }
+  if (year) {
+    params.set("year", String(year));
+  }
+  if (month) {
+    params.set("month", String(month));
+  }
+  if (start_datetime) {
+    params.set("start_datetime", start_datetime);
+  }
+  if (end_datetime) {
+    params.set("end_datetime", end_datetime);
+  }
+  const qs = params.toString() ? `?${params.toString()}` : "";
+
+  const nameParts = ["QuickBooks_Export"];
+  if (year) nameParts.push(String(year));
+  if (month) nameParts.push(String(month).padStart(2, "0"));
+  if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
+  const filename = `${nameParts.join("_")}.csv`;
+
+  return apiClient.downloadFile(`${BASE}/export/quickbooks/csv${qs}`, filename);
+}
+
+export function exportSingleRequestQuickBooksCsv(requestId: string) {
+  return apiClient.downloadFile(`${BASE}/requests/${requestId}/export/quickbooks/csv`, `QuickBooks_Export_REQ_${requestId}.csv`);
+}
+
 export function exportQuickBooksXlsx(
   ids?: string[],
   status?: string,
