@@ -93,6 +93,17 @@ export type ProductInfo = {
   original_currency?: string | null;
 };
 
+export interface RecurringSchedule {
+  is_scheduled: boolean;
+  frequency: "DAILY" | "WEEKLY" | "BI_WEEKLY" | "MONTHLY" | "QUARTERLY" | "SEMI_ANNUALLY" | "ANNUALLY";
+  start_date: string;
+  end_date?: string | null;
+  total_installments?: number | null;
+  completed_installments: number;
+  amount_per_cycle?: number | null;
+  total_amount?: number | null;
+}
+
 export type PurchaseRequest = {
   id: string;
   title: string;
@@ -123,6 +134,7 @@ export type PurchaseRequest = {
   quote_data?: any;
   review_status?: "WAITING_FOR_REVIEW" | "REVIEWED" | null;
   due_date?: string | null;
+  recurring_schedule?: RecurringSchedule | null;
   created_at: string;
   updated_at: string;
 };
@@ -274,6 +286,7 @@ export type RequestCreateInput = {
   quote_file_id?: string | null;
   quote_data?: any;
   due_date?: string | null;
+  recurring_schedule?: RecurringSchedule | null;
   wire_transfer?: WireTransferInput;
 };
 
@@ -399,6 +412,7 @@ export type TransitionInput = {
   comment?: string;
   next_due_date?: string;
   due_date?: string;
+  recurring_schedule?: RecurringSchedule | null;
 };
 
 
@@ -420,6 +434,7 @@ export interface PurchaseRequestItem {
   original_unit_price?: number | null;
   original_total?: number | null;
   original_currency?: string | null;
+  gl_code?: string | null;
 }
 
 export interface QuoteItem {

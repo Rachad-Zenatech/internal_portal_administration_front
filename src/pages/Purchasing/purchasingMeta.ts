@@ -141,7 +141,7 @@ export const ACTION_META: Record<WorkflowAction, { label: string; form?: "po" | 
   MARK_PURCHASED: { label: "Mark Purchased", variant: "default" },
   ADD_TRACKING: { label: "Add Tracking & Mark Shipped", form: "tracking", variant: "default" },
   MARK_SHIPPED: { label: "Mark Shipped", variant: "default" },
-  RECORD_INVOICE: { label: "Record Invoice", form: "invoice", variant: "default" },
+  RECORD_INVOICE: { label: "Record Invoice / Receipts", form: "invoice", variant: "default" },
   SEND_TO_AP: { label: "Send to AP", variant: "default" },
   CONFIRM_GOODS_RECEIVED: { label: "Confirm Goods Received", form: "confirmGoods", variant: "default" },
   PUT_ON_HOLD: { label: "Put on Hold", form: "hold", variant: "destructive" },

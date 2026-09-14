@@ -79,6 +79,7 @@ import {
   type WireTransferInput,
 } from "@/types/purchasing";
 import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
+import { WireBankingFields } from "./WireBankingFields";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   PRIORITY_BADGE,
@@ -1420,7 +1421,7 @@ export function PurchaseRequests() {
 
             {/* 5. Accounts Payable Wire Transfer Information */}
             {form.request_type === "ACCOUNTS_PAYABLE" && (
-              <div className="pt-1">
+              <div className="pt-1 space-y-4">
                 <WireGeneralPaymentFields
                   form={apWireForm}
                   setForm={setApWireForm}
@@ -1432,6 +1433,10 @@ export function PurchaseRequests() {
                       setForm((p) => ({ ...p, title: `Payment for ${v}` }));
                     }
                   }}
+                />
+                <WireBankingFields
+                  form={apWireForm}
+                  setForm={setApWireForm}
                 />
               </div>
             )}

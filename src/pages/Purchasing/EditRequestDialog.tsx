@@ -25,6 +25,7 @@ import { Loader2, Plus, Trash2, Maximize2, FileText, Truck, DollarSign, AlertTri
 import { formatMoney } from "./purchasingMeta";
 import { RequestStatus, type ItemMode, type PurchaseRequestItem, type WireTransferInput } from "@/types/purchasing";
 import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
+import { WireBankingFields } from "./WireBankingFields";
 import { parseRequestStatus } from "@/lib/requestStatus";
 
 
@@ -144,11 +145,40 @@ export function EditRequestDialog({
 }) {
   const isMulti = request?.item_mode === "MULTIPLE" || (request?.items && request.items.length > 0);
   const parsedStatus = parseRequestStatus(request?.status);
-  const isLinkEditable = parsedStatus === RequestStatus.Initial || parsedStatus === RequestStatus.New || parsedStatus === RequestStatus.UnderReview;
   const [itemMode, setItemMode] = useState<ItemMode>(isMulti ? "MULTIPLE" : "SINGLE");
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
   const { user, roles = [] } = useAuth();
+  const userRolesList = roles || [];
+  const userDept = (user?.department || "").toUpperCase();
+  const isAPRole = userRolesList.some((r) => {
+    const c = (r.code || "").toUpperCase();
+    const n = (r.name || "").toUpperCase();
+    return c.includes("AP") || c.includes("PAY") || c.includes("ACCT") || n.includes("AP") || n.includes("PAY") || n.includes("ACCT");
+  }) || userDept.includes("AP") || userDept.includes("ACCOUNT");
+
+  const isPurchaserRole = userRolesList.some((r) => {
+    const c = (r.code || "").toUpperCase();
+    const n = (r.name || "").toUpperCase();
+    return c.includes("PURCHAS") || n.includes("PURCHAS");
+  }) || userDept.includes("PURCHAS");
+
+  const isSuperAdmin = Boolean(user?.is_super_admin);
+
+  const isCompleted = parsedStatus === RequestStatus.Completed || (parsedStatus as string)?.toUpperCase() === "COMPLETED";
+
+  const isPostOrderStage = [
+    RequestStatus.Purchased,
+    "ORDERED",
+    RequestStatus.Shipped,
+    RequestStatus.GoodsReceived,
+    RequestStatus.InvoiceReceived,
+    RequestStatus.WaitingPayment,
+    "SENT_TO_AP",
+  ].includes(parsedStatus as any);
+
+  const canEditWholeRequest = !isCompleted && ((isPostOrderStage && (isAPRole || isPurchaserRole || isSuperAdmin)) || parsedStatus === RequestStatus.Initial || parsedStatus === RequestStatus.New || parsedStatus === RequestStatus.UnderReview);
+  const isLinkEditable = canEditWholeRequest;
   const [formData, setFormData] = useState({
     title: "",
     requester: "",
@@ -255,6 +285,14 @@ export function EditRequestDialog({
         }
       }
 
+      const qtyVal = request.quantity ? Number(request.quantity) : 1;
+      const upriceVal = request.unit_price && Number(request.unit_price) > 0
+        ? Number(request.unit_price)
+        : (request.amount && qtyVal > 0 ? Math.round((Number(request.amount) / qtyVal) * 100) / 100 : 0);
+      const amtVal = request.amount && Number(request.amount) > 0
+        ? Number(request.amount)
+        : (upriceVal * qtyVal);
+
       const initialForm = {
         title: request.title || "",
         requester: request.requester || "",
@@ -262,9 +300,9 @@ export function EditRequestDialog({
         priority: request.priority || "MEDIUM",
         department: dept,
         item_url: request.item_url || "",
-        unit_price: request.unit_price ? request.unit_price.toString() : "",
-        quantity: request.quantity ? request.quantity.toString() : "1",
-        amount: request.amount ? request.amount.toString() : (request.unit_price ? request.unit_price.toString() : "0"),
+        unit_price: upriceVal ? upriceVal.toString() : "",
+        quantity: qtyVal ? qtyVal.toString() : "1",
+        amount: amtVal ? amtVal.toString() : "",
         description: request.description || "",
         gl_code: request.gl_code || "",
         due_date: request.due_date ? request.due_date.split("T")[0] : "",
@@ -287,6 +325,7 @@ export function EditRequestDialog({
           discount: Number(itm.discount) || 0,
           tax: Number(itm.tax) || 0,
           total: Number(itm.total) || (Number(itm.quantity || 1) * Number(itm.unit_price || 0)),
+          gl_code: itm.gl_code || "",
         }));
       }
       setItems(parsedItems);
@@ -910,6 +949,11 @@ export function EditRequestDialog({
                   }}
                 />
 
+                <WireBankingFields
+                  form={apWireForm}
+                  setForm={setApWireForm}
+                />
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
                   <GLCodeAutocomplete
@@ -935,15 +979,17 @@ export function EditRequestDialog({
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
-                    <Input
-                      type="date"
-                      value={formData.due_date}
-                      onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                      className="h-9 text-xs"
-                    />
-                  </div>
+                  {formData.request_type === "RECURRING" && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
+                      <Input
+                        type="date"
+                        value={formData.due_date}
+                        onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -1081,9 +1127,10 @@ export function EditRequestDialog({
                     <th className="p-3 w-12 text-center text-slate-400">#</th>
                     <th className="p-3 w-36 font-semibold">SKU</th>
                     <th className="p-3 font-semibold">Description</th>
-                    <th className="p-3 w-28 text-right font-semibold">Qty</th>
-                    <th className="p-3 w-36 text-right font-semibold">Unit Price ($)</th>
-                    <th className="p-3 w-36 text-right font-semibold">Total ($)</th>
+                    <th className="p-3 w-24 text-right font-semibold">Qty</th>
+                    <th className="p-3 w-32 text-right font-semibold">Unit Price ($)</th>
+                    <th className="p-3 w-32 text-right font-semibold">Total ($)</th>
+                    <th className="p-3 w-48 font-semibold">GL Code / Account</th>
                     <th className="p-3 w-12 text-center"></th>
                   </tr>
                 </thead>
@@ -1129,8 +1176,15 @@ export function EditRequestDialog({
                           className="h-10 text-sm text-right font-mono"
                         />
                       </td>
-                      <td className="p-3 w-36 text-right font-bold font-mono text-base text-slate-900 dark:text-zinc-100">
+                      <td className="p-3 w-32 text-right font-bold font-mono text-base text-slate-900 dark:text-zinc-100">
                         {formatMoney(itm.total)}
+                      </td>
+                      <td className="p-3 w-48">
+                        <GLCodeAutocomplete
+                          value={itm.gl_code || ""}
+                          onChange={(val) => handleItemChange(idx, "gl_code", val)}
+                          placeholder="Select GL code"
+                        />
                       </td>
                       <td className="p-3 text-center w-12">
                         <Button
@@ -1147,7 +1201,7 @@ export function EditRequestDialog({
                   ))}
                   {items.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="text-center py-12 text-slate-400 text-sm">
+                      <td colSpan={7} className="text-center py-12 text-slate-400 text-sm">
                         No line items added yet. Click &quot;Add Part&quot; above to create one.
                       </td>
                     </tr>

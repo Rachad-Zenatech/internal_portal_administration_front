@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Calendar as CalendarIcon,
+  CalendarClock,
   Table as TableIcon,
   Plus,
   AlertTriangle,
@@ -65,7 +66,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import GLCodeAutocomplete from "./GLCodeAutocomplete";
-import { TimezoneAutocomplete } from "./TimezoneAutocomplete";
+import {
+  formatRemainingDuration,
+  calculateInstallmentsCount,
+  generatePaymentSchedule,
+  formatDateToIso,
+  type FrequencyType,
+} from "./recurringScheduleUtils";
+import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
 
 interface CalendarCell {
   day: number;
@@ -263,6 +271,15 @@ export default function RecurringPayments() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [scheduleModalRequest, setScheduleModalRequest] = useState<PurchaseRequest | null>(null);
+  const [selectedCalendarInstallment, setSelectedCalendarInstallment] = useState<{
+    installmentNumber?: number;
+    totalInstallments?: number;
+    amount?: number;
+    dueDate?: string;
+    isProjected?: boolean;
+    isPaid?: boolean;
+  } | null>(null);
 
 
 
@@ -408,6 +425,10 @@ export default function RecurringPayments() {
     description: "",
     gl_code: "",
     priority: "MEDIUM",
+    is_scheduled: false,
+    frequency: "MONTHLY" as FrequencyType,
+    start_date: "",
+    end_date: "",
   });
 
   // Edit recurring request form state
@@ -421,6 +442,11 @@ export default function RecurringPayments() {
     description: "",
     gl_code: "",
     priority: "MEDIUM",
+    is_scheduled: false,
+    frequency: "MONTHLY" as FrequencyType,
+    start_date: "",
+    end_date: "",
+    completed_installments: 0,
   });
 
   const handleOpenCreate = () => {
@@ -434,15 +460,20 @@ export default function RecurringPayments() {
       ? resolveUserDepartment(matchedUser, rolesList)
       : resolveUserDepartment(user, rolesList);
 
+    const todayIso = new Date().toISOString().split("T")[0];
     setNewForm({
       title: "",
       requester: displayName,
       department: defaultDept,
       amount: "",
-      due_date: "",
+      due_date: todayIso,
       description: "",
       gl_code: "",
       priority: "MEDIUM",
+      is_scheduled: false,
+      frequency: "MONTHLY",
+      start_date: todayIso,
+      end_date: "",
     });
     setIsCreateOpen(true);
   };
@@ -483,15 +514,20 @@ export default function RecurringPayments() {
     onSuccess: (res) => {
       toast.success(`Recurring request #${res.request.id} created successfully`);
       setIsCreateOpen(false);
+      const todayIso = new Date().toISOString().split("T")[0];
       setNewForm({
         title: "",
         requester: "",
         department: "",
         amount: "",
-        due_date: "",
+        due_date: todayIso,
         description: "",
         gl_code: "",
         priority: "MEDIUM",
+        is_scheduled: false,
+        frequency: "MONTHLY",
+        start_date: todayIso,
+        end_date: "",
       });
       queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
       queryClient.invalidateQueries({ queryKey: ["purchasing"] });
@@ -535,6 +571,7 @@ export default function RecurringPayments() {
         dept = resolveUserDepartment(matched, rolesList);
       }
     }
+    const sched = req.recurring_schedule;
     setEditForm({
       id: req.id,
       title: req.title || "",
@@ -545,6 +582,11 @@ export default function RecurringPayments() {
       description: req.description || "",
       gl_code: req.gl_code || "",
       priority: req.priority || "MEDIUM",
+      is_scheduled: Boolean(sched?.is_scheduled),
+      frequency: (sched?.frequency as FrequencyType) || "MONTHLY",
+      start_date: sched?.start_date ? sched.start_date.split("T")[0] : (req.due_date ? req.due_date.split("T")[0] : ""),
+      end_date: sched?.end_date ? sched.end_date.split("T")[0] : "",
+      completed_installments: sched?.completed_installments || 0,
     });
     setIsEditOpen(true);
   };
@@ -569,6 +611,10 @@ export default function RecurringPayments() {
       return;
     }
 
+    const isSched = Boolean(newForm.is_scheduled && newForm.start_date && newForm.end_date);
+    const totalCycles = isSched ? calculateInstallmentsCount(newForm.start_date, newForm.end_date, newForm.frequency) : null;
+    const totalAmt = isSched && totalCycles ? Math.round(amt * totalCycles * 100) / 100 : null;
+
     createMutation.mutate({
       title: newForm.title,
       requester: newForm.requester,
@@ -580,8 +626,20 @@ export default function RecurringPayments() {
       quantity: 1,
       description: newForm.description,
       gl_code: newForm.gl_code || null,
-      due_date: newForm.due_date || null,
+      due_date: newForm.due_date || (isSched ? newForm.start_date : null),
       review_status: "WAITING_FOR_REVIEW",
+      recurring_schedule: isSched
+        ? {
+            is_scheduled: true,
+            frequency: newForm.frequency,
+            start_date: newForm.start_date,
+            end_date: newForm.end_date,
+            total_installments: totalCycles,
+            completed_installments: 0,
+            amount_per_cycle: amt,
+            total_amount: totalAmt,
+          }
+        : null,
     });
   };
 
@@ -605,6 +663,10 @@ export default function RecurringPayments() {
       return;
     }
 
+    const isSched = Boolean(editForm.is_scheduled && editForm.start_date && editForm.end_date);
+    const totalCycles = isSched ? calculateInstallmentsCount(editForm.start_date, editForm.end_date, editForm.frequency) : null;
+    const totalAmt = isSched && totalCycles ? Math.round(amt * totalCycles * 100) / 100 : null;
+
     updateMutation.mutate({
       id: editForm.id,
       payload: {
@@ -617,7 +679,19 @@ export default function RecurringPayments() {
         quantity: 1,
         description: editForm.description,
         gl_code: editForm.gl_code || null,
-        due_date: editForm.due_date || null,
+        due_date: editForm.due_date || (isSched ? editForm.start_date : null),
+        recurring_schedule: isSched
+          ? {
+              is_scheduled: true,
+              frequency: editForm.frequency,
+              start_date: editForm.start_date,
+              end_date: editForm.end_date,
+              total_installments: totalCycles,
+              completed_installments: editForm.completed_installments || 0,
+              amount_per_cycle: amt,
+              total_amount: totalAmt,
+            }
+          : null,
       },
     });
   };
@@ -1106,6 +1180,28 @@ export default function RecurringPayments() {
                               </Badge>
                             );
                           })()}
+                          {req.recurring_schedule?.is_scheduled && (
+                            <div className="flex flex-col gap-1 mt-1">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] py-0.5 px-1.5 bg-indigo-50/90 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 flex items-center gap-1 font-semibold"
+                              >
+                                <Clock className="h-2.5 w-2.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                                {formatRemainingDuration(req.recurring_schedule.end_date).text}
+                              </Badge>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setScheduleModalRequest(req);
+                                }}
+                                className="text-[10px] text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold underline text-left flex items-center gap-1 cursor-pointer"
+                              >
+                                <TableIcon className="h-2.5 w-2.5 shrink-0" />
+                                Schedule ({req.recurring_schedule.completed_installments || 0}/{req.recurring_schedule.total_installments || "?"})
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm font-bold text-slate-900 dark:text-zinc-100">
@@ -1152,6 +1248,20 @@ export default function RecurringPayments() {
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
+                          {req.recurring_schedule?.is_scheduled && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                              title="View Full Payment Schedule / Ledger"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setScheduleModalRequest(req);
+                              }}
+                            >
+                              <CalendarClock size={14} />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1247,13 +1357,59 @@ export default function RecurringPayments() {
           {/* Calendar Grid */}
           <div className="grid grid-cols-7 gap-2">
             {calendarCells.map((cell: CalendarCell, idx: number) => {
-              // Find items matching this date
-              const dayItems = cell.isCurrentMonth
-                ? filteredRequests.filter((r) => {
-                    const dStr = String(r.due_date || r.request_date || "").split("T")[0];
-                    return dStr === cell.dateStr;
-                  })
-                : [];
+              // Find items matching this date, including projected installments from scheduled requests
+              const cellItems: Array<{
+                id: string;
+                request: PurchaseRequest;
+                installmentNumber?: number;
+                totalInstallments?: number;
+                isProjected: boolean;
+                isPaid: boolean;
+                amount: number;
+                displayTitle: string;
+                isReviewed: boolean;
+              }> = [];
+
+              if (cell.isCurrentMonth) {
+                filteredRequests.forEach((req) => {
+                  if (req.recurring_schedule?.is_scheduled) {
+                    const installments = generatePaymentSchedule(
+                      req.recurring_schedule,
+                      req.amount || 0,
+                      req.currency || "USD",
+                      req.status
+                    );
+                    const match = installments.find((inst) => inst.dueDate === cell.dateStr);
+                    if (match) {
+                      const totalInst = req.recurring_schedule.total_installments || installments.length;
+                      cellItems.push({
+                        id: `${req.id}-inst-${match.installmentNumber}`,
+                        request: req,
+                        installmentNumber: match.installmentNumber,
+                        totalInstallments: totalInst,
+                        isProjected: match.status === "PROJECTED",
+                        isPaid: match.status === "PAID",
+                        amount: match.amount,
+                        displayTitle: `${req.title} (#${match.installmentNumber}/${totalInst})`,
+                        isReviewed: req.review_status === "REVIEWED",
+                      });
+                    }
+                  } else {
+                    const dStr = String(req.due_date || req.request_date || "").split("T")[0];
+                    if (dStr === cell.dateStr) {
+                      cellItems.push({
+                        id: `${req.id}-standard`,
+                        request: req,
+                        isProjected: false,
+                        isPaid: parseRequestStatus(req.status) === RequestStatus.Completed,
+                        amount: req.amount,
+                        displayTitle: req.title,
+                        isReviewed: req.review_status === "REVIEWED",
+                      });
+                    }
+                  }
+                });
+              }
 
               const todayStr = new Date().toISOString().split("T")[0];
               const isToday = cell.isCurrentMonth && todayStr === cell.dateStr;
@@ -1279,20 +1435,92 @@ export default function RecurringPayments() {
                     >
                       {cell.day}
                     </span>
-                    {dayItems.length > 0 && (
+                    {cellItems.length > 0 && (
                       <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded-full">
-                        {dayItems.length}
+                        {cellItems.length}
                       </span>
                     )}
                   </div>
 
                   <div className="space-y-1.5 mt-1 flex-1 overflow-y-auto max-h-[90px] scrollbar-hide">
-                    {dayItems.map((item) => {
-                      const isItemReviewed = item.review_status === "REVIEWED";
+                    {cellItems.map((item) => {
+                      const isItemReviewed = item.isReviewed;
+                      if (item.isProjected) {
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setSelectedCalendarItem(item.request);
+                              setSelectedCalendarInstallment({
+                                installmentNumber: item.installmentNumber,
+                                totalInstallments: item.totalInstallments,
+                                amount: item.amount,
+                                dueDate: cell.dateStr,
+                                isProjected: true,
+                                isPaid: false,
+                              });
+                            }}
+                            className="w-full text-left p-1.5 rounded-md text-[11px] font-medium border shadow-2xs transition-all hover:scale-[1.02] cursor-pointer bg-slate-50/90 text-slate-800 border-dashed border-indigo-300 dark:bg-zinc-800/60 dark:text-zinc-200 dark:border-indigo-700/60"
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="truncate font-medium text-slate-800 dark:text-zinc-200">
+                                {item.displayTitle}
+                              </span>
+                              <span className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-1 rounded border border-indigo-200 dark:border-indigo-800 shrink-0">
+                                Proj
+                              </span>
+                            </div>
+                            <div className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 mt-0.5">
+                              {formatMoney(item.amount)}
+                            </div>
+                          </button>
+                        );
+                      }
+
+                      if (item.isPaid) {
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setSelectedCalendarItem(item.request);
+                              setSelectedCalendarInstallment({
+                                installmentNumber: item.installmentNumber,
+                                totalInstallments: item.totalInstallments,
+                                amount: item.amount,
+                                dueDate: cell.dateStr,
+                                isProjected: false,
+                                isPaid: true,
+                              });
+                            }}
+                            className="w-full text-left p-1.5 rounded-md text-[11px] font-medium border shadow-2xs transition-all hover:scale-[1.02] cursor-pointer bg-emerald-50/90 text-emerald-950 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800/80"
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="truncate font-semibold text-emerald-950 dark:text-emerald-100">
+                                {item.displayTitle}
+                              </span>
+                              <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                            </div>
+                            <div className="text-[10px] font-bold opacity-85 mt-0.5">
+                              {formatMoney(item.amount)}
+                            </div>
+                          </button>
+                        );
+                      }
+
                       return (
                         <button
                           key={item.id}
-                          onClick={() => setSelectedCalendarItem(item)}
+                          onClick={() => {
+                            setSelectedCalendarItem(item.request);
+                            setSelectedCalendarInstallment({
+                              installmentNumber: item.installmentNumber,
+                              totalInstallments: item.totalInstallments,
+                              amount: item.amount,
+                              dueDate: cell.dateStr,
+                              isProjected: false,
+                              isPaid: false,
+                            });
+                          }}
                           className={`w-full text-left p-1.5 rounded-md text-[11px] font-medium border shadow-2xs transition-all hover:scale-[1.02] cursor-pointer ${
                             isItemReviewed
                               ? "bg-sky-50/90 text-sky-950 border-sky-200/90 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-800/80"
@@ -1301,7 +1529,7 @@ export default function RecurringPayments() {
                         >
                           <div className="flex items-center justify-between gap-1">
                             <span className="truncate font-semibold text-slate-900 dark:text-zinc-100">
-                              {item.title}
+                              {item.displayTitle}
                             </span>
                             <span
                               className={`w-1.5 h-1.5 rounded-full shrink-0 ${
@@ -1369,6 +1597,37 @@ export default function RecurringPayments() {
                 <span className="text-muted-foreground">Requester:</span>
                 <span className="font-medium">{selectedCalendarItem.requester}</span>
               </div>
+              {selectedCalendarItem.recurring_schedule?.is_scheduled && (
+                <>
+                  <div className="flex justify-between items-center bg-indigo-50/60 dark:bg-indigo-950/30 p-2 rounded border border-indigo-100 dark:border-indigo-900/50">
+                    <span className="text-indigo-900 dark:text-indigo-200 font-medium">Schedule Horizon:</span>
+                    <Badge variant="outline" className="bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-900 dark:text-indigo-200 font-semibold">
+                      {formatRemainingDuration(selectedCalendarItem.recurring_schedule.end_date).text}
+                    </Badge>
+                  </div>
+                  {selectedCalendarInstallment?.installmentNumber && (
+                    <div className="flex justify-between text-xs text-slate-600 dark:text-zinc-400">
+                      <span>Milestone Cycle:</span>
+                      <span className="font-semibold text-slate-900 dark:text-zinc-100">
+                        Installment #{selectedCalendarInstallment.installmentNumber} of {selectedCalendarInstallment.totalInstallments || selectedCalendarItem.recurring_schedule.total_installments}
+                        {selectedCalendarInstallment.isProjected ? " (Projected)" : selectedCalendarInstallment.isPaid ? " (Settled)" : " (Current)"}
+                      </span>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 text-xs cursor-pointer"
+                    onClick={() => {
+                      setScheduleModalRequest(selectedCalendarItem);
+                    }}
+                  >
+                    <CalendarClock className="h-3.5 w-3.5 mr-1" />
+                    View Full Payment Schedule / Ledger
+                  </Button>
+                </>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Department:</span>
                 <span>{selectedCalendarItem.department}</span>
@@ -1526,6 +1785,143 @@ export default function RecurringPayments() {
                 />
               </div>
 
+              {/* Schedule Payment Horizon & Fixed Duration */}
+              <div className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-semibold flex items-center gap-1.5 text-slate-800 dark:text-zinc-200">
+                      <CalendarClock className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      Fixed Schedule Horizon
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Set a projected range (e.g. Chicago Rent — "2 years 2 months left", multi-year leases).
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="create-sched-check"
+                      checked={newForm.is_scheduled}
+                      onCheckedChange={(checked) => {
+                        const isChecked = Boolean(checked);
+                        const sDate = newForm.start_date || newForm.due_date || new Date().toISOString().split("T")[0];
+                        let eDate = newForm.end_date;
+                        if (isChecked && !eDate) {
+                          const d = new Date(sDate + "T00:00:00");
+                          d.setFullYear(d.getFullYear() + 2);
+                          eDate = formatDateToIso(d);
+                        }
+                        setNewForm((prev) => ({
+                          ...prev,
+                          is_scheduled: isChecked,
+                          start_date: sDate,
+                          end_date: eDate,
+                          due_date: prev.due_date || sDate,
+                        }));
+                      }}
+                    />
+                    <label htmlFor="create-sched-check" className="text-xs font-semibold cursor-pointer text-slate-700 dark:text-zinc-300">
+                      Scheduled Plan
+                    </label>
+                  </div>
+                </div>
+
+                {newForm.is_scheduled && (
+                  <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-zinc-800">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Frequency</label>
+                        <Select
+                          value={newForm.frequency}
+                          onValueChange={(v: FrequencyType) => setNewForm({ ...newForm, frequency: v })}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="MONTHLY">Monthly</SelectItem>
+                            <SelectItem value="QUARTERLY">Quarterly (3 Mos)</SelectItem>
+                            <SelectItem value="SEMI_ANNUALLY">Semi-Annually (6 Mos)</SelectItem>
+                            <SelectItem value="ANNUALLY">Annually (1 Yr)</SelectItem>
+                            <SelectItem value="BI_WEEKLY">Bi-Weekly (2 Wks)</SelectItem>
+                            <SelectItem value="WEEKLY">Weekly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Start Date</label>
+                        <Input
+                          type="date"
+                          className="h-8 text-xs"
+                          value={newForm.start_date}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNewForm((prev) => ({
+                              ...prev,
+                              start_date: val,
+                              due_date: prev.due_date || val,
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">End Date</label>
+                        <Input
+                          type="date"
+                          className="h-8 text-xs"
+                          value={newForm.end_date}
+                          onChange={(e) => setNewForm({ ...newForm, end_date: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Presets */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] text-muted-foreground mr-1">Presets:</span>
+                      {[
+                        { label: "+6 Mos", months: 6 },
+                        { label: "+1 Yr", months: 12 },
+                        { label: "+2 Yrs", months: 24 },
+                        { label: "+3 Yrs", months: 36 },
+                        { label: "+5 Yrs", months: 60 },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            const base = newForm.start_date ? new Date(newForm.start_date + "T00:00:00") : new Date();
+                            const end = new Date(base);
+                            end.setMonth(end.getMonth() + preset.months);
+                            setNewForm({ ...newForm, end_date: formatDateToIso(end) });
+                          }}
+                          className="text-[11px] px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-medium transition-colors cursor-pointer"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {newForm.start_date && newForm.end_date && (
+                      <div className="bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 rounded-md p-2.5 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold border-indigo-300">
+                            {formatRemainingDuration(newForm.end_date, newForm.start_date).text}
+                          </Badge>
+                          <span className="text-slate-600 dark:text-zinc-300 font-medium">
+                            {calculateInstallmentsCount(newForm.start_date, newForm.end_date, newForm.frequency)} installments
+                          </span>
+                        </div>
+                        {Number(newForm.amount) > 0 && (
+                          <div className="font-semibold text-slate-900 dark:text-zinc-100">
+                            Total: {formatMoney(Number(newForm.amount) * calculateInstallmentsCount(newForm.start_date, newForm.end_date, newForm.frequency))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Description / Terms</label>
                 <textarea
@@ -1657,6 +2053,143 @@ export default function RecurringPayments() {
                   />
                 </div>
 
+              {/* Schedule Payment Horizon & Fixed Duration */}
+              <div className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-semibold flex items-center gap-1.5 text-slate-800 dark:text-zinc-200">
+                      <CalendarClock className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      Fixed Schedule Horizon
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Set a projected range (e.g. Chicago Rent — "2 years 2 months left", multi-year leases).
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="edit-sched-check"
+                      checked={editForm.is_scheduled}
+                      onCheckedChange={(checked) => {
+                        const isChecked = Boolean(checked);
+                        const sDate = editForm.start_date || editForm.due_date || new Date().toISOString().split("T")[0];
+                        let eDate = editForm.end_date;
+                        if (isChecked && !eDate) {
+                          const d = new Date(sDate + "T00:00:00");
+                          d.setFullYear(d.getFullYear() + 2);
+                          eDate = formatDateToIso(d);
+                        }
+                        setEditForm((prev) => ({
+                          ...prev,
+                          is_scheduled: isChecked,
+                          start_date: sDate,
+                          end_date: eDate,
+                          due_date: prev.due_date || sDate,
+                        }));
+                      }}
+                    />
+                    <label htmlFor="edit-sched-check" className="text-xs font-semibold cursor-pointer text-slate-700 dark:text-zinc-300">
+                      Scheduled Plan
+                    </label>
+                  </div>
+                </div>
+
+                {editForm.is_scheduled && (
+                  <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-zinc-800">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Frequency</label>
+                        <Select
+                          value={editForm.frequency}
+                          onValueChange={(v: FrequencyType) => setEditForm({ ...editForm, frequency: v })}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="MONTHLY">Monthly</SelectItem>
+                            <SelectItem value="QUARTERLY">Quarterly (3 Mos)</SelectItem>
+                            <SelectItem value="SEMI_ANNUALLY">Semi-Annually (6 Mos)</SelectItem>
+                            <SelectItem value="ANNUALLY">Annually (1 Yr)</SelectItem>
+                            <SelectItem value="BI_WEEKLY">Bi-Weekly (2 Wks)</SelectItem>
+                            <SelectItem value="WEEKLY">Weekly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Start Date</label>
+                        <Input
+                          type="date"
+                          className="h-8 text-xs"
+                          value={editForm.start_date}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setEditForm((prev) => ({
+                              ...prev,
+                              start_date: val,
+                              due_date: prev.due_date || val,
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">End Date</label>
+                        <Input
+                          type="date"
+                          className="h-8 text-xs"
+                          value={editForm.end_date}
+                          onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Presets */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] text-muted-foreground mr-1">Presets:</span>
+                      {[
+                        { label: "+6 Mos", months: 6 },
+                        { label: "+1 Yr", months: 12 },
+                        { label: "+2 Yrs", months: 24 },
+                        { label: "+3 Yrs", months: 36 },
+                        { label: "+5 Yrs", months: 60 },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            const base = editForm.start_date ? new Date(editForm.start_date + "T00:00:00") : new Date();
+                            const end = new Date(base);
+                            end.setMonth(end.getMonth() + preset.months);
+                            setEditForm({ ...editForm, end_date: formatDateToIso(end) });
+                          }}
+                          className="text-[11px] px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-medium transition-colors cursor-pointer"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {editForm.start_date && editForm.end_date && (
+                      <div className="bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 rounded-md p-2.5 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold border-indigo-300">
+                            {formatRemainingDuration(editForm.end_date, editForm.start_date).text}
+                          </Badge>
+                          <span className="text-slate-600 dark:text-zinc-300 font-medium">
+                            {calculateInstallmentsCount(editForm.start_date, editForm.end_date, editForm.frequency)} installments
+                          </span>
+                        </div>
+                        {Number(editForm.amount) > 0 && (
+                          <div className="font-semibold text-slate-900 dark:text-zinc-100">
+                            Total: {formatMoney(Number(editForm.amount) * calculateInstallmentsCount(editForm.start_date, editForm.end_date, editForm.frequency))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Description / Terms</label>
                   <textarea
@@ -1771,42 +2304,7 @@ export default function RecurringPayments() {
               </div>
             </div>
 
-            {/* Sender Email */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase text-muted-foreground">
-                Sender Email (Graph / SMTP)
-              </label>
-              <Input
-                type="email"
-                placeholder="Default: Logged-in user's email address"
-                value={settingsForm.sender_email || ""}
-                onChange={(e) =>
-                  setSettingsForm({
-                    ...settingsForm,
-                    sender_email: e.target.value,
-                  })
-                }
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Leave blank to automatically send as the active logged-in user.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase text-muted-foreground">
-                Timezone
-              </label>
-              <TimezoneAutocomplete
-                value={settingsForm.timezone}
-                onChange={(tz) =>
-                  setSettingsForm({
-                    ...settingsForm,
-                    timezone: tz,
-                  })
-                }
-                placeholder="Select timezone (e.g. America/New_York)..."
-              />
-            </div>
+            
 
             {/* Test Trigger Button */}
             <div className="pt-2 border-t flex items-center justify-between">
@@ -1843,6 +2341,12 @@ export default function RecurringPayments() {
           </form>
         </DialogContent>
       </Dialog>
+      {/* Schedule Breakdown Ledger Modal */}
+      <ScheduleBreakdownModal
+        request={scheduleModalRequest}
+        open={!!scheduleModalRequest}
+        onOpenChange={(open) => !open && setScheduleModalRequest(null)}
+      />
     </div>
   );
 }
