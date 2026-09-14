@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { FileSpreadsheet, Download, Calendar, Loader2, CheckCircle2, FolderArchive, FileText, Layers, Check } from "lucide-react";
 import { toast } from "sonner";
 import {
+  exportQuickBooksCsv,
   exportQuickBooksXlsx,
   exportQuickBooksBundle,
   exportQuickBooksDocuments,
@@ -33,7 +34,7 @@ const MONTHS = [
   { value: "12", label: "December (12)" },
 ];
 
-type ExportMode = "XLSX" | "BUNDLE" | "DOCUMENTS" | "RECONCILIATION";
+type ExportMode = "CSV" | "BUNDLE" | "DOCUMENTS" | "RECONCILIATION";
 
 export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportDialogProps) {
   const now = new Date();
@@ -51,7 +52,7 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
 
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
   const [selectedMonth, setSelectedMonth] = useState<string>(String(currentMonth));
-  const [exportMode, setExportMode] = useState<ExportMode>("XLSX");
+  const [exportMode, setExportMode] = useState<ExportMode>("CSV");
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
@@ -71,8 +72,8 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
         await exportQuickBooksReconciliation(undefined, "COMPLETED", yearParam, monthParam);
         toast.success("Reconciliation manifest downloaded successfully", { id: "qb-export" });
       } else {
-        await exportQuickBooksXlsx(undefined, "COMPLETED", yearParam, monthParam);
-        toast.success("QuickBooks Excel export downloaded successfully", { id: "qb-export" });
+        await exportQuickBooksCsv(undefined, "COMPLETED", yearParam, monthParam);
+        toast.success("QuickBooks CSV export downloaded successfully", { id: "qb-export" });
       }
 
       onOpenChange(false);
@@ -113,23 +114,23 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => setExportMode("XLSX")}
-                onKeyDown={(e) => e.key === "Enter" && setExportMode("XLSX")}
+                onClick={() => setExportMode("CSV")}
+                onKeyDown={(e) => e.key === "Enter" && setExportMode("CSV")}
                 className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors text-left ${
-                  exportMode === "XLSX"
+                  exportMode === "CSV"
                     ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs"
                     : "border-border/70 hover:bg-muted/30"
                 }`}
               >
                 <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
-                  exportMode === "XLSX" ? "border-emerald-600 bg-emerald-600 text-white" : "border-muted-foreground/50"
+                  exportMode === "CSV" ? "border-emerald-600 bg-emerald-600 text-white" : "border-muted-foreground/50"
                 }`}>
-                  {exportMode === "XLSX" && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                  {exportMode === "CSV" && <Check className="h-2.5 w-2.5 stroke-[3]" />}
                 </div>
                 <div className="space-y-0.5 flex-1">
                   <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>QuickBooks Transactions (.xlsx)</span>
+                    <span>QuickBooks Transactions (.csv)</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
                     12 standardized columns formatted for direct QuickBooks Online bill import.
