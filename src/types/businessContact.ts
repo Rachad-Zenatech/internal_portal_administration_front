@@ -14,6 +14,7 @@ export interface BusinessContactReference {
   account_name: string;
   account_type: string;
   is_active: boolean;
+  banking_details?: Record<string, any> | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -32,6 +33,7 @@ export interface BusinessContactCreateRequest {
   account_name?: string;
   account_type?: string;
   is_active?: boolean;
+  banking_details?: Record<string, any> | null;
 }
 
 export interface BusinessContactUpdateRequest {
@@ -47,6 +49,7 @@ export interface BusinessContactUpdateRequest {
   account_name?: string;
   account_type?: string;
   is_active?: boolean;
+  banking_details?: Record<string, any> | null;
 }
 
 export interface BusinessContactDeleteResult {

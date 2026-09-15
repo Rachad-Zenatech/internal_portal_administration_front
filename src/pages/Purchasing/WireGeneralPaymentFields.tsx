@@ -275,6 +275,25 @@ export function WireGeneralPaymentFields({
                 onVendorChange?.(val);
                 onClearValidationError?.("vendor");
               }}
+              onSelectContact={(contact) => {
+                setForm((prev) => {
+                  const bd = (contact.banking_details as Record<string, any>) || {};
+                  const updated: WireTransferInput = {
+                    ...prev,
+                    vendor: contact.display_name || prev.vendor,
+                    vendor_address: contact.bill_address || prev.vendor_address,
+                    vendor_email: contact.email || prev.vendor_email,
+                  };
+                  Object.keys(bd).forEach((k) => {
+                    if (bd[k] !== undefined && bd[k] !== null && String(bd[k]).trim() !== "") {
+                      (updated as any)[k] = bd[k];
+                    }
+                  });
+                  return updated;
+                });
+                onVendorChange?.(contact.display_name);
+                onClearValidationError?.("vendor");
+              }}
               options={knownVendors}
               fetchOptions={getKnownVendors}
               placeholder="Search or enter vendor name (e.g. Acme Corp)"

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useGLCodes } from "@/hooks/usePurchasing";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -23,27 +24,53 @@ export function GLCodeAutocomplete({
   const { data: glCodes = [], isLoading } = useGLCodes();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [openUpward, setOpenUpward] = useState(false);
+  const [coords, setCoords] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    openUpward: boolean;
+  }>({ top: 0, left: 0, width: 260, openUpward: false });
+
   const containerRef = useRef<HTMLDivElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Determine whether to open upward or downward
+  // Calculate coordinates relative to viewport for floating portal
   useEffect(() => {
     if (isOpen && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      if (spaceBelow < 280 && rect.top > spaceBelow) {
-        setOpenUpward(true);
-      } else {
-        setOpenUpward(false);
-      }
+      const updatePosition = () => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const shouldOpenUp = spaceBelow < 280 && rect.top > spaceBelow;
+        setCoords({
+          top: shouldOpenUp ? rect.top : rect.bottom,
+          left: Math.max(8, Math.min(rect.left, window.innerWidth - 340)),
+          width: Math.max(rect.width, 320),
+          openUpward: shouldOpenUp,
+        });
+      };
+
+      updatePosition();
+      window.addEventListener("scroll", updatePosition, true);
+      window.addEventListener("resize", updatePosition);
+      return () => {
+        window.removeEventListener("scroll", updatePosition, true);
+        window.removeEventListener("resize", updatePosition);
+      };
     }
   }, [isOpen]);
 
   // Close dropdown on outside click or Escape key
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target) &&
+        portalRef.current &&
+        !portalRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     }
@@ -91,7 +118,7 @@ export function GLCodeAutocomplete({
   return (
     <div
       ref={containerRef}
-      className={`relative ${isOpen ? "z-50" : "z-10"} ${className}`}
+      className={`relative ${className}`}
     >
       {/* Trigger / Input Display */}
       <div
@@ -154,12 +181,21 @@ export function GLCodeAutocomplete({
         </div>
       </div>
 
-      {/* Popover Dropdown rendered inside Dialog DOM tree */}
-      {isOpen && (
+      {/* Floating Portal Dropdown rendered outside tables on top of everything */}
+      {isOpen && typeof document !== "undefined" && createPortal(
         <div
-          className={`absolute ${
-            openUpward ? "bottom-full mb-1.5" : "top-full mt-1.5"
-          } left-0 min-w-full w-max max-w-[480px] z-50 rounded-lg border border-slate-200 dark:border-zinc-800 bg-popover text-popover-foreground shadow-2xl overflow-hidden`}
+          ref={portalRef}
+          style={{
+            position: "fixed",
+            top: coords.openUpward ? "auto" : `${coords.top + 4}px`,
+            bottom: coords.openUpward ? `${window.innerHeight - coords.top + 4}px` : "auto",
+            left: `${coords.left}px`,
+            width: `${coords.width}px`,
+            maxWidth: "480px",
+            zIndex: 99999,
+          }}
+          className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-popover text-popover-foreground shadow-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-100"
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="p-2 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50">
             <Input
@@ -214,7 +250,8 @@ export function GLCodeAutocomplete({
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

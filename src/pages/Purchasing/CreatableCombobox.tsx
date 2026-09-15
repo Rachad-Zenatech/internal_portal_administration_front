@@ -13,6 +13,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Check, ChevronsUpDown, Plus, X, Building, Loader2 } from "lucide-react";
+import type { BusinessContactReference } from "@/types/businessContact";
+import { WireBankingFields } from "./WireBankingFields";
+import type { WireTransferInput } from "@/types/purchasing";
 import { financeService } from "@/services/financeService";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -32,6 +35,7 @@ interface CreatableComboboxProps {
   required?: boolean;
   name?: string;
   enableCreationModal?: boolean;
+  onSelectContact?: (contact: BusinessContactReference) => void;
 }
 
 export function CreatableCombobox({
@@ -49,6 +53,7 @@ export function CreatableCombobox({
   required = false,
   name,
   enableCreationModal,
+  onSelectContact,
 }: CreatableComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value || "");
@@ -64,6 +69,7 @@ export function CreatableCombobox({
     entityTypeLabel.toLowerCase().includes("payee") ||
     enableCreationModal === true;
 
+  const [contactMap, setContactMap] = useState<Record<string, BusinessContactReference>>({});
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm, setCreateForm] = useState({
     display_name: "",
@@ -72,6 +78,16 @@ export function CreatableCombobox({
     phone_numbers: "",
     bill_address: "",
     ship_address: "",
+  });
+  const [bankingForm, setBankingForm] = useState<WireTransferInput>({
+    bank_name: "",
+    bank_country: "",
+    bank_account_number: "",
+    bank_address: "",
+    routing_wire: "",
+    routing_ach: "",
+    swift_code: "",
+    iban: "",
   });
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -116,6 +132,31 @@ export function CreatableCombobox({
       });
   };
 
+  // Pre-load payable contacts map when isVendorEntity
+  useEffect(() => {
+    if (isVendorEntity) {
+      financeService
+        .getPayableContacts({ limit: 500 })
+        .then((res) => {
+          if (res && res.items) {
+            const map: Record<string, BusinessContactReference> = {};
+            const names: string[] = [];
+            res.items.forEach((c) => {
+              if (c.display_name) {
+                map[c.display_name.toLowerCase()] = c;
+                names.push(c.display_name);
+              }
+            });
+            setContactMap((prev) => ({ ...prev, ...map }));
+            setOptionsList((prev) =>
+              Array.from(new Set([...prev, ...names])).filter(Boolean)
+            );
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isVendorEntity]);
+
   // Fetch remote options on mount
   useEffect(() => {
     loadRemoteOptions();
@@ -157,10 +198,14 @@ export function CreatableCombobox({
 
   const totalItemsCount = (showAddOption ? 1 : 0) + filteredOptions.length;
 
-  const selectOption = (val: string) => {
+  const selectOption = (val: string, customContact?: BusinessContactReference) => {
     setQuery(val);
     onChange(val);
     setOpen(false);
+    const matched = customContact || contactMap[val.toLowerCase()];
+    if (matched) {
+      onSelectContact?.(matched);
+    }
   };
 
   const handleAddNew = () => {
@@ -175,6 +220,16 @@ export function CreatableCombobox({
         phone_numbers: "",
         bill_address: "",
         ship_address: "",
+      });
+      setBankingForm({
+        bank_name: "",
+        bank_country: "",
+        bank_account_number: "",
+        bank_address: "",
+        routing_wire: "",
+        routing_ach: "",
+        swift_code: "",
+        iban: "",
       });
       setCreateError(null);
       setOpen(false);
@@ -197,7 +252,14 @@ export function CreatableCombobox({
     setCreateError(null);
 
     try {
-      await financeService.createPayableContact({
+      const banking_details: Record<string, any> = {};
+      Object.entries(bankingForm).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && String(v).trim() !== "") {
+          banking_details[k] = typeof v === "string" ? v.trim() : v;
+        }
+      });
+
+      const created = await financeService.createPayableContact({
         account_side: "ap",
         contact_type: "vendor",
         display_name: vendorName,
@@ -206,7 +268,18 @@ export function CreatableCombobox({
         phone_numbers: createForm.phone_numbers.trim() || null,
         bill_address: createForm.bill_address.trim() || null,
         ship_address: createForm.ship_address.trim() || null,
+        banking_details: Object.keys(banking_details).length > 0 ? banking_details : undefined,
       });
+
+      const fullContact: BusinessContactReference = {
+        ...created,
+        banking_details: Object.keys(banking_details).length > 0 ? banking_details : undefined,
+      };
+
+      setContactMap((prev) => ({
+        ...prev,
+        [vendorName.toLowerCase()]: fullContact,
+      }));
 
       // Invalidate queries so other components update
       queryClient.invalidateQueries({ queryKey: ["purchasing_vendors"] });
@@ -217,7 +290,7 @@ export function CreatableCombobox({
         vendorName,
         ...prev.filter((o) => o.toLowerCase() !== vendorName.toLowerCase()),
       ]);
-      selectOption(vendorName);
+      selectOption(vendorName, fullContact);
       setCreateModalOpen(false);
       toast.success(`Vendor "${vendorName}" created and selected.`);
     } catch (err) {
@@ -474,7 +547,7 @@ export function CreatableCombobox({
       {/* Create New Vendor Dialog */}
       {isVendorEntity && (
         <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[700px] max-h-[88vh] overflow-y-auto">
             <form onSubmit={handleCreateVendorSubmit}>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -586,6 +659,14 @@ export function CreatableCombobox({
                       })
                     }
                     className="text-xs resize-none"
+                  />
+                </div>
+
+                {/* Beneficiary Bank Details & Global & Regional Clearing Codes */}
+                <div className="sm:col-span-2 pt-2 border-t border-slate-200 dark:border-zinc-800">
+                  <WireBankingFields
+                    form={bankingForm}
+                    setForm={setBankingForm}
                   />
                 </div>
               </div>

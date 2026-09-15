@@ -31,11 +31,15 @@ import {
   Download,
   Landmark,
   Calendar,
+  CalendarClock,
   ShieldAlert,
   DollarSign,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { formatRemainingDuration } from "./recurringScheduleUtils";
+import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,7 +76,7 @@ import {
   useUpdateWireTransfer,
 } from "@/hooks/usePurchasing";
 import * as purchasingService from "@/services/purchasingService";
-import { EditRequestDialog } from "./EditRequestDialog";
+import { EditCombinedRequestDialog } from "./EditCombinedRequestDialog";
 import { WireTransferDialog } from "./WireTransferDialog";
 import { useAuth } from "@/lib/AuthContext";
 import Stepper from "@/components/Stepper";
@@ -252,8 +256,9 @@ export default function RequestDetail() {
   const reviewMutation = useUpdateReviewStatus();
 
 
-  const { user } = useAuth();
+  const { user, roles: userRoles = [], workflow_roles = [], hasRole } = useAuth();
 
+  const [isScheduleLedgerOpen, setIsScheduleLedgerOpen] = useState(false);
   const [activeForm, setActiveForm] = useState<{ action: WorkflowAction; kind: FormKind } | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [poItems, setPoItems] = useState<any[]>([]);
@@ -329,7 +334,7 @@ export default function RequestDetail() {
   }, [user]);
 
   const isRecurring = data?.request?.request_type === "RECURRING";
-  const isAP = data?.request?.request_type === "ACCOUNTS_PAYABLE";
+  const isAPRequest = data?.request?.request_type === "ACCOUNTS_PAYABLE";
   const backUrl = isRecurring ? "/purchasing/recurring" : "/purchasing/requests";
   const backLabel = isRecurring ? "Recurring Payments" : "Purchase Requests";
 
@@ -393,11 +398,16 @@ export default function RequestDetail() {
     if (itm.gl_code) return itm.gl_code;
     return null;
   };
+  const isCC = (request as any)?.payment_method === "CC" || data?.purchase_order?.payment_method === "CC";
   let flow = SPEND_FLOW;
   if (request.request_type === "ADMIN") flow = ADMIN_FLOW;
   else if (request.request_type === "ACCOUNTS_PAYABLE") flow = ACCOUNTS_PAYABLE_FLOW;
   else if (request.request_type === "RECURRING") flow = RECURRING_FLOW;
   else if (request.request_type === "QUOTE") flow = QUOTE_FLOW;
+
+  if (isCC && flow === SPEND_FLOW) {
+    flow = flow.filter(st => st !== RequestStatus.WaitingPayment);
+  }
 
   const dispatch = async (payload: TransitionInput): Promise<boolean> => {
     try {
@@ -451,8 +461,12 @@ export default function RequestDetail() {
 
     const meta = ACTION_META[action];
     if (action === "COMPLETE") {
-      // The next due date calculation dialog only shows for recurring payment cycles, not standard requests
+      // If it is a scheduled recurring payment, bypass period picker dialog since time range and dates are predetermined
       if (isRecurring) {
+        if (request.recurring_schedule?.is_scheduled) {
+          void dispatch({ action });
+          return;
+        }
         const baseDate = request.due_date || request.request_date || new Date().toISOString().split("T")[0];
         const initialCalculated = calculateNextDueDate(baseDate, "MONTHLY");
         setCompleteData({
@@ -766,9 +780,94 @@ export default function RequestDetail() {
   const vendorCompanyName = request.quote_data?.vendor?.name || (request.title?.includes(" - ") ? request.title.split(" - ")[0] : "");
   const customerCompanyName = request.quote_data?.customer?.name;
 
-  const isEditableStatus = (
-    [RequestStatus.Initial, RequestStatus.New, RequestStatus.UnderReview] as readonly RequestStatus[]
-  ).includes(request.status);
+  const isEditableStatus =
+    request.status !== RequestStatus.Completed &&
+    (request.status as string) !== "COMPLETED" &&
+    request.status !== RequestStatus.Rejected &&
+    (request.status as string) !== "REJECTED";
+
+  // Role checks for PURCHASING, AP, MANAGER, EXECUTIVE, and SUPER ADMIN (plus ADMIN)
+  const isPurchasing = Boolean(
+    workflow_roles.includes("PURCHASING") ||
+    workflow_roles.includes("PURCHASER") ||
+    hasRole?.("PURCHASING") ||
+    hasRole?.("PURCHASER") ||
+    hasRole?.("BUYER") ||
+    userRoles.some((r) => {
+      const c = (r.code || "").toUpperCase();
+      const n = (r.name || "").toUpperCase();
+      return c === "PURCHASING" || c === "PURCHASER" || c.includes("PURCHAS") || n === "PURCHASING" || n.includes("PURCHAS");
+    }) ||
+    user?.department?.toUpperCase().includes("PURCHAS")
+  );
+
+  const isAPRole = Boolean(
+    workflow_roles.includes("AP") ||
+    workflow_roles.includes("ACCOUNTS_PAYABLE") ||
+    workflow_roles.includes("ACCTS_PAY") ||
+    hasRole?.("AP") ||
+    hasRole?.("ACCTS_PAY") ||
+    hasRole?.("ACCOUNTS_PAYABLE") ||
+    userRoles.some((r) => {
+      const c = (r.code || "").toUpperCase();
+      const n = (r.name || "").toUpperCase();
+      return c === "AP" || c === "ACCTS_PAY" || c.includes("AP") || n === "AP" || n.includes("ACCOUNTS PAYABLE");
+    }) ||
+    user?.department?.toUpperCase().includes("ACCOUNT") ||
+    user?.department?.toUpperCase().includes("AP")
+  );
+
+  const isManager = Boolean(
+    workflow_roles.includes("MANAGER") ||
+    hasRole?.("MANAGER") ||
+    userRoles.some((r) => {
+      const c = (r.code || "").toUpperCase();
+      const n = (r.name || "").toUpperCase();
+      return c === "MANAGER" || c.includes("MANAGER") || n === "MANAGER" || n.includes("MANAGER");
+    })
+  );
+
+  const isExecutive = Boolean(
+    workflow_roles.includes("EXECUTIVE") ||
+    workflow_roles.includes("EXEC") ||
+    hasRole?.("EXECUTIVE") ||
+    hasRole?.("EXEC") ||
+    userRoles.some((r) => {
+      const c = (r.code || "").toUpperCase();
+      const n = (r.name || "").toUpperCase();
+      return c === "EXECUTIVE" || c === "EXEC" || c.includes("EXEC") || n === "EXECUTIVE" || n.includes("EXECUTIVE");
+    })
+  );
+
+  const isSuperAdmin = Boolean(
+    user?.is_super_admin ||
+    workflow_roles.includes("SUPER_ADMIN") ||
+    workflow_roles.includes("SUPER ADMIN") ||
+    workflow_roles.includes("SUPERADMIN") ||
+    hasRole?.("SUPER_ADMIN") ||
+    hasRole?.("SUPER ADMIN") ||
+    hasRole?.("SUPERADMIN") ||
+    userRoles.some((r) => {
+      const c = (r.code || "").toUpperCase();
+      const n = (r.name || "").toUpperCase();
+      return c === "SUPER_ADMIN" || c === "SUPER ADMIN" || c.includes("SUPER_ADMIN") || n === "SUPER ADMIN" || n.includes("SUPER ADMIN");
+    })
+  );
+
+  const isAdmin = Boolean(
+    isSuperAdmin ||
+    workflow_roles.includes("ADMIN") ||
+    workflow_roles.includes("ADMINISTRATOR") ||
+    hasRole?.("ADMIN") ||
+    hasRole?.("ADMINISTRATOR") ||
+    userRoles.some((r) => {
+      const c = (r.code || "").toUpperCase();
+      const n = (r.name || "").toUpperCase();
+      return c === "ADMIN" || c.includes("ADMIN") || n === "ADMIN" || n.includes("ADMIN");
+    })
+  );
+
+  const isPrivilegedPurchasingRole = isPurchasing || isAPRole || isManager || isExecutive || isAdmin || isSuperAdmin;
 
   const isRequester = Boolean(
     user && (
@@ -794,9 +893,9 @@ export default function RequestDetail() {
 
   const isUnderReview = request.status === RequestStatus.UnderReview || (request.status as string) === "UNDER_REVIEW";
   const canEditRequest = isEditableStatus && (
-    isUnderReview
-      ? (!isRequester && (isAssigned || Boolean(user?.is_super_admin)))
-      : (isRequester || isAssigned || Boolean(user?.is_super_admin))
+    isPrivilegedPurchasingRole ||
+    isAssigned ||
+    (isUnderReview ? false : isRequester)
   );
   const isWaitingApproval = (
     [RequestStatus.WaitingApproval, RequestStatus.UnderReview, "WAITING_APPROVAL", "UNDER_REVIEW"] as readonly string[]
@@ -945,7 +1044,7 @@ export default function RequestDetail() {
           {/* Workflow Transition Action Buttons */}
           {available_actions.filter(a => {
             if (a === "DELETE_REQUEST") return false;
-            if ((isRecurring || isAP) && a === "CREATE_PO") return false;
+            if ((isRecurring || isAPRequest) && a === "CREATE_PO") return false;
             return true;
           }).length > 0 && (
             <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -970,7 +1069,7 @@ export default function RequestDetail() {
               {available_actions
                 .filter(a => {
                   if (a === "DELETE_REQUEST") return false;
-                  if ((isRecurring || isAP) && a === "CREATE_PO") return false;
+                  if ((isRecurring || isAPRequest) && a === "CREATE_PO") return false;
                   return true;
                 })
                 .map((action) => {
@@ -1013,7 +1112,7 @@ export default function RequestDetail() {
             </div>
           )}
 
-          {isSelfApprovalBlocked && available_actions.filter(a => a !== "DELETE_REQUEST" && !((isRecurring || isAP) && a === "CREATE_PO")).length === 0 && (
+          {isSelfApprovalBlocked && available_actions.filter(a => a !== "DELETE_REQUEST" && !((isRecurring || isAPRequest) && a === "CREATE_PO")).length === 0 && (
             <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900/60 px-2.5 py-1 rounded-md shrink-0">
               <ShieldAlert className="h-3.5 w-3.5 text-amber-600 shrink-0" />
               <span>Awaiting review by another approver (self-approval prohibited)</span>
@@ -1094,7 +1193,7 @@ export default function RequestDetail() {
               )}
               <Field label="Requested" value={formatDate(request.request_date)} />
               <Field label="Last Updated" value={formatDate(request.updated_at)} />
-              {(request.due_date || isRecurring) && (
+              {isRecurring && (
                 <Field
                   label="Next Due Date"
                   value={
@@ -1108,6 +1207,46 @@ export default function RequestDetail() {
                     )
                   }
                 />
+              )}
+              {request.recurring_schedule?.is_scheduled && (
+                <>
+                  <Field
+                    label="Schedule Duration"
+                    value={
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 text-xs font-semibold py-0.5 px-2"
+                        >
+                          <CalendarClock className="h-3 w-3 mr-1 text-indigo-600 dark:text-indigo-400" />
+                          {formatRemainingDuration(request.recurring_schedule.end_date).text}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          ({formatDate(request.recurring_schedule.start_date)} - {formatDate(request.recurring_schedule.end_date || "")})
+                        </span>
+                      </div>
+                    }
+                  />
+                  <Field
+                    label="Installment Plan"
+                    value={
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100">
+                          {request.recurring_schedule.completed_installments || 0} / {request.recurring_schedule.total_installments || "?"} Cycles Completed
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[11px] px-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300"
+                          onClick={() => setIsScheduleLedgerOpen(true)}
+                        >
+                          <CalendarClock className="h-3 w-3 mr-1" />
+                          View Schedule
+                        </Button>
+                      </div>
+                    }
+                  />
+                </>
               )}
               {!(request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)) && (
                 <>
@@ -1521,6 +1660,7 @@ export default function RequestDetail() {
                   <Field label="Vendor" value={purchase_order.vendor} />
                   <Field label="Item" value={purchase_order.item} />
                   <Field label="Quote / PO #" value={purchase_order.quote_number ?? "—"} />
+                  <Field label="GL Code / Account" value={formatGLCode(purchase_order.gl_code || request.gl_code)} />
                   {!isMulti && <Field label="Quantity" value={String(request.quantity ?? 1)} />}
                   {!isMulti && <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />}
                   {isMulti && quoteShippingNative > 0 && (
@@ -1798,7 +1938,16 @@ export default function RequestDetail() {
                   <Field label="Bank Name" value={data.wire_transfer.bank_name || "—"} />
                   <Field label="Bank Country" value={data.wire_transfer.bank_country || "—"} />
                   <Field label="Tax ID" value={data.wire_transfer.tax_id || "—"} />
-                  <Field label="Bank Account #" value={data.wire_transfer.bank_account_number || "—"} />
+                  <Field
+                    label="Bank Account #"
+                    value={
+                      data.wire_transfer.bank_account_number
+                        ? data.wire_transfer.bank_account_number.trim().length > 4
+                          ? `•••• •••• ${data.wire_transfer.bank_account_number.trim().slice(-4)}`
+                          : data.wire_transfer.bank_account_number
+                        : "—"
+                    }
+                  />
                   <Field label="Routing (Wire)" value={data.wire_transfer.routing_wire || "—"} />
                   <Field label="Routing (ACH)" value={data.wire_transfer.routing_ach || "—"} />
                   <Field label="SWIFT Code" value={data.wire_transfer.swift_code || "—"} />
@@ -1842,7 +1991,7 @@ export default function RequestDetail() {
         {/* Activity: approvals + notifications */}
         <div className="lg:col-span-4 xl:col-span-3 space-y-6">
 
-          <EditRequestDialog request={request} open={isEditOpen} onOpenChange={setIsEditOpen} wireTransfer={data?.wire_transfer} />
+          <EditCombinedRequestDialog open={isEditOpen} onOpenChange={setIsEditOpen} data={data} refetch={refetch} />
 
           <Dialog open={isActivityLogsOpen} onOpenChange={setIsActivityLogsOpen}>
             <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -2859,11 +3008,19 @@ export default function RequestDetail() {
       )}
 
       {id && (
-        <ManualPriceDialog
-          requestId={id}
-          isOpen={isManualPriceOpen}
-          onOpenChange={setIsManualPriceOpen}
-        />
+        <>
+          <ScheduleBreakdownModal
+            request={data?.request || null}
+            open={isScheduleLedgerOpen}
+            onOpenChange={setIsScheduleLedgerOpen}
+          />
+
+          <ManualPriceDialog
+            requestId={id}
+            isOpen={isManualPriceOpen}
+            onOpenChange={setIsManualPriceOpen}
+          />
+        </>
       )}
 
     </div>
