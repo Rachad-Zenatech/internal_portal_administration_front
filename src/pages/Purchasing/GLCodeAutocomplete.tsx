@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { useGLCodes } from "@/hooks/usePurchasing";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,74 +18,37 @@ export function GLCodeAutocomplete({
   onChange,
   disabled = false,
   className = "",
-  placeholder = "Search GL Code or Account Name...",
+  placeholder = "Select GL Code *",
 }: GLCodeAutocompleteProps) {
   const { data: glCodes = [], isLoading } = useGLCodes();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [coords, setCoords] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    openUpward: boolean;
-  }>({ top: 0, left: 0, width: 260, openUpward: false });
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const portalRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Calculate coordinates relative to viewport for floating portal
-  useEffect(() => {
-    if (isOpen && containerRef.current) {
-      const updatePosition = () => {
-        if (!containerRef.current) return;
-        const rect = containerRef.current.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const shouldOpenUp = spaceBelow < 280 && rect.top > spaceBelow;
-        setCoords({
-          top: shouldOpenUp ? rect.top : rect.bottom,
-          left: Math.max(8, Math.min(rect.left, window.innerWidth - 340)),
-          width: Math.max(rect.width, 320),
-          openUpward: shouldOpenUp,
-        });
-      };
-
-      updatePosition();
-      window.addEventListener("scroll", updatePosition, true);
-      window.addEventListener("resize", updatePosition);
-      return () => {
-        window.removeEventListener("scroll", updatePosition, true);
-        window.removeEventListener("resize", updatePosition);
-      };
-    }
-  }, [isOpen]);
-
-  // Close dropdown on outside click or Escape key
+  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(target) &&
-        portalRef.current &&
-        !portalRef.current.contains(target)
-      ) {
-        setIsOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+      if (containerRef.current && !containerRef.current.contains(target)) {
         setIsOpen(false);
       }
     }
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleKeyDown);
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
     };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
   }, [isOpen]);
 
   const selectedOption = glCodes.find(
@@ -95,11 +57,11 @@ export function GLCodeAutocomplete({
 
   const filteredOptions = glCodes.filter((item) => {
     if (!search) return true;
-    const q = search.toLowerCase();
+    const q = search.toLowerCase().trim();
     return (
       item.account_number.toLowerCase().includes(q) ||
       item.account_name.toLowerCase().includes(q) ||
-      item.account_type.toLowerCase().includes(q)
+      (item.account_type && item.account_type.toLowerCase().includes(q))
     );
   });
 
@@ -107,6 +69,7 @@ export function GLCodeAutocomplete({
     onChange(option.account_number);
     setSearch("");
     setIsOpen(false);
+    setHighlightedIndex(-1);
   };
 
   const handleClear = (e: React.MouseEvent) => {
@@ -115,22 +78,50 @@ export function GLCodeAutocomplete({
     setSearch("");
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter") {
+        e.preventDefault();
+        setIsOpen(true);
+      }
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((prev) =>
+        prev < filteredOptions.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((prev) =>
+        prev > 0 ? prev - 1 : filteredOptions.length - 1
+      );
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
+        handleSelect(filteredOptions[highlightedIndex]);
+      } else if (filteredOptions.length === 1) {
+        handleSelect(filteredOptions[0]);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    }
+  };
+
   return (
     <div
       ref={containerRef}
-      className={`relative ${className}`}
+      className={`relative w-full ${className}`}
+      onKeyDown={handleKeyDown}
     >
       {/* Trigger / Input Display */}
       <div
         role="button"
         tabIndex={0}
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        onKeyDown={(e) => {
-          if ((e.key === "Enter" || e.key === " ") && !disabled) {
-            e.preventDefault();
-            setIsOpen(!isOpen);
-          }
-        }}
         className={`flex items-center justify-between min-h-[38px] px-3 py-1.5 rounded-md border text-sm transition-colors cursor-pointer bg-background ${
           isOpen
             ? "border-primary ring-1 ring-primary/30"
@@ -142,7 +133,7 @@ export function GLCodeAutocomplete({
             <span className="font-semibold text-slate-800 dark:text-zinc-100 font-mono text-xs px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shrink-0">
               {selectedOption.account_number}
             </span>
-            <span className="truncate text-slate-700 dark:text-zinc-200 font-medium">
+            <span className="truncate text-slate-700 dark:text-zinc-200 font-medium text-xs">
               {selectedOption.account_name}
             </span>
             {selectedOption.account_type && (
@@ -151,8 +142,14 @@ export function GLCodeAutocomplete({
               </Badge>
             )}
           </div>
+        ) : value ? (
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="font-semibold text-slate-800 dark:text-zinc-100 font-mono text-xs px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 border shrink-0">
+              {value}
+            </span>
+          </div>
         ) : (
-          <span className="text-muted-foreground">{placeholder}</span>
+          <span className="text-muted-foreground text-xs">{placeholder}</span>
         )}
 
         <div className="flex items-center gap-1 shrink-0 ml-2">
@@ -161,13 +158,7 @@ export function GLCodeAutocomplete({
               role="button"
               tabIndex={0}
               onClick={handleClear}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleClear(e as any);
-                }
-              }}
-              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors"
+              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors cursor-pointer"
               title="Clear selection"
             >
               <X className="h-3.5 w-3.5" />
@@ -181,37 +172,27 @@ export function GLCodeAutocomplete({
         </div>
       </div>
 
-      {/* Floating Portal Dropdown rendered outside tables on top of everything */}
-      {isOpen && typeof document !== "undefined" && createPortal(
+      {/* In-place Dropdown Menu */}
+      {isOpen && !disabled && (
         <div
-          ref={portalRef}
-          style={{
-            position: "fixed",
-            top: coords.openUpward ? "auto" : `${coords.top + 4}px`,
-            bottom: coords.openUpward ? `${window.innerHeight - coords.top + 4}px` : "auto",
-            left: `${coords.left}px`,
-            width: `${coords.width}px`,
-            maxWidth: "480px",
-            zIndex: 99999,
-          }}
-          className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-popover text-popover-foreground shadow-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-100"
+          className="absolute z-50 left-0 right-0 mt-1 min-w-[300px] max-w-full rounded-lg border border-slate-200 dark:border-zinc-800 bg-popover text-popover-foreground shadow-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-100"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="p-2 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50">
+          <div className="p-2 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/60">
             <Input
-              autoFocus
+              ref={inputRef}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setHighlightedIndex(0);
+              }}
               placeholder="Filter by code, name, or type..."
               className="h-8 text-xs bg-background"
-              onClick={(e) => e.stopPropagation()}
             />
           </div>
 
           <div
             ref={listRef}
-            onWheel={(e) => e.stopPropagation()}
-            style={{ overscrollBehavior: "contain" }}
             className="max-h-60 overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-zinc-800/60"
           >
             {isLoading ? (
@@ -221,16 +202,23 @@ export function GLCodeAutocomplete({
                 No GL codes match "{search}"
               </div>
             ) : (
-              filteredOptions.map((opt) => {
+              filteredOptions.map((opt, idx) => {
                 const isSelected = value === opt.account_number;
+                const isHighlighted = highlightedIndex === idx;
                 return (
                   <div
                     key={opt.account_number}
-                    onClick={() => handleSelect(opt)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleSelect(opt);
+                    }}
+                    onMouseEnter={() => setHighlightedIndex(idx)}
                     className={`flex items-center justify-between p-2 rounded text-xs cursor-pointer transition-colors ${
                       isSelected
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200"
+                        ? "bg-primary/10 text-primary font-semibold"
+                        : isHighlighted
+                        ? "bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                        : "hover:bg-slate-50 dark:hover:bg-zinc-800/70 text-slate-700 dark:text-zinc-200"
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -250,8 +238,7 @@ export function GLCodeAutocomplete({
               })
             )}
           </div>
-        </div>,
-        document.body
+        </div>
       )}
     </div>
   );

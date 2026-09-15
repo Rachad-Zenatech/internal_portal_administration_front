@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import type { PurchaseRequest } from "@/types/purchasing";
+import type { PurchaseRequest, RecurringSchedule } from "@/types/purchasing";
 import {
   Dialog,
   DialogContent,
@@ -33,7 +33,23 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  const schedule = request?.recurring_schedule;
+  const schedule: RecurringSchedule | null = useMemo(() => {
+    if (!request) return null;
+    return (
+      request.recurring_schedule || {
+        is_scheduled: false,
+        frequency: "MONTHLY" as FrequencyType,
+        start_date: request.due_date
+          ? String(request.due_date).split("T")[0]
+          : String(request.request_date).split("T")[0],
+        end_date: null,
+        total_installments: 24,
+        completed_installments: 0,
+        amount_per_cycle: request.amount || 0,
+        total_amount: (request.amount || 0) * 24,
+      }
+    );
+  }, [request]);
 
   const installments = useMemo(() => {
     if (!request || !schedule) return [];
@@ -41,7 +57,8 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
       schedule,
       request.amount || 0,
       request.currency || "USD",
-      request.status
+      request.status,
+      request.due_date || request.request_date
     );
   }, [request, schedule]);
 
@@ -58,7 +75,7 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
 
   const formatDate = (dStr: string) => {
     if (!dStr) return "-";
-    const date = new Date(dStr + "T00:00:00");
+    const date = new Date(dStr.includes("T") ? dStr : dStr + "T00:00:00");
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -66,37 +83,36 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
     });
   };
 
-  const durationInfo = formatRemainingDuration(schedule.end_date);
+  const durationInfo = formatRemainingDuration(schedule.end_date, schedule.start_date);
   const totalInstallments = schedule.total_installments || installments.length;
   const completedInstallments = Math.min(schedule.completed_installments || 0, totalInstallments);
-  const cycleAmount = schedule.amount_per_cycle != null && schedule.amount_per_cycle > 0
-    ? schedule.amount_per_cycle
-    : (request.amount || 0);
-  const totalCommitment = schedule.total_amount || (cycleAmount * totalInstallments);
+  const cycleAmount =
+    schedule.amount_per_cycle != null && schedule.amount_per_cycle > 0
+      ? schedule.amount_per_cycle
+      : request.amount || 0;
+  const totalCommitment = schedule.total_amount || cycleAmount * totalInstallments;
   const paidToDate = completedInstallments * cycleAmount;
   const remainingBalance = Math.max(0, totalCommitment - paidToDate);
-  const progressPercent = totalInstallments > 0
-    ? Math.min(100, Math.round((completedInstallments / totalInstallments) * 100))
-    : 0;
+  const progressPercent =
+    totalInstallments > 0
+      ? Math.min(100, Math.round((completedInstallments / totalInstallments) * 100))
+      : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="p-5 pb-3 border-b bg-slate-50/70 dark:bg-zinc-900/50">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+              <div className="p-2 rounded-lg bg-indigo-100/80 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
                 <CalendarClock className="h-5 w-5" />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                  <span>{request.title}</span>
-                  <Badge variant="outline" className="font-mono text-xs text-muted-foreground">
-                    #{request.id}
-                  </Badge>
+                <DialogTitle className="text-base font-bold text-slate-900 dark:text-zinc-100">
+                  Recurring Schedule Breakdown: {request.title}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Full projected recurring payment schedule & commitment ledger
+                  Request #{request.id} &bull; {request.department} &bull; Requester: {request.requester}
                 </DialogDescription>
               </div>
             </div>
@@ -113,7 +129,7 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
             <div className="p-2.5 rounded-lg border bg-white dark:bg-zinc-900/80 shadow-2xs">
               <div className="text-[11px] font-medium text-muted-foreground">Frequency</div>
               <div className="text-sm font-semibold text-slate-900 dark:text-zinc-100 mt-0.5">
-                {FREQUENCY_LABELS[schedule.frequency as FrequencyType] || schedule.frequency}
+                {FREQUENCY_LABELS[(schedule.frequency as FrequencyType) || "MONTHLY"] || schedule.frequency}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
                 {formatMoney(cycleAmount)} / cycle
@@ -234,7 +250,7 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
 
         <DialogFooter className="p-3 border-t bg-slate-50/50 dark:bg-zinc-900/50 flex items-center justify-between sm:justify-between">
           <div className="text-xs text-muted-foreground">
-            Schedule: {formatDate(schedule.start_date)} - {formatDate(schedule.end_date || "")}
+            Schedule: {formatDate(schedule.start_date || "")} - {formatDate(schedule.end_date || "")}
           </div>
           <div className="flex items-center gap-2">
             <Button
