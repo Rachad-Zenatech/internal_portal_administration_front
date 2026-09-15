@@ -349,3 +349,86 @@ export function getBankingCountries() {
 export function getCountryBankingSpec(country: string) {
   return apiClient.get<CountryBankingSpec>(`${BASE}/banking-specs/spec?country=${encodeURIComponent(country)}`);
 }
+
+
+export interface QuickBooksPreviewItem {
+  request_id: number;
+  product_name: string;
+  raw_payee: string;
+  amount: number;
+  formatted_amount: string;
+  payment_date: string;
+  txn_date_api: string;
+  payment_method: string;
+  category: string;
+  department: string;
+  location: string;
+  ref_no: string;
+  doc_number: string;
+  memo: string;
+  vendor_resolution: {
+    id?: string | null;
+    name: string;
+    status: string;
+    badge: string;
+    notes: string;
+  };
+  expense_account_resolution: {
+    id?: string | null;
+    name: string;
+    acct_num?: string | null;
+    account_type?: string;
+    status: string;
+    badge: string;
+    notes: string;
+  };
+  payment_account_resolution: {
+    id?: string | null;
+    name: string;
+    account_type?: string;
+    payment_type: string;
+    status: string;
+    notes: string;
+  };
+  is_already_synced: boolean;
+  existing_purchase_id?: string | null;
+  readiness: 'READY' | 'READY_WITH_NOTES' | 'ALREADY_SYNCED' | 'ERROR';
+  validation_notes: string[];
+  validation_errors: string[];
+  projected_payload: any;
+}
+
+export interface QuickBooksPreviewResponse {
+  status: string;
+  connection: {
+    is_configured: boolean;
+    is_connected: boolean;
+    realm_id?: string;
+    company_name?: string;
+    environment?: string;
+  };
+  summary: {
+    total_items: number;
+    total_amount: number;
+    formatted_total_amount: string;
+    ready_count: number;
+    already_synced_count: number;
+    error_count: number;
+    company_name?: string;
+    realm_id?: string;
+    environment?: string;
+  };
+  items: QuickBooksPreviewItem[];
+}
+
+export function getQuickBooksPreview(params?: { request_ids?: number[]; status?: string; year?: number | null; month?: number | null }) {
+  return apiClient.post<QuickBooksPreviewResponse>('/api/quickbooks/preview', params || {});
+}
+
+export function syncQuickBooksBatch(requestIds: number[]) {
+  return apiClient.post<{ status: string; total: number; synced: number; failed: number; results: any[] }>('/api/quickbooks/expenses/sync-batch', { request_ids: requestIds });
+}
+
+export function getQuickBooksStatus() {
+  return apiClient.get<any>('/api/quickbooks/status');
+}
