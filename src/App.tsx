@@ -24,6 +24,7 @@ const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
 const PurchaseRequests = lazy(() => import("./pages/Purchasing/PurchaseRequests"));
 const RequestDetail = lazy(() => import("./pages/Purchasing/RequestDetail"));
 const Invoices = lazy(() => import("./pages/Purchasing/Invoices"));
+const QuickBooksPage = lazy(() => import("./pages/Purchasing/QuickBooksPage"));
 const RecurringPayments = lazy(() => import("./pages/Purchasing/RecurringPayments"));
 const MyApprovals = lazy(() => import("./pages/Purchasing/MyApprovals"));
 const Login = lazy(() => import("./pages/Login"));
@@ -75,6 +76,9 @@ function App() {
               <Route path="/purchasing/my-approvals" element={<ProtectedRoute navigationCode="MY_APPROVALS"><MyApprovals /></ProtectedRoute>} />
               <Route path="/purchasing/batch-approval" element={<Navigate to="/purchasing/my-approvals" replace />} />
               <Route path="/purchasing/invoices" element={<ProtectedRoute navigationCode="INVOICES"><Invoices /></ProtectedRoute>} />
+              <Route path="/purchasing/quickbooks" element={<ProtectedRoute><QuickBooksPage /></ProtectedRoute>} />
+              <Route path="/purchasing/quickbooks-export" element={<Navigate to="/purchasing/quickbooks" replace />} />
+              <Route path="/quickbooks" element={<Navigate to="/purchasing/quickbooks" replace />} />
 
               {/* Configuration Routes (Supports both singular /configuration and plural /configurations) */}
               <Route path="/configuration" element={<Navigate to="/configurations/users" replace />} />
