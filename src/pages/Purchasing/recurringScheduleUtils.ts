@@ -30,46 +30,66 @@ export const FREQUENCY_INTERVAL_MONTHS: Record<FrequencyType, number> = {
 };
 
 /**
+ * Accurately calculates the target date for cycle index N (0-indexed) from a base start date,
+ * preventing month-overflow drift (e.g. Jan 31 -> Feb 28 -> Mar 31 -> Apr 30).
+ */
+export function getCycleDate(
+  startDateInput: string | Date,
+  frequency: string,
+  cycleIndex: number
+): Date {
+  const start =
+    typeof startDateInput === "string"
+      ? new Date(startDateInput.includes("T") ? startDateInput : startDateInput + "T00:00:00")
+      : new Date(startDateInput);
+  const freq = (frequency || "MONTHLY").toUpperCase();
+  const origDay = start.getDate();
+
+  if (cycleIndex === 0) {
+    return new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  }
+
+  if (freq === "DAILY") {
+    const d = new Date(start);
+    d.setDate(d.getDate() + cycleIndex);
+    return d;
+  }
+  if (freq === "WEEKLY") {
+    const d = new Date(start);
+    d.setDate(d.getDate() + cycleIndex * 7);
+    return d;
+  }
+  if (freq === "BI_WEEKLY") {
+    const d = new Date(start);
+    d.setDate(d.getDate() + cycleIndex * 14);
+    return d;
+  }
+
+  let monthsToAdd = cycleIndex;
+  if (freq === "QUARTERLY") monthsToAdd = cycleIndex * 3;
+  else if (freq === "SEMI_ANNUALLY") monthsToAdd = cycleIndex * 6;
+  else if (freq === "ANNUALLY") monthsToAdd = cycleIndex * 12;
+
+  const rawMonth = start.getMonth() + monthsToAdd;
+  const targetYear = start.getFullYear() + Math.floor(rawMonth / 12);
+  const targetMonth = ((rawMonth % 12) + 12) % 12;
+
+  // Last day in target month (day 0 of next month)
+  const lastDayOfTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const targetDay = Math.min(origDay, lastDayOfTargetMonth);
+
+  return new Date(targetYear, targetMonth, targetDay);
+}
+
+/**
  * Adds one or more frequency intervals to a given date string or Date object.
  */
-export function addFrequencyInterval(dateInput: string | Date, frequency: string, multiplier: number = 1): Date {
-  const d = typeof dateInput === "string" ? new Date(dateInput + "T00:00:00") : new Date(dateInput);
-  const freq = (frequency || "MONTHLY").toUpperCase();
-
-  switch (freq) {
-    case "DAILY":
-      d.setDate(d.getDate() + 1 * multiplier);
-      break;
-    case "WEEKLY":
-      d.setDate(d.getDate() + 7 * multiplier);
-      break;
-    case "BI_WEEKLY":
-      d.setDate(d.getDate() + 14 * multiplier);
-      break;
-    case "MONTHLY": {
-      const targetMonth = d.getMonth() + 1 * multiplier;
-      d.setMonth(targetMonth);
-      break;
-    }
-    case "QUARTERLY": {
-      const targetMonth = d.getMonth() + 3 * multiplier;
-      d.setMonth(targetMonth);
-      break;
-    }
-    case "SEMI_ANNUALLY": {
-      const targetMonth = d.getMonth() + 6 * multiplier;
-      d.setMonth(targetMonth);
-      break;
-    }
-    case "ANNUALLY": {
-      d.setFullYear(d.getFullYear() + 1 * multiplier);
-      break;
-    }
-    default:
-      d.setMonth(d.getMonth() + 1 * multiplier);
-      break;
-  }
-  return d;
+export function addFrequencyInterval(
+  dateInput: string | Date,
+  frequency: string,
+  multiplier: number = 1
+): Date {
+  return getCycleDate(dateInput, frequency, multiplier);
 }
 
 export function formatDateToIso(d: Date): string {
@@ -85,18 +105,18 @@ export function formatDateToIso(d: Date): string {
  */
 export function formatRemainingDuration(
   endDateStr?: string | null,
-  fromDateInput?: Date | string
+  fromDateInput?: Date | string | null
 ): { text: string; isExpired: boolean; isNearEnd: boolean; totalDays: number } {
   if (!endDateStr) {
     return { text: "Indefinite", isExpired: false, isNearEnd: false, totalDays: Infinity };
   }
 
-  const end = new Date(endDateStr + "T00:00:00");
+  const end = new Date(endDateStr.includes("T") ? endDateStr : endDateStr + "T00:00:00");
   let from: Date;
   if (!fromDateInput) {
     from = new Date();
   } else if (typeof fromDateInput === "string") {
-    from = new Date(fromDateInput + "T00:00:00");
+    from = new Date(fromDateInput.includes("T") ? fromDateInput : fromDateInput + "T00:00:00");
   } else {
     from = new Date(fromDateInput);
   }
@@ -157,18 +177,22 @@ export function calculateInstallmentsCount(
   frequency: string = "MONTHLY"
 ): number {
   if (!startDateStr || !endDateStr) return 0;
-  const start = new Date(startDateStr + "T00:00:00");
-  const end = new Date(endDateStr + "T00:00:00");
+  const start = new Date(startDateStr.includes("T") ? startDateStr : startDateStr + "T00:00:00");
+  const end = new Date(endDateStr.includes("T") ? endDateStr : endDateStr + "T00:00:00");
+
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
 
   if (end < start) return 0;
 
   let count = 0;
-  let curr = new Date(start);
   const maxSafeCycles = 600; // Safeguard against runaway loops (e.g. 50 years)
 
-  while (curr <= end && count < maxSafeCycles) {
+  while (count < maxSafeCycles) {
+    const cycleDate = getCycleDate(start, frequency, count);
+    cycleDate.setHours(0, 0, 0, 0);
+    if (cycleDate > end) break;
     count++;
-    curr = addFrequencyInterval(curr, frequency, 1);
   }
 
   return count;
@@ -190,40 +214,45 @@ export function generatePaymentSchedule(
   schedule?: RecurringSchedule | null,
   defaultAmount: number = 0,
   defaultCurrency: string = "USD",
-  statusOverride?: string
+  statusOverride?: string,
+  fallbackStartDate?: string | Date | null
 ): ProjectedInstallment[] {
-  if (!schedule || !schedule.start_date) {
-    return [];
-  }
-
-  const startDate = new Date(schedule.start_date + "T00:00:00");
-  const frequency = schedule.frequency || "MONTHLY";
-  const amountPerCycle = schedule.amount_per_cycle != null && schedule.amount_per_cycle > 0
-    ? schedule.amount_per_cycle
-    : defaultAmount;
+  const startRaw =
+    schedule?.start_date ||
+    (fallbackStartDate
+      ? typeof fallbackStartDate === "string"
+        ? fallbackStartDate
+        : formatDateToIso(fallbackStartDate)
+      : "") ||
+    new Date().toISOString().split("T")[0];
+  const startDateStr = startRaw.split("T")[0];
+  const frequency = schedule?.frequency || "MONTHLY";
+  const amountPerCycle =
+    schedule?.amount_per_cycle != null && schedule.amount_per_cycle > 0
+      ? schedule.amount_per_cycle
+      : defaultAmount;
   const currency = defaultCurrency || "USD";
 
-  let totalLimit = schedule.total_installments;
-  const endDate = schedule.end_date ? new Date(schedule.end_date + "T00:00:00") : null;
+  let totalLimit = schedule?.total_installments;
 
-  if (!totalLimit && endDate) {
-    totalLimit = calculateInstallmentsCount(schedule.start_date, schedule.end_date, frequency);
+  if (!totalLimit && schedule?.end_date) {
+    totalLimit = calculateInstallmentsCount(startDateStr, schedule.end_date.split("T")[0], frequency);
   }
   if (!totalLimit || totalLimit <= 0) {
-    totalLimit = 24; // Default to 2-year window if neither end_date nor total_installments provided
+    totalLimit = 24; // Default to 2-year (24 months) window
   }
-  if (totalLimit > 240) {
-    totalLimit = 240; // Hard clamp for UI performance
+  if (totalLimit > 600) {
+    totalLimit = 600; // Hard clamp for UI performance
   }
 
-  const completed = schedule.completed_installments || 0;
+  const completed = schedule?.completed_installments || 0;
   const installments: ProjectedInstallment[] = [];
-  let currDate = new Date(startDate);
   let cumulative = 0;
 
   for (let i = 1; i <= totalLimit; i++) {
     cumulative += amountPerCycle;
-    const dateStr = formatDateToIso(currDate);
+    const cycleDate = getCycleDate(startDateStr, frequency, i - 1);
+    const dateStr = formatDateToIso(cycleDate);
 
     let status: "PAID" | "CURRENT" | "PROJECTED" = "PROJECTED";
     if (i <= completed) {
@@ -246,8 +275,6 @@ export function generatePaymentSchedule(
       status,
       cumulativeAmount: Math.round(cumulative * 100) / 100,
     });
-
-    currDate = addFrequencyInterval(currDate, frequency, 1);
   }
 
   return installments;

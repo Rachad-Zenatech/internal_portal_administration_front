@@ -639,7 +639,16 @@ export default function RecurringPayments() {
             amount_per_cycle: amt,
             total_amount: totalAmt,
           }
-        : null,
+        : {
+            is_scheduled: false,
+            frequency: newForm.frequency || "MONTHLY",
+            start_date: newForm.due_date || newForm.start_date || new Date().toISOString().split("T")[0],
+            end_date: null,
+            total_installments: 24,
+            completed_installments: 0,
+            amount_per_cycle: amt,
+            total_amount: amt * 24,
+          },
     });
   };
 
@@ -691,7 +700,16 @@ export default function RecurringPayments() {
               amount_per_cycle: amt,
               total_amount: totalAmt,
             }
-          : null,
+          : {
+              is_scheduled: false,
+              frequency: editForm.frequency || "MONTHLY",
+              start_date: editForm.start_date || editForm.due_date || new Date().toISOString().split("T")[0],
+              end_date: null,
+              total_installments: 24,
+              completed_installments: editForm.completed_installments || 0,
+              amount_per_cycle: amt,
+              total_amount: amt * 24,
+            },
       },
     });
   };
@@ -1372,29 +1390,29 @@ export default function RecurringPayments() {
 
               if (cell.isCurrentMonth) {
                 filteredRequests.forEach((req) => {
-                  if (req.recurring_schedule?.is_scheduled) {
-                    const installments = generatePaymentSchedule(
-                      req.recurring_schedule,
-                      req.amount || 0,
-                      req.currency || "USD",
-                      req.status
-                    );
-                    const match = installments.find((inst) => inst.dueDate === cell.dateStr);
-                    if (match) {
-                      const totalInst = req.recurring_schedule.total_installments || installments.length;
-                      cellItems.push({
-                        id: `${req.id}-inst-${match.installmentNumber}`,
-                        request: req,
-                        installmentNumber: match.installmentNumber,
-                        totalInstallments: totalInst,
-                        isProjected: match.status === "PROJECTED",
-                        isPaid: match.status === "PAID",
-                        amount: match.amount,
-                        displayTitle: `${req.title} (#${match.installmentNumber}/${totalInst})`,
-                        isReviewed: req.review_status === "REVIEWED",
-                      });
-                    }
-                  } else {
+                  const sched = req.recurring_schedule;
+                  const installments = generatePaymentSchedule(
+                    sched,
+                    req.amount || 0,
+                    req.currency || "USD",
+                    req.status,
+                    req.due_date || req.request_date
+                  );
+                  const match = installments.find((inst) => inst.dueDate === cell.dateStr);
+                  if (match) {
+                    const totalInst = sched?.total_installments || installments.length;
+                    cellItems.push({
+                      id: `${req.id}-inst-${match.installmentNumber}`,
+                      request: req,
+                      installmentNumber: match.installmentNumber,
+                      totalInstallments: totalInst,
+                      isProjected: match.status === "PROJECTED",
+                      isPaid: match.status === "PAID",
+                      amount: match.amount,
+                      displayTitle: `${req.title} (#${match.installmentNumber}/${totalInst})`,
+                      isReviewed: req.review_status === "REVIEWED",
+                    });
+                  } else if (!installments || installments.length === 0) {
                     const dStr = String(req.due_date || req.request_date || "").split("T")[0];
                     if (dStr === cell.dateStr) {
                       cellItems.push({
