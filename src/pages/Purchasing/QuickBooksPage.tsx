@@ -4,15 +4,11 @@ import { toast } from "sonner";
 import {
   FileSpreadsheet,
   Download,
-  Calendar,
   Clock,
   Loader2,
   CheckCircle2,
   FolderArchive,
   FileText,
-  Check,
-  History,
-  RotateCcw,
   Zap,
   AlertTriangle,
   RefreshCw,
@@ -20,7 +16,6 @@ import {
   CreditCard,
   Tag,
   ChevronDown,
-  ChevronUp,
   Search,
   ExternalLink,
   Code2,
@@ -31,14 +26,9 @@ import {
   Terminal,
   ShieldCheck,
   CheckCheck,
-  Sparkles,
-  Info,
   SlidersHorizontal,
-  XCircle,
-  FileDown,
   Trash2,
   ChevronRight,
-  Filter,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -97,7 +87,6 @@ import {
   exportSingleRequestQuickBooksBundle,
   getQuickBooksPreview,
   syncQuickBooksBatch,
-  getQuickBooksStatus,
   type QuickBooksPreviewItem,
   type QuickBooksPreviewResponse,
 } from "@/services/purchasingService";
@@ -658,11 +647,10 @@ export default function QuickBooksPage() {
                       key={st.id}
                       type="button"
                       onClick={() => setStatusFilter(st.id)}
-                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                        statusFilter === st.id
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${statusFilter === st.id
                           ? "bg-background text-foreground font-semibold shadow-2xs"
                           : "text-muted-foreground hover:text-foreground"
-                      }`}
+                        }`}
                     >
                       {st.label}
                     </button>
@@ -794,17 +782,15 @@ export default function QuickBooksPage() {
                       const isSelected = selectedRequestIds.includes(item.request_id);
                       const isReady = item.readiness === "READY" || item.readiness === "READY_WITH_NOTES";
                       const isSynced = item.readiness === "ALREADY_SYNCED";
-                      const isError = item.readiness === "ERROR";
                       const isCurrentlySyncing = syncingSingleId === item.request_id;
 
                       return (
                         <TableRow
                           key={item.request_id}
-                          className={`transition-colors border-b border-border/50 ${
-                            isSelected
+                          className={`transition-colors border-b border-border/50 ${isSelected
                               ? "bg-emerald-50/40 dark:bg-emerald-950/15"
                               : "hover:bg-muted/40"
-                          }`}
+                            }`}
                         >
                           <TableCell className="px-3">
                             <Checkbox
@@ -937,9 +923,8 @@ export default function QuickBooksPage() {
                                 variant={isSynced ? "outline" : "default"}
                                 disabled={isCurrentlySyncing || !isConnected}
                                 onClick={() => handleSingleSync(item)}
-                                className={`h-7 px-2.5 text-xs font-semibold gap-1 ${
-                                  !isSynced ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs" : ""
-                                }`}
+                                className={`h-7 px-2.5 text-xs font-semibold gap-1 ${!isSynced ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs" : ""
+                                  }`}
                               >
                                 {isCurrentlySyncing ? (
                                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -1066,11 +1051,10 @@ export default function QuickBooksPage() {
                       <div
                         key={pkg.id}
                         onClick={() => setExportMode(pkg.id)}
-                        className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3.5 ${
-                          isSelected
+                        className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3.5 ${isSelected
                             ? "border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/15 ring-1 ring-emerald-500 shadow-xs"
                             : "border-border/70 hover:border-border hover:bg-muted/30"
-                        }`}
+                          }`}
                       >
                         <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 border ${pkg.color}`}>
                           <IconComp className="h-5 w-5" />
@@ -1116,11 +1100,10 @@ export default function QuickBooksPage() {
                           key={f.id}
                           type="button"
                           onClick={() => setFilterType(f.id as any)}
-                          className={`py-1 text-xs font-semibold rounded-md transition-all ${
-                            filterType === f.id
+                          className={`py-1 text-xs font-semibold rounded-md transition-all ${filterType === f.id
                               ? "bg-background text-foreground shadow-2xs"
                               : "text-muted-foreground hover:text-foreground"
-                          }`}
+                            }`}
                         >
                           {f.label}
                         </button>
