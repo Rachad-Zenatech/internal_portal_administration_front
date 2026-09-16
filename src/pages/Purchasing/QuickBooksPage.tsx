@@ -1,3 +1,4 @@
+import { QuickBooksItemDetailsDialog } from "./QuickBooksItemDetailsDialog";
 import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -18,9 +19,6 @@ import {
   ChevronDown,
   Search,
   ExternalLink,
-  Code2,
-  Copy,
-  ArrowRight,
   Database,
   Layers,
   Terminal,
@@ -29,6 +27,7 @@ import {
   SlidersHorizontal,
   Trash2,
   ChevronRight,
+  Eye,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -54,13 +53,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import {
   Tabs,
   TabsContent,
@@ -313,7 +305,11 @@ export default function QuickBooksPage() {
   const handleDeleteFromQuickBooks = async (item: QuickBooksPreviewItem) => {
     setDeletingId(item.request_id);
     try {
-      await apiClient.delete(`/api/quickbooks/expenses/${item.request_id}`);
+      const pId = item.existing_purchase_id || item.projected_payload?.Id;
+      const url = pId
+        ? `/api/quickbooks/expenses/${item.request_id}?purchase_id=${encodeURIComponent(pId)}`
+        : `/api/quickbooks/expenses/${item.request_id}`;
+      await apiClient.delete(url);
       toast.success(`Removed REQ-#${item.request_id} from QuickBooks Online!`);
       setDeleteConfirmItem(null);
       if (inspectorItem?.request_id === item.request_id) {
@@ -787,12 +783,16 @@ export default function QuickBooksPage() {
                       return (
                         <TableRow
                           key={item.request_id}
-                          className={`transition-colors border-b border-border/50 ${isSelected
+                          onClick={() => {
+                            setInspectorItem(item);
+                            setIsInspectorOpen(true);
+                          }}
+                          className={`transition-colors border-b border-border/50 cursor-pointer ${isSelected
                               ? "bg-emerald-50/40 dark:bg-emerald-950/15"
-                              : "hover:bg-muted/40"
+                              : "hover:bg-muted/60"
                             }`}
                         >
-                          <TableCell className="px-3">
+                          <TableCell className="px-3" onClick={(e) => e.stopPropagation()}>
                             <Checkbox
                               checked={isSelected}
                               onCheckedChange={() => handleToggleSelect(item.request_id)}
@@ -800,7 +800,7 @@ export default function QuickBooksPage() {
                           </TableCell>
 
                           {/* Request ID */}
-                          <TableCell className="font-semibold">
+                          <TableCell className="font-semibold" onClick={(e) => e.stopPropagation()}>
                             <Link
                               to={`/purchasing/requests/${item.request_id}`}
                               className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline"
@@ -902,7 +902,7 @@ export default function QuickBooksPage() {
                           </TableCell>
 
                           {/* Actions */}
-                          <TableCell className="text-right pr-4">
+                          <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1.5">
                               <Button
                                 variant="ghost"
@@ -911,11 +911,11 @@ export default function QuickBooksPage() {
                                   setInspectorItem(item);
                                   setIsInspectorOpen(true);
                                 }}
-                                title="Inspect QuickBooks JSON Payload"
-                                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                                title="View all additional info and QuickBooks mappings"
+                                className="h-7 px-2 text-xs text-primary hover:text-primary/80 font-medium gap-1 hover:bg-primary/10"
                               >
-                                <Code2 className="h-3.5 w-3.5" />
-                                <span>Inspect</span>
+                                <Eye className="h-3.5 w-3.5" />
+                                <span>Details</span>
                               </Button>
 
                               <Button
@@ -1317,161 +1317,17 @@ export default function QuickBooksPage() {
         </DialogContent>
       </Dialog>
 
-      {/* SaasAnt Payload Inspector Slide-Over Sheet */}
-      <Sheet open={isInspectorOpen} onOpenChange={setIsInspectorOpen}>
-        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-6 space-y-6">
-          <SheetHeader className="border-b pb-4">
-            <div className="flex items-center justify-between">
-              <Badge variant="outline" className="font-mono text-xs">
-                REQ-#{inspectorItem?.request_id}
-              </Badge>
-              {inspectorItem?.readiness === "READY" || inspectorItem?.readiness === "READY_WITH_NOTES" ? (
-                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  Ready to Sync
-                </Badge>
-              ) : inspectorItem?.readiness === "ALREADY_SYNCED" ? (
-                <Badge variant="secondary">In QuickBooks</Badge>
-              ) : (
-                <Badge variant="destructive">Error</Badge>
-              )}
-            </div>
-            <SheetTitle className="text-lg font-bold text-foreground mt-2">
-              SaasAnt Pre-Flight Mapping Inspector
-            </SheetTitle>
-            <SheetDescription className="text-xs text-muted-foreground">
-              Source data mapped directly into QuickBooks Online REST Purchase payload.
-            </SheetDescription>
-          </SheetHeader>
-
-          {inspectorItem && (
-            <div className="space-y-6 text-xs">
-              {/* Field-to-Field Mapping Visualizer */}
-              <div className="space-y-3">
-                <h4 className="font-bold text-foreground flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
-                  <Layers className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Field Mapping Breakdown</span>
-                </h4>
-
-                <div className="rounded-lg border border-border/80 bg-muted/30 divide-y divide-border/60">
-                  <div className="p-3 grid grid-cols-3 items-center gap-2">
-                    <div className="text-muted-foreground">Payee (Vendor)</div>
-                    <div className="flex items-center gap-1 font-semibold text-foreground">
-                      <span>{inspectorItem.raw_payee}</span>
-                      <ArrowRight className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                    </div>
-                    <div>
-                      <Badge variant="outline" className="font-mono text-[10px] bg-background">
-                        {inspectorItem.vendor_resolution?.name} ({inspectorItem.vendor_resolution?.status})
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="p-3 grid grid-cols-3 items-center gap-2">
-                    <div className="text-muted-foreground">Expense Account</div>
-                    <div className="flex items-center gap-1 font-semibold text-foreground">
-                      <span className="truncate">{inspectorItem.category}</span>
-                      <ArrowRight className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                    </div>
-                    <div>
-                      <Badge variant="outline" className="font-mono text-[10px] bg-background truncate block">
-                        {inspectorItem.expense_account_resolution?.name}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="p-3 grid grid-cols-3 items-center gap-2">
-                    <div className="text-muted-foreground">Payment Account</div>
-                    <div className="flex items-center gap-1 font-semibold text-foreground">
-                      <span>{inspectorItem.payment_method}</span>
-                      <ArrowRight className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                    </div>
-                    <div>
-                      <Badge variant="outline" className="font-mono text-[10px] bg-background">
-                        {inspectorItem.payment_account_resolution?.name} ({inspectorItem.payment_account_resolution?.payment_type})
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="p-3 grid grid-cols-3 items-center gap-2">
-                    <div className="text-muted-foreground">Transaction Date</div>
-                    <div className="flex items-center gap-1 font-semibold text-foreground">
-                      <span>{inspectorItem.payment_date}</span>
-                      <ArrowRight className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                    </div>
-                    <div>
-                      <span className="font-mono font-semibold text-foreground">{inspectorItem.txn_date_api}</span>
-                    </div>
-                  </div>
-
-                  <div className="p-3 grid grid-cols-3 items-center gap-2">
-                    <div className="text-muted-foreground">Total Amount</div>
-                    <div className="flex items-center gap-1 font-semibold text-foreground">
-                      <span>{inspectorItem.formatted_amount}</span>
-                      <ArrowRight className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                    </div>
-                    <div>
-                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                        {inspectorItem.formatted_amount}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* JSON Payload Inspector with Copy Button */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-foreground flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
-                    <Code2 className="h-3.5 w-3.5 text-blue-600" />
-                    <span>Projected QuickBooks Purchase JSON Payload</span>
-                  </h4>
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs gap-1"
-                    onClick={() => {
-                      navigator.clipboard.writeText(JSON.stringify(inspectorItem.projected_payload, null, 2));
-                      toast.success("Payload copied to clipboard");
-                    }}
-                  >
-                    <Copy className="h-3 w-3" />
-                    <span>Copy JSON</span>
-                  </Button>
-                </div>
-
-                <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3.5 font-mono text-[11px] text-zinc-200 overflow-x-auto max-h-[320px]">
-                  <pre>{JSON.stringify(inspectorItem.projected_payload, null, 2)}</pre>
-                </div>
-              </div>
-
-              {/* Single Sync Button in Inspector */}
-              <div className="pt-4 border-t flex items-center justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsInspectorOpen(false)}
-                  className="text-xs"
-                >
-                  Close
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={!isConnected}
-                  onClick={() => {
-                    handleSingleSync(inspectorItem);
-                    setIsInspectorOpen(false);
-                  }}
-                  className="text-xs font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white"
-                >
-                  <Zap className="h-3.5 w-3.5" />
-                  <span>Sync REQ-#{inspectorItem.request_id} to QuickBooks</span>
-                </Button>
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* All Additional Information & QuickBooks Mapping Pop-up Modal */}
+      <QuickBooksItemDetailsDialog
+        item={inspectorItem}
+        open={isInspectorOpen}
+        onOpenChange={setIsInspectorOpen}
+        onSync={(item) => handleSingleSync(item)}
+        isSyncing={syncingSingleId === inspectorItem?.request_id}
+        onDelete={(item) => handleDeleteFromQuickBooks(item)}
+        isDeleting={deletingId === inspectorItem?.request_id}
+        isConnected={isConnected}
+      />
 
       {/* Disconnect Confirmation Dialog */}
       <Dialog open={isDisconnectOpen} onOpenChange={setIsDisconnectOpen}>

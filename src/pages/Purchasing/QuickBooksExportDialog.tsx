@@ -1,3 +1,4 @@
+import { QuickBooksItemDetailsDialog } from "./QuickBooksItemDetailsDialog";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -33,6 +34,7 @@ import {
   Tag,
   ChevronDown,
   ChevronUp,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -44,6 +46,7 @@ import {
   getQuickBooksPreview,
   syncQuickBooksBatch,
   type QuickBooksPreviewResponse,
+  type QuickBooksPreviewItem,
 } from "@/services/purchasingService";
 
 interface QuickBooksExportDialogProps {
@@ -137,6 +140,8 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
   const [selectedRequestIds, setSelectedRequestIds] = useState<number[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [expandedPayloadId, setExpandedPayloadId] = useState<number | null>(null);
+  const [detailsItem, setDetailsItem] = useState<QuickBooksPreviewItem | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   // Stored Last Export Time
   const [lastExportedAt, setLastExportedAt] = useState<string | null>(null);
@@ -484,18 +489,23 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
                     return (
                       <div
                         key={item.request_id}
-                        className={`rounded-lg border transition-all ${
+                        onClick={() => {
+                          setDetailsItem(item);
+                          setIsDetailsOpen(true);
+                        }}
+                        className={`rounded-lg border transition-all cursor-pointer ${
                           isSelected
-                            ? "border-emerald-500/60 bg-emerald-50/20 dark:bg-emerald-950/10 shadow-xs"
-                            : "border-border/70 bg-card hover:border-border"
+                            ? "border-emerald-500/60 bg-emerald-50/20 dark:bg-emerald-950/10 shadow-xs hover:border-emerald-500"
+                            : "border-border/70 bg-card hover:border-border hover:bg-muted/30"
                         }`}
                       >
                         <div className="p-3.5 flex items-start gap-3">
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => handleToggleSelect(item.request_id)}
-                            className="mt-1"
-                          />
+                          <div onClick={(e) => e.stopPropagation()} className="mt-1">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => handleToggleSelect(item.request_id)}
+                            />
+                          </div>
 
                           <div className="flex-1 space-y-2">
                             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -582,7 +592,20 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
                               </div>
                             )}
 
-                            <div className="pt-1 flex items-center justify-end">
+                            <div className="pt-1 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setDetailsItem(item);
+                                  setIsDetailsOpen(true);
+                                }}
+                                className="h-6 px-2 text-[11px] text-primary hover:text-primary/80 font-medium flex items-center gap-1 hover:bg-primary/10"
+                              >
+                                <Eye className="h-3 w-3" />
+                                <span>View All Details</span>
+                              </Button>
+
                               <button
                                 type="button"
                                 onClick={() => setExpandedPayloadId(isExpanded ? null : item.request_id)}
@@ -1029,6 +1052,13 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
             )}
           </div>
         </div>
+        {/* Additional Info Pop-up Modal */}
+        <QuickBooksItemDetailsDialog
+          item={detailsItem}
+          open={isDetailsOpen}
+          onOpenChange={setIsDetailsOpen}
+          isConnected={isConnected}
+        />
       </DialogContent>
     </Dialog>
   );
