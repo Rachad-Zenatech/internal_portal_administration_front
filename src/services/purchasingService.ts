@@ -494,7 +494,7 @@ export interface QuickBooksPreviewResponse {
   items: QuickBooksPreviewItem[];
 }
 
-export function getQuickBooksPreview(params?: { request_ids?: number[]; status?: string; year?: number | null; month?: number | null }) {
+export function getQuickBooksPreview(params?: { request_ids?: number[]; status?: string; year?: number | null; month?: number | null; start_date?: string | null; end_date?: string | null; start_datetime?: string | null; end_datetime?: string | null }) {
   return apiClient.post<QuickBooksPreviewResponse>('/api/quickbooks/preview', params || {});
 }
 
@@ -504,4 +504,20 @@ export function syncQuickBooksBatch(requestIds: number[]) {
 
 export function getQuickBooksStatus() {
   return apiClient.get<any>('/api/quickbooks/status');
+}
+
+export function extractProductInfoFromUrl(url: string) {
+  return apiClient.post<{
+    name: string;
+    price: string;
+    category: string;
+    brand: string;
+    description: string;
+    vendor?: string;
+    currency?: string;
+    original_price?: string;
+    original_currency?: string;
+  }>(`${BASE}/extract-product-info`, { url }, {
+    actionSubtitle: "Analyzing website metadata, price, vendor, and specs...",
+  });
 }

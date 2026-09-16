@@ -858,6 +858,30 @@ export function EditRequestDialog({
               </div>
             )}
 
+            {/* Product / Website Link (Placed directly above Request Title) */}
+            {(formData.request_type === "ACCOUNTS_PAYABLE" || (formData.request_type !== "RECURRING" && itemMode === "SINGLE")) && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Product / Website Link <span className="text-slate-400 font-normal">(optional, e.g. Amazon URL or Vendor invoice link)</span>
+                  </label>
+                  {!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE" && (
+                    <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-normal">
+                      Locked (not editable from Waiting Approval onward)
+                    </span>
+                  )}
+                </div>
+                <Input
+                  type="url"
+                  value={formData.item_url || ""}
+                  onChange={(e) => setFormData({ ...formData, item_url: e.target.value })}
+                  placeholder="https://..."
+                  disabled={!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE"}
+                  className={`h-9 text-xs ${!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE" ? "bg-slate-100 dark:bg-zinc-800/60 cursor-not-allowed text-slate-500 dark:text-zinc-400" : ""}`}
+                />
+              </div>
+            )}
+
             {/* 4. General Details: Title + 3-Column Meta Row (Requester | Department | Priority) */}
             <div className="space-y-3.5">
               <div className="space-y-1.5">
@@ -1046,29 +1070,7 @@ export function EditRequestDialog({
               </div>
             )}
 
-            {/* Product / Website Link (Shown for Single Item and Accounts Payable, optional, above Description) */}
-            {(formData.request_type === "ACCOUNTS_PAYABLE" || (formData.request_type !== "RECURRING" && itemMode === "SINGLE")) && (
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                    Product / Website Link <span className="text-slate-400 font-normal">(optional, e.g. Amazon URL or Vendor invoice link)</span>
-                  </label>
-                  {!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE" && (
-                    <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-normal">
-                      Locked (not editable from Waiting Approval onward)
-                    </span>
-                  )}
-                </div>
-                <Input
-                  type="url"
-                  value={formData.item_url || ""}
-                  onChange={(e) => setFormData({ ...formData, item_url: e.target.value })}
-                  placeholder="https://..."
-                  disabled={!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE"}
-                  className={`h-9 text-xs ${!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE" ? "bg-slate-100 dark:bg-zinc-800/60 cursor-not-allowed text-slate-500 dark:text-zinc-400" : ""}`}
-                />
-              </div>
-            )}
+
 
             {/* 6. Description / Terms */}
             <div className="space-y-1.5 pt-1">
