@@ -93,7 +93,7 @@ import {
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 import { QuickBooksExportDialog } from "./QuickBooksExportDialog";
-import { uploadAttachments } from "@/services/purchasingService";
+import { uploadAttachments, extractProductInfoFromUrl } from "@/services/purchasingService";
 
 function RequesterAutocomplete({
   value,
@@ -271,6 +271,55 @@ export function PurchaseRequests() {
   const [itemMode, setItemMode] = useState<ItemMode>("SINGLE");
   const [form, setForm] = useState<RequestCreateInput>(EMPTY_FORM);
   const [apWireForm, setApWireForm] = useState<WireTransferInput>(EMPTY_WIRE_FORM);
+
+  // URL Product Extraction state
+  const [isExtractingUrl, setIsExtractingUrl] = useState(false);
+  const [extractedProductInfo, setExtractedProductInfo] = useState<any | null>(null);
+  const lastExtractedUrlRef = useRef<string>("");
+  const urlExtractionTimeoutRef = useRef<any>(null);
+
+  const handleUrlExtraction = async (rawUrl: string, force = false) => {
+    const trimmed = (rawUrl || "").trim();
+    if (!trimmed || trimmed.length < 8) return;
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.includes(".")) return;
+    if (!force && lastExtractedUrlRef.current === trimmed) return;
+
+    lastExtractedUrlRef.current = trimmed;
+    setIsExtractingUrl(true);
+    try {
+      const res = await extractProductInfoFromUrl(trimmed);
+      if (res && res.name && res.name !== "N/A") {
+        setExtractedProductInfo(res);
+        setForm((prev) => {
+          const updates: any = {};
+          // Populate title if empty or default placeholder
+          if (!prev.title || prev.title.trim() === "" || prev.title.startsWith("e.g.")) {
+            updates.title = res.name;
+          }
+          // Populate price
+          const parsedPrice = parseFloat(res.price);
+          if (!isNaN(parsedPrice) && parsedPrice > 0) {
+            updates.unit_price = parsedPrice;
+            updates.amount = parsedPrice * (prev.quantity || 1);
+          }
+          // Populate currency
+          if (res.currency && res.currency !== "N/A") {
+            updates.currency = res.currency;
+          }
+          // Populate description if empty
+          if (res.description && res.description !== "N/A" && (!prev.description || prev.description.trim() === "")) {
+            updates.description = res.description;
+          }
+          return { ...prev, ...updates };
+        });
+        toast.success(`Extracted: ${res.name.slice(0, 40)}... (${res.price ? '$' + res.price : ''} ${res.currency || 'USD'})`);
+      }
+    } catch (err: any) {
+      console.warn("URL extraction notice:", err);
+    } finally {
+      setIsExtractingUrl(false);
+    }
+  };
 
   // Multi-parts Quote OCR state
   const [quoteFile, setQuoteFile] = useState<File | null>(null);
@@ -1341,6 +1390,112 @@ export function PurchaseRequests() {
               </div>
             )}
 
+            {/* Product / Website Link (Placed directly above Request Title with Live Auto-Extraction) */}
+            {(form.request_type === "ACCOUNTS_PAYABLE" || itemMode === "SINGLE") && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <span>Product / Website Link</span>
+                    <span className="text-slate-400 font-normal text-[11px]">(Auto-fills Title, Price & Details)</span>
+                  </label>
+                  {isExtractingUrl && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary animate-pulse">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Extracting details...</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <Input
+                    value={form.item_url ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setForm({ ...form, item_url: val });
+                      if (urlExtractionTimeoutRef.current) {
+                        clearTimeout(urlExtractionTimeoutRef.current);
+                      }
+                      if (val && val.trim().length > 10) {
+                        urlExtractionTimeoutRef.current = setTimeout(() => {
+                          handleUrlExtraction(val);
+                        }, 700);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value && e.target.value.trim().length > 10) {
+                        handleUrlExtraction(e.target.value);
+                      }
+                    }}
+                    placeholder="https://www.amazon.ca/... (paste product link to auto-populate title & pricing)"
+                    className="h-9 text-xs pr-24 font-mono"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isExtractingUrl || !form.item_url}
+                    onClick={() => {
+                      if (form.item_url) {
+                        handleUrlExtraction(form.item_url, true);
+                      }
+                    }}
+                    className="absolute right-1 top-1 h-7 px-2 text-[11px] text-primary hover:text-primary hover:bg-primary/10 gap-1 font-semibold"
+                  >
+                    {isExtractingUrl ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3" />
+                    )}
+                    <span>{isExtractingUrl ? "Extracting" : "Auto-fill"}</span>
+                  </Button>
+                </div>
+
+                {/* AI Extracted Product Preview Banner */}
+                {extractedProductInfo && extractedProductInfo.name && extractedProductInfo.name !== "N/A" && (
+                  <div className="p-2.5 rounded-lg border border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-950/20 flex items-start justify-between gap-2 text-xs animate-in fade-in duration-200">
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-emerald-800 dark:text-emerald-300 text-[11px]">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        <span>AI Auto-Populated from Product Link</span>
+                      </div>
+                      <div className="font-medium text-foreground truncate text-xs" title={extractedProductInfo.name}>
+                        {extractedProductInfo.name}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                        {extractedProductInfo.price && extractedProductInfo.price !== "N/A" && (
+                          <span>Price: <strong className="text-foreground font-mono">${extractedProductInfo.price} {extractedProductInfo.currency || "USD"}</strong></span>
+                        )}
+                        {extractedProductInfo.vendor && extractedProductInfo.vendor !== "N/A" && (
+                          <span>• Vendor: <strong className="text-foreground">{extractedProductInfo.vendor}</strong></span>
+                        )}
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setForm((prev) => ({
+                          ...prev,
+                          title: extractedProductInfo.name,
+                          unit_price: parseFloat(extractedProductInfo.price) || prev.unit_price,
+                          amount: (parseFloat(extractedProductInfo.price) || 0) * (prev.quantity || 1) || prev.amount,
+                          currency: extractedProductInfo.currency || prev.currency,
+                          description: extractedProductInfo.description || prev.description,
+                        }));
+                        toast.success("Re-applied extracted title & details to request");
+                      }}
+                      className="h-6 text-[10px] px-2 shrink-0 border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:text-emerald-300"
+                    >
+                      Re-Apply
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* 4. Request Details: Title + 3-Column Meta Row (Requester | Department | Priority) */}
             <div className="space-y-3.5">
               <div className="space-y-1.5">
@@ -1451,21 +1606,6 @@ export function PurchaseRequests() {
                   step="1"
                   value={form.quantity ?? 1}
                   onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
-                  className="h-9 text-xs"
-                />
-              </div>
-            )}
-
-            {/* 7. Product / Website Link (Shown for Accounts Payable & Single Item, Optional, above Description) */}
-            {(form.request_type === "ACCOUNTS_PAYABLE" || itemMode === "SINGLE") && (
-              <div className="space-y-1.5 pt-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                  Product / Website Link <span className="text-slate-400 font-normal">(optional, e.g. Amazon URL or Vendor invoice link)</span>
-                </label>
-                <Input
-                  value={form.item_url ?? ""}
-                  onChange={(e) => setForm({ ...form, item_url: e.target.value })}
-                  placeholder="https://..."
                   className="h-9 text-xs"
                 />
               </div>
