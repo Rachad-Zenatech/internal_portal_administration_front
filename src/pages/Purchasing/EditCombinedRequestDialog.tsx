@@ -36,6 +36,7 @@ import type {
 } from "@/types/purchasing";
 import { PAYMENT_METHOD_LABEL, RequestStatus } from "@/types/purchasing";
 import { TAX_RATE, formatMoney } from "./purchasingMeta";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Package,
   FileText,
@@ -52,6 +53,9 @@ import {
   Plus,
   Trash2,
   Landmark,
+  Lock,
+  Truck,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -81,6 +85,15 @@ export function EditCombinedRequestDialog({
   const updateMutation = useUpdateRequest();
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
+
+  // General Overview & Ownership is fixed/disabled once under review or any later lifecycle stage
+  const isOverviewLocked = Boolean(
+    request?.status &&
+    request.status !== RequestStatus.Initial &&
+    request.status !== RequestStatus.New &&
+    String(request.status).toUpperCase() !== "INITIAL" &&
+    String(request.status).toUpperCase() !== "NEW"
+  );
 
   // Active Tab state
   const [activeTab, setActiveTab] = useState<"request" | "po" | "invoice">("request");
@@ -163,6 +176,10 @@ export function EditCombinedRequestDialog({
   const [poPaymentMethod, setPoPaymentMethod] = useState<PaymentMethod>("CC");
   const [poShippedTo, setPoShippedTo] = useState("");
   const [poExpectedDeliveryDate, setPoExpectedDeliveryDate] = useState("");
+  const [poTrackingNumber, setPoTrackingNumber] = useState("");
+  const [poShippingNote, setPoShippingNote] = useState("");
+  const [poGoodsReceivedNote, setPoGoodsReceivedNote] = useState("");
+  const [poGoodsReceived, setPoGoodsReceived] = useState<boolean>(false);
   const [poQuantity, setPoQuantity] = useState<number>(1);
   const [poUnitPrice, setPoUnitPrice] = useState<number>(0);
   const [poShippingFee, setPoShippingFee] = useState<number>(0);
@@ -327,6 +344,10 @@ export function EditCombinedRequestDialog({
             ? String(purchaseOrder.expected_delivery_date).split("T")[0]
             : ""
         );
+        setPoTrackingNumber(purchaseOrder.tracking_number || "");
+        setPoShippingNote(purchaseOrder.shipping_note || "");
+        setPoGoodsReceivedNote(purchaseOrder.goods_received_note || "");
+        setPoGoodsReceived(Boolean(purchaseOrder.goods_received));
         setPoQuantity(purchaseOrder.quantity ?? request?.quantity ?? 1);
         setPoUnitPrice(purchaseOrder.unit_price ?? request?.unit_price ?? 0);
         setPoShippingFee((purchaseOrder as any).shipping_fee ?? 0);
@@ -335,6 +356,10 @@ export function EditCombinedRequestDialog({
         setPoGlCode(purchaseOrder.gl_code || request?.gl_code || "");
         setPoDescription(purchaseOrder.description || "");
       } else {
+        setPoTrackingNumber("");
+        setPoShippingNote("");
+        setPoGoodsReceivedNote("");
+        setPoGoodsReceived(false);
         setPoDescription("");
       }
 
@@ -773,6 +798,10 @@ export function EditCombinedRequestDialog({
         payment_method: poPaymentMethod,
         shipped_to_location: poShippedTo.trim() || "Headquarters",
         expected_delivery_date: poExpectedDeliveryDate || null,
+        tracking_number: poTrackingNumber.trim() || null,
+        shipping_note: poShippingNote.trim() || null,
+        goods_received_note: poGoodsReceivedNote.trim() || null,
+        goods_received: poGoodsReceived,
         quantity: poQuantity,
         unit_price: poUnitPrice,
         amount: poAmount,
@@ -962,37 +991,48 @@ export function EditCombinedRequestDialog({
             className="flex-1 overflow-y-auto px-8 py-6 space-y-6 m-0 focus-visible:outline-hidden"
           >
             {/* Card 1: General Overview, Requisition Type & Ownership */}
-            <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/30 p-5 space-y-4">
+            <div className={`rounded-xl border border-slate-200 dark:border-zinc-800 p-5 space-y-4 transition-colors ${
+              isOverviewLocked
+                ? "bg-slate-100/50 dark:bg-zinc-900/50"
+                : "bg-slate-50/40 dark:bg-zinc-900/30"
+            }`}>
               <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-zinc-800/80">
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-indigo-500" />
                   <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight uppercase text-[11px]">
                     General Overview &amp; Ownership
                   </h3>
+                  {isOverviewLocked && (
+                    <Badge variant="secondary" className="text-[10px] font-normal gap-1 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                      <Lock className="h-2.5 w-2.5" /> Fixed (Under Review / Approved)
+                    </Badge>
+                  )}
                 </div>
 
                 {/* Item Mode Switcher (Single Item vs Multiple Parts) */}
                 <div className="flex items-center p-0.5 bg-slate-200/80 dark:bg-zinc-800 rounded-lg border border-slate-300/60 dark:border-zinc-700">
                   <button
                     type="button"
+                    disabled={isOverviewLocked}
                     onClick={() => handleItemModeSwitch("SINGLE")}
                     className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                       itemMode === "SINGLE"
                         ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs"
                         : "text-slate-600 dark:text-zinc-400 hover:text-slate-900"
-                    }`}
+                    } ${isOverviewLocked ? "cursor-not-allowed opacity-80" : ""}`}
                   >
                     <ShoppingBag className="h-3.5 w-3.5" />
                     <span>Single Item</span>
                   </button>
                   <button
                     type="button"
+                    disabled={isOverviewLocked}
                     onClick={() => handleItemModeSwitch("MULTIPLE")}
                     className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                       itemMode === "MULTIPLE"
                         ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs"
                         : "text-slate-600 dark:text-zinc-400 hover:text-slate-900"
-                    }`}
+                    } ${isOverviewLocked ? "cursor-not-allowed opacity-80" : ""}`}
                   >
                     <Layers className="h-3.5 w-3.5" />
                     <span>Multiple Parts / Items</span>
@@ -1009,9 +1049,10 @@ export function EditCombinedRequestDialog({
                   </label>
                   <Input
                     value={title}
+                    disabled={isOverviewLocked}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g., Apple MacBook Pro 16-inch M3 Max"
-                    className="h-10 text-sm font-medium bg-white dark:bg-zinc-900"
+                    className="h-10 text-sm font-medium bg-white dark:bg-zinc-900 disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100/70 dark:disabled:bg-zinc-800/60"
                   />
                 </div>
 
@@ -1020,8 +1061,8 @@ export function EditCombinedRequestDialog({
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                     Request Type <span className="text-rose-500">*</span>
                   </label>
-                  <Select value={requestType} onValueChange={(val: string) => setRequestType(val)}>
-                    <SelectTrigger className="h-10 text-sm bg-white dark:bg-zinc-900">
+                  <Select value={requestType} onValueChange={(val: string) => setRequestType(val)} disabled={isOverviewLocked}>
+                    <SelectTrigger className="h-10 text-sm bg-white dark:bg-zinc-900 disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100/70 dark:disabled:bg-zinc-800/60">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1039,8 +1080,8 @@ export function EditCombinedRequestDialog({
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                     Priority Level <span className="text-rose-500">*</span>
                   </label>
-                  <Select value={priority} onValueChange={(val: Priority) => setPriority(val)}>
-                    <SelectTrigger className="h-10 text-sm bg-white dark:bg-zinc-900">
+                  <Select value={priority} onValueChange={(val: Priority) => setPriority(val)} disabled={isOverviewLocked}>
+                    <SelectTrigger className="h-10 text-sm bg-white dark:bg-zinc-900 disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100/70 dark:disabled:bg-zinc-800/60">
                       <SelectValue placeholder="Select priority" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1061,17 +1102,20 @@ export function EditCombinedRequestDialog({
                   <div className="relative">
                     <Input
                       value={requester}
+                      disabled={isOverviewLocked}
                       onChange={(e) => {
                         setRequester(e.target.value);
                         setIsUserDropdownOpen(true);
                       }}
-                      onFocus={() => setIsUserDropdownOpen(true)}
+                      onFocus={() => {
+                        if (!isOverviewLocked) setIsUserDropdownOpen(true);
+                      }}
                       placeholder="Type name or email..."
-                      className="h-10 text-sm pr-9 bg-white dark:bg-zinc-900"
+                      className="h-10 text-sm pr-9 bg-white dark:bg-zinc-900 disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100/70 dark:disabled:bg-zinc-800/60"
                     />
                     <User className="h-4 w-4 absolute right-3 top-3 text-slate-400 pointer-events-none" />
                   </div>
-                  {isUserDropdownOpen && filteredUsers.length > 0 && (
+                  {!isOverviewLocked && isUserDropdownOpen && filteredUsers.length > 0 && (
                     <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800/60">
                       {filteredUsers.map((u: any) => {
                         const userDept = resolveUserDepartment(u, rolesList);
@@ -1106,6 +1150,7 @@ export function EditCombinedRequestDialog({
                   </label>
                   <DepartmentAutocomplete
                     value={department}
+                    disabled={isOverviewLocked}
                     onChange={setDepartment}
                     placeholder="Search or enter department..."
                   />
@@ -1121,8 +1166,9 @@ export function EditCombinedRequestDialog({
                     <Input
                       type="date"
                       value={dueDate}
+                      disabled={isOverviewLocked}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="h-10 text-sm bg-white dark:bg-zinc-900"
+                      className="h-10 text-sm bg-white dark:bg-zinc-900 disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100/70 dark:disabled:bg-zinc-800/60"
                     />
                   </div>
                 )}
@@ -1145,9 +1191,10 @@ export function EditCombinedRequestDialog({
                   </label>
                   <Input
                     value={itemUrl}
+                    disabled={isOverviewLocked}
                     onChange={(e) => setItemUrl(e.target.value)}
                     placeholder="https://vendor.com/product-page"
-                    className="h-10 text-sm bg-white dark:bg-zinc-900"
+                    className="h-10 text-sm bg-white dark:bg-zinc-900 disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100/70 dark:disabled:bg-zinc-800/60"
                   />
                 </div>
               </div>
@@ -1700,7 +1747,70 @@ export function EditCombinedRequestDialog({
                 </div>
               </div>
 
-              {/* Card 3: PO Stage-Specific Description */}
+              {/* Card 3: Shipping, Tracking & Goods Received Notes */}
+              <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/30 p-5 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-zinc-800/80">
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-amber-500" />
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight uppercase text-[11px]">
+                      Shipping, Tracking &amp; Goods Received Notes
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5 cursor-pointer select-none">
+                      <Checkbox
+                        checked={poGoodsReceived}
+                        onCheckedChange={(checked) => setPoGoodsReceived(Boolean(checked))}
+                      />
+                      <span>Goods Received</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                      <Package className="h-3.5 w-3.5 text-slate-400" />
+                      <span>Tracking Number / Carrier</span>
+                    </label>
+                    <Input
+                      value={poTrackingNumber}
+                      onChange={(e) => setPoTrackingNumber(e.target.value)}
+                      placeholder="e.g., 1Z9999999999999999 (UPS / FedEx)"
+                      className="h-10 text-sm font-mono bg-white dark:bg-zinc-900"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-slate-400" />
+                      <span>Shipping Note</span>
+                    </label>
+                    <Input
+                      value={poShippingNote}
+                      onChange={(e) => setPoShippingNote(e.target.value)}
+                      placeholder="e.g., Delivering via FedEx Express Priority"
+                      className="h-10 text-sm bg-white dark:bg-zinc-900"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      <span>Goods Received Notes</span>
+                    </label>
+                    <Textarea
+                      rows={2}
+                      value={poGoodsReceivedNote}
+                      onChange={(e) => setPoGoodsReceivedNote(e.target.value)}
+                      placeholder="e.g., Received items in good condition at receiving dock by warehouse manager..."
+                      className="text-xs resize-none bg-white dark:bg-zinc-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: PO Stage-Specific Description */}
               <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/30 p-5 space-y-2">
                 <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
                   <FileText className="h-3.5 w-3.5 text-slate-400" />
