@@ -9,7 +9,8 @@ import { RequestStatus } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   Activity, AlertTriangle, ReceiptText, CalendarCheck, Search, X, UserCheck, ShieldCheck, Check,
-  ChevronDown, Sparkles, Building2, Users, RefreshCw, AlertCircle, CheckCircle2, ChevronsUpDown, CheckSquare
+  ChevronDown, Sparkles, Building2, Users, RefreshCw, AlertCircle, CheckCircle2, CheckSquare,
+  FolderPlus, GripVertical, Trash2, Folder, Layers, Edit2, Loader2
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,6 +27,383 @@ import TaskDetailPanel from "@/components/Tasks/TaskDetailPanel";
 import { apiClient as api } from "@/services/apiClient";
 import { toast } from "sonner";
 
+type ApproverSummary = {
+  id: string;
+  full_name?: string | null;
+  email?: string | null;
+  job_title?: string | null;
+  department?: string | null;
+};
+
+type DepartmentApprover = {
+  department: string;
+  group_name?: string | null;
+  approver_id: string | null;
+  approver_name: string | null;
+  approver_email: string | null;
+  approver_title: string | null;
+  approver_ids?: string[] | null;
+  approvers?: ApproverSummary[] | null;
+  source: "MANUAL" | "UNASSIGNED";
+};
+
+type DepartmentGroup = {
+  id: number;
+  name: string;
+  approver_ids?: string[] | null;
+  approvers?: ApproverSummary[] | null;
+  departments: string[];
+};
+
+/** Rich Level 1 Approver Pill without vertical clipping */
+function ApproverPill({
+  name,
+  email,
+  title,
+}: {
+  name?: string | null;
+  email?: string | null;
+  title?: string | null;
+}) {
+  const displayName = name || email || "User";
+  const initials = displayName
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  return (
+    <div className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-lg bg-emerald-50 text-emerald-950 border border-emerald-200/90 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800/80 shadow-2xs hover:bg-emerald-100/70 dark:hover:bg-emerald-950/60 transition-colors">
+      <div className="h-6 w-6 rounded-full bg-emerald-200 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-100 flex items-center justify-center text-[11px] font-bold shrink-0 shadow-2xs">
+        {initials}
+      </div>
+      <div className="flex flex-col text-left leading-normal min-w-0">
+        <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 truncate">
+          {displayName}
+        </span>
+        {title ? (
+          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium truncate">
+            {title}
+          </span>
+        ) : email ? (
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+            {email}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Approver Pill List with +X More Popover Dropdown */
+function ApproverPillList({
+  approvers,
+  maxVisible = 2,
+}: {
+  approvers: ApproverSummary[];
+  maxVisible?: number;
+}) {
+  if (!approvers || approvers.length === 0) return null;
+
+  const visible = approvers.slice(0, maxVisible);
+  const remaining = approvers.slice(maxVisible);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {visible.map((appr) => (
+        <ApproverPill
+          key={appr.id}
+          name={appr.full_name}
+          email={appr.email}
+          title={appr.job_title}
+        />
+      ))}
+
+      {remaining.length > 0 && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100/90 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 border border-emerald-300/80 dark:border-emerald-700/80 shadow-2xs transition-colors cursor-pointer"
+            >
+              <span>+{remaining.length} more</span>
+              <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-2.5 shadow-xl" align="start">
+            <div className="flex items-center justify-between px-1.5 pb-2 border-b border-slate-100 dark:border-slate-800 mb-1.5">
+              <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                All Approvers ({approvers.length})
+              </span>
+              <span className="text-[10px] text-muted-foreground font-medium">Level 1</span>
+            </div>
+            <div className="max-h-64 overflow-y-auto space-y-1.5 p-0.5" onWheelCapture={(e) => e.stopPropagation()}>
+              {approvers.map((appr) => {
+                const displayName = appr.full_name || appr.email || "User";
+                const initials = displayName
+                  .split(" ")
+                  .map((p) => p[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase();
+                return (
+                  <div
+                    key={appr.id}
+                    className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/80 transition-colors"
+                  >
+                    <div className="h-7 w-7 rounded-full bg-emerald-200 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-100 flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs">
+                      {initials}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 truncate">
+                        {displayName}
+                      </span>
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground truncate">
+                        <span>{appr.email}</span>
+                        {appr.job_title && (
+                          <>
+                            <span>&middot;</span>
+                            <span className="text-emerald-700 dark:text-emerald-400 truncate font-medium">
+                              {appr.job_title}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  );
+}
+
+/** Multi-User Approver Selection Popover */
+function MultiUserApproverPopover({
+  title,
+  subTitle,
+  users,
+  selectedUserIds,
+  onSave,
+  isSaving,
+  triggerButton,
+}: {
+  title: string;
+  subTitle?: string;
+  users: any[];
+  selectedUserIds: string[];
+  onSave: (userIds: string[]) => Promise<void>;
+  isSaving: boolean;
+  triggerButton: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [draftIds, setDraftIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      setDraftIds(selectedUserIds || []);
+      setSearch("");
+    }
+  }, [open, selectedUserIds]);
+
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const active = users.filter((u) => u.is_active !== false);
+    if (!q) return active;
+    return active.filter(
+      (u) =>
+        (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q)) ||
+        (u.department && u.department.toLowerCase().includes(q)) ||
+        (u.job_title && u.job_title.toLowerCase().includes(q))
+    );
+  }, [users, search]);
+
+  const toggleUser = (userId: string) => {
+    setDraftIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const handleSave = async () => {
+    await onSave(draftIds);
+    setOpen(false);
+  };
+
+  const handleClear = async () => {
+    setDraftIds([]);
+    await onSave([]);
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
+      <PopoverContent className="w-[380px] sm:w-[420px] p-0 shadow-xl" align="end">
+        <div className="p-3 border-b bg-slate-50/80 dark:bg-zinc-900/80">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <UserCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              {title}
+            </span>
+            <span className="text-[10px] text-muted-foreground">Multi-Approver Selection</span>
+          </div>
+          {subTitle && <p className="text-[11px] text-muted-foreground mb-2">{subTitle}</p>}
+
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              autoFocus
+              placeholder="Search users by name, email, department..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-8 text-xs bg-white dark:bg-zinc-950"
+            />
+          </div>
+
+          {/* Selected user chips preview */}
+          {draftIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 max-h-20 overflow-y-auto">
+              {draftIds.map((uid) => {
+                const u = users.find((x) => x.id === uid);
+                return (
+                  <Badge
+                    key={uid}
+                    variant="secondary"
+                    className="text-[11px] font-normal pl-2 pr-1 py-0.5 gap-1 bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800"
+                  >
+                    <span>{u ? u.full_name || u.email : uid}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleUser(uid)}
+                      className="hover:bg-emerald-200 dark:hover:bg-emerald-800 rounded-full p-0.5 text-emerald-700 dark:text-emerald-300"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setDraftIds([])}
+                className="text-[10px] text-muted-foreground hover:text-red-500 underline ml-1"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* User list with checkboxes */}
+        <div
+          className="max-h-[260px] overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-slate-800/60"
+          onWheelCapture={(e) => e.stopPropagation()}
+        >
+          {filteredUsers.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">
+              No active users found matching "{search}"
+            </div>
+          ) : (
+            filteredUsers.map((u) => {
+              const isChecked = draftIds.includes(u.id);
+              return (
+                <div
+                  key={u.id}
+                  onClick={() => toggleUser(u.id)}
+                  className={`p-2 rounded-md cursor-pointer text-xs flex items-center justify-between transition-colors ${
+                    isChecked
+                      ? "bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100 font-medium"
+                      : "hover:bg-slate-100/80 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Checkbox
+                      checked={isChecked}
+                      onCheckedChange={() => toggleUser(u.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div className="h-7 w-7 rounded-full bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-slate-200 flex items-center justify-center text-xs font-semibold shrink-0">
+                      {u.full_name
+                        ?.split(" ")
+                        .map((p: string) => p[0])
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase() || "U"}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold truncate">{u.full_name || u.email}</span>
+                        {u.department && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            {u.department}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate">
+                        <span>{u.email}</span>
+                        {u.job_title && (
+                          <>
+                            <span>&middot;</span>
+                            <span className="truncate">{u.job_title}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer actions */}
+        <div className="p-2.5 border-t bg-slate-50/90 dark:bg-zinc-900/90 flex items-center justify-between gap-2">
+          {selectedUserIds && selectedUserIds.length > 0 ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={isSaving}
+              onClick={handleClear}
+              className="h-8 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
+            >
+              Unassign All
+            </Button>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">
+              {draftIds.length} approver{draftIds.length === 1 ? "" : "s"} selected
+            </span>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setOpen(false)}
+              className="h-8 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={isSaving}
+              onClick={handleSave}
+              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs"
+            >
+              {isSaving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              {isSaving ? "Saving..." : `Apply (${draftIds.length})`}
+            </Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function Dashboard() {
   const kpiRef = useRef<HTMLDivElement>(null);
   // Approver Assignment Modal State
@@ -37,19 +415,35 @@ export default function Dashboard() {
   const [graphSearchResults, setGraphSearchResults] = useState<any[]>([]);
   const [isSearchingGraph, setIsSearchingGraph] = useState(false);
 
-  // Department Approvers State in Dashboard
-  const [deptApprovers, setDeptApprovers] = useState<any[]>([]);
+  // Department Approvers & Groups State in Dashboard
+  const [deptApprovers, setDeptApprovers] = useState<DepartmentApprover[]>([]);
+  const [deptGroups, setDeptGroups] = useState<DepartmentGroup[]>([]);
   const [isDeptLoading, setIsDeptLoading] = useState(false);
-  const [openPopoverDept, setOpenPopoverDept] = useState<string | null>(null);
-  const [deptApproverSearch, setDeptApproverSearch] = useState("");
   const [savingDept, setSavingDept] = useState<string | null>(null);
+  const [savingGroup, setSavingGroup] = useState<string | null>(null);
   const [deptTableSearch, setDeptTableSearch] = useState("");
+
+  // Accordion expanded groups state
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  // Drag and drop state
+  const [draggedDept, setDraggedDept] = useState<string | null>(null);
+  const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
 
   // Multi-select state for Department Approvers
   const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
-  const [isBatchPopoverOpen, setIsBatchPopoverOpen] = useState(false);
-  const [batchSearchText, setBatchSearchText] = useState("");
   const [isBatchSaving, setIsBatchSaving] = useState(false);
+
+  // Create & Rename Group Modal States
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupApproverIds, setNewGroupApproverIds] = useState<string[]>([]);
+  const [newGroupDeptNames, setNewGroupDeptNames] = useState<string[]>([]);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+
+  const [renameGroupId, setRenameGroupId] = useState<number | null>(null);
+  const [renameGroupName, setRenameGroupName] = useState("");
+  const [isRenamingGroup, setIsRenamingGroup] = useState(false);
 
   // Debounced search for Graph Entra users
   useEffect(() => {
@@ -76,14 +470,23 @@ export default function Dashboard() {
   const fetchWorkflowAssignments = async () => {
     setIsDeptLoading(true);
     try {
-      const [assnRes, userRes, deptApprRes] = await Promise.all([
+      const [assnRes, userRes, deptApprRes, groupsRes] = await Promise.all([
         api.get<any[]>("/purchasing/assignments"),
         api.get<any>("/configuration/users?is_active=true"),
-        api.get<any[]>("/purchasing/department-approvers").catch(() => []),
+        api.get<DepartmentApprover[]>("/purchasing/department-approvers").catch(() => []),
+        api.get<DepartmentGroup[]>("/purchasing/department-groups").catch(() => []),
       ]);
       setWorkflowAssignments(assnRes || []);
       setAllUsers(Array.isArray(userRes) ? userRes : (userRes as any).items || []);
       setDeptApprovers(deptApprRes || []);
+      setDeptGroups(groupsRes || []);
+
+      // Default expand all groups
+      const initialExpanded: Record<string, boolean> = { __UNGROUPED__: true };
+      (groupsRes || []).forEach((g: DepartmentGroup) => {
+        initialExpanded[g.name] = true;
+      });
+      setExpandedGroups(initialExpanded);
     } catch (err) {
       console.error("Failed to fetch workflow assignments:", err);
     } finally {
@@ -96,38 +499,167 @@ export default function Dashboard() {
     setIsApproverModalOpen(true);
   };
 
-  const handleSelectDepartmentApprover = async (deptName: string, selectedUser: any | null) => {
+  // Filtered department approvers
+  const filteredDeptApprovers = useMemo(() => {
+    return deptApprovers.filter(
+      (d) =>
+        !deptTableSearch ||
+        d.department.toLowerCase().includes(deptTableSearch.toLowerCase()) ||
+        (d.group_name && d.group_name.toLowerCase().includes(deptTableSearch.toLowerCase())) ||
+        (d.approver_name && d.approver_name.toLowerCase().includes(deptTableSearch.toLowerCase())) ||
+        (d.approvers &&
+          d.approvers.some(
+            (a) =>
+              (a.full_name && a.full_name.toLowerCase().includes(deptTableSearch.toLowerCase())) ||
+              (a.email && a.email.toLowerCase().includes(deptTableSearch.toLowerCase()))
+          ))
+    );
+  }, [deptApprovers, deptTableSearch]);
+
+  // Grouped departments map
+  const groupedDepartments = useMemo(() => {
+    const map: Record<string, DepartmentApprover[]> = {};
+    deptGroups.forEach((g) => {
+      map[g.name] = [];
+    });
+    map["__UNGROUPED__"] = [];
+
+    filteredDeptApprovers.forEach((dept) => {
+      const gName = dept.group_name && dept.group_name.trim() ? dept.group_name.trim() : "__UNGROUPED__";
+      if (!map[gName]) {
+        map[gName] = [];
+      }
+      map[gName].push(dept);
+    });
+
+    return map;
+  }, [deptGroups, filteredDeptApprovers]);
+
+  const deptStats = useMemo(() => {
+    const total = deptApprovers.length;
+    const assigned = deptApprovers.filter((d) => Boolean(d.approver_id || (d.approver_ids && d.approver_ids.length > 0))).length;
+    const unassigned = total - assigned;
+    const groupsCount = deptGroups.length;
+    return { total, assigned, unassigned, groupsCount };
+  }, [deptApprovers, deptGroups]);
+
+  const toggleGroupExpand = (groupKey: string) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [groupKey]: prev[groupKey] === undefined ? false : !prev[groupKey],
+    }));
+  };
+
+  const handleExpandAll = () => {
+    const next: Record<string, boolean> = { __UNGROUPED__: true };
+    deptGroups.forEach((g) => { next[g.name] = true; });
+    setExpandedGroups(next);
+  };
+
+  const handleCollapseAll = () => {
+    const next: Record<string, boolean> = { __UNGROUPED__: false };
+    deptGroups.forEach((g) => { next[g.name] = false; });
+    setExpandedGroups(next);
+  };
+
+  // Drag and drop handlers
+  const handleDragStartDept = (e: React.DragEvent, deptName: string) => {
+    setDraggedDept(deptName);
+    e.dataTransfer.setData("text/plain", deptName);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEndDept = () => {
+    setDraggedDept(null);
+    setDragOverGroup(null);
+  };
+
+  const handleDragOverGroup = (e: React.DragEvent, groupName: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverGroup !== groupName) {
+      setDragOverGroup(groupName);
+    }
+  };
+
+  const handleDragLeaveGroup = (e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setDragOverGroup(null);
+  };
+
+  const handleDropOnGroup = (e: React.DragEvent, targetGroup: string | null) => {
+    e.preventDefault();
+    const deptName = e.dataTransfer.getData("text/plain") || draggedDept;
+    if (deptName) {
+      handleMoveDepartment(deptName, targetGroup);
+    }
+    setDraggedDept(null);
+    setDragOverGroup(null);
+  };
+
+  // Multi-select handlers for departments
+  const handleToggleSelectDept = (deptName: string) => {
+    setSelectedDepts((prev) =>
+      prev.includes(deptName) ? prev.filter((d) => d !== deptName) : [...prev, deptName]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    const visibleDeptNames = filteredDeptApprovers.map((d) => d.department);
+    const allSelected = visibleDeptNames.length > 0 && visibleDeptNames.every((d) => selectedDepts.includes(d));
+    if (allSelected) {
+      setSelectedDepts((prev) => prev.filter((d) => !visibleDeptNames.includes(d)));
+    } else {
+      setSelectedDepts((prev) => Array.from(new Set([...prev, ...visibleDeptNames])));
+    }
+  };
+
+  // Single Department Multi-Approver Assignment
+  const handleSelectDepartmentApprovers = async (deptName: string, userIds: string[]) => {
     setSavingDept(deptName);
-    const userId = selectedUser ? selectedUser.id : null;
+    const primaryId = userIds.length > 0 ? userIds[0] : null;
+    const assignedUserObjects = userIds
+      .map((uid) => allUsers.find((u) => u.id === uid))
+      .filter(Boolean)
+      .map((u) => ({
+        id: u.id,
+        full_name: u.full_name,
+        email: u.email,
+        job_title: u.job_title,
+        department: u.department,
+      }));
+
     try {
       await api.post("/purchasing/department-approvers/assign", {
         department: deptName,
-        user_id: userId,
-        user_ids: userId ? [userId] : []
+        user_id: primaryId,
+        user_ids: userIds,
       });
 
-      setDeptApprovers(prev => prev.map(d => {
-        if (d.department.toLowerCase() === deptName.toLowerCase()) {
-          return {
-            ...d,
-            approver_id: userId,
-            approver_name: selectedUser ? (selectedUser.full_name || selectedUser.email) : null,
-            approver_email: selectedUser ? selectedUser.email : null,
-            approver_title: selectedUser ? selectedUser.job_title : null,
-            approver_ids: userId ? [userId] : null,
-            source: userId ? "MANUAL" : "UNASSIGNED"
-          };
-        }
-        return d;
-      }));
+      setDeptApprovers((prev) =>
+        prev.map((d) => {
+          if (d.department.toLowerCase() === deptName.toLowerCase()) {
+            const primaryUser = assignedUserObjects[0];
+            return {
+              ...d,
+              approver_id: primaryId,
+              approver_name: primaryUser ? primaryUser.full_name || primaryUser.email : null,
+              approver_email: primaryUser ? primaryUser.email : null,
+              approver_title: primaryUser ? primaryUser.job_title : null,
+              approver_ids: userIds.length > 0 ? userIds : null,
+              approvers: assignedUserObjects.length > 0 ? assignedUserObjects : null,
+              source: primaryId ? "MANUAL" : "UNASSIGNED",
+            };
+          }
+          return d;
+        })
+      );
 
-      if (selectedUser) {
-        toast.success(`Assigned ${selectedUser.full_name || selectedUser.email} as Level 1 Approver for ${deptName}`);
+      if (userIds.length > 0) {
+        toast.success(`Updated Level 1 Approver(s) for ${deptName} (${userIds.length} assigned)`);
       } else {
-        toast.info(`Cleared Level 1 Approver for ${deptName}`);
+        toast.info(`Cleared Level 1 Approver(s) for ${deptName}`);
       }
-      setOpenPopoverDept(null);
-      setDeptApproverSearch("");
     } catch (e: any) {
       toast.error(e?.response?.data?.detail || "Failed to update department approver");
     } finally {
@@ -135,68 +667,209 @@ export default function Dashboard() {
     }
   };
 
-  // Multi-select handlers for departments in Dashboard
-  const handleToggleSelectDept = (deptName: string) => {
-    setSelectedDepts(prev =>
-      prev.includes(deptName) ? prev.filter(d => d !== deptName) : [...prev, deptName]
-    );
-  };
-
-  const handleToggleSelectAll = (visibleDeptNames: string[]) => {
-    const allSelected = visibleDeptNames.length > 0 && visibleDeptNames.every(d => selectedDepts.includes(d));
-    if (allSelected) {
-      setSelectedDepts(prev => prev.filter(d => !visibleDeptNames.includes(d)));
-    } else {
-      setSelectedDepts(prev => Array.from(new Set([...prev, ...visibleDeptNames])));
-    }
-  };
-
-  const handleBatchAssignApprover = async (selectedUser: any | null) => {
+  // Batch assign approvers to all selected departments
+  const handleBatchAssignApprovers = async (userIds: string[]) => {
     if (selectedDepts.length === 0) return;
     setIsBatchSaving(true);
-    const userId = selectedUser ? selectedUser.id : null;
+    const primaryId = userIds.length > 0 ? userIds[0] : null;
+    const assignedUserObjects = userIds
+      .map((uid) => allUsers.find((u) => u.id === uid))
+      .filter(Boolean)
+      .map((u) => ({
+        id: u.id,
+        full_name: u.full_name,
+        email: u.email,
+        job_title: u.job_title,
+        department: u.department,
+      }));
+
     try {
       await api.post("/purchasing/department-approvers/batch-assign", {
         departments: selectedDepts,
-        user_id: userId,
-        user_ids: userId ? [userId] : []
+        user_id: primaryId,
+        user_ids: userIds,
       });
 
-      const targetDeptsLower = new Set(selectedDepts.map(d => d.toLowerCase()));
-      setDeptApprovers(prev => prev.map(d => {
-        if (targetDeptsLower.has(d.department.toLowerCase())) {
-          return {
-            ...d,
-            approver_id: userId,
-            approver_name: selectedUser ? (selectedUser.full_name || selectedUser.email) : null,
-            approver_email: selectedUser ? selectedUser.email : null,
-            approver_title: selectedUser ? selectedUser.job_title : null,
-            approver_ids: userId ? [userId] : null,
-            source: userId ? "MANUAL" : "UNASSIGNED"
-          };
-        }
-        return d;
-      }));
+      const targetDeptsLower = new Set(selectedDepts.map((d) => d.toLowerCase()));
+      setDeptApprovers((prev) =>
+        prev.map((d) => {
+          if (targetDeptsLower.has(d.department.toLowerCase())) {
+            const primaryUser = assignedUserObjects[0];
+            return {
+              ...d,
+              approver_id: primaryId,
+              approver_name: primaryUser ? primaryUser.full_name || primaryUser.email : null,
+              approver_email: primaryUser ? primaryUser.email : null,
+              approver_title: primaryUser ? primaryUser.job_title : null,
+              approver_ids: userIds.length > 0 ? userIds : null,
+              approvers: assignedUserObjects.length > 0 ? assignedUserObjects : null,
+              source: primaryId ? "MANUAL" : "UNASSIGNED",
+            };
+          }
+          return d;
+        })
+      );
 
-      if (selectedUser) {
-        toast.success(`Assigned ${selectedUser.full_name || selectedUser.email} to ${selectedDepts.length} departments`);
+      if (userIds.length > 0) {
+        toast.success(`Assigned ${userIds.length} Level 1 Approver(s) to ${selectedDepts.length} department(s)`);
       } else {
-        toast.info(`Cleared approver for ${selectedDepts.length} departments`);
+        toast.info(`Cleared Level 1 Approvers for ${selectedDepts.length} department(s)`);
       }
 
       setSelectedDepts([]);
-      setIsBatchPopoverOpen(false);
-      setBatchSearchText("");
     } catch (e: any) {
       toast.error(e?.response?.data?.detail || "Failed to batch assign department approvers");
+      fetchWorkflowAssignments();
     } finally {
       setIsBatchSaving(false);
     }
   };
 
+  // Group-Level Multi-Approver Assignment
+  const handleAssignGroupApprovers = async (groupName: string, userIds: string[]) => {
+    setSavingGroup(groupName);
+    const primaryId = userIds.length > 0 ? userIds[0] : null;
+    const assignedUserObjects = userIds
+      .map((uid) => allUsers.find((u) => u.id === uid))
+      .filter(Boolean)
+      .map((u) => ({
+        id: u.id,
+        full_name: u.full_name,
+        email: u.email,
+        job_title: u.job_title,
+        department: u.department,
+      }));
+
+    try {
+      await api.post("/purchasing/department-groups/assign-approvers", {
+        group_name: groupName,
+        user_ids: userIds,
+      });
+
+      setDeptGroups((prev) =>
+        prev.map((g) => {
+          if (g.name.toLowerCase() === groupName.toLowerCase()) {
+            return {
+              ...g,
+              approver_ids: userIds.length > 0 ? userIds : null,
+              approvers: assignedUserObjects.length > 0 ? assignedUserObjects : null,
+            };
+          }
+          return g;
+        })
+      );
+
+      setDeptApprovers((prev) =>
+        prev.map((d) => {
+          if ((d.group_name || "").toLowerCase() === groupName.toLowerCase()) {
+            const primaryUser = assignedUserObjects[0];
+            return {
+              ...d,
+              approver_id: primaryId,
+              approver_name: primaryUser ? primaryUser.full_name || primaryUser.email : null,
+              approver_email: primaryUser ? primaryUser.email : null,
+              approver_title: primaryUser ? primaryUser.job_title : null,
+              approver_ids: userIds.length > 0 ? userIds : null,
+              approvers: assignedUserObjects.length > 0 ? assignedUserObjects : null,
+              source: primaryId ? "MANUAL" : "UNASSIGNED",
+            };
+          }
+          return d;
+        })
+      );
+
+      toast.success(`Assigned ${userIds.length} approver(s) to group "${groupName}"`);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Failed to assign group approvers");
+      fetchWorkflowAssignments();
+    } finally {
+      setSavingGroup(null);
+    }
+  };
+
+  // Move Department into a Group (Drag & Drop or select)
+  const handleMoveDepartment = async (deptName: string, targetGroup: string | null) => {
+    const targetGroupClean = targetGroup === "__UNGROUPED__" || !targetGroup ? null : targetGroup.trim();
+
+    setDeptApprovers((prev) =>
+      prev.map((d) => (d.department === deptName ? { ...d, group_name: targetGroupClean } : d))
+    );
+
+    try {
+      await api.post("/purchasing/department-groups/move", {
+        departments: [deptName],
+        group_name: targetGroupClean,
+      });
+
+      toast.success(`Moved ${deptName} to ${targetGroupClean ? `group "${targetGroupClean}"` : "Ungrouped"}`);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Failed to move department");
+      fetchWorkflowAssignments();
+    }
+  };
+
+  // Create Group Handler
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim()) {
+      return toast.error("Group name is required");
+    }
+    setIsCreatingGroup(true);
+    try {
+      const res = await api.post<DepartmentGroup>("/purchasing/department-groups", {
+        name: newGroupName.trim(),
+        approver_ids: newGroupApproverIds,
+        departments: newGroupDeptNames,
+      });
+
+      toast.success(`Created department group "${res.name}"`);
+      setIsCreateGroupOpen(false);
+      setNewGroupName("");
+      setNewGroupApproverIds([]);
+      setNewGroupDeptNames([]);
+      fetchWorkflowAssignments();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Failed to create department group");
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  };
+
+  // Rename Group Handler
+  const handleRenameGroup = async () => {
+    if (!renameGroupId || !renameGroupName.trim()) return;
+    setIsRenamingGroup(true);
+    try {
+      await api.put(`/purchasing/department-groups/${renameGroupId}`, {
+        name: renameGroupName.trim(),
+      });
+      toast.success(`Renamed group to "${renameGroupName.trim()}"`);
+      setRenameGroupId(null);
+      setRenameGroupName("");
+      fetchWorkflowAssignments();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Failed to rename group");
+    } finally {
+      setIsRenamingGroup(false);
+    }
+  };
+
+  // Delete Group Handler
+  const handleDeleteGroup = async (groupId: number, groupName: string) => {
+    if (!window.confirm(`Are you sure you want to delete group "${groupName}"? Member departments will become ungrouped.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/purchasing/department-groups/${groupId}`);
+      toast.info(`Deleted group "${groupName}". Member departments moved to Ungrouped.`);
+      fetchWorkflowAssignments();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Failed to delete group");
+    }
+  };
+
   const handleToggleUserInRole = (role: string, userId: string, extraUserObj?: any) => {
-    if (extraUserObj && !allUsers.some(u => u.id === userId || u.email === extraUserObj.email)) {
-      setAllUsers(prev => [...prev, { id: userId, full_name: extraUserObj.display_name, email: extraUserObj.email, ...extraUserObj }]);
+    if (extraUserObj && !allUsers.some((u) => u.id === userId || u.email === extraUserObj.email)) {
+      setAllUsers((prev) => [...prev, { id: userId, full_name: extraUserObj.display_name, email: extraUserObj.email, ...extraUserObj }]);
     }
     setWorkflowAssignments((prev) => {
       const existing = prev.find((a) => a.role === role);
@@ -213,11 +886,12 @@ export default function Dashboard() {
   };
 
   const handleToggleEntraUser = async (role: string, entraUser: any) => {
-    const matchingLocal = allUsers.find(u => 
-      (u.microsoft_object_id && u.microsoft_object_id === entraUser.object_id) ||
-      (u.email && entraUser.email && u.email.toLowerCase() === entraUser.email.toLowerCase())
+    const matchingLocal = allUsers.find(
+      (u) =>
+        (u.microsoft_object_id && u.microsoft_object_id === entraUser.object_id) ||
+        (u.email && entraUser.email && u.email.toLowerCase() === entraUser.email.toLowerCase())
     );
-    const userId = matchingLocal ? matchingLocal.id : (entraUser.object_id || entraUser.email);
+    const userId = matchingLocal ? matchingLocal.id : entraUser.object_id || entraUser.email;
     handleToggleUserInRole(role, userId, { ...entraUser, id: userId });
   };
 
@@ -228,19 +902,20 @@ export default function Dashboard() {
         const role = item.role;
         const userIds: string[] = item.user_ids || (item.user_id ? [item.user_id] : []);
 
-        // Sync HIGH_LEVEL_APPROVER / LOW_LEVEL_APPROVER via dedicated approver role API
         if (role === "EXECUTIVE" || role === "MANAGER") {
           const approverRoleCode = role === "EXECUTIVE" ? "HIGH_LEVEL_APPROVER" : "LOW_LEVEL_APPROVER";
-          const membersToProvision = userIds.map(uid => {
-            const u = allUsers.find(x => x.id === uid) || {};
-            return {
-              object_id: u.microsoft_object_id || u.object_id || uid,
-              email: u.email || "",
-              display_name: u.full_name || u.display_name || "",
-              job_title: u.job_title || null,
-              department: u.department || null,
-            };
-          }).filter(m => m.email);
+          const membersToProvision = userIds
+            .map((uid) => {
+              const u = allUsers.find((x) => x.id === uid) || {};
+              return {
+                object_id: u.microsoft_object_id || u.object_id || uid,
+                email: u.email || "",
+                display_name: u.full_name || u.display_name || "",
+                job_title: u.job_title || null,
+                department: u.department || null,
+              };
+            })
+            .filter((m) => m.email);
 
           if (membersToProvision.length > 0) {
             try {
@@ -629,18 +1304,18 @@ export default function Dashboard() {
 
       {/* Executive Approver Assignment & Delegation Modal */}
       <Dialog open={isApproverModalOpen} onOpenChange={setIsApproverModalOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl">
           <DialogHeader>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/40 text-indigo-600 dark:text-indigo-400 shrink-0">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
                 <DialogTitle className="text-lg font-bold text-slate-900 dark:text-zinc-100">
-                  CEO / Executive Approver & Department Assignment
+                  CEO / Executive Approver & Workflow Assignment
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Directly configure Level 1 department approvers and operational workflow teams.
+                  Organize departments into group tabs, assign multiple Level 1 approvers, and manage operational teams.
                 </DialogDescription>
               </div>
             </div>
@@ -648,369 +1323,552 @@ export default function Dashboard() {
 
           <Tabs defaultValue="departments" className="w-full mt-2">
             <TabsList className="grid grid-cols-2 w-full mb-4">
-              <TabsTrigger value="departments" className="text-xs font-semibold gap-1.5">
-                <Building2 className="w-3.5 h-3.5" /> Department Level 1 Approvers
-              </TabsTrigger>
-              <TabsTrigger value="operational" className="text-xs font-semibold gap-1.5">
-                <Users className="w-3.5 h-3.5" /> Operational Teams
+              <TabsTrigger value="departments" className="text-xs font-semibold gap-1.5 py-2">
+                <Building2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                Level 1 Department Approvers
+              </TabsTrigger>              <TabsTrigger value="operational" className="text-xs font-semibold gap-1.5 py-2">
+                <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                Operational Roles
               </TabsTrigger>
             </TabsList>
 
-            {/* TAB 1: Department Level 1 Approvers Sub-Table */}
-            <TabsContent value="departments" className="space-y-3 m-0">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Badge variant="secondary" className="gap-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 font-normal">
-                    Total: <span className="font-semibold">{deptApprovers.length}</span>
+            {/* TAB 1: Department Level 1 Approvers */}
+            <TabsContent value="departments" className="space-y-4 m-0">
+              {/* Stats Summary & Top Toolbar */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 bg-slate-50/80 dark:bg-zinc-900/60 rounded-xl border border-slate-200/80 dark:border-zinc-800">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <Badge variant="secondary" className="gap-1.5 bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 py-1 px-2.5 font-medium shadow-2xs">
+                    <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                    Departments: <span className="font-bold">{deptStats.total}</span>
                   </Badge>
-                  <Badge variant="secondary" className="gap-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 font-normal border-emerald-200 dark:border-emerald-800">
-                    <CheckCircle2 className="h-3 w-3" /> Assigned: <span className="font-semibold">{deptApprovers.filter(d => Boolean(d.approver_id)).length}</span>
+                  <Badge variant="secondary" className="gap-1.5 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 py-1 px-2.5 font-medium shadow-2xs">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    Assigned: <span className="font-bold">{deptStats.assigned}</span>
                   </Badge>
-                  {deptApprovers.filter(d => !d.approver_id).length > 0 && (
-                    <Badge variant="secondary" className="gap-1 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 font-normal border-amber-200 dark:border-amber-800">
-                      <AlertCircle className="h-3 w-3" /> Unassigned: <span className="font-semibold">{deptApprovers.filter(d => !d.approver_id).length}</span>
+                  {deptStats.unassigned > 0 && (
+                    <Badge variant="secondary" className="gap-1.5 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 py-1 px-2.5 font-medium shadow-2xs">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                      Unassigned: <span className="font-bold">{deptStats.unassigned}</span>
                     </Badge>
                   )}
+                  <Badge variant="secondary" className="gap-1.5 bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 py-1 px-2.5 font-medium shadow-2xs">
+                    <Layers className="h-3.5 w-3.5 text-indigo-600" />
+                    Group Tabs: <span className="font-bold">{deptStats.groupsCount}</span>
+                  </Badge>
                 </div>
 
-                <div className="relative w-full sm:w-60">
-                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Filter departments..."
-                    value={deptTableSearch}
-                    onChange={e => setDeptTableSearch(e.target.value)}
-                    className="pl-8 h-8 text-xs bg-white dark:bg-zinc-950"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search departments, groups, users..."
+                      value={deptTableSearch}
+                      onChange={(e) => setDeptTableSearch(e.target.value)}
+                      className="h-8 pl-8 text-xs bg-white dark:bg-zinc-800"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExpandAll}
+                    className="h-8 text-xs px-2.5 gap-1 text-slate-700 dark:text-slate-300 hidden sm:flex"
+                  >
+                    Expand All
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCollapseAll}
+                    className="h-8 text-xs px-2.5 gap-1 text-slate-700 dark:text-slate-300 hidden sm:flex"
+                  >
+                    Collapse All
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setNewGroupName("");
+                      setNewGroupApproverIds([]);
+                      setNewGroupDeptNames([]);
+                      setIsCreateGroupOpen(true);
+                    }}
+                    className="h-8 text-xs px-2.5 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs shrink-0"
+                  >
+                    <FolderPlus className="h-3.5 w-3.5" />
+                    <span>New Group</span>
+                  </Button>
                 </div>
               </div>
 
-              {/* Multi-Selection Bulk Action Toolbar */}
+              {/* Multi-Select Action Banner for Departments */}
               {selectedDepts.length > 0 && (
-                <div className="px-3 py-2 bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 rounded-lg flex flex-wrap items-center justify-between gap-2.5 animate-in fade-in-50">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-indigo-950 dark:text-indigo-200">
+                <div className="flex items-center justify-between gap-3 p-3 bg-indigo-50/90 dark:bg-indigo-950/50 rounded-xl border border-indigo-200 dark:border-indigo-900/60 transition-all animate-in fade-in slide-in-from-top-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-indigo-900 dark:text-indigo-200">
                     <CheckSquare className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                    <span>{selectedDepts.length} department{selectedDepts.length > 1 ? "s" : ""} selected</span>
+                    <span>{selectedDepts.length} department(s) selected</span>
                   </div>
-
                   <div className="flex items-center gap-2">
-                    <Popover
-                      open={isBatchPopoverOpen}
-                      onOpenChange={(open) => {
-                        setIsBatchPopoverOpen(open);
-                        if (!open) setBatchSearchText("");
-                      }}
-                    >
-                      <PopoverTrigger asChild>
+                    <MultiUserApproverPopover
+                      title={`Batch Assign Approvers (${selectedDepts.length} Departments)`}
+                      subTitle={`Select one or more Level 1 approvers to assign to all ${selectedDepts.length} selected department(s).`}
+                      users={allUsers}
+                      selectedUserIds={[]}
+                      onSave={handleBatchAssignApprovers}
+                      isSaving={isBatchSaving}
+                      triggerButton={
                         <Button
                           size="sm"
-                          disabled={isBatchSaving}
-                          className="h-7 text-xs px-2.5 shadow-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                          className="h-7.5 text-xs px-3 bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 shadow-xs font-medium cursor-pointer"
                         >
-                          {isBatchSaving ? (
-                            <RefreshCw className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <ChevronsUpDown className="h-3 w-3 opacity-80" />
-                          )}
-                          {isBatchSaving ? "Saving..." : `Assign Approver to ${selectedDepts.length} Selected`}
+                          <Users className="h-3.5 w-3.5" />
+                          <span>Assign Approvers to Selected</span>
                         </Button>
-                      </PopoverTrigger>
-
-                      <PopoverContent className="w-[340px] p-0 shadow-lg" align="end">
-                        <div className="p-2.5 border-b bg-slate-50/70 dark:bg-zinc-900/70">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                              <Building2 className="h-3 w-3 text-indigo-600" />
-                              Assign {selectedDepts.length} Departments
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">Select Approver</span>
-                          </div>
-                          <div className="relative">
-                            <Search className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
-                            <Input
-                              autoFocus
-                              placeholder="Search name, email, department..."
-                              value={batchSearchText}
-                              onChange={(e) => setBatchSearchText(e.target.value)}
-                              className="pl-7 h-7 text-xs bg-white dark:bg-zinc-950"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="max-h-[220px] overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-slate-800/60" onWheelCapture={(e) => e.stopPropagation()}>
-                          <div
-                            onClick={() => handleBatchAssignApprover(null)}
-                            className="p-2 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 rounded cursor-pointer text-xs flex items-center justify-between transition-colors"
-                          >
-                            <span className="font-semibold">&times; Clear Approver for all {selectedDepts.length} selected</span>
-                          </div>
-
-                          {allUsers
-                            .filter((u) => {
-                              if (u.is_active === false) return false;
-                              const q = batchSearchText.toLowerCase().trim();
-                              if (!q) return true;
-                              return (
-                                (u.full_name && u.full_name.toLowerCase().includes(q)) ||
-                                (u.email && u.email.toLowerCase().includes(q)) ||
-                                (u.department && u.department.toLowerCase().includes(q))
-                              );
-                            })
-                            .map((u) => (
-                              <div
-                                key={u.id}
-                                onClick={() => handleBatchAssignApprover(u)}
-                                className="p-2 rounded cursor-pointer text-xs flex items-center justify-between transition-colors hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200"
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <div className="h-6 w-6 rounded-full bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-slate-200 flex items-center justify-center text-[10px] font-semibold shrink-0">
-                                    {u.full_name?.split(" ").map((p: string) => p[0]).slice(0, 2).join("").toUpperCase() || "U"}
-                                  </div>
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="font-semibold truncate">{u.full_name || u.email}</span>
-                                    <span className="text-[10px] text-muted-foreground truncate">{u.email}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-
+                      }
+                    />
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedDepts([])}
-                      className="h-7 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                      className="h-7.5 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-zinc-800"
                     >
-                      Deselect
+                      Clear Selection
                     </Button>
                   </div>
                 </div>
               )}
 
+              {/* Department Groups Accordion & Ungrouped List */}
               {isDeptLoading ? (
-                <div className="p-8 text-center text-xs text-muted-foreground">Loading departments...</div>
+                <div className="py-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
+                  <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+                  Loading workflow departments & groups...
+                </div>
+              ) : filteredDeptApprovers.length === 0 ? (
+                <div className="py-12 text-center text-xs text-muted-foreground bg-slate-50/50 dark:bg-zinc-900/30 rounded-xl border border-dashed">
+                  No departments found matching your search.
+                </div>
               ) : (
-                <div className="border rounded-lg overflow-hidden border-slate-200 dark:border-zinc-800">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 text-slate-600 dark:text-slate-300 font-semibold">
-                        <th className="py-2.5 px-3 w-8 text-center">
-                          <Checkbox
-                            checked={
-                              deptApprovers.filter(d =>
-                                !deptTableSearch ||
-                                d.department.toLowerCase().includes(deptTableSearch.toLowerCase()) ||
-                                (d.approver_name && d.approver_name.toLowerCase().includes(deptTableSearch.toLowerCase())) ||
-                                (d.approver_email && d.approver_email.toLowerCase().includes(deptTableSearch.toLowerCase()))
-                              ).length > 0 &&
-                              deptApprovers.filter(d =>
-                                !deptTableSearch ||
-                                d.department.toLowerCase().includes(deptTableSearch.toLowerCase()) ||
-                                (d.approver_name && d.approver_name.toLowerCase().includes(deptTableSearch.toLowerCase())) ||
-                                (d.approver_email && d.approver_email.toLowerCase().includes(deptTableSearch.toLowerCase()))
-                              ).every(d => selectedDepts.includes(d.department))
-                            }
-                            onCheckedChange={() => {
-                              const visibleDepts = deptApprovers
-                                .filter(d =>
-                                  !deptTableSearch ||
-                                  d.department.toLowerCase().includes(deptTableSearch.toLowerCase()) ||
-                                  (d.approver_name && d.approver_name.toLowerCase().includes(deptTableSearch.toLowerCase())) ||
-                                  (d.approver_email && d.approver_email.toLowerCase().includes(deptTableSearch.toLowerCase()))
-                                )
-                                .map(d => d.department);
-                              handleToggleSelectAll(visibleDepts);
-                            }}
-                            aria-label="Select all departments"
-                          />
-                        </th>
-                        <th className="py-2.5 px-3">Department</th>
-                        <th className="py-2.5 px-3">Level 1 Approver</th>
-                        <th className="py-2.5 px-3 text-right">Assign / Change</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60">
-                      {deptApprovers
-                        .filter(d =>
-                          !deptTableSearch ||
-                          d.department.toLowerCase().includes(deptTableSearch.toLowerCase()) ||
-                          (d.approver_name && d.approver_name.toLowerCase().includes(deptTableSearch.toLowerCase())) ||
-                          (d.approver_email && d.approver_email.toLowerCase().includes(deptTableSearch.toLowerCase()))
-                        )
-                        .map((dept) => {
-                          const isSaving = savingDept === dept.department;
-                          const hasApprover = Boolean(dept.approver_id);
-                          const isPopoverOpen = openPopoverDept === dept.department;
-                          const isSelected = selectedDepts.includes(dept.department);
+                <div className="space-y-4">
+                  {/* Select All Toggle Bar */}
+                  <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={
+                          filteredDeptApprovers.length > 0 &&
+                          filteredDeptApprovers.every((d) => selectedDepts.includes(d.department))
+                        }
+                        onCheckedChange={handleToggleSelectAll}
+                        aria-label="Select all visible departments"
+                      />
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
+                        Select All Visible ({filteredDeptApprovers.length})
+                      </span>
+                    </div>
+                    <span className="text-[11px] italic hidden sm:inline">
+                      Tip: Drag and drop any department row to move between group tabs.
+                    </span>
+                  </div>
 
-                          return (
-                            <tr
-                              key={dept.department}
-                              className={`transition-colors ${
-                                isSelected
-                                  ? "bg-indigo-50/40 dark:bg-indigo-950/20"
-                                  : "hover:bg-slate-50/60 dark:hover:bg-zinc-900/40"
-                              }`}
+                  {/* Render Custom Groups */}
+                  {deptGroups.map((group) => {
+                    const groupDepts = groupedDepartments[group.name] || [];
+                    const isExpanded = expandedGroups[group.name] !== false; // default open
+                    const isSavingThisGroup = savingGroup === group.name;
+                    const isDragTarget = dragOverGroup === group.name;
+
+                    return (
+                      <div
+                        key={group.id}
+                        onDragOver={(e) => handleDragOverGroup(e, group.name)}
+                        onDragLeave={handleDragLeaveGroup}
+                        onDrop={(e) => handleDropOnGroup(e, group.name)}
+                        className={`rounded-xl border transition-all duration-150 ${
+                          isDragTarget
+                            ? "border-emerald-500 ring-2 ring-emerald-500/30 bg-emerald-50/30 dark:bg-emerald-950/20"
+                            : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 shadow-2xs"
+                        }`}
+                      >
+                        {/* Group Header */}
+                        <div className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/60 dark:bg-zinc-900/80 rounded-t-xl">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => toggleGroupExpand(group.name)}
+                              className="p-1 hover:bg-slate-200/70 dark:hover:bg-zinc-800 rounded-md transition-colors text-slate-500 dark:text-slate-400"
                             >
-                              <td className="py-2.5 px-3 text-center">
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={() => handleToggleSelectDept(dept.department)}
-                                  aria-label={`Select ${dept.department}`}
-                                />
-                              </td>
-                              <td className="py-2.5 px-3 font-medium text-slate-900 dark:text-slate-100">
-                                <div className="flex items-center gap-2">
-                                  <Building2 className="h-3.5 w-3.5 text-indigo-600" />
-                                  <span>{dept.department}</span>
-                                </div>
-                              </td>
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </button>
 
-                              <td className="py-2.5 px-3">
-                                {hasApprover ? (
-                                  <div className="flex items-center gap-2">
-                                    <div className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center text-[11px] font-semibold shrink-0">
-                                      {dept.approver_name?.split(" ").map((p: string) => p[0]).slice(0, 2).join("").toUpperCase() || "U"}
-                                    </div>
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs truncate">{dept.approver_name}</span>
-                                      <span className="text-[10px] text-muted-foreground truncate">{dept.approver_email}</span>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="italic text-muted-foreground text-xs flex items-center gap-1">
-                                    <AlertCircle className="h-3 w-3 text-amber-500" /> Not Assigned
-                                  </span>
-                                )}
-                              </td>
+                            <div className="p-1.5 rounded-lg bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80 shrink-0">
+                              <Folder className="h-4 w-4" />
+                            </div>
 
-                              <td className="py-2.5 px-3 text-right">
-                                <Popover
-                                  open={isPopoverOpen}
-                                  onOpenChange={(open) => {
-                                    if (open) {
-                                      setOpenPopoverDept(dept.department);
-                                      setDeptApproverSearch("");
-                                    } else {
-                                      setOpenPopoverDept(null);
-                                    }
-                                  }}
+                            <div className="flex flex-col min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
+                                  {group.name}
+                                </span>
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] font-semibold bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800"
                                 >
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant={hasApprover ? "outline" : "default"}
-                                      size="sm"
-                                      disabled={isSaving}
-                                      className={`h-7 text-xs px-2.5 shadow-2xs gap-1 ${
-                                        !hasApprover ? "bg-indigo-600 hover:bg-indigo-700 text-white" : ""
-                                      }`}
-                                    >
-                                      {isSaving ? (
-                                        <RefreshCw className="h-3 w-3 animate-spin" />
-                                      ) : (
-                                        <ChevronsUpDown className="h-3 w-3 opacity-70" />
-                                      )}
-                                      {isSaving ? "Saving..." : (hasApprover ? "Change" : "Assign")}
-                                    </Button>
-                                  </PopoverTrigger>
+                                  {groupDepts.length} {groupDepts.length === 1 ? "dept" : "depts"}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
 
-                                  <PopoverContent className="w-[320px] p-0 shadow-lg" align="end">
-                                    <div className="p-2.5 border-b bg-slate-50/70 dark:bg-zinc-900/70">
-                                      <div className="flex items-center justify-between mb-1.5">
-                                        <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1">
-                                          <Building2 className="h-3 w-3 text-indigo-600" />
-                                          {dept.department}
-                                        </span>
-                                        <span className="text-[10px] text-muted-foreground">Select User</span>
+                          {/* Group Action Buttons */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <MultiUserApproverPopover
+                              title={`Assign Approvers for Group: "${group.name}"`}
+                              subTitle={`Assign approvers to all ${groupDepts.length} department(s) inside this group tab.`}
+                              users={allUsers}
+                              selectedUserIds={group.approver_ids || []}
+                              onSave={(ids) => handleAssignGroupApprovers(group.name, ids)}
+                              isSaving={isSavingThisGroup}
+                              triggerButton={
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7.5 text-xs px-2.5 gap-1.5 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 bg-white dark:bg-zinc-900 shadow-2xs font-medium cursor-pointer"
+                                >
+                                  <UserCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                  <span>Assign Group Approvers</span>
+                                </Button>
+                              }
+                            />
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setRenameGroupId(group.id);
+                                setRenameGroupName(group.name);
+                              }}
+                              className="h-7.5 w-7.5 p-0 text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800"
+                              title="Rename Group"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteGroup(group.id, group.name)}
+                              className="h-7.5 w-7.5 p-0 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
+                              title="Delete Group"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Group Content: Departments */}
+                        {isExpanded && (
+                          <div className="divide-y divide-slate-100 dark:divide-zinc-800/60">
+                            {groupDepts.length === 0 ? (
+                              <div className="py-6 px-4 text-center text-xs text-muted-foreground italic bg-slate-50/20 dark:bg-zinc-900/20">
+                                No departments in this group yet. Drag and drop departments here.
+                              </div>
+                            ) : (
+                              groupDepts.map((dept) => {
+                                const approversList = dept.approvers || (dept.approver_id ? [{
+                                  id: dept.approver_id,
+                                  full_name: dept.approver_name,
+                                  email: dept.approver_email,
+                                  job_title: dept.approver_title,
+                                }] : []);
+                                const isSelected = selectedDepts.includes(dept.department);
+                                const isSaving = savingDept === dept.department;
+                                const isBeingDragged = draggedDept === dept.department;
+
+                                return (
+                                  <div
+                                    key={dept.department}
+                                    draggable
+                                    onDragStart={(e) => handleDragStartDept(e, dept.department)}
+                                    onDragEnd={handleDragEndDept}
+                                    className={`p-3 sm:px-4 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-colors ${
+                                      isBeingDragged ? "opacity-40 bg-slate-100 dark:bg-zinc-800" : ""
+                                    } ${isSelected ? "bg-indigo-50/40 dark:bg-indigo-950/20" : "hover:bg-slate-50/60 dark:hover:bg-zinc-900/40"}`}
+                                  >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                        <GripVertical className="h-4 w-4" />
                                       </div>
-                                      <div className="relative">
-                                        <Search className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
-                                        <Input
-                                          autoFocus
-                                          placeholder="Type to search user..."
-                                          value={deptApproverSearch}
-                                          onChange={(e) => setDeptApproverSearch(e.target.value)}
-                                          className="pl-7 h-7 text-xs bg-white dark:bg-zinc-950"
-                                        />
+
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() => handleToggleSelectDept(dept.department)}
+                                        aria-label={`Select ${dept.department}`}
+                                      />
+
+                                      <div className="flex flex-col min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-semibold text-xs text-slate-900 dark:text-zinc-100 truncate">
+                                            {dept.department}
+                                          </span>
+                                          {dept.source === "UNASSIGNED" && (
+                                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/40">
+                                              Unassigned
+                                            </Badge>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
 
-                                    <div className="max-h-[220px] overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-zinc-800" onWheelCapture={(e) => e.stopPropagation()}>
-                                      {hasApprover && (
-                                        <div
-                                          onClick={() => handleSelectDepartmentApprover(dept.department, null)}
-                                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 rounded cursor-pointer text-xs flex items-center transition-colors"
-                                        >
-                                          <span className="font-medium">&times; Remove Approver (Unassign)</span>
-                                        </div>
-                                      )}
+                                    {/* Approver Badges & Actions */}
+                                    <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
+                                      <ApproverPillList approvers={approversList} />
 
-                                      {allUsers
-                                        .filter((u) => {
-                                          if (u.is_active === false) return false;
-                                          const q = deptApproverSearch.toLowerCase().trim();
-                                          if (!q) return true;
-                                          return (
-                                            (u.full_name && u.full_name.toLowerCase().includes(q)) ||
-                                            (u.email && u.email.toLowerCase().includes(q)) ||
-                                            (u.department && u.department.toLowerCase().includes(q))
-                                          );
-                                        })
-                                        .map((u) => {
-                                          const isSelected = dept.approver_id === u.id;
-                                          return (
+                                      {/* Dropdown to move to another group */}
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 text-[11px] px-2 text-muted-foreground hover:text-slate-900 dark:hover:text-slate-100 gap-1"
+                                            title="Move to another group"
+                                          >
+                                            <span>Move</span>
+                                            <ChevronDown className="h-3 w-3" />
+                                          </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent align="end" className="w-48 p-1 text-xs">
+                                          <div className="px-2 py-1 font-semibold text-[11px] text-muted-foreground border-b mb-1">
+                                            Move to Group Tab
+                                          </div>
+                                          <div
+                                            onClick={() => handleMoveDepartment(dept.department, null)}
+                                            className="p-1.5 rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-slate-300"
+                                          >
+                                            Ungrouped (General)
+                                          </div>
+                                          {deptGroups.map((g) => (
                                             <div
-                                              key={u.id}
-                                              onClick={() => handleSelectDepartmentApprover(dept.department, u)}
-                                              className={`p-2 rounded cursor-pointer text-xs flex items-center justify-between transition-colors ${
-                                                isSelected
-                                                  ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200"
-                                                  : "hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200"
+                                              key={g.id}
+                                              onClick={() => handleMoveDepartment(dept.department, g.name)}
+                                              className={`p-1.5 rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center justify-between ${
+                                                dept.group_name === g.name ? "font-bold text-emerald-600 dark:text-emerald-400" : ""
                                               }`}
                                             >
-                                              <div className="flex items-center gap-2 min-w-0">
-                                                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0 ${
-                                                  isSelected
-                                                    ? "bg-indigo-600 text-white"
-                                                    : "bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-slate-200"
-                                                }`}>
-                                                  {u.full_name?.split(" ").map((p: string) => p[0]).slice(0, 2).join("").toUpperCase() || "U"}
-                                                </div>
-                                                <div className="flex flex-col min-w-0">
-                                                  <span className="font-semibold truncate">{u.full_name || u.email}</span>
-                                                  <span className="text-[10px] text-muted-foreground truncate">{u.email}</span>
-                                                </div>
-                                              </div>
-
-                                              {isSelected && (
-                                                <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 ml-1.5" />
-                                              )}
+                                              <span className="truncate">{g.name}</span>
+                                              {dept.group_name === g.name && <Check className="h-3 w-3" />}
                                             </div>
-                                          );
-                                        })}
+                                          ))}
+                                        </PopoverContent>
+                                      </Popover>
+
+                                      <MultiUserApproverPopover
+                                        title={`Assign Approver(s) for "${dept.department}"`}
+                                        subTitle="Select one or more Level 1 department approvers."
+                                        users={allUsers}
+                                        selectedUserIds={dept.approver_ids || (dept.approver_id ? [dept.approver_id] : [])}
+                                        onSave={(ids) => handleSelectDepartmentApprovers(dept.department, ids)}
+                                        isSaving={isSaving}
+                                        triggerButton={
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 text-xs px-2.5 gap-1.5 border-slate-300 dark:border-zinc-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer"
+                                          >
+                                            {isSaving ? (
+                                              <RefreshCw className="h-3 w-3 animate-spin" />
+                                            ) : (
+                                              <UserCheck className="h-3 w-3" />
+                                            )}
+                                            <span>{isSaving ? "Saving..." : approversList.length > 0 ? "Edit" : "Assign"}</span>
+                                          </Button>
+                                        }
+                                      />
                                     </div>
-                                  </PopoverContent>
-                                </Popover>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </table>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Ungrouped Departments Container */}
+                  {(() => {
+                    const ungrouped = groupedDepartments["__UNGROUPED__"] || [];
+                    if (ungrouped.length === 0 && deptGroups.length > 0) return null;
+                    const isExpanded = expandedGroups["__UNGROUPED__"] !== false;
+                    const isDragTarget = dragOverGroup === "__UNGROUPED__";
+
+                    return (
+                      <div
+                        onDragOver={(e) => handleDragOverGroup(e, "__UNGROUPED__")}
+                        onDragLeave={handleDragLeaveGroup}
+                        onDrop={(e) => handleDropOnGroup(e, null)}
+                        className={`rounded-xl border transition-all duration-150 ${
+                          isDragTarget
+                            ? "border-indigo-500 ring-2 ring-indigo-500/30 bg-indigo-50/30 dark:bg-indigo-950/20"
+                            : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 shadow-2xs"
+                        }`}
+                      >
+                        <div className="p-3 sm:p-3.5 flex items-center justify-between gap-3 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/60 dark:bg-zinc-900/80 rounded-t-xl">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => toggleGroupExpand("__UNGROUPED__")}
+                              className="p-1 hover:bg-slate-200/70 dark:hover:bg-zinc-800 rounded-md transition-colors text-slate-500 dark:text-slate-400"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </button>
+
+                            <div className="p-1.5 rounded-lg bg-slate-200 text-slate-700 dark:bg-zinc-800 dark:text-slate-300 shrink-0">
+                              <Building2 className="h-4 w-4" />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                                {deptGroups.length > 0 ? "General / Ungrouped Departments" : "All Departments"}
+                              </span>
+                              <Badge variant="secondary" className="text-[10px] font-semibold">
+                                {ungrouped.length} {ungrouped.length === 1 ? "dept" : "depts"}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="divide-y divide-slate-100 dark:divide-zinc-800/60">
+                            {ungrouped.length === 0 ? (
+                              <div className="py-6 px-4 text-center text-xs text-muted-foreground italic bg-slate-50/20 dark:bg-zinc-900/20">
+                                No ungrouped departments. All departments belong to a group tab.
+                              </div>
+                            ) : (
+                              ungrouped.map((dept) => {
+                                const approversList = dept.approvers || (dept.approver_id ? [{
+                                  id: dept.approver_id,
+                                  full_name: dept.approver_name,
+                                  email: dept.approver_email,
+                                  job_title: dept.approver_title,
+                                }] : []);
+                                const isSelected = selectedDepts.includes(dept.department);
+                                const isSaving = savingDept === dept.department;
+                                const isBeingDragged = draggedDept === dept.department;
+
+                                return (
+                                  <div
+                                    key={dept.department}
+                                    draggable
+                                    onDragStart={(e) => handleDragStartDept(e, dept.department)}
+                                    onDragEnd={handleDragEndDept}
+                                    className={`p-3 sm:px-4 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-colors ${
+                                      isBeingDragged ? "opacity-40 bg-slate-100 dark:bg-zinc-800" : ""
+                                    } ${isSelected ? "bg-indigo-50/40 dark:bg-indigo-950/20" : "hover:bg-slate-50/60 dark:hover:bg-zinc-900/40"}`}
+                                  >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                        <GripVertical className="h-4 w-4" />
+                                      </div>
+
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() => handleToggleSelectDept(dept.department)}
+                                        aria-label={`Select ${dept.department}`}
+                                      />
+
+                                      <div className="flex flex-col min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-semibold text-xs text-slate-900 dark:text-zinc-100 truncate">
+                                            {dept.department}
+                                          </span>
+                                          {dept.source === "UNASSIGNED" && (
+                                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/40">
+                                              Unassigned
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Approver Badges & Actions */}
+                                    <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
+                                      <ApproverPillList approvers={approversList} />
+
+                                      {deptGroups.length > 0 && (
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-7 text-[11px] px-2 text-muted-foreground hover:text-slate-900 dark:hover:text-slate-100 gap-1"
+                                              title="Move to a group"
+                                            >
+                                              <span>Move to Group</span>
+                                              <ChevronDown className="h-3 w-3" />
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent align="end" className="w-48 p-1 text-xs">
+                                            <div className="px-2 py-1 font-semibold text-[11px] text-muted-foreground border-b mb-1">
+                                              Move to Group Tab
+                                            </div>
+                                            {deptGroups.map((g) => (
+                                              <div
+                                                key={g.id}
+                                                onClick={() => handleMoveDepartment(dept.department, g.name)}
+                                                className="p-1.5 rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center justify-between"
+                                              >
+                                                <span className="truncate">{g.name}</span>
+                                              </div>
+                                            ))}
+                                          </PopoverContent>
+                                        </Popover>
+                                      )}
+
+                                      <MultiUserApproverPopover
+                                        title={`Assign Approver(s) for "${dept.department}"`}
+                                        subTitle="Select one or more Level 1 department approvers."
+                                        users={allUsers}
+                                        selectedUserIds={dept.approver_ids || (dept.approver_id ? [dept.approver_id] : [])}
+                                        onSave={(ids) => handleSelectDepartmentApprovers(dept.department, ids)}
+                                        isSaving={isSaving}
+                                        triggerButton={
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 text-xs px-2.5 gap-1.5 border-slate-300 dark:border-zinc-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer"
+                                          >
+                                            {isSaving ? (
+                                              <RefreshCw className="h-3 w-3 animate-spin" />
+                                            ) : (
+                                              <UserCheck className="h-3 w-3" />
+                                            )}
+                                            <span>{isSaving ? "Saving..." : approversList.length > 0 ? "Edit" : "Assign"}</span>
+                                          </Button>
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </TabsContent>
 
-            {/* TAB 2: Operational Teams */}
+            {/* TAB 2: Operational Roles */}
             <TabsContent value="operational" className="space-y-4 m-0">
               {[
-                {
-                  role: "COMPANY_LEVEL_2_APPROVER",
-                  label: "Executive Level 2 Approver — Fixed: CEO Shaun Passley",
-                  desc: "Company-wide executive approval fixed to CEO Shaun Passley (shaun@zenatech.com) for ≥ $10,000 or escalated requests.",
-                  badgeColor: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200",
-                },
                 {
                   role: "PURCHASING",
                   label: "Purchasing Lead",
@@ -1210,6 +2068,106 @@ export default function Dashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Department Group Modal */}
+      <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                <FolderPlus className="h-4 w-4" />
+              </div>
+              <DialogTitle className="text-base font-bold">Create Group Tab</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Create a group tab to organize multiple departments and assign approvers together.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Group Name <span className="text-red-500">*</span>
+              </label>
+              <Input
+                autoFocus
+                placeholder="e.g. Engineering & Technology, Sales & Marketing"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                className="h-8 text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCreateGroupOpen(false)}
+              disabled={isCreatingGroup}
+              className="h-8 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleCreateGroup}
+              disabled={isCreatingGroup || !newGroupName.trim()}
+              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+            >
+              {isCreatingGroup ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              {isCreatingGroup ? "Creating..." : "Create Group"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Department Group Modal */}
+      <Dialog open={Boolean(renameGroupId)} onOpenChange={(open) => !open && setRenameGroupId(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                <Edit2 className="h-4 w-4" />
+              </div>
+              <DialogTitle className="text-base font-bold">Rename Group Tab</DialogTitle>
+            </div>
+          </DialogHeader>
+
+          <div className="py-2">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
+              Group Name
+            </label>
+            <Input
+              autoFocus
+              value={renameGroupName}
+              onChange={(e) => setRenameGroupName(e.target.value)}
+              className="h-8 text-xs"
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRenameGroupId(null)}
+              disabled={isRenamingGroup}
+              className="h-8 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleRenameGroup}
+              disabled={isRenamingGroup || !renameGroupName.trim()}
+              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+            >
+              {isRenamingGroup ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              {isRenamingGroup ? "Saving..." : "Save Name"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
+}

@@ -61,6 +61,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -581,7 +582,10 @@ export default function RequestDetail() {
       });
     }
     if (meta.form === "approval") {
-      setApproval({ approver: user?.id || "", comment: "" });
+      const effectiveAmount = Number(data?.request?.amount || data?.purchase_order?.amount || data?.invoice?.amount || 0);
+      const isLevel1 = (data?.request?.current_approval_level || 1) === 1;
+      const defaultPassToL2 = action === "APPROVE" && isLevel1 && effectiveAmount >= 10000;
+      setApproval({ approver: user?.id || "", comment: "", pass_to_level_2: defaultPassToL2 });
     }
     setConfirmGoods({ description: "" });
     setActiveForm({ action, kind: meta.form });
@@ -2848,6 +2852,33 @@ export default function RequestDetail() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {activeForm.action === "APPROVE" && (data?.request?.current_approval_level || 1) === 1 && Number(data?.request?.amount || data?.purchase_order?.amount || data?.invoice?.amount || 0) >= 10000 && (
+                  <div className="p-3 bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/60 rounded-xl space-y-1.5">
+                    <div className="flex items-center space-x-2.5">
+                      <Checkbox
+                        id="pass_to_level_2"
+                        checked={approval.pass_to_level_2 ?? true}
+                        onCheckedChange={(checked) => setApproval({ ...approval, pass_to_level_2: !!checked })}
+                      />
+                      <label
+                        htmlFor="pass_to_level_2"
+                        className="text-xs font-semibold text-purple-950 dark:text-purple-200 cursor-pointer flex items-center gap-1.5"
+                      >
+                        <span>Pass to Level 2 Approver (CEO Shaun Passley)</span>
+                        <Badge variant="outline" className="text-[10px] bg-purple-100/80 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 border-purple-300">
+                          ≥ $10,000
+                        </Badge>
+                      </label>
+                    </div>
+                    <p className="text-[11px] text-purple-700 dark:text-purple-300 pl-6 leading-relaxed">
+                      {approval.pass_to_level_2
+                        ? "This approval will pass to CEO Shaun Passley for final Level 2 approval. The request will stay in Waiting Approval state until approved or rejected by the Level 2 approver."
+                        : "Level 2 executive approval bypassed. This request will move directly to payment processing upon approval."}
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium">{activeForm.action === "REJECT" ? "Rejection Reason / Comments" : "Comment"}</label>
                   <Textarea
