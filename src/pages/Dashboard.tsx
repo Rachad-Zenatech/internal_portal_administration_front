@@ -7,7 +7,10 @@ import { ChevronRight } from "lucide-react";
 import { formatMoney } from "@/pages/Purchasing/purchasingMeta";
 import { RequestStatus } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
-import { Activity, AlertTriangle, ReceiptText, CalendarCheck, Search, X, UserCheck, ShieldCheck, Check, ChevronDown, Sparkles } from "lucide-react";
+import {
+  Activity, AlertTriangle, ReceiptText, CalendarCheck, Search, X, UserCheck, ShieldCheck, Check,
+  ChevronDown, Sparkles, Building2, Users, RefreshCw, AlertCircle, CheckCircle2, ChevronsUpDown, CheckSquare
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -15,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import HelpIcon from "@/components/ui/HelpIcon";
 import TaskBoard from "@/components/Tasks/TaskBoard";
 import TaskList from "@/components/Tasks/TaskList";
@@ -32,6 +36,20 @@ export default function Dashboard() {
   const [userSearchText, setUserSearchText] = useState("");
   const [graphSearchResults, setGraphSearchResults] = useState<any[]>([]);
   const [isSearchingGraph, setIsSearchingGraph] = useState(false);
+
+  // Department Approvers State in Dashboard
+  const [deptApprovers, setDeptApprovers] = useState<any[]>([]);
+  const [isDeptLoading, setIsDeptLoading] = useState(false);
+  const [openPopoverDept, setOpenPopoverDept] = useState<string | null>(null);
+  const [deptApproverSearch, setDeptApproverSearch] = useState("");
+  const [savingDept, setSavingDept] = useState<string | null>(null);
+  const [deptTableSearch, setDeptTableSearch] = useState("");
+
+  // Multi-select state for Department Approvers
+  const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
+  const [isBatchPopoverOpen, setIsBatchPopoverOpen] = useState(false);
+  const [batchSearchText, setBatchSearchText] = useState("");
+  const [isBatchSaving, setIsBatchSaving] = useState(false);
 
   // Debounced search for Graph Entra users
   useEffect(() => {
@@ -56,21 +74,124 @@ export default function Dashboard() {
   const [isSavingAssignments, setIsSavingAssignments] = useState(false);
 
   const fetchWorkflowAssignments = async () => {
+    setIsDeptLoading(true);
     try {
-      const [assnRes, userRes] = await Promise.all([
+      const [assnRes, userRes, deptApprRes] = await Promise.all([
         api.get<any[]>("/purchasing/assignments"),
-        api.get<any>("/configuration/users?is_active=true")
+        api.get<any>("/configuration/users?is_active=true"),
+        api.get<any[]>("/purchasing/department-approvers").catch(() => []),
       ]);
       setWorkflowAssignments(assnRes || []);
       setAllUsers(Array.isArray(userRes) ? userRes : (userRes as any).items || []);
+      setDeptApprovers(deptApprRes || []);
     } catch (err) {
       console.error("Failed to fetch workflow assignments:", err);
+    } finally {
+      setIsDeptLoading(false);
     }
   };
 
   const handleOpenApproverModal = () => {
     fetchWorkflowAssignments();
     setIsApproverModalOpen(true);
+  };
+
+  const handleSelectDepartmentApprover = async (deptName: string, selectedUser: any | null) => {
+    setSavingDept(deptName);
+    const userId = selectedUser ? selectedUser.id : null;
+    try {
+      await api.post("/purchasing/department-approvers/assign", {
+        department: deptName,
+        user_id: userId,
+        user_ids: userId ? [userId] : []
+      });
+
+      setDeptApprovers(prev => prev.map(d => {
+        if (d.department.toLowerCase() === deptName.toLowerCase()) {
+          return {
+            ...d,
+            approver_id: userId,
+            approver_name: selectedUser ? (selectedUser.full_name || selectedUser.email) : null,
+            approver_email: selectedUser ? selectedUser.email : null,
+            approver_title: selectedUser ? selectedUser.job_title : null,
+            approver_ids: userId ? [userId] : null,
+            source: userId ? "MANUAL" : "UNASSIGNED"
+          };
+        }
+        return d;
+      }));
+
+      if (selectedUser) {
+        toast.success(`Assigned ${selectedUser.full_name || selectedUser.email} as Level 1 Approver for ${deptName}`);
+      } else {
+        toast.info(`Cleared Level 1 Approver for ${deptName}`);
+      }
+      setOpenPopoverDept(null);
+      setDeptApproverSearch("");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Failed to update department approver");
+    } finally {
+      setSavingDept(null);
+    }
+  };
+
+  // Multi-select handlers for departments in Dashboard
+  const handleToggleSelectDept = (deptName: string) => {
+    setSelectedDepts(prev =>
+      prev.includes(deptName) ? prev.filter(d => d !== deptName) : [...prev, deptName]
+    );
+  };
+
+  const handleToggleSelectAll = (visibleDeptNames: string[]) => {
+    const allSelected = visibleDeptNames.length > 0 && visibleDeptNames.every(d => selectedDepts.includes(d));
+    if (allSelected) {
+      setSelectedDepts(prev => prev.filter(d => !visibleDeptNames.includes(d)));
+    } else {
+      setSelectedDepts(prev => Array.from(new Set([...prev, ...visibleDeptNames])));
+    }
+  };
+
+  const handleBatchAssignApprover = async (selectedUser: any | null) => {
+    if (selectedDepts.length === 0) return;
+    setIsBatchSaving(true);
+    const userId = selectedUser ? selectedUser.id : null;
+    try {
+      await api.post("/purchasing/department-approvers/batch-assign", {
+        departments: selectedDepts,
+        user_id: userId,
+        user_ids: userId ? [userId] : []
+      });
+
+      const targetDeptsLower = new Set(selectedDepts.map(d => d.toLowerCase()));
+      setDeptApprovers(prev => prev.map(d => {
+        if (targetDeptsLower.has(d.department.toLowerCase())) {
+          return {
+            ...d,
+            approver_id: userId,
+            approver_name: selectedUser ? (selectedUser.full_name || selectedUser.email) : null,
+            approver_email: selectedUser ? selectedUser.email : null,
+            approver_title: selectedUser ? selectedUser.job_title : null,
+            approver_ids: userId ? [userId] : null,
+            source: userId ? "MANUAL" : "UNASSIGNED"
+          };
+        }
+        return d;
+      }));
+
+      if (selectedUser) {
+        toast.success(`Assigned ${selectedUser.full_name || selectedUser.email} to ${selectedDepts.length} departments`);
+      } else {
+        toast.info(`Cleared approver for ${selectedDepts.length} departments`);
+      }
+
+      setSelectedDepts([]);
+      setIsBatchPopoverOpen(false);
+      setBatchSearchText("");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Failed to batch assign department approvers");
+    } finally {
+      setIsBatchSaving(false);
+    }
   };
 
   const handleToggleUserInRole = (role: string, userId: string, extraUserObj?: any) => {
@@ -508,7 +629,7 @@ export default function Dashboard() {
 
       {/* Executive Approver Assignment & Delegation Modal */}
       <Dialog open={isApproverModalOpen} onOpenChange={setIsApproverModalOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
@@ -516,144 +637,468 @@ export default function Dashboard() {
               </div>
               <div>
                 <DialogTitle className="text-lg font-bold text-slate-900 dark:text-zinc-100">
-                  CEO / Executive Approver Assignment
+                  CEO / Executive Approver & Department Assignment
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Directly configure authorized approvers and delegation across core purchasing pipelines.
+                  Directly configure Level 1 department approvers and operational workflow teams.
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          <div className="space-y-4 py-3">
-            {[
-              {
-                role: "EXECUTIVE",
-                label: "Senior Approver (≥ $10,000)",
-                desc: "Authorized sign-off for high-value expenditures and capital purchases.",
-                badgeColor: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200",
-              },
-              {
-                role: "MANAGER",
-                label: "Standard Approver (< $10,000)",
-                desc: "Initial line management review and standard spend approvals.",
-                badgeColor: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200",
-              },
-              {
-                role: "PURCHASING",
-                label: "Purchasing Lead",
-                desc: "Vendor quote negotiations, purchase orders, and fulfillment.",
-                badgeColor: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200",
-              },
-              {
-                role: "AP",
-                label: "Accounts Payable (AP)",
-                desc: "Invoice matching, vendor statement review, and GL validation.",
-                badgeColor: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200",
-              },
-              {
-                role: "TREASURY",
-                label: "Treasury Officer",
-                desc: "Bank disbursement, wire authorization, and final settlement.",
-                badgeColor: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300 border-sky-200",
-              },
-            ].map(({ role, label, desc, badgeColor }) => {
-              const assignment = workflowAssignments.find((a) => a.role === role);
-              const assignedIds: string[] = assignment?.user_ids || (assignment?.user_id ? [assignment.user_id] : []);
+          <Tabs defaultValue="departments" className="w-full mt-2">
+            <TabsList className="grid grid-cols-2 w-full mb-4">
+              <TabsTrigger value="departments" className="text-xs font-semibold gap-1.5">
+                <Building2 className="w-3.5 h-3.5" /> Department Level 1 Approvers
+              </TabsTrigger>
+              <TabsTrigger value="operational" className="text-xs font-semibold gap-1.5">
+                <Users className="w-3.5 h-3.5" /> Operational Teams
+              </TabsTrigger>
+            </TabsList>
 
-              return (
-                <div
-                  key={role}
-                  className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/40 space-y-2.5 transition-all hover:border-slate-300 dark:hover:border-zinc-700"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900 dark:text-zinc-100">{label}</span>
-                        <Badge variant="outline" className={`text-[10px] font-semibold px-2 py-0.5 ${badgeColor}`}>
-                          {role}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
-                    </div>
+            {/* TAB 1: Department Level 1 Approvers Sub-Table */}
+            <TabsContent value="departments" className="space-y-3 m-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Badge variant="secondary" className="gap-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 font-normal">
+                    Total: <span className="font-semibold">{deptApprovers.length}</span>
+                  </Badge>
+                  <Badge variant="secondary" className="gap-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 font-normal border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle2 className="h-3 w-3" /> Assigned: <span className="font-semibold">{deptApprovers.filter(d => Boolean(d.approver_id)).length}</span>
+                  </Badge>
+                  {deptApprovers.filter(d => !d.approver_id).length > 0 && (
+                    <Badge variant="secondary" className="gap-1 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 font-normal border-amber-200 dark:border-amber-800">
+                      <AlertCircle className="h-3 w-3" /> Unassigned: <span className="font-semibold">{deptApprovers.filter(d => !d.approver_id).length}</span>
+                    </Badge>
+                  )}
+                </div>
 
+                <div className="relative w-full sm:w-60">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Filter departments..."
+                    value={deptTableSearch}
+                    onChange={e => setDeptTableSearch(e.target.value)}
+                    className="pl-8 h-8 text-xs bg-white dark:bg-zinc-950"
+                  />
+                </div>
+              </div>
+
+              {/* Multi-Selection Bulk Action Toolbar */}
+              {selectedDepts.length > 0 && (
+                <div className="px-3 py-2 bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 rounded-lg flex flex-wrap items-center justify-between gap-2.5 animate-in fade-in-50">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-indigo-950 dark:text-indigo-200">
+                    <CheckSquare className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>{selectedDepts.length} department{selectedDepts.length > 1 ? "s" : ""} selected</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
                     <Popover
-                      open={activeDropdownRole === role}
-                      onOpenChange={(open) => setActiveDropdownRole(open ? role : null)}
+                      open={isBatchPopoverOpen}
+                      onOpenChange={(open) => {
+                        setIsBatchPopoverOpen(open);
+                        if (!open) setBatchSearchText("");
+                      }}
                     >
                       <PopoverTrigger asChild>
                         <Button
-                          variant="outline"
                           size="sm"
-                          className="h-8 text-xs font-medium border-dashed border-slate-300 dark:border-zinc-700 hover:border-indigo-400 bg-white dark:bg-zinc-900 shrink-0 mt-1 sm:mt-0"
+                          disabled={isBatchSaving}
+                          className="h-7 text-xs px-2.5 shadow-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
                         >
-                          <UserCheck className="w-3.5 h-3.5 mr-1 text-indigo-500" />
-                          Assign / Edit
-                          <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-50" />
+                          {isBatchSaving ? (
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <ChevronsUpDown className="h-3 w-3 opacity-80" />
+                          )}
+                          {isBatchSaving ? "Saving..." : `Assign Approver to ${selectedDepts.length} Selected`}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[360px] p-0" align="end">
-                        <div className="flex items-center border-b px-3 py-2">
-                          <Search className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
-                          <input
-                            placeholder="Search directory or Microsoft Entra..."
-                            value={userSearchText}
-                            onChange={(e) => setUserSearchText(e.target.value)}
-                            className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
-                          />
-                          {isSearchingGraph && <div className="w-3 h-3 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin ml-2 shrink-0" />}
+
+                      <PopoverContent className="w-[340px] p-0 shadow-lg" align="end">
+                        <div className="p-2.5 border-b bg-slate-50/70 dark:bg-zinc-900/70">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                              <Building2 className="h-3 w-3 text-indigo-600" />
+                              Assign {selectedDepts.length} Departments
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">Select Approver</span>
+                          </div>
+                          <div className="relative">
+                            <Search className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
+                            <Input
+                              autoFocus
+                              placeholder="Search name, email, department..."
+                              value={batchSearchText}
+                              onChange={(e) => setBatchSearchText(e.target.value)}
+                              className="pl-7 h-7 text-xs bg-white dark:bg-zinc-950"
+                            />
+                          </div>
                         </div>
-                        <div className="max-h-[260px] overflow-y-auto p-1.5 space-y-1 divide-y divide-slate-100 dark:divide-zinc-800">
-                          {/* Portal Directory Users */}
-                          <div className="space-y-1 pb-1">
-                            {allUsers
-                              .filter(
-                                (u) =>
-                                  u.is_active !== false &&
-                                  (u.full_name || u.email || "")
-                                    .toLowerCase()
-                                    .includes(userSearchText.toLowerCase())
-                              )
-                              .map((u) => {
-                                const isChecked = assignedIds.includes(u.id);
-                                return (
-                                  <button
-                                    key={u.id}
-                                    type="button"
-                                    onClick={() => handleToggleUserInRole(role, u.id)}
-                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors text-left ${
-                                      isChecked
-                                        ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200 font-medium"
-                                        : "hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300"
-                                    }`}
-                                  >
-                                    <div className="flex flex-col min-w-0 pr-2">
-                                      <span className="truncate">{u.full_name || "Unnamed"}</span>
-                                      <span className="text-[10px] text-muted-foreground truncate">{u.email}</span>
-                                    </div>
-                                    {isChecked && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
-                                  </button>
-                                );
-                              })}
+
+                        <div className="max-h-[220px] overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-slate-800/60" onWheelCapture={(e) => e.stopPropagation()}>
+                          <div
+                            onClick={() => handleBatchAssignApprover(null)}
+                            className="p-2 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 rounded cursor-pointer text-xs flex items-center justify-between transition-colors"
+                          >
+                            <span className="font-semibold">&times; Clear Approver for all {selectedDepts.length} selected</span>
                           </div>
 
-                          {/* Microsoft Entra Graph Search Results */}
-                          {graphSearchResults.length > 0 && (
-                            <div className="pt-2 space-y-1">
-                              <div className="px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1">
-                                <Sparkles className="w-3 h-3" />
-                                Microsoft Entra Directory
+                          {allUsers
+                            .filter((u) => {
+                              if (u.is_active === false) return false;
+                              const q = batchSearchText.toLowerCase().trim();
+                              if (!q) return true;
+                              return (
+                                (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+                                (u.email && u.email.toLowerCase().includes(q)) ||
+                                (u.department && u.department.toLowerCase().includes(q))
+                              );
+                            })
+                            .map((u) => (
+                              <div
+                                key={u.id}
+                                onClick={() => handleBatchAssignApprover(u)}
+                                className="p-2 rounded cursor-pointer text-xs flex items-center justify-between transition-colors hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="h-6 w-6 rounded-full bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-slate-200 flex items-center justify-center text-[10px] font-semibold shrink-0">
+                                    {u.full_name?.split(" ").map((p: string) => p[0]).slice(0, 2).join("").toUpperCase() || "U"}
+                                  </div>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="font-semibold truncate">{u.full_name || u.email}</span>
+                                    <span className="text-[10px] text-muted-foreground truncate">{u.email}</span>
+                                  </div>
+                                </div>
                               </div>
-                              {graphSearchResults
-                                .filter((gu) => !allUsers.some((u) => u.email && gu.email && u.email.toLowerCase() === gu.email.toLowerCase()))
-                                .map((gu) => {
-                                  const entraKey = gu.object_id || gu.email;
-                                  const isChecked = assignedIds.includes(entraKey);
+                            ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedDepts([])}
+                      className="h-7 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                    >
+                      Deselect
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {isDeptLoading ? (
+                <div className="p-8 text-center text-xs text-muted-foreground">Loading departments...</div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden border-slate-200 dark:border-zinc-800">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 text-slate-600 dark:text-slate-300 font-semibold">
+                        <th className="py-2.5 px-3 w-8 text-center">
+                          <Checkbox
+                            checked={
+                              deptApprovers.filter(d =>
+                                !deptTableSearch ||
+                                d.department.toLowerCase().includes(deptTableSearch.toLowerCase()) ||
+                                (d.approver_name && d.approver_name.toLowerCase().includes(deptTableSearch.toLowerCase())) ||
+                                (d.approver_email && d.approver_email.toLowerCase().includes(deptTableSearch.toLowerCase()))
+                              ).length > 0 &&
+                              deptApprovers.filter(d =>
+                                !deptTableSearch ||
+                                d.department.toLowerCase().includes(deptTableSearch.toLowerCase()) ||
+                                (d.approver_name && d.approver_name.toLowerCase().includes(deptTableSearch.toLowerCase())) ||
+                                (d.approver_email && d.approver_email.toLowerCase().includes(deptTableSearch.toLowerCase()))
+                              ).every(d => selectedDepts.includes(d.department))
+                            }
+                            onCheckedChange={() => {
+                              const visibleDepts = deptApprovers
+                                .filter(d =>
+                                  !deptTableSearch ||
+                                  d.department.toLowerCase().includes(deptTableSearch.toLowerCase()) ||
+                                  (d.approver_name && d.approver_name.toLowerCase().includes(deptTableSearch.toLowerCase())) ||
+                                  (d.approver_email && d.approver_email.toLowerCase().includes(deptTableSearch.toLowerCase()))
+                                )
+                                .map(d => d.department);
+                              handleToggleSelectAll(visibleDepts);
+                            }}
+                            aria-label="Select all departments"
+                          />
+                        </th>
+                        <th className="py-2.5 px-3">Department</th>
+                        <th className="py-2.5 px-3">Level 1 Approver</th>
+                        <th className="py-2.5 px-3 text-right">Assign / Change</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60">
+                      {deptApprovers
+                        .filter(d =>
+                          !deptTableSearch ||
+                          d.department.toLowerCase().includes(deptTableSearch.toLowerCase()) ||
+                          (d.approver_name && d.approver_name.toLowerCase().includes(deptTableSearch.toLowerCase())) ||
+                          (d.approver_email && d.approver_email.toLowerCase().includes(deptTableSearch.toLowerCase()))
+                        )
+                        .map((dept) => {
+                          const isSaving = savingDept === dept.department;
+                          const hasApprover = Boolean(dept.approver_id);
+                          const isPopoverOpen = openPopoverDept === dept.department;
+                          const isSelected = selectedDepts.includes(dept.department);
+
+                          return (
+                            <tr
+                              key={dept.department}
+                              className={`transition-colors ${
+                                isSelected
+                                  ? "bg-indigo-50/40 dark:bg-indigo-950/20"
+                                  : "hover:bg-slate-50/60 dark:hover:bg-zinc-900/40"
+                              }`}
+                            >
+                              <td className="py-2.5 px-3 text-center">
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={() => handleToggleSelectDept(dept.department)}
+                                  aria-label={`Select ${dept.department}`}
+                                />
+                              </td>
+                              <td className="py-2.5 px-3 font-medium text-slate-900 dark:text-slate-100">
+                                <div className="flex items-center gap-2">
+                                  <Building2 className="h-3.5 w-3.5 text-indigo-600" />
+                                  <span>{dept.department}</span>
+                                </div>
+                              </td>
+
+                              <td className="py-2.5 px-3">
+                                {hasApprover ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center text-[11px] font-semibold shrink-0">
+                                      {dept.approver_name?.split(" ").map((p: string) => p[0]).slice(0, 2).join("").toUpperCase() || "U"}
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs truncate">{dept.approver_name}</span>
+                                      <span className="text-[10px] text-muted-foreground truncate">{dept.approver_email}</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="italic text-muted-foreground text-xs flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3 text-amber-500" /> Not Assigned
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="py-2.5 px-3 text-right">
+                                <Popover
+                                  open={isPopoverOpen}
+                                  onOpenChange={(open) => {
+                                    if (open) {
+                                      setOpenPopoverDept(dept.department);
+                                      setDeptApproverSearch("");
+                                    } else {
+                                      setOpenPopoverDept(null);
+                                    }
+                                  }}
+                                >
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant={hasApprover ? "outline" : "default"}
+                                      size="sm"
+                                      disabled={isSaving}
+                                      className={`h-7 text-xs px-2.5 shadow-2xs gap-1 ${
+                                        !hasApprover ? "bg-indigo-600 hover:bg-indigo-700 text-white" : ""
+                                      }`}
+                                    >
+                                      {isSaving ? (
+                                        <RefreshCw className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <ChevronsUpDown className="h-3 w-3 opacity-70" />
+                                      )}
+                                      {isSaving ? "Saving..." : (hasApprover ? "Change" : "Assign")}
+                                    </Button>
+                                  </PopoverTrigger>
+
+                                  <PopoverContent className="w-[320px] p-0 shadow-lg" align="end">
+                                    <div className="p-2.5 border-b bg-slate-50/70 dark:bg-zinc-900/70">
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1">
+                                          <Building2 className="h-3 w-3 text-indigo-600" />
+                                          {dept.department}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground">Select User</span>
+                                      </div>
+                                      <div className="relative">
+                                        <Search className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
+                                        <Input
+                                          autoFocus
+                                          placeholder="Type to search user..."
+                                          value={deptApproverSearch}
+                                          onChange={(e) => setDeptApproverSearch(e.target.value)}
+                                          className="pl-7 h-7 text-xs bg-white dark:bg-zinc-950"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="max-h-[220px] overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-zinc-800" onWheelCapture={(e) => e.stopPropagation()}>
+                                      {hasApprover && (
+                                        <div
+                                          onClick={() => handleSelectDepartmentApprover(dept.department, null)}
+                                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 rounded cursor-pointer text-xs flex items-center transition-colors"
+                                        >
+                                          <span className="font-medium">&times; Remove Approver (Unassign)</span>
+                                        </div>
+                                      )}
+
+                                      {allUsers
+                                        .filter((u) => {
+                                          if (u.is_active === false) return false;
+                                          const q = deptApproverSearch.toLowerCase().trim();
+                                          if (!q) return true;
+                                          return (
+                                            (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+                                            (u.email && u.email.toLowerCase().includes(q)) ||
+                                            (u.department && u.department.toLowerCase().includes(q))
+                                          );
+                                        })
+                                        .map((u) => {
+                                          const isSelected = dept.approver_id === u.id;
+                                          return (
+                                            <div
+                                              key={u.id}
+                                              onClick={() => handleSelectDepartmentApprover(dept.department, u)}
+                                              className={`p-2 rounded cursor-pointer text-xs flex items-center justify-between transition-colors ${
+                                                isSelected
+                                                  ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200"
+                                                  : "hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200"
+                                              }`}
+                                            >
+                                              <div className="flex items-center gap-2 min-w-0">
+                                                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0 ${
+                                                  isSelected
+                                                    ? "bg-indigo-600 text-white"
+                                                    : "bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-slate-200"
+                                                }`}>
+                                                  {u.full_name?.split(" ").map((p: string) => p[0]).slice(0, 2).join("").toUpperCase() || "U"}
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                  <span className="font-semibold truncate">{u.full_name || u.email}</span>
+                                                  <span className="text-[10px] text-muted-foreground truncate">{u.email}</span>
+                                                </div>
+                                              </div>
+
+                                              {isSelected && (
+                                                <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 ml-1.5" />
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* TAB 2: Operational Teams */}
+            <TabsContent value="operational" className="space-y-4 m-0">
+              {[
+                {
+                  role: "COMPANY_LEVEL_2_APPROVER",
+                  label: "Executive Level 2 Approver — Fixed: CEO Shaun Passley",
+                  desc: "Company-wide executive approval fixed to CEO Shaun Passley (shaun@zenatech.com) for ≥ $10,000 or escalated requests.",
+                  badgeColor: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200",
+                },
+                {
+                  role: "PURCHASING",
+                  label: "Purchasing Lead",
+                  desc: "Vendor quote negotiations, purchase orders, and fulfillment.",
+                  badgeColor: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200",
+                },
+                {
+                  role: "AP",
+                  label: "Accounts Payable (AP)",
+                  desc: "Invoice matching, vendor statement review, and GL validation.",
+                  badgeColor: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200",
+                },
+                {
+                  role: "TREASURY",
+                  label: "Treasury Officer",
+                  desc: "Bank disbursement, wire authorization, and final settlement.",
+                  badgeColor: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300 border-sky-200",
+                },
+                {
+                  role: "ADMIN",
+                  label: "System & Workflow Administrator",
+                  desc: "Administrative system configuration and workflow management.",
+                  badgeColor: "bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-slate-300 border-slate-200",
+                },
+              ].map(({ role, label, desc, badgeColor }) => {
+                const assignment = workflowAssignments.find((a) => a.role === role);
+                const assignedIds: string[] = assignment?.user_ids || (assignment?.user_id ? [assignment.user_id] : []);
+
+                return (
+                  <div
+                    key={role}
+                    className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/40 space-y-2.5 transition-all hover:border-slate-300 dark:hover:border-zinc-700"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-900 dark:text-zinc-100">{label}</span>
+                          <Badge variant="outline" className={`text-[10px] font-semibold px-2 py-0.5 ${badgeColor}`}>
+                            {role}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                      </div>
+
+                      <Popover
+                        open={activeDropdownRole === role}
+                        onOpenChange={(open) => setActiveDropdownRole(open ? role : null)}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs font-medium border-dashed border-slate-300 dark:border-zinc-700 hover:border-indigo-400 bg-white dark:bg-zinc-900 shrink-0 mt-1 sm:mt-0"
+                          >
+                            <UserCheck className="w-3.5 h-3.5 mr-1 text-indigo-500" />
+                            Assign / Edit
+                            <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[360px] p-0" align="end">
+                          <div className="flex items-center border-b px-3 py-2">
+                            <Search className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
+                            <input
+                              placeholder="Search directory or Microsoft Entra..."
+                              value={userSearchText}
+                              onChange={(e) => setUserSearchText(e.target.value)}
+                              className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+                            />
+                            {isSearchingGraph && <div className="w-3 h-3 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin ml-2 shrink-0" />}
+                          </div>
+                          <div className="max-h-[260px] overflow-y-auto p-1.5 space-y-1 divide-y divide-slate-100 dark:divide-zinc-800">
+                            {/* Portal Directory Users */}
+                            <div className="space-y-1 pb-1">
+                              {allUsers
+                                .filter(
+                                  (u) =>
+                                    u.is_active !== false &&
+                                    (u.full_name || u.email || "")
+                                      .toLowerCase()
+                                      .includes(userSearchText.toLowerCase())
+                                )
+                                .map((u) => {
+                                  const isChecked = assignedIds.includes(u.id);
                                   return (
                                     <button
-                                      key={entraKey}
+                                      key={u.id}
                                       type="button"
-                                      onClick={() => handleToggleEntraUser(role, gu)}
+                                      onClick={() => handleToggleUserInRole(role, u.id)}
                                       className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors text-left ${
                                         isChecked
                                           ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200 font-medium"
@@ -661,57 +1106,91 @@ export default function Dashboard() {
                                       }`}
                                     >
                                       <div className="flex flex-col min-w-0 pr-2">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="truncate">{gu.display_name || "Unnamed"}</span>
-                                          <span className="px-1 py-0.2 text-[9px] bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 rounded font-medium">Entra</span>
-                                        </div>
-                                        <span className="text-[10px] text-muted-foreground truncate">{gu.email || gu.user_principal_name}</span>
+                                        <span className="truncate">{u.full_name || "Unnamed"}</span>
+                                        <span className="text-[10px] text-muted-foreground truncate">{u.email}</span>
                                       </div>
                                       {isChecked && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
                                     </button>
                                   );
                                 })}
                             </div>
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
 
-                  {/* Assigned Users Badges */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    {assignedIds.length === 0 ? (
-                      <span className="text-xs text-muted-foreground italic">No approvers assigned</span>
-                    ) : (
-                      assignedIds.map((uid) => {
-                        const userObj = allUsers.find((x) => x.id === uid);
-                        return (
-                          <Badge
-                            key={uid}
-                            variant="secondary"
-                            className="text-xs py-1 px-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-2xs flex items-center gap-1.5 font-normal text-slate-800 dark:text-zinc-200"
-                          >
-                            <span>{userObj?.full_name || userObj?.email || uid}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleUserInRole(role, uid)}
-                              className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 ml-0.5 transition-colors"
+                            {/* Microsoft Entra Graph Search Results */}
+                            {graphSearchResults.length > 0 && (
+                              <div className="pt-2 space-y-1">
+                                <div className="px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3" />
+                                  Microsoft Entra Directory
+                                </div>
+                                {graphSearchResults
+                                  .filter((gu) => !allUsers.some((u) => u.email && gu.email && u.email.toLowerCase() === gu.email.toLowerCase()))
+                                  .map((gu) => {
+                                    const entraKey = gu.object_id || gu.email;
+                                    const isChecked = assignedIds.includes(entraKey);
+                                    return (
+                                      <button
+                                        key={entraKey}
+                                        type="button"
+                                        onClick={() => handleToggleEntraUser(role, gu)}
+                                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors text-left ${
+                                          isChecked
+                                            ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200 font-medium"
+                                            : "hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300"
+                                        }`}
+                                      >
+                                        <div className="flex flex-col min-w-0 pr-2">
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="truncate">{gu.display_name || "Unnamed"}</span>
+                                            <span className="px-1 py-0.2 text-[9px] bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 rounded font-medium">Entra</span>
+                                          </div>
+                                          <span className="text-[10px] text-muted-foreground truncate">{gu.email || gu.user_principal_name}</span>
+                                        </div>
+                                        {isChecked && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
+                                      </button>
+                                    );
+                                  })}
+                              </div>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Assigned Users Badges */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      {assignedIds.length === 0 ? (
+                        <span className="text-xs text-muted-foreground italic">No approvers assigned</span>
+                      ) : (
+                        assignedIds.map((uid) => {
+                          const userObj = allUsers.find((x) => x.id === uid);
+                          return (
+                            <Badge
+                              key={uid}
+                              variant="secondary"
+                              className="text-xs py-1 px-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-2xs flex items-center gap-1.5 font-normal text-slate-800 dark:text-zinc-200"
                             >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </Badge>
-                        );
-                      })
-                    )}
+                              <span>{userObj?.full_name || userObj?.email || uid}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleUserInRole(role, uid)}
+                                className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 ml-0.5 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </Badge>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter className="border-t border-slate-100 dark:border-zinc-800 pt-3">
             <Button variant="ghost" size="sm" onClick={() => setIsApproverModalOpen(false)}>
-              Cancel
+              Close
             </Button>
             <Button
               size="sm"
@@ -724,7 +1203,7 @@ export default function Dashboard() {
               ) : (
                 <>
                   <Sparkles className="w-3.5 h-3.5" />
-                  Save Assignments
+                  Save Operational Roles
                 </>
               )}
             </Button>
