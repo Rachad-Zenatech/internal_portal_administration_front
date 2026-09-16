@@ -134,6 +134,8 @@ export type PurchaseRequest = {
   items?: PurchaseRequestItem[];
   quote_data?: any;
   review_status?: "WAITING_FOR_REVIEW" | "REVIEWED" | null;
+  current_approval_level?: number | null;
+  requires_second_level?: boolean | null;
   due_date?: string | null;
   recurring_schedule?: RecurringSchedule | null;
   created_at: string;
@@ -336,6 +338,7 @@ export type InvoiceInput = {
 export type ApprovalInput = {
   approver: string;
   comment?: string | null;
+  pass_to_level_2?: boolean;
 };
 
 export type TrackingInput = {
