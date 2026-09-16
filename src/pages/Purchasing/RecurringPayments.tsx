@@ -1761,18 +1761,27 @@ export default function RecurringPayments() {
 
       {/* Create Recurring Request Modal */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-4xl sm:max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto">
-          <form onSubmit={handleCreateSubmit} className="space-y-4">
+        <DialogContent className="w-[96vw] max-w-[96vw] sm:max-w-[1440px] 2xl:max-w-[1600px] max-h-[92vh] overflow-y-auto p-6 sm:p-8 rounded-2xl">
+          <form onSubmit={handleCreateSubmit} className="space-y-5">
             <DialogHeader>
-              <DialogTitle>Create Recurring Payment Request</DialogTitle>
-              <DialogDescription>
-                Add a new recurring software license, subscription, or lease. Follows the simplified workflow: New Request → Waiting for Payment → Invoice (Fixed Assets) → Completed.
-              </DialogDescription>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/50 shadow-2xs shrink-0">
+                  <CalendarClock className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl font-bold text-slate-900 dark:text-zinc-100">
+                    Create Recurring Payment Request
+                  </DialogTitle>
+                  <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                    Add a new recurring software license, subscription, or lease with automated or custom milestone installments.
+                  </DialogDescription>
+                </div>
+              </div>
             </DialogHeader>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-2">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 py-2">
               {/* Left Column: General Request Details */}
-              <div className="space-y-3.5 flex flex-col justify-between">
+              <div className="lg:col-span-6 space-y-4 flex flex-col justify-between">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                     Title / Service Name <span className="text-red-500">*</span>
@@ -1783,27 +1792,30 @@ export default function RecurringPayments() {
                     onChange={(e) =>
                       setNewForm({ ...newForm, title: e.target.value })
                     }
-                    className="h-9 text-xs font-medium"
+                    className="h-10 text-sm font-medium"
                     required
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                       Amount (USD) <span className="text-red-500">*</span>
                     </label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newForm.amount}
-                      onChange={(e) =>
-                        setNewForm({ ...newForm, amount: e.target.value })
-                      }
-                      className="h-9 text-xs font-mono"
-                      required
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newForm.amount}
+                        onChange={(e) =>
+                          setNewForm({ ...newForm, amount: e.target.value })
+                        }
+                        className="h-10 text-sm font-mono pl-7"
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">
@@ -1814,12 +1826,12 @@ export default function RecurringPayments() {
                       onChange={(e) =>
                         setNewForm({ ...newForm, due_date: e.target.value })
                       }
-                      className="h-9 text-xs"
+                      className="h-10 text-sm"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <RequesterAutocomplete
                     required
                     value={newForm.requester}
@@ -1852,7 +1864,7 @@ export default function RecurringPayments() {
                         setNewForm({ ...newForm, department: e.target.value })
                       }
                       placeholder="e.g. Finance"
-                      className="h-9 text-xs"
+                      className="h-10 text-sm"
                       required
                     />
                   </div>
@@ -1869,7 +1881,7 @@ export default function RecurringPayments() {
                 <div className="space-y-1.5 flex-1 flex flex-col">
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>
                   <textarea
-                    className="w-full text-xs rounded-md border border-input bg-background px-3 py-2 flex-1 min-h-[70px]"
+                    className="w-full text-sm rounded-lg border border-input bg-background px-3 py-2.5 flex-1 min-h-[95px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                     placeholder="Monthly billing schedule, renewal terms, invoice reference..."
                     value={newForm.description}
                     onChange={(e) =>
@@ -1880,7 +1892,7 @@ export default function RecurringPayments() {
               </div>
 
               {/* Right Column: Schedule Dates Builder */}
-              <div className="flex flex-col h-full">
+              <div className="lg:col-span-6 flex flex-col h-full">
                 <ScheduleDatesBuilder
                   isScheduled={newForm.is_scheduled}
                   onIsScheduledChange={(val) => setNewForm((p) => ({ ...p, is_scheduled: val }))}
@@ -1897,7 +1909,7 @@ export default function RecurringPayments() {
               </div>
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t">
+            <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
               <Button
                 type="button"
                 variant="outline"
@@ -1905,7 +1917,7 @@ export default function RecurringPayments() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button type="submit" disabled={createMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5">
                 {createMutation.isPending ? "Creating..." : "Create Recurring Request"}
               </Button>
             </DialogFooter>
@@ -1916,133 +1928,155 @@ export default function RecurringPayments() {
       {/* Edit Recurring Request Modal */}
       {isEditOpen && editingRequest && (
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-          <DialogContent className="sm:max-w-lg">
-            <form onSubmit={handleEditSubmit}>
+          <DialogContent className="w-[96vw] max-w-[96vw] sm:max-w-[1440px] 2xl:max-w-[1600px] max-h-[92vh] overflow-y-auto p-6 sm:p-8 rounded-2xl">
+            <form onSubmit={handleEditSubmit} className="space-y-5">
               <DialogHeader>
-                <DialogTitle>Edit Recurring Payment Request #{editingRequest.id}</DialogTitle>
-                <DialogDescription>
-                  Update recurring subscription details, amount, schedule, and GL account mapping.
-                </DialogDescription>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/50 shadow-2xs shrink-0">
+                    <Edit2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl font-bold text-slate-900 dark:text-zinc-100">
+                      Edit Recurring Payment Request #{editingRequest.id}
+                    </DialogTitle>
+                    <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                      Update recurring subscription details, amount, schedule milestones, and GL account mapping.
+                    </DialogDescription>
+                  </div>
+                </div>
               </DialogHeader>
 
-              <div className="space-y-4 py-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">
-                    Title / Service Name <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    placeholder="e.g. AWS Cloud Infrastructure, Zoom Enterprise"
-                    value={editForm.title}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, title: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 py-2">
+                {/* Left Column: General Request Details */}
+                <div className="lg:col-span-6 space-y-4 flex flex-col justify-between">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">
-                      Amount (USD) <span className="text-red-500">*</span>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Title / Service Name <span className="text-red-500">*</span>
                     </label>
                     <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={editForm.amount}
+                      placeholder="e.g. AWS Cloud Infrastructure, Zoom Enterprise"
+                      value={editForm.title}
                       onChange={(e) =>
-                        setEditForm({ ...editForm, amount: e.target.value })
+                        setEditForm({ ...editForm, title: e.target.value })
                       }
+                      className="h-10 text-sm font-medium"
                       required
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Next Due Date</label>
-                    <Input
-                      type="date"
-                      value={editForm.due_date}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, due_date: e.target.value })
-                      }
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Amount (USD) <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={editForm.amount}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, amount: e.target.value })
+                          }
+                          className="h-10 text-sm font-mono pl-7"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
+                      <Input
+                        type="date"
+                        value={editForm.due_date}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, due_date: e.target.value })
+                        }
+                        className="h-10 text-sm"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <RequesterAutocomplete
-                    required
-                    value={editForm.requester}
-                    onChange={(val) => {
-                      const matched = usersList.find(
-                        (u) =>
-                          (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
-                          (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
-                      );
-                      const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
-                      setEditForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
-                    }}
-                    onSelectUser={(selectedUser) => {
-                      const dept = resolveUserDepartment(selectedUser, rolesList);
-                      if (dept) {
-                        setEditForm((prev) => ({ ...prev, department: dept }));
-                      }
-                    }}
-                    users={usersList}
-                    roles={rolesList}
-                  />
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">
-                      Department <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      value={editForm.department}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, department: e.target.value })
-                      }
-                      placeholder="e.g. Finance"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <RequesterAutocomplete
                       required
+                      value={editForm.requester}
+                      onChange={(val) => {
+                        const matched = usersList.find(
+                          (u) =>
+                            (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
+                            (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
+                        );
+                        const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
+                        setEditForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
+                      }}
+                      onSelectUser={(selectedUser) => {
+                        const dept = resolveUserDepartment(selectedUser, rolesList);
+                        if (dept) {
+                          setEditForm((prev) => ({ ...prev, department: dept }));
+                        }
+                      }}
+                      users={usersList}
+                      roles={rolesList}
+                    />
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Department <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        value={editForm.department}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, department: e.target.value })
+                        }
+                        placeholder="e.g. Finance"
+                        className="h-10 text-sm"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
+                    <GLCodeAutocomplete
+                      value={editForm.gl_code}
+                      onChange={(val) => setEditForm({ ...editForm, gl_code: val })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 flex-1 flex flex-col">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>
+                    <textarea
+                      className="w-full text-sm rounded-lg border border-input bg-background px-3 py-2.5 flex-1 min-h-[95px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                      placeholder="Monthly billing schedule, renewal terms, invoice reference..."
+                      value={editForm.description}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, description: e.target.value })
+                      }
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">GL Code / Account</label>
-                  <GLCodeAutocomplete
-                    value={editForm.gl_code}
-                    onChange={(val) => setEditForm({ ...editForm, gl_code: val })}
-                  />
-                </div>
-
-                <ScheduleDatesBuilder
-                isScheduled={editForm.is_scheduled}
-                onIsScheduledChange={(val) => setEditForm((p) => ({ ...p, is_scheduled: val }))}
-                frequency={editForm.frequency}
-                onFrequencyChange={(val) => setEditForm((p) => ({ ...p, frequency: val }))}
-                startDate={editForm.start_date}
-                onStartDateChange={(val) => setEditForm((p) => ({ ...p, start_date: val }))}
-                endDate={editForm.end_date}
-                onEndDateChange={(val) => setEditForm((p) => ({ ...p, end_date: val }))}
-                scheduleDates={editForm.schedule_dates}
-                onScheduleDatesChange={(dates) => setEditForm((p) => ({ ...p, schedule_dates: dates }))}
-                baseAmount={parseFloat(editForm.amount) || 0}
-              />
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Description / Terms</label>
-                  <textarea
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 min-h-[70px]"
-                    placeholder="Monthly billing schedule, renewal terms, invoice reference..."
-                    value={editForm.description}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, description: e.target.value })
-                    }
+                {/* Right Column: Schedule Dates Builder */}
+                <div className="lg:col-span-6 flex flex-col h-full">
+                  <ScheduleDatesBuilder
+                    isScheduled={editForm.is_scheduled}
+                    onIsScheduledChange={(val) => setEditForm((p) => ({ ...p, is_scheduled: val }))}
+                    frequency={editForm.frequency}
+                    onFrequencyChange={(val) => setEditForm((p) => ({ ...p, frequency: val }))}
+                    startDate={editForm.start_date}
+                    onStartDateChange={(val) => setEditForm((p) => ({ ...p, start_date: val }))}
+                    endDate={editForm.end_date}
+                    onEndDateChange={(val) => setEditForm((p) => ({ ...p, end_date: val }))}
+                    scheduleDates={editForm.schedule_dates}
+                    onScheduleDatesChange={(dates) => setEditForm((p) => ({ ...p, schedule_dates: dates }))}
+                    baseAmount={parseFloat(editForm.amount) || 0}
                   />
                 </div>
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
                 <Button
                   type="button"
                   variant="outline"
@@ -2053,7 +2087,7 @@ export default function RecurringPayments() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={updateMutation.isPending}>
+                <Button type="submit" disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5">
                   {updateMutation.isPending ? "Saving..." : "Save Changes"}
                 </Button>
               </DialogFooter>
