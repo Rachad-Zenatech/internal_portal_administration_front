@@ -7,6 +7,7 @@ import {
   ReceiptText,
   CalendarCheck,
   UserCheck,
+  Zap,
 } from "lucide-react";
 
 export const navigation = [
@@ -73,6 +74,13 @@ export const navigation = [
     icon: ReceiptText,
     section: "PURCHASING & AP",
     navigationCode: "INVOICES",
+  },
+  {
+    label: "QuickBooks Sync",
+    path: "/purchasing/quickbooks",
+    icon: Zap,
+    section: "PURCHASING & AP",
+    navigationCode: "PURCHASING",
   },
 
   {
