@@ -21,6 +21,7 @@ export type RequestListFilters = {
   status?: string;
   request_type?: string;
   search?: string;
+  project?: string;
 };
 
 function buildQuery(filters: RequestListFilters): string {
@@ -28,6 +29,7 @@ function buildQuery(filters: RequestListFilters): string {
   if (filters.status) params.set("status", filters.status);
   if (filters.request_type) params.set("request_type", filters.request_type);
   if (filters.search) params.set("search", filters.search);
+  if (filters.project) params.set("project", filters.project);
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 }
@@ -39,6 +41,12 @@ export async function getSummary(): Promise<PurchasingSummary> {
 export async function listDepartments(): Promise<string[]> {
   return apiClient.get<string[]>("/api/purchasing/departments");
 }
+
+export async function listProjects(): Promise<string[]> {
+  return apiClient.get<string[]>("/api/purchasing/projects");
+}
+
+export const getProjects = listProjects;
 
 export function listRequests(filters: RequestListFilters = {}) {
   return apiClient.get<PurchaseRequest[]>(`${BASE}/requests${buildQuery(filters)}`);
@@ -520,4 +528,20 @@ export function extractProductInfoFromUrl(url: string) {
   }>(`${BASE}/extract-product-info`, { url }, {
     actionSubtitle: "Analyzing website metadata, price, vendor, and specs...",
   });
+}
+
+export async function listProjectGroupsDetailed(): Promise<import("@/types/purchasing").ProjectGroupItem[]> {
+  return apiClient.get<import("@/types/purchasing").ProjectGroupItem[]>("/api/purchasing/projects/details");
+}
+
+export async function createProjectGroup(payload: import("@/types/purchasing").ProjectGroupCreateInput): Promise<import("@/types/purchasing").ProjectGroupItem> {
+  return apiClient.post<import("@/types/purchasing").ProjectGroupItem>("/api/purchasing/projects", payload);
+}
+
+export async function updateProjectGroup(oldName: string, payload: import("@/types/purchasing").ProjectGroupUpdateInput): Promise<import("@/types/purchasing").ProjectGroupItem> {
+  return apiClient.put<import("@/types/purchasing").ProjectGroupItem>(`/api/purchasing/projects/${encodeURIComponent(oldName)}`, payload);
+}
+
+export async function deleteProjectGroup(name: string): Promise<{ success: boolean }> {
+  return apiClient.delete<{ success: boolean }>(`/api/purchasing/projects/${encodeURIComponent(name)}`);
 }

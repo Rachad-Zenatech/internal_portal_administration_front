@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { VendorAutocomplete } from "./VendorAutocomplete";
+import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import DepartmentAutocomplete from "./DepartmentAutocomplete";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
@@ -56,6 +57,7 @@ import {
   Lock,
   Truck,
   CheckCircle2,
+  FolderKanban,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -108,6 +110,7 @@ export function EditCombinedRequestDialog({
   const [requester, setRequester] = useState("");
   const [department, setDepartment] = useState("");
   const [priority, setPriority] = useState<Priority>("MEDIUM");
+  const [projectName, setProjectName] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [itemUrl, setItemUrl] = useState("");
   const [reqCurrency, setReqCurrency] = useState("USD");
@@ -250,6 +253,7 @@ export function EditCombinedRequestDialog({
       setRequester(request?.requester || "");
       setDepartment(request?.department || "");
       setPriority(request?.priority || "MEDIUM");
+      setProjectName(request?.project_name || "");
       setDueDate(request?.due_date ? String(request.due_date).split("T")[0] : "");
       setItemUrl(request?.item_url || "");
       setReqCurrency(request?.currency || "USD");
@@ -1153,6 +1157,21 @@ export function EditCombinedRequestDialog({
                     disabled={isOverviewLocked}
                     onChange={setDepartment}
                     placeholder="Search or enter department..."
+                  />
+                </div>
+
+                {/* Group Project / Project */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                    <FolderKanban className="h-3.5 w-3.5 text-indigo-500" />
+                    <span>Group Project / Project</span>
+                    <span className="text-slate-400 font-normal text-[11px]">(e.g. Drone Project)</span>
+                  </label>
+                  <ProjectAutocomplete
+                    value={projectName}
+                    onChange={setProjectName}
+                    disabled={isOverviewLocked}
+                    placeholder="Select existing project or type project name (e.g. Drone Project)..."
                   />
                 </div>
 

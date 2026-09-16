@@ -13,7 +13,16 @@ const keys = {
   invoices: (paymentStatus?: string) => [...keys.all, "invoices", paymentStatus ?? "all"] as const,
   notifications: () => [...keys.all, "notifications"] as const,
   departments: () => [...keys.all, "departments"] as const,
+  projects: () => [...keys.all, "projects"] as const,
 };
+
+export function useProjects() {
+  return useQuery({
+    queryKey: keys.projects(),
+    queryFn: purchasing.listProjects,
+    staleTime: 60 * 1000,
+  });
+}
 
 export function useDepartments() {
   return useQuery({
@@ -308,5 +317,59 @@ export function useKnownVendors() {
       return Array.isArray(list) ? list : [];
     },
     staleTime: 30 * 1000,
+  });
+}
+
+export function useProjectGroupsDetailed() {
+  return useQuery({
+    queryKey: [...keys.projects(), "detailed"],
+    queryFn: purchasing.listProjectGroupsDetailed,
+    staleTime: 10 * 1000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useCreateProjectGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: purchasing.createProjectGroup,
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: keys.projects() });
+      toast.success(`Project group "${data.name}" created successfully`);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to create project group");
+    },
+  });
+}
+
+export function useUpdateProjectGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ oldName, payload }: { oldName: string; payload: import("@/types/purchasing").ProjectGroupUpdateInput }) =>
+      purchasing.updateProjectGroup(oldName, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.projects() });
+      qc.invalidateQueries({ queryKey: keys.all });
+      toast.success(`Project group updated successfully`);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to update project group");
+    },
+  });
+}
+
+export function useDeleteProjectGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => purchasing.deleteProjectGroup(name),
+    onSuccess: (_, name) => {
+      qc.invalidateQueries({ queryKey: keys.projects() });
+      qc.invalidateQueries({ queryKey: keys.all });
+      toast.success(`Project group "${name}" deleted`);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to delete project group");
+    },
   });
 }

@@ -97,6 +97,7 @@ export const navigation = [
       { label: "Chart of Accounts", path: "/configurations/chart-of-accounts", navigationCode: "CONFIG_CHART_OF_ACCOUNTS" },
       { label: "Payable Contacts", path: "/configurations/payable-contacts", navigationCode: "CONFIG_CHART_OF_ACCOUNTS" },
       { label: "Entities", path: "/configurations/entities", navigationCode: "CONFIG_CHART_OF_ACCOUNTS" },
+      { label: "Group Projects", path: "/configurations/projects", navigationCode: "CONFIG_CHART_OF_ACCOUNTS" },
 
     ]
   },

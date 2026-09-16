@@ -2,9 +2,12 @@ import { useGLCodes } from "@/hooks/usePurchasing";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { ManualPriceDialog } from "./ManualPriceDialog";
+import { ProjectAutocomplete } from "./ProjectAutocomplete";
+import { updateRequest } from "@/services/purchasingService";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { VendorAutocomplete } from "./VendorAutocomplete";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -23,6 +26,7 @@ import {
   AlertTriangle,
   ChevronDown,
   Building2,
+  FolderKanban,
   CheckCircle2,
   Truck,
   Plus,
@@ -44,12 +48,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -198,6 +204,7 @@ export default function RequestDetail() {
     );
   };
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch } = usePurchaseRequest(id);
   const extractProductMutation = useExtractProductInfo(id ?? "");
 
@@ -209,6 +216,8 @@ export default function RequestDetail() {
   }, [id]);
 
   const [isManualPriceOpen, setIsManualPriceOpen] = useState(false);
+  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
+  const [quickProjectValue, setQuickProjectValue] = useState("");
   const [isWireDialogOpen, setIsWireDialogOpen] = useState(false);
   const [hasShownManualPrice, setHasShownManualPrice] = useState(false);
 
@@ -969,6 +978,33 @@ export default function RequestDetail() {
               </Badge>
             )}
 
+            {/* Project / Group Project Badge */}
+            {request.project_name ? (
+              <Badge
+                variant="outline"
+                className="font-medium gap-1.5 shadow-xs shrink-0 py-0.5 px-2.5 bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors"
+                onClick={() => navigate(`/purchasing/requests?project=${encodeURIComponent(request.project_name!)}`)}
+                title={`View all requests in project: ${request.project_name} (click to filter)`}
+              >
+                <FolderKanban className="h-3.5 w-3.5 text-indigo-500" />
+                <span>Project: <strong className="text-indigo-900 dark:text-indigo-100">{request.project_name}</strong></span>
+              </Badge>
+            ) : canEditRequest ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setQuickProjectValue("");
+                  setIsProjectDialogOpen(true);
+                }}
+                className="h-6 text-[11px] px-2 gap-1 border-dashed border-indigo-300 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-950/50"
+                title="Assign this purchase request to a project"
+              >
+                <FolderKanban className="h-3 w-3 text-indigo-500" />
+                <span>+ Add to Project</span>
+              </Button>
+            ) : null}
+
             {isRecurring && (
               <button
                 onClick={() => {
@@ -1148,6 +1184,51 @@ export default function RequestDetail() {
             <CardContent className="grid grid-cols-2 gap-4 text-sm">
               <Field label="Requester" value={request.requester} />
               <Field label="Department" value={request.department} />
+              <Field
+                label="Group Project"
+                value={
+                  request.project_name ? (
+                    <div className="flex items-center gap-1.5">
+                      <Badge
+                        variant="outline"
+                        className="text-xs bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                        onClick={() => navigate(`/purchasing/requests?project=${encodeURIComponent(request.project_name!)}`)}
+                        title={`View all requests in project: ${request.project_name}`}
+                      >
+                        <FolderKanban className="h-3 w-3 mr-1 text-indigo-500" />
+                        {request.project_name}
+                      </Badge>
+                      {canEditRequest && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickProjectValue(request.project_name || "");
+                            setIsProjectDialogOpen(true);
+                          }}
+                          className="text-[11px] text-indigo-600 hover:underline dark:text-indigo-400"
+                        >
+                          Change
+                        </button>
+                      )}
+                    </div>
+                  ) : canEditRequest ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setQuickProjectValue("");
+                        setIsProjectDialogOpen(true);
+                      }}
+                      className="h-6 px-1.5 text-xs text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40 gap-1 font-normal"
+                    >
+                      <FolderKanban className="h-3 w-3" />
+                      <span>+ Add to Project</span>
+                    </Button>
+                  ) : (
+                    <span className="text-slate-400 italic">None</span>
+                  )
+                }
+              />
               <Field label="Type" value={formatRequestType(request.request_type)} />
               <Field
                 label="Configuration"
@@ -3067,6 +3148,58 @@ export default function RequestDetail() {
             isOpen={isManualPriceOpen}
             onOpenChange={setIsManualPriceOpen}
           />
+
+          {/* Quick Add / Change Group Project Dialog */}
+          <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FolderKanban className="h-4 w-4 text-indigo-600" />
+                  <span>{request.project_name ? "Change Group Project" : "Add to Group Project"}</span>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500">
+                  Assign this request to a group project (e.g. &quot;Drone Project&quot;). All related purchases under this project will be grouped together.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-3 space-y-2">
+                <Label className="text-xs font-semibold">Project Name</Label>
+                <ProjectAutocomplete
+                  value={quickProjectValue}
+                  onChange={setQuickProjectValue}
+                  placeholder="Select existing project or type new project name..."
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setIsProjectDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await updateRequest(request.id, {
+                        project_name: quickProjectValue.trim() || null,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["purchasing", "request", request.id] });
+                      queryClient.invalidateQueries({ queryKey: ["purchasing", "requests"] });
+                      queryClient.invalidateQueries({ queryKey: ["purchasing", "projects"] });
+                      toast.success(
+                        quickProjectValue.trim()
+                          ? `Assigned to project "${quickProjectValue.trim()}"`
+                          : "Removed from project"
+                      );
+                      setIsProjectDialogOpen(false);
+                    } catch (err: any) {
+                      toast.error(err?.message || "Failed to update project");
+                    }
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  Save Project
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
 

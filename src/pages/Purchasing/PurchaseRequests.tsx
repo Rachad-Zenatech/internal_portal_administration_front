@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import {
   Clock,
   Plus,
+  FolderKanban,
   Search,
   ShoppingCart,
   FileWarning,
@@ -62,6 +63,7 @@ import {
 
 import {
   usePurchaseRequests,
+  useProjects,
   usePurchasingSummary,
   useCreateRequest,
   useUsersList,
@@ -92,6 +94,7 @@ import {
 } from "./purchasingMeta";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
+import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { QuickBooksExportDialog } from "./QuickBooksExportDialog";
 import { uploadAttachments, extractProductInfoFromUrl } from "@/services/purchasingService";
 
@@ -260,6 +263,7 @@ const EMPTY_FORM: RequestCreateInput = {
   unit_price: 0,
   amount: 0,
   gl_code: "",
+  project_name: "",
 };
 
 export function PurchaseRequests() {
@@ -341,6 +345,8 @@ export function PurchaseRequests() {
 
   const statusFilter = searchParams.get("status") || "OPEN";
   const typeFilter = searchParams.get("request_type") || "ALL";
+  const projectFilter = searchParams.get("project") || "ALL";
+  const { data: knownProjects = [] } = useProjects();
 
   const handleStatusFilterChange = (val: string) => {
     const newParams = new URLSearchParams(searchParams);
@@ -357,8 +363,9 @@ export function PurchaseRequests() {
       search: search || undefined,
       status: statusFilter === "ALL" ? undefined : statusFilter,
       request_type: typeFilter === "ALL" ? undefined : typeFilter,
+      project: projectFilter === "ALL" ? undefined : projectFilter,
     }),
-    [search, statusFilter, typeFilter],
+    [search, statusFilter, typeFilter, projectFilter],
   );
 
   const { data: requests = [], isLoading } = usePurchaseRequests(filters);
@@ -842,6 +849,31 @@ export function PurchaseRequests() {
               <SelectItem value="ACCOUNTS_PAYABLE">Accounts Payable</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select
+            value={projectFilter}
+            onValueChange={(val) => {
+              const newParams = new URLSearchParams(searchParams);
+              if (val === "ALL") newParams.delete("project");
+              else newParams.set("project", val);
+              setSearchParams(newParams);
+            }}
+          >
+            <SelectTrigger className="w-[160px] h-8 text-xs">
+              <div className="flex items-center gap-1.5 truncate">
+                <FolderKanban className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                <SelectValue placeholder="All Projects" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Projects</SelectItem>
+              {knownProjects.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {p}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -879,7 +911,27 @@ export function PurchaseRequests() {
                     #{r.id}
                   </TableCell>
                   <TableCell className="font-medium text-slate-900 dark:text-zinc-100 min-w-[220px]">
-                    {r.title}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>{r.title}</span>
+                        {r.project_name && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10.5px] px-1.5 py-0 font-medium bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 shrink-0 gap-1 hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const newParams = new URLSearchParams(searchParams);
+                              newParams.set("project", r.project_name!);
+                              setSearchParams(newParams);
+                            }}
+                            title={`Click to filter all requests under project: ${r.project_name}`}
+                          >
+                            <FolderKanban className="h-3 w-3 text-indigo-500" />
+                            <span>{r.project_name}</span>
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>{r.requester}</TableCell>
                   <TableCell>
@@ -1571,6 +1623,22 @@ export function PurchaseRequests() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* Group Project / Project Assignment */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                    <FolderKanban className="h-3.5 w-3.5 text-indigo-500" />
+                    <span>Group Project / Project</span>
+                    <span className="text-slate-400 font-normal text-[11px]">(Optional: group related purchases e.g. &quot;Drone Project&quot;)</span>
+                  </label>
+                </div>
+                <ProjectAutocomplete
+                  value={form.project_name || ""}
+                  onChange={(val) => setForm((prev) => ({ ...prev, project_name: val }))}
+                  placeholder="Select existing project or type project name (e.g. Drone Project)..."
+                />
               </div>
             </div>
 

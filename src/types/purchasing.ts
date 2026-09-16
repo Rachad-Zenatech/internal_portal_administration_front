@@ -130,6 +130,7 @@ export type PurchaseRequest = {
   amount: number;
   currency?: string | null;
   gl_code?: string | null;
+  project_name?: string | null;
   items?: PurchaseRequestItem[];
   quote_data?: any;
   review_status?: "WAITING_FOR_REVIEW" | "REVIEWED" | null;
@@ -282,6 +283,7 @@ export type RequestCreateInput = {
   amount?: number;
   currency?: string | null;
   gl_code?: string | null;
+  project_name?: string | null;
   items?: PurchaseRequestItem[];
   quote_file_id?: string | null;
   quote_data?: any;
@@ -555,3 +557,26 @@ export type RecurringNotificationSettings = {
   include_treasury: boolean;
   custom_emails?: string[] | null;
 };
+
+export interface ProjectGroupItem {
+  id?: number | null;
+  name: string;
+  description?: string | null;
+  request_count: number;
+  total_amount: number;
+  open_count: number;
+  completed_count: number;
+  last_activity_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface ProjectGroupCreateInput {
+  name: string;
+  description?: string | null;
+}
+
+export interface ProjectGroupUpdateInput {
+  name?: string | null;
+  description?: string | null;
+}

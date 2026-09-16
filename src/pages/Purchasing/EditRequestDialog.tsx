@@ -18,10 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { useUpdateRequest, useUsersList, useRolesList } from "@/hooks/usePurchasing";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 import { useAuth } from "@/lib/AuthContext";
+import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { useRef } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Maximize2, FileText, Truck, DollarSign, AlertTriangle, Landmark, ShoppingCart, Clock, FileSpreadsheet } from "lucide-react";
+import { Loader2, Plus, FolderKanban, Trash2, Maximize2, FileText, Truck, DollarSign, AlertTriangle, Landmark, ShoppingCart, Clock, FileSpreadsheet } from "lucide-react";
 import { formatMoney } from "./purchasingMeta";
 import { RequestStatus, type ItemMode, type PurchaseRequestItem, type WireTransferInput } from "@/types/purchasing";
 import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
@@ -192,6 +193,7 @@ export function EditRequestDialog({
     description: "",
     gl_code: "",
     due_date: "",
+    project_name: "",
   });
 
   const [items, setItems] = useState<PurchaseRequestItem[]>([]);
@@ -306,6 +308,7 @@ export function EditRequestDialog({
         description: request.description || "",
         gl_code: request.gl_code || "",
         due_date: request.due_date ? request.due_date.split("T")[0] : "",
+        project_name: request.project_name || "",
       };
       setFormData(initialForm);
 
@@ -511,6 +514,7 @@ export function EditRequestDialog({
         due_date: formData.due_date || null,
         description: formData.description || null,
         amount: calculatedAmount,
+        project_name: formData.project_name?.trim() || null,
       };
 
       if (formData.request_type === "ACCOUNTS_PAYABLE") {
@@ -951,6 +955,22 @@ export function EditRequestDialog({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* Group Project / Project */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                    <FolderKanban className="h-3.5 w-3.5 text-indigo-500" />
+                    <span>Group Project / Project</span>
+                    <span className="text-slate-400 font-normal text-[11px]">(e.g. Drone Project - groups related purchases)</span>
+                  </label>
+                </div>
+                <ProjectAutocomplete
+                  value={formData.project_name || ""}
+                  onChange={(val) => setFormData((prev) => ({ ...prev, project_name: val }))}
+                  placeholder="Select existing project or type project name (e.g. Drone Project)..."
+                />
               </div>
             </div>
 

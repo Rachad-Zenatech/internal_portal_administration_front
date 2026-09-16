@@ -19,6 +19,7 @@ const WorkflowAssignments = lazy(() => import("./pages/Configurations/WorkflowAs
 const ChartOfAccounts = lazy(() => import("./pages/Configurations/ChartOfAccounts"));
 const PayableContacts = lazy(() => import("./pages/Configurations/PayableContacts"));
 const Entities = lazy(() => import("./pages/Configurations/Entities"));
+const Projects = lazy(() => import("./pages/Configurations/Projects"));
 
 const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
 const PurchaseRequests = lazy(() => import("./pages/Purchasing/PurchaseRequests"));
@@ -120,6 +121,8 @@ function App() {
               <Route path="/configuration/payable-contacts" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><PayableContacts /></ProtectedRoute>} />
               <Route path="/configurations/payable-contacts" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><PayableContacts /></ProtectedRoute>} />
               <Route path="/configurations/entities" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Entities /></ProtectedRoute>} />
+              <Route path="/configuration/projects" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Projects /></ProtectedRoute>} />
+              <Route path="/configurations/projects" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Projects /></ProtectedRoute>} />
               <Route path="/configuration/entities" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Entities /></ProtectedRoute>} />
               <Route path="/purchasing/payable-contacts" element={<ProtectedRoute><PayableContacts /></ProtectedRoute>} />
               <Route path="/purchasing/vendors" element={<ProtectedRoute><PayableContacts /></ProtectedRoute>} />
