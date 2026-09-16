@@ -1,9 +1,8 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import Breadcrumbs from "./Breadcrumbs";
-import SessionTimeout from "./SessionTimeout";
 
 interface Props {
   children: ReactNode;
@@ -46,8 +45,6 @@ export default function AppShell({ children }: Props) {
           </div>
         </main>
       </div>
-
-      <SessionTimeout />
     </div>
   );
 }

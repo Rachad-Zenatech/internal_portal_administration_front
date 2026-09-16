@@ -242,7 +242,6 @@ export default function RequestDetail() {
   const transition = useTransitionRequest(id ?? "");
   const updateWireTransfer = useUpdateWireTransfer(id ?? "");
   const [isEditWireOpen, setIsEditWireOpen] = useState(false);
-  const [isAPReviewWireOpen, setIsAPReviewWireOpen] = useState(false);
 
   const handleUpdateWire = async (wireData: WireTransferInput) => {
     try {
@@ -435,22 +434,7 @@ export default function RequestDetail() {
     }
   };
 
-  const handleConfirmAPStartReview = async (wireData: WireTransferInput) => {
-    const ok = await dispatch({
-      action: "START_REVIEW",
-      wire_transfer: wireData,
-    });
-    if (ok) {
-      setIsAPReviewWireOpen(false);
-      toast.success("Banking & routing details saved and review started.");
-    }
-  };
-
   const onAction = (action: WorkflowAction) => {
-    if (action === "START_REVIEW" && request.request_type === "ACCOUNTS_PAYABLE") {
-      setIsAPReviewWireOpen(true);
-      return;
-    }
     const isWire =
       purchase_order?.payment_method === "W" ||
       (purchase_order?.payment_method as any) === "WIRE";
@@ -3066,19 +3050,6 @@ export default function RequestDetail() {
             isEditMode={true}
             onConfirm={handleUpdateWire}
             isSubmitting={updateWireTransfer.isPending}
-          />
-          <WireTransferDialog
-            open={isAPReviewWireOpen}
-            onOpenChange={setIsAPReviewWireOpen}
-            request={data.request}
-            purchaseOrder={data.purchase_order}
-            initialData={data.wire_transfer}
-            defaultTab="banking"
-            visibleTabs={["banking"]}
-            title="Start Review - Wire Transfer Banking Details"
-            submitLabel="Save Banking Details & Start Review"
-            onConfirm={handleConfirmAPStartReview}
-            isSubmitting={transition.isPending}
           />
         </>
       )}
