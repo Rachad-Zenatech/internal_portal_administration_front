@@ -17,6 +17,8 @@ import {
   Building2,
   CreditCard,
   Tag,
+  Calendar,
+  X,
   ChevronDown,
   Search,
   ExternalLink,
@@ -140,6 +142,9 @@ export default function QuickBooksPage() {
   ];
 
   // Filters & Staging
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [datePreset, setDatePreset] = useState<string>("ALL");
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
   const [selectedMonth, setSelectedMonth] = useState<string>(String(currentMonth));
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -147,6 +152,47 @@ export default function QuickBooksPage() {
   const [previewData, setPreviewData] = useState<QuickBooksPreviewResponse | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [selectedRequestIds, setSelectedRequestIds] = useState<number[]>([]);
+
+  const applyDatePreset = (preset: string) => {
+    const today = new Date();
+    const formatYmd = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    setDatePreset(preset);
+    if (preset === "TODAY") {
+      const todayStr = formatYmd(today);
+      setStartDate(todayStr);
+      setEndDate(todayStr);
+    } else if (preset === "YESTERDAY") {
+      const yest = new Date(today);
+      yest.setDate(yest.getDate() - 1);
+      const yestStr = formatYmd(yest);
+      setStartDate(yestStr);
+      setEndDate(yestStr);
+    } else if (preset === "LAST_7_DAYS") {
+      const past7 = new Date(today);
+      past7.setDate(past7.getDate() - 6);
+      setStartDate(formatYmd(past7));
+      setEndDate(formatYmd(today));
+    } else if (preset === "THIS_MONTH") {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      setStartDate(formatYmd(firstDay));
+      setEndDate(formatYmd(today));
+    } else if (preset === "ALL") {
+      setStartDate("");
+      setEndDate("");
+    }
+  };
+
+  const clearDateFilter = () => {
+    setStartDate("");
+    setEndDate("");
+    setDatePreset("ALL");
+  };
 
   // Actions & Dialogs
   const [isSyncing, setIsSyncing] = useState(false);
@@ -176,10 +222,13 @@ export default function QuickBooksPage() {
   const fetchPreview = async () => {
     setIsLoadingPreview(true);
     try {
-      const yearParam = selectedYear !== "ALL" ? parseInt(selectedYear, 10) : null;
-      const monthParam = selectedMonth !== "ALL" ? parseInt(selectedMonth, 10) : null;
+      const isDateActive = Boolean(startDate || endDate);
+      const yearParam = (!isDateActive && selectedYear !== "ALL") ? parseInt(selectedYear, 10) : null;
+      const monthParam = (!isDateActive && selectedMonth !== "ALL") ? parseInt(selectedMonth, 10) : null;
       const data = await getQuickBooksPreview({
         status: "COMPLETED",
+        start_date: startDate ? startDate : null,
+        end_date: endDate ? endDate : null,
         year: yearParam,
         month: monthParam,
       });
@@ -197,7 +246,7 @@ export default function QuickBooksPage() {
 
   useEffect(() => {
     fetchPreview();
-  }, [selectedYear, selectedMonth]);
+  }, [startDate, endDate, selectedYear, selectedMonth]);
 
   // Read URL query params on mount for notifications/errors
   useEffect(() => {
@@ -654,33 +703,73 @@ export default function QuickBooksPage() {
                   ))}
                 </div>
 
-                {/* Year Filter */}
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger className="h-8 text-xs w-32 bg-background">
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((y) => (
-                      <SelectItem key={y.value} value={y.value} className="text-xs">
-                        {y.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Date Range Filter Group */}
+                <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-lg border border-border/80 bg-muted/20">
+                  <div className="flex items-center gap-1 px-1.5 text-xs font-semibold text-muted-foreground">
+                    <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="hidden sm:inline">Date:</span>
+                  </div>
 
-                {/* Month Filter */}
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="h-8 text-xs w-32 bg-background">
-                    <SelectValue placeholder="Month" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-56">
-                    {MONTHS.map((m) => (
-                      <SelectItem key={m.value} value={m.value} className="text-xs">
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  {/* Quick Presets */}
+                  <Select value={datePreset} onValueChange={(val) => applyDatePreset(val)}>
+                    <SelectTrigger className="h-7.5 text-xs w-28 bg-background border-border/60">
+                      <SelectValue placeholder="Preset" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL" className="text-xs">All Time</SelectItem>
+                      <SelectItem value="TODAY" className="text-xs">Today</SelectItem>
+                      <SelectItem value="YESTERDAY" className="text-xs">Yesterday</SelectItem>
+                      <SelectItem value="LAST_7_DAYS" className="text-xs">Last 7 Days</SelectItem>
+                      <SelectItem value="THIS_MONTH" className="text-xs">This Month</SelectItem>
+                      <SelectItem value="CUSTOM" className="text-xs">Custom Range</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* From Date */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] text-muted-foreground">From</span>
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        setDatePreset("CUSTOM");
+                      }}
+                      className="h-7.5 text-xs w-32 px-2 bg-background border-border/60 font-mono"
+                      title="Start Date (e.g. 2026-09-16)"
+                    />
+                  </div>
+
+                  {/* To Date */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] text-muted-foreground">To</span>
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => {
+                        setEndDate(e.target.value);
+                        setDatePreset("CUSTOM");
+                      }}
+                      placeholder="Optional"
+                      className="h-7.5 text-xs w-32 px-2 bg-background border-border/60 font-mono"
+                      title="End Date (leave empty to filter only the From date)"
+                    />
+                  </div>
+
+                  {/* Clear Date Button */}
+                  {(startDate || endDate) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearDateFilter}
+                      className="h-7.5 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                      title="Clear date filter"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      <span className="hidden md:inline">Clear</span>
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Staging Summary */}

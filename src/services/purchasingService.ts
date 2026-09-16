@@ -494,7 +494,7 @@ export interface QuickBooksPreviewResponse {
   items: QuickBooksPreviewItem[];
 }
 
-export function getQuickBooksPreview(params?: { request_ids?: number[]; status?: string; year?: number | null; month?: number | null }) {
+export function getQuickBooksPreview(params?: { request_ids?: number[]; status?: string; year?: number | null; month?: number | null; start_date?: string | null; end_date?: string | null; start_datetime?: string | null; end_datetime?: string | null }) {
   return apiClient.post<QuickBooksPreviewResponse>('/api/quickbooks/preview', params || {});
 }
 
