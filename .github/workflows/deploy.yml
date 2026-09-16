@@ -131,7 +131,7 @@ jobs:
           fi
 
           echo "Build output:"
-          find dist -maxdepth 2 -type f | head -100
+          find dist -maxdepth 2 -type f | head -n 100 || true
 
       - name: Debug OIDC Token
         shell: bash
