@@ -26,6 +26,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileText,
+  Download,
+  Paperclip,
   Calendar,
   DollarSign,
   Loader2,
@@ -272,6 +274,56 @@ export function QuickBooksItemDetailsDialog({
                     <div>Reference ID: <span className="font-mono font-medium text-foreground">{item.ref_no || "-"}</span></div>
                   </div>
                 </div>
+              </div>
+
+              {/* Attached Documents & Receipts */}
+              <div className="p-3.5 rounded-xl border border-border/70 bg-card space-y-2">
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span className="flex items-center gap-1.5 font-semibold text-[11px] uppercase tracking-wider">
+                    <Paperclip className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Attached Documents &amp; Receipts ({item.attachments?.length || item.attachments_count || 0})</span>
+                  </span>
+                  {item.attachments && item.attachments.length > 0 ? (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 font-medium">
+                      Auto-Uploads to QuickBooks
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                      No attachments
+                    </Badge>
+                  )}
+                </div>
+                {item.attachments && item.attachments.length > 0 ? (
+                  <div className="space-y-1.5 pt-1">
+                    {item.attachments.map((att: any) => (
+                      <div key={att.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 hover:bg-muted/70 border border-border/40 text-xs transition-colors">
+                        <div className="flex items-center gap-2 truncate min-w-0">
+                          <FileText className="h-4 w-4 text-primary shrink-0" />
+                          <span className="font-semibold truncate text-foreground">{att.filename}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[11px] text-muted-foreground font-mono">
+                            {att.size_bytes ? `${(att.size_bytes / 1024).toFixed(1)} KB` : (att.content_type || "PDF")}
+                          </span>
+                          <a
+                            href={`/api/purchasing/requests/${item.request_id}/attachments/${att.id}/download`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium px-2 py-0.5 rounded bg-primary/10 hover:bg-primary/20"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Download className="h-3 w-3" />
+                            <span>Download</span>
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground/70 italic pt-0.5">
+                    No PDF receipts or invoice attachments found for this request.
+                  </div>
+                )}
               </div>
 
               {/* Memo & Private Note */}

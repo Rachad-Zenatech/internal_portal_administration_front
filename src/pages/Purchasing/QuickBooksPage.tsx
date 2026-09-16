@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   FileSpreadsheet,
+  Paperclip,
   Download,
   Clock,
   Loader2,
@@ -868,10 +869,18 @@ export default function QuickBooksPage() {
 
                           {/* Product Description */}
                           <TableCell>
-                            <div className="max-w-[240px]">
-                              <span className="font-medium text-foreground line-clamp-1">{item.product_name}</span>
+                            <div className="max-w-[240px] space-y-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-medium text-foreground line-clamp-1">{item.product_name}</span>
+                                {item.attachments_count && item.attachments_count > 0 ? (
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-mono gap-0.5 shrink-0 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800" title={`${item.attachments_count} attachment(s) will sync to QuickBooks`}>
+                                    <Paperclip className="h-2.5 w-2.5" />
+                                    <span>{item.attachments_count}</span>
+                                  </Badge>
+                                ) : null}
+                              </div>
                               {item.department && (
-                                <span className="text-[10px] text-muted-foreground">Class: {item.department}</span>
+                                <span className="text-[10px] text-muted-foreground block">Class: {item.department}</span>
                               )}
                             </div>
                           </TableCell>
@@ -1018,6 +1027,7 @@ export default function QuickBooksPage() {
                       badge: "Spreadsheet",
                       desc: "Formatted with 12 standard QBO columns: Payee, Date, Account, Method, Ref, Location, GL Code, Description, Amount.",
                       icon: FileSpreadsheet,
+  Paperclip,
                       color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800",
                     },
                     {

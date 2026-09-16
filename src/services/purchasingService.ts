@@ -458,6 +458,14 @@ export interface QuickBooksPreviewItem {
   is_already_synced: boolean;
   existing_purchase_id?: string | null;
   readiness: 'READY' | 'READY_WITH_NOTES' | 'ALREADY_SYNCED' | 'ERROR';
+  quote_number?: string;
+  attachments?: Array<{
+    id: string;
+    filename: string;
+    content_type: string;
+    size_bytes?: number;
+  }>;
+  attachments_count?: number;
   validation_notes: string[];
   validation_errors: string[];
   projected_payload: any;

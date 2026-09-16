@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileSpreadsheet,
+  Paperclip,
   Download,
   Calendar,
   Clock,
@@ -516,6 +517,12 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
                                 <span className="text-xs text-muted-foreground font-mono bg-muted/60 px-1.5 py-0.5 rounded">
                                   Ref: {item.ref_no || "-"}
                                 </span>
+                                {item.attachments_count && item.attachments_count > 0 ? (
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-mono gap-0.5 shrink-0 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800" title={`${item.attachments_count} document(s) attached`}>
+                                    <Paperclip className="h-2.5 w-2.5" />
+                                    <span>{item.attachments_count} attachment{item.attachments_count > 1 ? 's' : ''}</span>
+                                  </Badge>
+                                ) : null}
                                 <Badge
                                   variant="outline"
                                   className={`text-[10px] uppercase font-bold tracking-wider ${
