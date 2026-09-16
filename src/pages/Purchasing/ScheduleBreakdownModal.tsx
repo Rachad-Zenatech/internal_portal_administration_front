@@ -83,15 +83,23 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
     });
   };
 
-  const durationInfo = formatRemainingDuration(schedule.end_date, schedule.start_date);
+  const isCustom = schedule.frequency === "CUSTOM" || Boolean(schedule.schedule_dates?.length || schedule.custom_dates?.length);
+  const durationInfo = isCustom
+    ? { text: `${installments.length} Custom Milestone Dates`, isExpired: false, isNearEnd: false, totalDays: 0 }
+    : formatRemainingDuration(schedule.end_date, schedule.start_date);
   const totalInstallments = schedule.total_installments || installments.length;
   const completedInstallments = Math.min(schedule.completed_installments || 0, totalInstallments);
   const cycleAmount =
     schedule.amount_per_cycle != null && schedule.amount_per_cycle > 0
       ? schedule.amount_per_cycle
       : request.amount || 0;
-  const totalCommitment = schedule.total_amount || cycleAmount * totalInstallments;
-  const paidToDate = completedInstallments * cycleAmount;
+  const totalCommitment =
+    schedule.total_amount ||
+    installments.reduce((acc, it) => acc + (it.amount || 0), 0) ||
+    cycleAmount * totalInstallments;
+  const paidToDate = installments
+    .filter((it) => it.status === "PAID")
+    .reduce((acc, it) => acc + (it.amount || 0), 0);
   const remainingBalance = Math.max(0, totalCommitment - paidToDate);
   const progressPercent =
     totalInstallments > 0

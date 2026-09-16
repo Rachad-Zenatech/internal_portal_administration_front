@@ -25,6 +25,8 @@ import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
 import { WireBankingFields } from "./WireBankingFields";
+import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
+import { calculateInstallmentsCount } from "./recurringScheduleUtils";
 import { useUpdateRequest, useUsersList, useRolesList } from "@/hooks/usePurchasing";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 import { updateWireTransfer } from "@/services/purchasingService";
@@ -34,6 +36,8 @@ import type {
   PaymentMethod,
   ItemMode,
   WireTransferInput,
+  FrequencyType,
+  CustomScheduleDate,
 } from "@/types/purchasing";
 import { PAYMENT_METHOD_LABEL, RequestStatus } from "@/types/purchasing";
 import { TAX_RATE, formatMoney } from "./purchasingMeta";
@@ -112,6 +116,11 @@ export function EditCombinedRequestDialog({
   const [priority, setPriority] = useState<Priority>("MEDIUM");
   const [projectName, setProjectName] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [isScheduled, setIsScheduled] = useState<boolean>(false);
+  const [schedFrequency, setSchedFrequency] = useState<FrequencyType>("MONTHLY");
+  const [schedStartDate, setSchedStartDate] = useState<string>("");
+  const [schedEndDate, setSchedEndDate] = useState<string>("");
+  const [schedDates, setSchedDates] = useState<CustomScheduleDate[]>([]);
   const [itemUrl, setItemUrl] = useState("");
   const [reqCurrency, setReqCurrency] = useState("USD");
   const [reqGlCode, setReqGlCode] = useState("");
@@ -255,6 +264,22 @@ export function EditCombinedRequestDialog({
       setPriority(request?.priority || "MEDIUM");
       setProjectName(request?.project_name || "");
       setDueDate(request?.due_date ? String(request.due_date).split("T")[0] : "");
+      const sched = request?.recurring_schedule;
+      let sDates: CustomScheduleDate[] = [];
+      if (sched?.schedule_dates && sched.schedule_dates.length > 0) {
+        sDates = sched.schedule_dates;
+      } else if (sched?.custom_dates && sched.custom_dates.length > 0) {
+        sDates = sched.custom_dates.map((d: string, i: number) => ({
+          date: d,
+          amount: sched?.amount_per_cycle || request?.amount,
+          note: `Installment #${i + 1}`,
+        }));
+      }
+      setIsScheduled(Boolean(sched?.is_scheduled));
+      setSchedFrequency((sched?.frequency as FrequencyType) || "MONTHLY");
+      setSchedStartDate(sched?.start_date ? sched.start_date.split("T")[0] : (request?.due_date ? String(request.due_date).split("T")[0] : ""));
+      setSchedEndDate(sched?.end_date ? sched.end_date.split("T")[0] : "");
+      setSchedDates(sDates);
       setItemUrl(request?.item_url || "");
       setReqCurrency(request?.currency || "USD");
       setReqGlCode(request?.gl_code || purchaseOrder?.gl_code || "");
@@ -754,6 +779,29 @@ export function EditCombinedRequestDialog({
       }
     }
 
+    const isCustom = schedFrequency === "CUSTOM";
+    const customDates = isCustom ? schedDates : [];
+    const isSched = Boolean(
+      (isRecurring || isScheduled) &&
+      (isCustom ? customDates.length > 0 : schedStartDate && schedEndDate)
+    );
+
+    let totalCycles: number | null = null;
+    let totalAmt: number | null = null;
+
+    if (isSched) {
+      if (isCustom) {
+        totalCycles = customDates.length;
+        totalAmt = customDates.reduce((acc, itm) => acc + (itm.amount || calculatedGrandTotal), 0);
+      } else {
+        totalCycles = calculateInstallmentsCount(schedStartDate, schedEndDate, schedFrequency);
+        totalAmt = totalCycles ? Math.round(calculatedGrandTotal * totalCycles * 100) / 100 : null;
+      }
+    }
+
+    const effectiveStartDate = isCustom && customDates.length > 0 ? customDates[0].date : schedStartDate;
+    const effectiveEndDate = isCustom && customDates.length > 0 ? customDates[customDates.length - 1].date : schedEndDate;
+
     const payload: any = {
       title: title.trim(),
       requester: requester.trim(),
@@ -761,11 +809,37 @@ export function EditCombinedRequestDialog({
       item_mode: itemMode,
       department: department.trim(),
       priority,
-      due_date: dueDate || null,
+      due_date: dueDate || (isSched ? effectiveStartDate : null),
       item_url: itemUrl.trim() || null,
       description: description.trim() || null,
       currency: reqCurrency,
       gl_code: reqGlCode.trim() || null,
+      project_name: projectName?.trim() || null,
+      recurring_schedule: (isRecurring || isScheduled)
+        ? (isSched
+            ? {
+                is_scheduled: true,
+                frequency: schedFrequency,
+                start_date: effectiveStartDate,
+                end_date: effectiveEndDate,
+                total_installments: totalCycles,
+                completed_installments: request?.recurring_schedule?.completed_installments || 0,
+                amount_per_cycle: calculatedGrandTotal,
+                total_amount: totalAmt,
+                custom_dates: isCustom ? customDates.map((d) => d.date) : null,
+                schedule_dates: isCustom ? customDates : null,
+              }
+            : {
+                is_scheduled: false,
+                frequency: schedFrequency || "MONTHLY",
+                start_date: dueDate || schedStartDate || new Date().toISOString().split("T")[0],
+                end_date: null,
+                total_installments: 24,
+                completed_installments: request?.recurring_schedule?.completed_installments || 0,
+                amount_per_cycle: calculatedGrandTotal,
+                total_amount: calculatedGrandTotal * 24,
+              })
+        : undefined,
     };
 
     if (itemMode === "SINGLE") {
@@ -1188,6 +1262,24 @@ export function EditCombinedRequestDialog({
                       disabled={isOverviewLocked}
                       onChange={(e) => setDueDate(e.target.value)}
                       className="h-10 text-sm bg-white dark:bg-zinc-900 disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100/70 dark:disabled:bg-zinc-800/60"
+                    />
+                  </div>
+                )}
+
+                {isRecurring && (
+                  <div className="md:col-span-3 pt-2">
+                    <ScheduleDatesBuilder
+                      isScheduled={isScheduled}
+                      onIsScheduledChange={setIsScheduled}
+                      frequency={schedFrequency}
+                      onFrequencyChange={setSchedFrequency}
+                      startDate={schedStartDate}
+                      onStartDateChange={setSchedStartDate}
+                      endDate={schedEndDate}
+                      onEndDateChange={setSchedEndDate}
+                      scheduleDates={schedDates}
+                      onScheduleDatesChange={setSchedDates}
+                      baseAmount={calculatedGrandTotal}
                     />
                   </div>
                 )}

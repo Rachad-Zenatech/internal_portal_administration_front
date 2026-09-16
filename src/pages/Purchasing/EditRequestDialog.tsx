@@ -24,9 +24,11 @@ import { useRef } from "react";
 import { toast } from "sonner";
 import { Loader2, Plus, FolderKanban, Trash2, Maximize2, FileText, Truck, DollarSign, AlertTriangle, Landmark, ShoppingCart, Clock, FileSpreadsheet } from "lucide-react";
 import { formatMoney } from "./purchasingMeta";
-import { RequestStatus, type ItemMode, type PurchaseRequestItem, type WireTransferInput } from "@/types/purchasing";
+import { RequestStatus, type ItemMode, type PurchaseRequestItem, type WireTransferInput, type FrequencyType, type CustomScheduleDate } from "@/types/purchasing";
 import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
 import { WireBankingFields } from "./WireBankingFields";
+import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
+import { calculateInstallmentsCount } from "./recurringScheduleUtils";
 import { parseRequestStatus } from "@/lib/requestStatus";
 
 
@@ -198,6 +200,11 @@ export function EditRequestDialog({
 
   const [items, setItems] = useState<PurchaseRequestItem[]>([]);
   const [shippingFee, setShippingFee] = useState<number>(0);
+  const [isScheduled, setIsScheduled] = useState<boolean>(false);
+  const [schedFrequency, setSchedFrequency] = useState<FrequencyType>("MONTHLY");
+  const [schedStartDate, setSchedStartDate] = useState<string>("");
+  const [schedEndDate, setSchedEndDate] = useState<string>("");
+  const [schedDates, setSchedDates] = useState<CustomScheduleDate[]>([]);
   const [taxFee, setTaxFee] = useState<number>(0);
   const [discountFee, setDiscountFee] = useState<number>(0);
   const [isFullScreenTable, setIsFullScreenTable] = useState(false);
@@ -311,6 +318,23 @@ export function EditRequestDialog({
         project_name: request.project_name || "",
       };
       setFormData(initialForm);
+
+      const sched = request?.recurring_schedule;
+      let sDates: CustomScheduleDate[] = [];
+      if (sched?.schedule_dates && sched.schedule_dates.length > 0) {
+        sDates = sched.schedule_dates;
+      } else if (sched?.custom_dates && sched.custom_dates.length > 0) {
+        sDates = sched.custom_dates.map((d: string, i: number) => ({
+          date: d,
+          amount: sched?.amount_per_cycle || request?.amount,
+          note: `Installment #${i + 1}`,
+        }));
+      }
+      setIsScheduled(Boolean(sched?.is_scheduled));
+      setSchedFrequency((sched?.frequency as FrequencyType) || "MONTHLY");
+      setSchedStartDate(sched?.start_date ? sched.start_date.split("T")[0] : (request?.due_date ? request.due_date.split("T")[0] : ""));
+      setSchedEndDate(sched?.end_date ? sched.end_date.split("T")[0] : "");
+      setSchedDates(sDates);
 
       const qShipping = Number(request.quote_data?.totals?.shipping);
       const qTax = Number(request.quote_data?.totals?.tax);
@@ -516,6 +540,56 @@ export function EditRequestDialog({
         amount: calculatedAmount,
         project_name: formData.project_name?.trim() || null,
       };
+
+      if (formData.request_type === "RECURRING" || isScheduled) {
+        const isCustom = schedFrequency === "CUSTOM";
+        const customDates = isCustom ? schedDates : [];
+        const isSched = Boolean(
+          isScheduled &&
+          (isCustom ? customDates.length > 0 : schedStartDate && schedEndDate)
+        );
+
+        let totalCycles: number | null = null;
+        let totalAmt: number | null = null;
+
+        if (isSched) {
+          if (isCustom) {
+            totalCycles = customDates.length;
+            totalAmt = customDates.reduce((acc, itm) => acc + (itm.amount || calculatedAmount), 0);
+          } else {
+            totalCycles = calculateInstallmentsCount(schedStartDate, schedEndDate, schedFrequency);
+            totalAmt = totalCycles ? Math.round(calculatedAmount * totalCycles * 100) / 100 : null;
+          }
+        }
+
+        const effectiveStartDate = isCustom && customDates.length > 0 ? customDates[0].date : schedStartDate;
+        const effectiveEndDate = isCustom && customDates.length > 0 ? customDates[customDates.length - 1].date : schedEndDate;
+
+        payload.due_date = formData.due_date || (isSched ? effectiveStartDate : null);
+        payload.recurring_schedule = isSched
+          ? {
+              is_scheduled: true,
+              frequency: schedFrequency,
+              start_date: effectiveStartDate,
+              end_date: effectiveEndDate,
+              total_installments: totalCycles,
+              completed_installments: request?.recurring_schedule?.completed_installments || 0,
+              amount_per_cycle: calculatedAmount,
+              total_amount: totalAmt,
+              custom_dates: isCustom ? customDates.map((d) => d.date) : null,
+              schedule_dates: isCustom ? customDates : null,
+            }
+          : {
+              is_scheduled: false,
+              frequency: schedFrequency || "MONTHLY",
+              start_date: formData.due_date || schedStartDate || new Date().toISOString().split("T")[0],
+              end_date: null,
+              total_installments: 24,
+              completed_installments: request?.recurring_schedule?.completed_installments || 0,
+              amount_per_cycle: calculatedAmount,
+              total_amount: calculatedAmount * 24,
+            };
+      }
 
       if (formData.request_type === "ACCOUNTS_PAYABLE") {
         payload.amount = calculatedAmount;
@@ -1035,6 +1109,22 @@ export function EditRequestDialog({
                     </div>
                   )}
                 </div>
+
+                {formData.request_type === "RECURRING" && (
+                  <ScheduleDatesBuilder
+                    isScheduled={isScheduled}
+                    onIsScheduledChange={setIsScheduled}
+                    frequency={schedFrequency}
+                    onFrequencyChange={setSchedFrequency}
+                    startDate={schedStartDate}
+                    onStartDateChange={setSchedStartDate}
+                    endDate={schedEndDate}
+                    onEndDateChange={setSchedEndDate}
+                    scheduleDates={schedDates}
+                    onScheduleDatesChange={setSchedDates}
+                    baseAmount={parseFloat(formData.amount) || 0}
+                  />
+                )}
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>

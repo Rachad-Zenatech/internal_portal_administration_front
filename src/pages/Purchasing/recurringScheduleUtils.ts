@@ -1,13 +1,6 @@
-import type { RecurringSchedule } from "@/types/purchasing";
+import type { RecurringSchedule, FrequencyType } from "@/types/purchasing";
 
-export type FrequencyType =
-  | "DAILY"
-  | "WEEKLY"
-  | "BI_WEEKLY"
-  | "MONTHLY"
-  | "QUARTERLY"
-  | "SEMI_ANNUALLY"
-  | "ANNUALLY";
+export type { FrequencyType };
 
 export const FREQUENCY_LABELS: Record<FrequencyType, string> = {
   DAILY: "Daily",
@@ -17,6 +10,7 @@ export const FREQUENCY_LABELS: Record<FrequencyType, string> = {
   QUARTERLY: "Quarterly (Every 3 Months)",
   SEMI_ANNUALLY: "Semi-Annually (Every 6 Months)",
   ANNUALLY: "Annually (Every Year)",
+  CUSTOM: "Custom Dates (Milestones)",
 };
 
 export const FREQUENCY_INTERVAL_MONTHS: Record<FrequencyType, number> = {
@@ -27,6 +21,7 @@ export const FREQUENCY_INTERVAL_MONTHS: Record<FrequencyType, number> = {
   QUARTERLY: 3,
   SEMI_ANNUALLY: 6,
   ANNUALLY: 12,
+  CUSTOM: 0,
 };
 
 /**
@@ -176,6 +171,7 @@ export function calculateInstallmentsCount(
   endDateStr?: string | null,
   frequency: string = "MONTHLY"
 ): number {
+  if (frequency === "CUSTOM") return 0;
   if (!startDateStr || !endDateStr) return 0;
   const start = new Date(startDateStr.includes("T") ? startDateStr : startDateStr + "T00:00:00");
   const end = new Date(endDateStr.includes("T") ? endDateStr : endDateStr + "T00:00:00");
@@ -208,7 +204,7 @@ export interface ProjectedInstallment {
 }
 
 /**
- * Generates the full projection schedule from start_date up to end_date (or total_installments).
+ * Generates the full projection schedule from start_date up to end_date (or custom dates list).
  */
 export function generatePaymentSchedule(
   schedule?: RecurringSchedule | null,
@@ -217,6 +213,78 @@ export function generatePaymentSchedule(
   statusOverride?: string,
   fallbackStartDate?: string | Date | null
 ): ProjectedInstallment[] {
+  const currency = defaultCurrency || "USD";
+  const amountPerCycle =
+    schedule?.amount_per_cycle != null && schedule.amount_per_cycle > 0
+      ? schedule.amount_per_cycle
+      : defaultAmount;
+  const completed = schedule?.completed_installments || 0;
+
+  // 1. CUSTOM SCHEDULE DATES (Explicit list of milestone dates)
+  if (schedule?.schedule_dates && schedule.schedule_dates.length > 0) {
+    let cumulative = 0;
+    return schedule.schedule_dates.map((item, idx) => {
+      const dStr = typeof item === "string" ? item : item.date;
+      const instAmt =
+        typeof item === "object" && item.amount != null && Number(item.amount) > 0
+          ? Number(item.amount)
+          : amountPerCycle;
+      cumulative += instAmt;
+
+      let status: "PAID" | "CURRENT" | "PROJECTED" = "PROJECTED";
+      if (idx + 1 <= completed) {
+        status = "PAID";
+      } else if (idx + 1 === completed + 1) {
+        status = "CURRENT";
+      } else {
+        status = "PROJECTED";
+      }
+
+      if (statusOverride === "COMPLETED") {
+        status = "PAID";
+      }
+
+      return {
+        installmentNumber: idx + 1,
+        dueDate: dStr ? dStr.split("T")[0] : "",
+        amount: instAmt,
+        currency,
+        status,
+        cumulativeAmount: Math.round(cumulative * 100) / 100,
+      };
+    });
+  }
+
+  // 2. Simple custom_dates array
+  if (schedule?.custom_dates && schedule.custom_dates.length > 0) {
+    let cumulative = 0;
+    return schedule.custom_dates.map((dStr, idx) => {
+      cumulative += amountPerCycle;
+      let status: "PAID" | "CURRENT" | "PROJECTED" = "PROJECTED";
+      if (idx + 1 <= completed) {
+        status = "PAID";
+      } else if (idx + 1 === completed + 1) {
+        status = "CURRENT";
+      } else {
+        status = "PROJECTED";
+      }
+
+      if (statusOverride === "COMPLETED") {
+        status = "PAID";
+      }
+
+      return {
+        installmentNumber: idx + 1,
+        dueDate: dStr ? dStr.split("T")[0] : "",
+        amount: amountPerCycle,
+        currency,
+        status,
+        cumulativeAmount: Math.round(cumulative * 100) / 100,
+      };
+    });
+  }
+
+  // 3. PERIODIC SCHEDULE (Formula-based interval generation)
   const startRaw =
     schedule?.start_date ||
     (fallbackStartDate
@@ -227,11 +295,6 @@ export function generatePaymentSchedule(
     new Date().toISOString().split("T")[0];
   const startDateStr = startRaw.split("T")[0];
   const frequency = schedule?.frequency || "MONTHLY";
-  const amountPerCycle =
-    schedule?.amount_per_cycle != null && schedule.amount_per_cycle > 0
-      ? schedule.amount_per_cycle
-      : defaultAmount;
-  const currency = defaultCurrency || "USD";
 
   let totalLimit = schedule?.total_installments;
 
@@ -245,7 +308,6 @@ export function generatePaymentSchedule(
     totalLimit = 600; // Hard clamp for UI performance
   }
 
-  const completed = schedule?.completed_installments || 0;
   const installments: ProjectedInstallment[] = [];
   let cumulative = 0;
 

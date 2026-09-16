@@ -93,15 +93,33 @@ export type ProductInfo = {
   original_currency?: string | null;
 };
 
+export type FrequencyType =
+  | "DAILY"
+  | "WEEKLY"
+  | "BI_WEEKLY"
+  | "MONTHLY"
+  | "QUARTERLY"
+  | "SEMI_ANNUALLY"
+  | "ANNUALLY"
+  | "CUSTOM";
+
+export interface CustomScheduleDate {
+  date: string;
+  amount?: number | null;
+  note?: string | null;
+}
+
 export interface RecurringSchedule {
   is_scheduled: boolean;
-  frequency: "DAILY" | "WEEKLY" | "BI_WEEKLY" | "MONTHLY" | "QUARTERLY" | "SEMI_ANNUALLY" | "ANNUALLY";
+  frequency: FrequencyType | string;
   start_date: string;
   end_date?: string | null;
   total_installments?: number | null;
   completed_installments: number;
   amount_per_cycle?: number | null;
   total_amount?: number | null;
+  custom_dates?: string[] | null;
+  schedule_dates?: CustomScheduleDate[] | null;
 }
 
 export type PurchaseRequest = {

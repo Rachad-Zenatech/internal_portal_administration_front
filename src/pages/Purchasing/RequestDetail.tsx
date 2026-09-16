@@ -1288,7 +1288,7 @@ export default function RequestDetail() {
                           className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 text-xs font-semibold py-0.5 px-2"
                         >
                           <CalendarClock className="h-3 w-3 mr-1 text-indigo-600 dark:text-indigo-400" />
-                          {formatRemainingDuration(request.recurring_schedule?.end_date, request.recurring_schedule?.start_date || request.due_date).text}
+                          {request.recurring_schedule?.frequency === 'CUSTOM' || Boolean(request.recurring_schedule?.schedule_dates?.length) ? `${request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 0} Milestone Dates` : formatRemainingDuration(request.recurring_schedule?.end_date, request.recurring_schedule?.start_date || request.due_date).text}
                         </Badge>
                         <span className="text-xs text-muted-foreground font-medium">
                           ({formatDate(request.recurring_schedule?.start_date || request.due_date || request.request_date)} – {request.recurring_schedule?.end_date ? formatDate(request.recurring_schedule.end_date) : "Ongoing"})
@@ -1590,7 +1590,7 @@ export default function RequestDetail() {
                     <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Remaining Duration</div>
                     <div className="mt-1">
                       <Badge variant="outline" className="bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold border-indigo-300 text-xs">
-                        {formatRemainingDuration(request.recurring_schedule?.end_date, request.recurring_schedule?.start_date || request.due_date).text}
+                        {request.recurring_schedule?.frequency === 'CUSTOM' || Boolean(request.recurring_schedule?.schedule_dates?.length) ? `${request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 0} Milestone Dates` : formatRemainingDuration(request.recurring_schedule?.end_date, request.recurring_schedule?.start_date || request.due_date).text}
                       </Badge>
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-1">
@@ -1616,7 +1616,7 @@ export default function RequestDetail() {
                   <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
                     <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Total Commitment</div>
                     <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                      {formatMoney((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24))}
+                      {formatMoney(request.recurring_schedule?.total_amount || ((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24)))}
                     </div>
                     <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
                       {formatMoney((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.completed_installments || 0))} paid to date

@@ -1,11 +1,12 @@
 import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
+import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
 import { RequestStatus, type PurchaseRequest,
-  type RecurringNotificationSettings, type RequestDetail } from "@/types/purchasing";
+  type RecurringNotificationSettings, type RequestDetail, type CustomScheduleDate } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   formatDate,
@@ -70,7 +71,6 @@ import {
   formatRemainingDuration,
   calculateInstallmentsCount,
   generatePaymentSchedule,
-  formatDateToIso,
   type FrequencyType,
 } from "./recurringScheduleUtils";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
@@ -429,6 +429,7 @@ export default function RecurringPayments() {
     frequency: "MONTHLY" as FrequencyType,
     start_date: "",
     end_date: "",
+    schedule_dates: [] as CustomScheduleDate[],
   });
 
   // Edit recurring request form state
@@ -447,6 +448,7 @@ export default function RecurringPayments() {
     start_date: "",
     end_date: "",
     completed_installments: 0,
+    schedule_dates: [] as CustomScheduleDate[],
   });
 
   const handleOpenCreate = () => {
@@ -474,6 +476,7 @@ export default function RecurringPayments() {
       frequency: "MONTHLY",
       start_date: todayIso,
       end_date: "",
+      schedule_dates: [],
     });
     setIsCreateOpen(true);
   };
@@ -528,6 +531,7 @@ export default function RecurringPayments() {
         frequency: "MONTHLY",
         start_date: todayIso,
         end_date: "",
+        schedule_dates: [],
       });
       queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
       queryClient.invalidateQueries({ queryKey: ["purchasing"] });
@@ -572,6 +576,16 @@ export default function RecurringPayments() {
       }
     }
     const sched = req.recurring_schedule;
+    let schedDates: CustomScheduleDate[] = [];
+    if (sched?.schedule_dates && sched.schedule_dates.length > 0) {
+      schedDates = sched.schedule_dates;
+    } else if (sched?.custom_dates && sched.custom_dates.length > 0) {
+      schedDates = sched.custom_dates.map((d: string, i: number) => ({
+        date: d,
+        amount: sched?.amount_per_cycle || req.amount,
+        note: `Installment #${i + 1}`,
+      }));
+    }
     setEditForm({
       id: req.id,
       title: req.title || "",
@@ -587,6 +601,7 @@ export default function RecurringPayments() {
       start_date: sched?.start_date ? sched.start_date.split("T")[0] : (req.due_date ? req.due_date.split("T")[0] : ""),
       end_date: sched?.end_date ? sched.end_date.split("T")[0] : "",
       completed_installments: sched?.completed_installments || 0,
+      schedule_dates: schedDates,
     });
     setIsEditOpen(true);
   };
@@ -611,9 +626,28 @@ export default function RecurringPayments() {
       return;
     }
 
-    const isSched = Boolean(newForm.is_scheduled && newForm.start_date && newForm.end_date);
-    const totalCycles = isSched ? calculateInstallmentsCount(newForm.start_date, newForm.end_date, newForm.frequency) : null;
-    const totalAmt = isSched && totalCycles ? Math.round(amt * totalCycles * 100) / 100 : null;
+    const isCustom = newForm.frequency === "CUSTOM";
+    const customDates = isCustom ? newForm.schedule_dates : [];
+    const isSched = Boolean(
+      newForm.is_scheduled &&
+      (isCustom ? customDates.length > 0 : newForm.start_date && newForm.end_date)
+    );
+
+    let totalCycles: number | null = null;
+    let totalAmt: number | null = null;
+
+    if (isSched) {
+      if (isCustom) {
+        totalCycles = customDates.length;
+        totalAmt = customDates.reduce((acc, itm) => acc + (itm.amount || amt), 0);
+      } else {
+        totalCycles = calculateInstallmentsCount(newForm.start_date, newForm.end_date, newForm.frequency);
+        totalAmt = totalCycles ? Math.round(amt * totalCycles * 100) / 100 : null;
+      }
+    }
+
+    const effectiveStartDate = isCustom && customDates.length > 0 ? customDates[0].date : newForm.start_date;
+    const effectiveEndDate = isCustom && customDates.length > 0 ? customDates[customDates.length - 1].date : newForm.end_date;
 
     createMutation.mutate({
       title: newForm.title,
@@ -626,18 +660,20 @@ export default function RecurringPayments() {
       quantity: 1,
       description: newForm.description,
       gl_code: newForm.gl_code || null,
-      due_date: newForm.due_date || (isSched ? newForm.start_date : null),
+      due_date: newForm.due_date || (isSched ? effectiveStartDate : null),
       review_status: "WAITING_FOR_REVIEW",
       recurring_schedule: isSched
         ? {
             is_scheduled: true,
             frequency: newForm.frequency,
-            start_date: newForm.start_date,
-            end_date: newForm.end_date,
+            start_date: effectiveStartDate,
+            end_date: effectiveEndDate,
             total_installments: totalCycles,
             completed_installments: 0,
             amount_per_cycle: amt,
             total_amount: totalAmt,
+            custom_dates: isCustom ? customDates.map((d) => d.date) : null,
+            schedule_dates: isCustom ? customDates : null,
           }
         : {
             is_scheduled: false,
@@ -672,9 +708,28 @@ export default function RecurringPayments() {
       return;
     }
 
-    const isSched = Boolean(editForm.is_scheduled && editForm.start_date && editForm.end_date);
-    const totalCycles = isSched ? calculateInstallmentsCount(editForm.start_date, editForm.end_date, editForm.frequency) : null;
-    const totalAmt = isSched && totalCycles ? Math.round(amt * totalCycles * 100) / 100 : null;
+    const isCustom = editForm.frequency === "CUSTOM";
+    const customDates = isCustom ? editForm.schedule_dates : [];
+    const isSched = Boolean(
+      editForm.is_scheduled &&
+      (isCustom ? customDates.length > 0 : editForm.start_date && editForm.end_date)
+    );
+
+    let totalCycles: number | null = null;
+    let totalAmt: number | null = null;
+
+    if (isSched) {
+      if (isCustom) {
+        totalCycles = customDates.length;
+        totalAmt = customDates.reduce((acc, itm) => acc + (itm.amount || amt), 0);
+      } else {
+        totalCycles = calculateInstallmentsCount(editForm.start_date, editForm.end_date, editForm.frequency);
+        totalAmt = totalCycles ? Math.round(amt * totalCycles * 100) / 100 : null;
+      }
+    }
+
+    const effectiveStartDate = isCustom && customDates.length > 0 ? customDates[0].date : editForm.start_date;
+    const effectiveEndDate = isCustom && customDates.length > 0 ? customDates[customDates.length - 1].date : editForm.end_date;
 
     updateMutation.mutate({
       id: editForm.id,
@@ -688,17 +743,19 @@ export default function RecurringPayments() {
         quantity: 1,
         description: editForm.description,
         gl_code: editForm.gl_code || null,
-        due_date: editForm.due_date || (isSched ? editForm.start_date : null),
+        due_date: editForm.due_date || (isSched ? effectiveStartDate : null),
         recurring_schedule: isSched
           ? {
               is_scheduled: true,
               frequency: editForm.frequency,
-              start_date: editForm.start_date,
-              end_date: editForm.end_date,
+              start_date: effectiveStartDate,
+              end_date: effectiveEndDate,
               total_installments: totalCycles,
               completed_installments: editForm.completed_installments || 0,
               amount_per_cycle: amt,
               total_amount: totalAmt,
+              custom_dates: isCustom ? customDates.map((d) => d.date) : null,
+              schedule_dates: isCustom ? customDates : null,
             }
           : {
               is_scheduled: false,
@@ -1704,8 +1761,8 @@ export default function RecurringPayments() {
 
       {/* Create Recurring Request Modal */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <form onSubmit={handleCreateSubmit}>
+        <DialogContent className="max-w-4xl sm:max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto">
+          <form onSubmit={handleCreateSubmit} className="space-y-4">
             <DialogHeader>
               <DialogTitle>Create Recurring Payment Request</DialogTitle>
               <DialogDescription>
@@ -1713,247 +1770,134 @@ export default function RecurringPayments() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">
-                  Title / Service Name <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  placeholder="e.g. AWS Cloud Infrastructure, Zoom Enterprise"
-                  value={newForm.title}
-                  onChange={(e) =>
-                    setNewForm({ ...newForm, title: e.target.value })
-                  }
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-2">
+              {/* Left Column: General Request Details */}
+              <div className="space-y-3.5 flex flex-col justify-between">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">
-                    Amount (USD) <span className="text-red-500">*</span>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Title / Service Name <span className="text-red-500">*</span>
                   </label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={newForm.amount}
+                    placeholder="e.g. AWS Cloud Infrastructure, Zoom Enterprise"
+                    value={newForm.title}
                     onChange={(e) =>
-                      setNewForm({ ...newForm, amount: e.target.value })
+                      setNewForm({ ...newForm, title: e.target.value })
                     }
+                    className="h-9 text-xs font-medium"
                     required
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Next Due Date</label>
-                  <Input
-                    type="date"
-                    value={newForm.due_date}
-                    onChange={(e) =>
-                      setNewForm({ ...newForm, due_date: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <RequesterAutocomplete
-                  required
-                  value={newForm.requester}
-                  onChange={(val) => {
-                    const matched = usersList.find(
-                      (u) =>
-                        (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
-                        (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
-                    );
-                    const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
-                    setNewForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
-                  }}
-                  onSelectUser={(selectedUser) => {
-                    const dept = resolveUserDepartment(selectedUser, rolesList);
-                    if (dept) {
-                      setNewForm((prev) => ({ ...prev, department: dept }));
-                    }
-                  }}
-                  users={usersList}
-                  roles={rolesList}
-                />
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">
-                    Department <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={newForm.department}
-                    onChange={(e) =>
-                      setNewForm({ ...newForm, department: e.target.value })
-                    }
-                    placeholder="e.g. Finance"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">GL Code / Account</label>
-                <GLCodeAutocomplete
-                  value={newForm.gl_code}
-                  onChange={(val) => setNewForm({ ...newForm, gl_code: val })}
-                />
-              </div>
-
-              {/* Schedule Payment Horizon & Fixed Duration */}
-              <div className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <div className="text-sm font-semibold flex items-center gap-1.5 text-slate-800 dark:text-zinc-200">
-                      <CalendarClock className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                      Fixed Schedule Horizon
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Set a projected range (e.g. Chicago Rent — "2 years 2 months left", multi-year leases).
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="create-sched-check"
-                      checked={newForm.is_scheduled}
-                      onCheckedChange={(checked) => {
-                        const isChecked = Boolean(checked);
-                        const sDate = newForm.start_date || newForm.due_date || new Date().toISOString().split("T")[0];
-                        let eDate = newForm.end_date;
-                        if (isChecked && !eDate) {
-                          const d = new Date(sDate + "T00:00:00");
-                          d.setFullYear(d.getFullYear() + 2);
-                          eDate = formatDateToIso(d);
-                        }
-                        setNewForm((prev) => ({
-                          ...prev,
-                          is_scheduled: isChecked,
-                          start_date: sDate,
-                          end_date: eDate,
-                          due_date: prev.due_date || sDate,
-                        }));
-                      }}
-                    />
-                    <label htmlFor="create-sched-check" className="text-xs font-semibold cursor-pointer text-slate-700 dark:text-zinc-300">
-                      Scheduled Plan
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Amount (USD) <span className="text-red-500">*</span>
                     </label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={newForm.amount}
+                      onChange={(e) =>
+                        setNewForm({ ...newForm, amount: e.target.value })
+                      }
+                      className="h-9 text-xs font-mono"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
+                    <Input
+                      type="date"
+                      value={newForm.due_date}
+                      onChange={(e) =>
+                        setNewForm({ ...newForm, due_date: e.target.value })
+                      }
+                      className="h-9 text-xs"
+                    />
                   </div>
                 </div>
 
-                {newForm.is_scheduled && (
-                  <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-zinc-800">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium">Frequency</label>
-                        <Select
-                          value={newForm.frequency}
-                          onValueChange={(v: FrequencyType) => setNewForm({ ...newForm, frequency: v })}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="MONTHLY">Monthly</SelectItem>
-                            <SelectItem value="QUARTERLY">Quarterly (3 Mos)</SelectItem>
-                            <SelectItem value="SEMI_ANNUALLY">Semi-Annually (6 Mos)</SelectItem>
-                            <SelectItem value="ANNUALLY">Annually (1 Yr)</SelectItem>
-                            <SelectItem value="BI_WEEKLY">Bi-Weekly (2 Wks)</SelectItem>
-                            <SelectItem value="WEEKLY">Weekly</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium">Start Date</label>
-                        <Input
-                          type="date"
-                          className="h-8 text-xs"
-                          value={newForm.start_date}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setNewForm((prev) => ({
-                              ...prev,
-                              start_date: val,
-                              due_date: prev.due_date || val,
-                            }));
-                          }}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium">End Date</label>
-                        <Input
-                          type="date"
-                          className="h-8 text-xs"
-                          value={newForm.end_date}
-                          onChange={(e) => setNewForm({ ...newForm, end_date: e.target.value })}
-                        />
-                      </div>
-                    </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <RequesterAutocomplete
+                    required
+                    value={newForm.requester}
+                    onChange={(val) => {
+                      const matched = usersList.find(
+                        (u) =>
+                          (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
+                          (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
+                      );
+                      const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
+                      setNewForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
+                    }}
+                    onSelectUser={(selectedUser) => {
+                      const dept = resolveUserDepartment(selectedUser, rolesList);
+                      if (dept) {
+                        setNewForm((prev) => ({ ...prev, department: dept }));
+                      }
+                    }}
+                    users={usersList}
+                    roles={rolesList}
+                  />
 
-                    {/* Presets */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] text-muted-foreground mr-1">Presets:</span>
-                      {[
-                        { label: "+6 Mos", months: 6 },
-                        { label: "+1 Yr", months: 12 },
-                        { label: "+2 Yrs", months: 24 },
-                        { label: "+3 Yrs", months: 36 },
-                        { label: "+5 Yrs", months: 60 },
-                      ].map((preset) => (
-                        <button
-                          key={preset.label}
-                          type="button"
-                          onClick={() => {
-                            const base = newForm.start_date ? new Date(newForm.start_date + "T00:00:00") : new Date();
-                            const end = new Date(base);
-                            end.setMonth(end.getMonth() + preset.months);
-                            setNewForm({ ...newForm, end_date: formatDateToIso(end) });
-                          }}
-                          className="text-[11px] px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-medium transition-colors cursor-pointer"
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {newForm.start_date && newForm.end_date && (
-                      <div className="bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 rounded-md p-2.5 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold border-indigo-300">
-                            {formatRemainingDuration(newForm.end_date, newForm.start_date).text}
-                          </Badge>
-                          <span className="text-slate-600 dark:text-zinc-300 font-medium">
-                            {calculateInstallmentsCount(newForm.start_date, newForm.end_date, newForm.frequency)} installments
-                          </span>
-                        </div>
-                        {Number(newForm.amount) > 0 && (
-                          <div className="font-semibold text-slate-900 dark:text-zinc-100">
-                            Total: {formatMoney(Number(newForm.amount) * calculateInstallmentsCount(newForm.start_date, newForm.end_date, newForm.frequency))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Department <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      value={newForm.department}
+                      onChange={(e) =>
+                        setNewForm({ ...newForm, department: e.target.value })
+                      }
+                      placeholder="e.g. Finance"
+                      className="h-9 text-xs"
+                      required
+                    />
                   </div>
-                )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
+                  <GLCodeAutocomplete
+                    value={newForm.gl_code}
+                    onChange={(val) => setNewForm({ ...newForm, gl_code: val })}
+                  />
+                </div>
+
+                <div className="space-y-1.5 flex-1 flex flex-col">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>
+                  <textarea
+                    className="w-full text-xs rounded-md border border-input bg-background px-3 py-2 flex-1 min-h-[70px]"
+                    placeholder="Monthly billing schedule, renewal terms, invoice reference..."
+                    value={newForm.description}
+                    onChange={(e) =>
+                      setNewForm({ ...newForm, description: e.target.value })
+                    }
+                  />
+                </div>
               </div>
 
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Description / Terms</label>
-                <textarea
-                  className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 min-h-[70px]"
-                  placeholder="Monthly billing schedule, renewal terms, invoice reference..."
-                  value={newForm.description}
-                  onChange={(e) =>
-                    setNewForm({ ...newForm, description: e.target.value })
-                  }
+              {/* Right Column: Schedule Dates Builder */}
+              <div className="flex flex-col h-full">
+                <ScheduleDatesBuilder
+                  isScheduled={newForm.is_scheduled}
+                  onIsScheduledChange={(val) => setNewForm((p) => ({ ...p, is_scheduled: val }))}
+                  frequency={newForm.frequency}
+                  onFrequencyChange={(val) => setNewForm((p) => ({ ...p, frequency: val }))}
+                  startDate={newForm.start_date}
+                  onStartDateChange={(val) => setNewForm((p) => ({ ...p, start_date: val }))}
+                  endDate={newForm.end_date}
+                  onEndDateChange={(val) => setNewForm((p) => ({ ...p, end_date: val }))}
+                  scheduleDates={newForm.schedule_dates}
+                  onScheduleDatesChange={(dates) => setNewForm((p) => ({ ...p, schedule_dates: dates }))}
+                  baseAmount={parseFloat(newForm.amount) || 0}
                 />
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t">
               <Button
                 type="button"
                 variant="outline"
@@ -1961,7 +1905,7 @@ export default function RecurringPayments() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" disabled={createMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white">
                 {createMutation.isPending ? "Creating..." : "Create Recurring Request"}
               </Button>
             </DialogFooter>
@@ -2071,142 +2015,19 @@ export default function RecurringPayments() {
                   />
                 </div>
 
-              {/* Schedule Payment Horizon & Fixed Duration */}
-              <div className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <div className="text-sm font-semibold flex items-center gap-1.5 text-slate-800 dark:text-zinc-200">
-                      <CalendarClock className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                      Fixed Schedule Horizon
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Set a projected range (e.g. Chicago Rent — "2 years 2 months left", multi-year leases).
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="edit-sched-check"
-                      checked={editForm.is_scheduled}
-                      onCheckedChange={(checked) => {
-                        const isChecked = Boolean(checked);
-                        const sDate = editForm.start_date || editForm.due_date || new Date().toISOString().split("T")[0];
-                        let eDate = editForm.end_date;
-                        if (isChecked && !eDate) {
-                          const d = new Date(sDate + "T00:00:00");
-                          d.setFullYear(d.getFullYear() + 2);
-                          eDate = formatDateToIso(d);
-                        }
-                        setEditForm((prev) => ({
-                          ...prev,
-                          is_scheduled: isChecked,
-                          start_date: sDate,
-                          end_date: eDate,
-                          due_date: prev.due_date || sDate,
-                        }));
-                      }}
-                    />
-                    <label htmlFor="edit-sched-check" className="text-xs font-semibold cursor-pointer text-slate-700 dark:text-zinc-300">
-                      Scheduled Plan
-                    </label>
-                  </div>
-                </div>
-
-                {editForm.is_scheduled && (
-                  <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-zinc-800">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium">Frequency</label>
-                        <Select
-                          value={editForm.frequency}
-                          onValueChange={(v: FrequencyType) => setEditForm({ ...editForm, frequency: v })}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="MONTHLY">Monthly</SelectItem>
-                            <SelectItem value="QUARTERLY">Quarterly (3 Mos)</SelectItem>
-                            <SelectItem value="SEMI_ANNUALLY">Semi-Annually (6 Mos)</SelectItem>
-                            <SelectItem value="ANNUALLY">Annually (1 Yr)</SelectItem>
-                            <SelectItem value="BI_WEEKLY">Bi-Weekly (2 Wks)</SelectItem>
-                            <SelectItem value="WEEKLY">Weekly</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium">Start Date</label>
-                        <Input
-                          type="date"
-                          className="h-8 text-xs"
-                          value={editForm.start_date}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setEditForm((prev) => ({
-                              ...prev,
-                              start_date: val,
-                              due_date: prev.due_date || val,
-                            }));
-                          }}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium">End Date</label>
-                        <Input
-                          type="date"
-                          className="h-8 text-xs"
-                          value={editForm.end_date}
-                          onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Presets */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] text-muted-foreground mr-1">Presets:</span>
-                      {[
-                        { label: "+6 Mos", months: 6 },
-                        { label: "+1 Yr", months: 12 },
-                        { label: "+2 Yrs", months: 24 },
-                        { label: "+3 Yrs", months: 36 },
-                        { label: "+5 Yrs", months: 60 },
-                      ].map((preset) => (
-                        <button
-                          key={preset.label}
-                          type="button"
-                          onClick={() => {
-                            const base = editForm.start_date ? new Date(editForm.start_date + "T00:00:00") : new Date();
-                            const end = new Date(base);
-                            end.setMonth(end.getMonth() + preset.months);
-                            setEditForm({ ...editForm, end_date: formatDateToIso(end) });
-                          }}
-                          className="text-[11px] px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-medium transition-colors cursor-pointer"
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {editForm.start_date && editForm.end_date && (
-                      <div className="bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 rounded-md p-2.5 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold border-indigo-300">
-                            {formatRemainingDuration(editForm.end_date, editForm.start_date).text}
-                          </Badge>
-                          <span className="text-slate-600 dark:text-zinc-300 font-medium">
-                            {calculateInstallmentsCount(editForm.start_date, editForm.end_date, editForm.frequency)} installments
-                          </span>
-                        </div>
-                        {Number(editForm.amount) > 0 && (
-                          <div className="font-semibold text-slate-900 dark:text-zinc-100">
-                            Total: {formatMoney(Number(editForm.amount) * calculateInstallmentsCount(editForm.start_date, editForm.end_date, editForm.frequency))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
+                <ScheduleDatesBuilder
+                isScheduled={editForm.is_scheduled}
+                onIsScheduledChange={(val) => setEditForm((p) => ({ ...p, is_scheduled: val }))}
+                frequency={editForm.frequency}
+                onFrequencyChange={(val) => setEditForm((p) => ({ ...p, frequency: val }))}
+                startDate={editForm.start_date}
+                onStartDateChange={(val) => setEditForm((p) => ({ ...p, start_date: val }))}
+                endDate={editForm.end_date}
+                onEndDateChange={(val) => setEditForm((p) => ({ ...p, end_date: val }))}
+                scheduleDates={editForm.schedule_dates}
+                onScheduleDatesChange={(dates) => setEditForm((p) => ({ ...p, schedule_dates: dates }))}
+                baseAmount={parseFloat(editForm.amount) || 0}
+              />
 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Description / Terms</label>
