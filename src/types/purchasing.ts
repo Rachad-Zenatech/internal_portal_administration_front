@@ -584,6 +584,7 @@ export type RecurringNotificationSettings = {
 export interface ProjectGroupItem {
   id?: number | null;
   name: string;
+  code?: string | null;
   description?: string | null;
   request_count: number;
   total_amount: number;
@@ -596,10 +597,12 @@ export interface ProjectGroupItem {
 
 export interface ProjectGroupCreateInput {
   name: string;
+  code: string;
   description?: string | null;
 }
 
 export interface ProjectGroupUpdateInput {
   name?: string | null;
+  code?: string | null;
   description?: string | null;
 }
