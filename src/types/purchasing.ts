@@ -576,6 +576,8 @@ export type RecurringNotificationSettings = {
   include_requester: boolean;
   include_ap: boolean;
   include_treasury: boolean;
+  recipient_user_ids?: string[] | null;
+  recipient_emails?: string[] | null;
   custom_emails?: string[] | null;
 };
 
