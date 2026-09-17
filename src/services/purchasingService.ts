@@ -526,6 +526,7 @@ export function extractProductInfoFromUrl(url: string) {
     original_price?: string;
     original_currency?: string;
   }>(`${BASE}/extract-product-info`, { url }, {
+    skipGlobalLoading: true,
     actionSubtitle: "Analyzing website metadata, price, vendor, and specs...",
   });
 }
