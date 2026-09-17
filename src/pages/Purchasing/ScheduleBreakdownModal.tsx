@@ -108,7 +108,7 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className="w-[94vw] max-w-[94vw] sm:max-w-5xl lg:max-w-[1250px] max-h-[88vh] flex flex-col p-0 overflow-hidden rounded-2xl">
         <DialogHeader className="p-5 pb-3 border-b bg-slate-50/70 dark:bg-zinc-900/50">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">

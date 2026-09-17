@@ -158,20 +158,20 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 p-3.5 space-y-3 flex flex-col h-full">
+    <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/50 p-4 sm:p-5 space-y-4 flex flex-col h-full">
       {/* Header Toggle */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pb-1">
         <div className="space-y-0.5">
-          <div className="text-xs font-bold flex items-center gap-1.5 text-slate-800 dark:text-zinc-200 uppercase tracking-wide">
-            <CalendarClock className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+          <div className="text-sm font-bold flex items-center gap-2 text-slate-800 dark:text-zinc-100">
+            <CalendarClock className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             <span>Schedule & Installment Dates</span>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            Plan recurring payments or milestones with specific dates.
+          <p className="text-xs text-muted-foreground">
+            Plan recurring payments or milestones with specific dates and custom amounts.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 bg-white dark:bg-zinc-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800">
           <Checkbox
             id="builder-sched-check"
             checked={isScheduled}
@@ -197,20 +197,20 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
       </div>
 
       {isScheduled && (
-        <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-zinc-800 flex-1 flex flex-col">
+        <div className="space-y-3.5 pt-3 border-t border-slate-200 dark:border-zinc-800 flex-1 flex flex-col">
           {/* Frequency & Schedule Type */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold text-slate-600 dark:text-zinc-400">
+              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                 Schedule Mode
               </label>
               {isCustom ? (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-indigo-300 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 font-medium">
-                  <Sparkles className="h-2.5 w-2.5 mr-1 text-indigo-500" />
+                <Badge variant="outline" className="text-xs px-2 py-0.5 border-indigo-300 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 font-semibold">
+                  <Sparkles className="h-3 w-3 mr-1 text-indigo-500" />
                   Custom List
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-slate-300 text-slate-600 dark:text-zinc-400">
+                <Badge variant="outline" className="text-xs px-2 py-0.5 border-slate-300 text-slate-600 dark:text-zinc-400">
                   Periodic
                 </Badge>
               )}
@@ -232,7 +232,7 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                 }
               }}
             >
-              <SelectTrigger className="h-8 text-xs font-medium bg-white dark:bg-zinc-950">
+              <SelectTrigger className="h-9 text-xs font-medium bg-white dark:bg-zinc-950">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -252,21 +252,21 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
 
           {/* Periodic Start & End Date */}
           {!isCustom && (
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-600 dark:text-zinc-400">Start Date</label>
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Start Date</label>
                 <Input
                   type="date"
-                  className="h-8 text-xs bg-white dark:bg-zinc-950"
+                  className="h-9 text-xs bg-white dark:bg-zinc-950"
                   value={startDate}
                   onChange={(e) => onStartDateChange(e.target.value)}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-600 dark:text-zinc-400">End Date</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">End Date</label>
                 <Input
                   type="date"
-                  className="h-8 text-xs bg-white dark:bg-zinc-950"
+                  className="h-9 text-xs bg-white dark:bg-zinc-950"
                   value={endDate}
                   onChange={(e) => onEndDateChange(e.target.value)}
                 />
@@ -276,44 +276,44 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
 
           {/* ── CUSTOM INSTALLMENT DATES LIST ── */}
           {isCustom && (
-            <div className="space-y-2 pt-1 border-t border-dashed border-slate-200 dark:border-zinc-800 flex-1 flex flex-col">
+            <div className="space-y-2.5 pt-2 border-t border-dashed border-slate-200 dark:border-zinc-800 flex-1 flex flex-col">
               {/* Header Bar */}
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CalendarDays className="h-3.5 w-3.5 text-indigo-600" />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <CalendarDays className="h-4 w-4 text-indigo-600" />
                   <span>
-                    <strong>{scheduleDates.length}</strong> dates · Total: <strong className="text-slate-900 dark:text-zinc-100">{formatMoney(totalCustomAmount)}</strong>
+                    <strong className="text-slate-900 dark:text-zinc-100">{scheduleDates.length}</strong> dates · Total: <strong className="text-slate-900 dark:text-zinc-100">{formatMoney(totalCustomAmount)}</strong>
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-6 text-[10px] gap-1 px-1.5"
+                    className="h-7 text-xs gap-1.5 px-2.5 bg-white dark:bg-zinc-950"
                     onClick={handleSortDates}
                     title="Sort dates chronologically"
                   >
-                    <ArrowUpDown className="h-2.5 w-2.5" />
+                    <ArrowUpDown className="h-3 w-3" />
                     Sort
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-6 text-[10px] gap-1 px-1.5"
+                    className="h-7 text-xs gap-1.5 px-2.5 bg-white dark:bg-zinc-950"
                     onClick={handleDistributeEvenly}
                     title="Split total amount evenly"
                   >
-                    <Calculator className="h-2.5 w-2.5" />
+                    <Calculator className="h-3 w-3" />
                     Split
                   </Button>
                 </div>
               </div>
 
               {/* Column Labels */}
-              <div className="grid grid-cols-12 gap-1.5 px-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+              <div className="grid grid-cols-12 gap-2 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <div className="col-span-1 text-center">#</div>
                 <div className="col-span-4">Due Date</div>
                 <div className="col-span-3 text-right">Amount</div>
@@ -322,20 +322,20 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
               </div>
 
               {/* Installment Rows with comfortable scroll height */}
-              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1 flex-1">
+              <div className="space-y-2 max-h-64 sm:max-h-72 overflow-y-auto pr-1 flex-1">
                 {scheduleDates.length === 0 ? (
-                  <div className="p-4 text-center rounded-lg border border-dashed text-xs text-muted-foreground bg-white dark:bg-zinc-950">
+                  <div className="p-5 text-center rounded-lg border border-dashed text-xs text-muted-foreground bg-white dark:bg-zinc-950">
                     No installment dates added yet. Click <strong>+ Add Installment Date</strong> below.
                   </div>
                 ) : (
                   scheduleDates.map((item, idx) => (
                     <div
                       key={idx}
-                      className="grid grid-cols-12 items-center gap-1.5 p-1 rounded-md bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 shadow-2xs hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors"
+                      className="grid grid-cols-12 items-center gap-2 p-1.5 rounded-lg bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 shadow-2xs hover:border-indigo-400 dark:hover:border-indigo-700 transition-colors"
                     >
                       {/* Index Badge */}
                       <div className="col-span-1 flex items-center justify-center">
-                        <span className="h-5 w-5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-[9px] flex items-center justify-center border border-indigo-100 dark:border-indigo-800">
+                        <span className="h-6 w-6 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center border border-indigo-100 dark:border-indigo-800">
                           {idx + 1}
                         </span>
                       </div>
@@ -346,14 +346,14 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                           type="date"
                           value={item.date}
                           onChange={(e) => handleUpdateDate(idx, "date", e.target.value)}
-                          className="h-7 text-xs font-medium px-1.5 w-full bg-slate-50/50 dark:bg-zinc-900/50"
+                          className="h-8 text-xs font-medium px-2 w-full bg-slate-50/50 dark:bg-zinc-900/50"
                           required
                         />
                       </div>
 
                       {/* Custom Amount */}
                       <div className="col-span-3 relative">
-                        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-semibold">$</span>
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">$</span>
                         <Input
                           type="number"
                           step="0.01"
@@ -366,7 +366,7 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                               e.target.value ? parseFloat(e.target.value) : undefined
                             )
                           }
-                          className="h-7 text-xs pl-4 pr-1 font-medium text-right w-full bg-slate-50/50 dark:bg-zinc-900/50 font-mono"
+                          className="h-8 text-xs pl-5 pr-1 font-medium text-right w-full bg-slate-50/50 dark:bg-zinc-900/50 font-mono"
                         />
                       </div>
 
@@ -376,7 +376,7 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                           placeholder="Note"
                           value={item.note || ""}
                           onChange={(e) => handleUpdateDate(idx, "note", e.target.value)}
-                          className="h-7 text-[10px] px-1.5 w-full bg-slate-50/50 dark:bg-zinc-900/50"
+                          className="h-8 text-xs px-2 w-full bg-slate-50/50 dark:bg-zinc-900/50"
                         />
                       </div>
 
@@ -386,11 +386,11 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                           onClick={() => handleRemoveDate(idx)}
                           title="Remove date"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
@@ -399,26 +399,26 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
               </div>
 
               {/* Action buttons & quick add helpers */}
-              <div className="space-y-1 pt-1">
-                <div className="flex items-center justify-between gap-1.5 flex-wrap">
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <Button
                     type="button"
                     onClick={() => handleAddDate(30)}
                     size="sm"
-                    className="h-7 gap-1 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs text-xs font-semibold px-2.5"
+                    className="h-8 gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs text-xs font-semibold px-3"
                   >
-                    <Plus className="h-3 w-3" />
+                    <Plus className="h-3.5 w-3.5" />
                     Add Date
                   </Button>
 
                   {/* Quick Add Interval helpers */}
-                  <div className="flex items-center gap-1 text-[10px]">
-                    <span className="text-muted-foreground text-[10px]">Quick:</span>
+                  <div className="flex items-center gap-1 text-xs">
+                    <span className="text-muted-foreground text-xs mr-0.5">Quick:</span>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-5 text-[10px] px-1"
+                      className="h-6 text-xs px-2 bg-white dark:bg-zinc-950"
                       onClick={() => handleAddDate(7)}
                     >
                       +1 Wk
@@ -427,7 +427,7 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-5 text-[10px] px-1"
+                      className="h-6 text-xs px-2 bg-white dark:bg-zinc-950"
                       onClick={() => handleAddDate(14)}
                     >
                       +2 Wks
@@ -436,7 +436,7 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-5 text-[10px] px-1"
+                      className="h-6 text-xs px-2 bg-white dark:bg-zinc-950"
                       onClick={() => handleAddDate(30)}
                     >
                       +1 Mo
@@ -445,7 +445,7 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-5 text-[10px] px-1"
+                      className="h-6 text-xs px-2 bg-white dark:bg-zinc-950"
                       onClick={() => handleAddDate(90)}
                     >
                       +3 Mos
@@ -458,14 +458,14 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
 
           {/* Periodic summary info banner */}
           {!isCustom && startDate && endDate && (
-            <div className="p-2 rounded-lg bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-between text-xs text-indigo-900 dark:text-indigo-200 mt-auto">
+            <div className="p-2.5 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between text-xs text-indigo-950 dark:text-indigo-200 mt-auto">
               <span className="font-medium flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-indigo-600" />
+                <Clock className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                 {formatRemainingDuration(endDate, startDate).text}
               </span>
               <span>
                 <strong>{calculateInstallmentsCount(startDate, endDate, frequency)}</strong> cycles ·{" "}
-                {formatMoney(calculateInstallmentsCount(startDate, endDate, frequency) * (baseAmount || 0))}
+                <strong className="text-indigo-700 dark:text-indigo-300">{formatMoney(calculateInstallmentsCount(startDate, endDate, frequency) * (baseAmount || 0))}</strong>
               </span>
             </div>
           )}
