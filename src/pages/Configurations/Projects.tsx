@@ -71,9 +71,11 @@ export default function Projects() {
 
   // Form states
   const [newName, setNewName] = useState("");
+  const [newCode, setNewCode] = useState("");
   const [newDescription, setNewDescription] = useState("");
 
   const [editName, setEditName] = useState("");
+  const [editCode, setEditCode] = useState("");
   const [editDescription, setEditDescription] = useState("");
 
   const canManage =
@@ -90,6 +92,7 @@ export default function Projects() {
     return projects.filter(
       (p) =>
         p.name.toLowerCase().includes(term) ||
+        (p.code && p.code.toLowerCase().includes(term)) ||
         (p.description && p.description.toLowerCase().includes(term))
     );
   }, [projects, searchTerm]);
@@ -105,26 +108,30 @@ export default function Projects() {
 
   const handleOpenCreate = () => {
     setNewName("");
+    setNewCode("");
     setNewDescription("");
     setCreateDialogOpen(true);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim()) return;
+    if (!newName.trim() || !newCode.trim()) return;
 
     await createMutation.mutateAsync({
       name: newName.trim(),
+      code: newCode.trim(),
       description: newDescription.trim() || undefined,
     });
     setCreateDialogOpen(false);
     setNewName("");
+    setNewCode("");
     setNewDescription("");
   };
 
   const handleOpenEdit = (project: ProjectGroupItem) => {
     setEditingProject(project);
     setEditName(project.name);
+    setEditCode(project.code || "");
     setEditDescription(project.description || "");
   };
 
@@ -136,6 +143,7 @@ export default function Projects() {
       oldName: editingProject.name,
       payload: {
         name: editName.trim(),
+        code: editCode.trim() || undefined,
         description: editDescription.trim() || undefined,
       },
     });
@@ -282,6 +290,7 @@ export default function Projects() {
             <TableHeader className="bg-slate-50/75 dark:bg-zinc-900/50">
               <TableRow className="border-slate-200 dark:border-slate-800">
                 <TableHead className="font-semibold text-slate-700 dark:text-zinc-300">Project Group Name</TableHead>
+                <TableHead className="font-semibold text-slate-700 dark:text-zinc-300">Project Code</TableHead>
                 <TableHead className="font-semibold text-slate-700 dark:text-zinc-300">Description</TableHead>
                 <TableHead className="font-semibold text-slate-700 dark:text-zinc-300 text-center">Requests</TableHead>
                 <TableHead className="font-semibold text-slate-700 dark:text-zinc-300 text-right">Total Spend</TableHead>
@@ -294,6 +303,7 @@ export default function Projects() {
                 Array.from({ length: 4 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-5 w-36" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-64" /></TableCell>
                     <TableCell className="text-center"><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
@@ -303,7 +313,7 @@ export default function Projects() {
                 ))
               ) : filteredProjects.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-44 text-center">
+                  <TableCell colSpan={7} className="h-44 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <FolderGit2 className="h-8 w-8 text-slate-300 dark:text-zinc-600" />
                       <p className="text-sm font-medium text-slate-600 dark:text-zinc-400">
@@ -345,6 +355,16 @@ export default function Projects() {
                           )}
                         </div>
                       </div>
+                    </TableCell>
+
+                    <TableCell>
+                      {project.code ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                          {project.code}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 dark:text-zinc-600 text-xs italic">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell className="max-w-md">
@@ -449,6 +469,20 @@ export default function Projects() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Project Code <span className="text-rose-500">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. PRJ-001, DRONE-2026"
+                  value={newCode}
+                  onChange={(e) => setNewCode(e.target.value)}
+                  maxLength={50}
+                  className="font-mono text-xs uppercase"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                   Description (Optional)
                 </label>
                 <Textarea
@@ -471,7 +505,7 @@ export default function Projects() {
               </Button>
               <Button
                 type="submit"
-                disabled={!newName.trim() || createMutation.isPending}
+                disabled={!newName.trim() || !newCode.trim() || createMutation.isPending}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white"
               >
                 {createMutation.isPending ? "Creating..." : "Create Project Group"}
@@ -491,7 +525,7 @@ export default function Projects() {
                 Edit Project Group
               </DialogTitle>
               <DialogDescription>
-                Update the name and description. Renaming will automatically update all associated purchase requests.
+                Update the name, project code, and description. Renaming will automatically update all associated purchase requests.
               </DialogDescription>
             </DialogHeader>
 
@@ -511,6 +545,20 @@ export default function Projects() {
                     ⚠️ Renaming from <strong>{editingProject.name}</strong> to <strong>{editName}</strong> will cascade and update <strong>{editingProject.request_count}</strong> associated purchase requests in real-time.
                   </p>
                 )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Project Code <span className="text-rose-500">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. PRJ-001, DRONE-2026"
+                  value={editCode}
+                  onChange={(e) => setEditCode(e.target.value)}
+                  maxLength={50}
+                  className="font-mono text-xs uppercase"
+                  required
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -537,7 +585,7 @@ export default function Projects() {
               </Button>
               <Button
                 type="submit"
-                disabled={!editName.trim() || updateMutation.isPending}
+                disabled={!editName.trim() || !editCode.trim() || updateMutation.isPending}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white"
               >
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}
