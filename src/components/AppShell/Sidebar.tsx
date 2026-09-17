@@ -85,6 +85,58 @@ export default function Sidebar({
     return purchasingSummary.status_counts?.[statusKey] ?? 0;
   };
 
+  const hasActionWaiting = (path: string, itemLabel?: string): boolean => {
+    if (!purchasingSummary) return false;
+    const notifMap = purchasingSummary.has_user_notifications || {};
+    const actionCounts = purchasingSummary.user_action_counts || {};
+    const unreadNotifs = purchasingSummary.user_unread_notif_counts || {};
+
+    // My Approvals
+    if (path === "/purchasing/my-approvals" || itemLabel === "My Approvals") {
+      return (purchasingSummary.my_approvals_count ?? 0) > 0 || !!notifMap["MY_APPROVALS"] || (actionCounts["MY_APPROVALS"] ?? 0) > 0 || (unreadNotifs["MY_APPROVALS"] ?? 0) > 0;
+    }
+
+    // Accounts Payable
+    if (path === "/purchasing/invoices" || itemLabel === "Accounts Payable") {
+      return !!notifMap["INVOICES"] || !!notifMap["WAITING_PAYMENT"] || (actionCounts["INVOICES"] ?? 0) > 0 || (actionCounts["WAITING_PAYMENT"] ?? 0) > 0;
+    }
+
+    // Recurring Payments
+    if (path.startsWith("/purchasing/recurring")) {
+      const searchParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
+      const filterKey = searchParams.get("filter")?.toUpperCase();
+      if (filterKey === "DUE_SOON") return !!notifMap["RECURRING_DUE_SOON"] || (purchasingSummary.recurring_due_soon_count ?? 0) > 0;
+      if (filterKey === "WAITING_REVIEW") return !!notifMap["RECURRING_WAITING_REVIEW"] || (purchasingSummary.recurring_waiting_review ?? 0) > 0;
+      if (filterKey === "REVIEWED") return !!notifMap["RECURRING_REVIEWED"];
+      if (filterKey === "REJECTED") return !!notifMap["RECURRING_REJECTED"];
+      return !!notifMap["RECURRING"] || (purchasingSummary.recurring_waiting_review ?? 0) > 0 || (purchasingSummary.recurring_due_soon_count ?? 0) > 0;
+    }
+
+    // Purchase Requests main & sub-items
+    if (path === "/purchasing/requests") {
+      return !!notifMap["ALL_REQUESTS"] || !!notifMap["PURCHASING"] || Object.keys(notifMap).some(k => notifMap[k]);
+    }
+
+    if (path.includes("/purchasing/requests?status=")) {
+      const searchParams = new URLSearchParams(path.split("?")[1] || "");
+      const statusKey = searchParams.get("status")?.toUpperCase();
+      if (!statusKey) return false;
+      
+      if (statusKey === "PURCHASED") {
+        return !!notifMap["PURCHASED"] || !!notifMap["ORDERED"] || (actionCounts["PURCHASED"] ?? 0) > 0 || (actionCounts["ORDERED"] ?? 0) > 0 || (unreadNotifs["PURCHASED"] ?? 0) > 0 || (unreadNotifs["ORDERED"] ?? 0) > 0;
+      }
+      
+      if (statusKey === "WAITING_APPROVAL") {
+        return (purchasingSummary.my_approvals_count ?? 0) > 0 || !!notifMap["WAITING_APPROVAL"] || (actionCounts["WAITING_APPROVAL"] ?? 0) > 0 || (unreadNotifs["WAITING_APPROVAL"] ?? 0) > 0;
+      }
+
+      return !!notifMap[statusKey] || (actionCounts[statusKey] ?? 0) > 0 || (unreadNotifs[statusKey] ?? 0) > 0;
+    }
+
+    return false;
+  };
+
+
   useEffect(() => {
     if (location.pathname.startsWith("/purchasing/requests")) {
       setExpandedItems(prev => ({ ...prev, "Purchase Requests": true }));
@@ -186,6 +238,7 @@ export default function Sidebar({
 
           if (item.subItems) {
             const isExpanded = expandedItems[item.label];
+            const hasAnySubAction = item.subItems.some(sub => hasActionWaiting(sub.path, sub.label));
             return (
               <div key={item.label} className="flex flex-col">
                 <Tooltip delayDuration={0}>
@@ -204,15 +257,29 @@ export default function Sidebar({
                       `}
                     >
                       <div className={`flex items-center ${isOpen ? "justify-start" : "justify-center"}`}>
-                        <div className="flex items-center justify-center flex-shrink-0">
+                        <div className="flex items-center justify-center flex-shrink-0 relative">
                           <Icon size={16} />
+                          {!isOpen && hasAnySubAction && (
+                            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                            </span>
+                          )}
                         </div>
                         <span className={`text-xs font-medium transition-all duration-300 ease-in-out ${isOpen ? "opacity-100 ml-3 translate-x-0 w-auto" : "opacity-0 ml-0 -translate-x-4 w-0 overflow-hidden"}`}>
                           {item.label}
                         </span>
                       </div>
                       {isOpen && (
-                        <div className="flex-shrink-0">
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {hasAnySubAction && !isExpanded && (
+                            <span
+                              className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-red-600 text-white text-[9px] font-black shadow-xs animate-pulse ring-2 ring-red-500/30"
+                              title="Action / Notification waiting inside"
+                            >
+                              !
+                            </span>
+                          )}
                           {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                         </div>
                       )}
@@ -233,6 +300,7 @@ export default function Sidebar({
                       ? fullPath === sub.path
                       : (location.pathname === sub.path && !location.search);
                     const subCount = (sub.path.startsWith("/purchasing/requests") || sub.path.startsWith("/purchasing/recurring")) ? getSubItemCount(sub.path) : undefined;
+                    const hasAction = hasActionWaiting(sub.path, sub.label);
                     return (
                       <Link
                         key={sub.path}
@@ -248,15 +316,25 @@ export default function Sidebar({
                             {pendingUsersCount}
                           </div>
                         )}
-                        {subCount !== undefined && (
-                          <div className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1.5 transition-colors ${
-                            isSubActive 
-                              ? "bg-white/20 text-sidebar-primary-foreground" 
-                              : "bg-slate-200/80 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-300/60 dark:border-zinc-700/60"
-                          }`}>
-                            {subCount}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
+                          {hasAction && (
+                            <span 
+                              className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-red-600 text-white text-[10px] font-black shadow-xs animate-pulse ring-2 ring-red-500/30"
+                              title="Action / Notification waiting for you"
+                            >
+                              !
+                            </span>
+                          )}
+                          {subCount !== undefined && (
+                            <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full transition-colors ${
+                              isSubActive 
+                                ? "bg-white/20 text-sidebar-primary-foreground" 
+                                : "bg-slate-200/80 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-300/60 dark:border-zinc-700/60"
+                            }`}>
+                              {subCount}
+                            </div>
+                          )}
+                        </div>
                       </Link>
                     );
                   })}
@@ -326,13 +404,31 @@ export default function Sidebar({
                       </span>
                     )}
                     {isOpen && (item.label === "My Approvals" || item.navigationCode === "MY_APPROVALS") && (
-                      <div className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1.5 transition-colors ${
-                        isMainActive 
-                          ? "bg-white/20 text-sidebar-primary-foreground" 
-                          : "bg-slate-200/80 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-300/60 dark:border-zinc-700/60"
-                      }`}>
-                        {purchasingSummary?.my_approvals_count ?? 0}
+                      <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
+                        {hasActionWaiting(item.path || "", item.label) && (
+                          <span
+                            className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-red-600 text-white text-[10px] font-black shadow-xs animate-pulse ring-2 ring-red-500/30"
+                            title="Action / Notification waiting for you"
+                          >
+                            !
+                          </span>
+                        )}
+                        <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full transition-colors ${
+                          isMainActive 
+                            ? "bg-white/20 text-sidebar-primary-foreground" 
+                            : "bg-slate-200/80 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-300/60 dark:border-zinc-700/60"
+                        }`}>
+                          {purchasingSummary?.my_approvals_count ?? 0}
+                        </div>
                       </div>
+                    )}
+                    {isOpen && item.label === "Accounts Payable" && hasActionWaiting(item.path || "", item.label) && (
+                      <span
+                        className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-red-600 text-white text-[10px] font-black shadow-xs animate-pulse ring-2 ring-red-500/30 ml-auto mr-1.5 flex-shrink-0"
+                        title="Action / Notification waiting for you"
+                      >
+                        !
+                      </span>
                     )}
                   </div>
                 </Link>
