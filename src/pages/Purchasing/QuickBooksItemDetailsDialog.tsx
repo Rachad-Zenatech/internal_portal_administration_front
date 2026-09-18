@@ -5,36 +5,40 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
-  Building2,
-  CreditCard,
-  Tag,
-  ExternalLink,
-  Code2,
+  History,
+  Settings,
+  HelpCircle,
+  Sparkles,
+  X,
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
   Copy,
-  ArrowRight,
-  Database,
+  Trash2,
+  Table,
   Layers,
-  ShieldCheck,
-  CheckCircle2,
-  AlertTriangle,
-  FileText,
-  Download,
   Paperclip,
   Calendar,
-  DollarSign,
+  Code2,
+  FileText,
+  Download,
+  Check,
   Loader2,
   Zap,
-  Trash2,
-  MapPin,
-  Check,
+  ExternalLink,
+  CheckCircle2,
+  AlertTriangle,
+  Database,
+  ArrowRight,
+  Eye,
+  CreditCard,
+  Building2,
+  Tag,
+  ShieldCheck,
 } from "lucide-react";
 import type { QuickBooksPreviewItem } from "@/services/purchasingService";
 
@@ -59,14 +63,22 @@ export function QuickBooksItemDetailsDialog({
   isDeleting = false,
   isConnected = true,
 }: QuickBooksItemDetailsDialogProps) {
-  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [viewMode, setViewMode] = useState<"form" | "mapping" | "json">("form");
   const [copied, setCopied] = useState(false);
+  const [categoryDetailsOpen, setCategoryDetailsOpen] = useState(true);
+  const [itemDetailsOpen, setItemDetailsOpen] = useState(true);
+  const [topFieldsCollapsed, setTopFieldsCollapsed] = useState(false);
 
   if (!item) return null;
 
   const isReady = item.readiness === "READY" || item.readiness === "READY_WITH_NOTES";
   const isSynced = item.readiness === "ALREADY_SYNCED" || item.is_already_synced;
   const isError = item.readiness === "ERROR" || (item.validation_errors && item.validation_errors.length > 0);
+
+  const formattedAmountNumber = item.amount?.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }) || "0.00";
 
   const handleCopyJson = () => {
     if (!item.projected_payload) return;
@@ -78,441 +90,641 @@ export function QuickBooksItemDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl lg:max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-background text-foreground border-border shadow-2xl rounded-2xl">
-        {/* Modal Header */}
-        <DialogHeader className="p-5 pb-4 border-b border-border/80 bg-muted/20">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <Badge variant="outline" className="font-mono text-xs px-2.5 py-1 bg-background border-border/80 font-bold">
-                REQ-#{item.request_id}
-              </Badge>
+      <DialogContent
+        showCloseButton={false}
+        className="w-[98vw] max-w-[1520px] sm:max-w-[98vw] md:max-w-[98vw] lg:max-w-[1520px] h-[95vh] max-h-[96vh] flex flex-col p-0 gap-0 overflow-hidden bg-[#f4f5f8] dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 border border-slate-300 dark:border-zinc-800 shadow-2xl rounded-lg font-sans z-50 text-xs"
+      >
+        <DialogDescription className="sr-only">
+          QuickBooks Online Expense Form and Synchronization Details for Purchase Request #{item.request_id}
+        </DialogDescription>
 
+        {/* ========================================================================= */}
+        {/* QuickBooks Online Top App Header */}
+        {/* ========================================================================= */}
+        <div className="bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 px-5 py-2.5 flex items-center justify-between shrink-0 select-none">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="p-1 rounded-full text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              title="Transaction History / Audit"
+            >
+              <History className="h-4 w-4" />
+            </button>
+            <DialogTitle className="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2 m-0 p-0">
+              <span>Expense</span>
               {isSynced ? (
-                <Badge variant="secondary" className="text-xs px-2.5 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 gap-1 font-semibold">
-                  <Database className="h-3.5 w-3.5" />
-                  <span>In QuickBooks {item.existing_purchase_id ? `(#${item.existing_purchase_id})` : ""}</span>
-                </Badge>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
+                  <Database className="h-3 w-3" />
+                  <span>QBO #{item.existing_purchase_id || item.doc_number}</span>
+                </span>
+              ) : isError ? (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3 text-rose-600 dark:text-rose-400" />
+                  <span>Validation Error</span>
+                </span>
               ) : isReady ? (
-                <Badge className="text-xs px-2.5 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 gap-1 font-semibold">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Ready to Sync</span>
-                </Badge>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                  <span>Staged for QBO</span>
+                </span>
               ) : (
-                <Badge variant="destructive" className="text-xs px-2.5 py-0.5 gap-1 font-semibold">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  <span>Action Required</span>
-                </Badge>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  <span>Requires Mapping</span>
+                </span>
               )}
-
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>Date: {item.payment_date || item.txn_date_api}</span>
-              </span>
-            </div>
-
-            <div className="flex items-baseline gap-1 text-right">
-              <span className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
-                {item.formatted_amount || `$${item.amount?.toFixed(2)}`}
-              </span>
-              <span className="text-xs text-muted-foreground font-semibold">USD</span>
-            </div>
+            </DialogTitle>
           </div>
 
-          <DialogTitle className="text-base font-bold text-foreground mt-2 text-left">
-            Purchase Request #{item.request_id} — QuickBooks Export &amp; Sync Details
-          </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground text-left mt-0.5">
-            Full procurement metadata, account categorization, and live QuickBooks Online REST mappings.
-          </DialogDescription>
+          <div className="flex items-center gap-3">
+            {/* View Mode Switcher */}
+            <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-md border border-slate-200 dark:border-zinc-700 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setViewMode("form")}
+                className={`px-2.5 py-1 rounded font-medium transition-colors flex items-center gap-1.5 ${
+                  viewMode === "form"
+                    ? "bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-2xs font-semibold"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+                }`}
+              >
+                <Eye className="h-3.5 w-3.5 text-[#2ca01c]" />
+                <span>QuickBooks Form</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("mapping")}
+                className={`px-2.5 py-1 rounded font-medium transition-colors flex items-center gap-1.5 ${
+                  viewMode === "mapping"
+                    ? "bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-2xs font-semibold"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+                }`}
+              >
+                <Layers className="h-3.5 w-3.5 text-blue-600" />
+                <span>GL &amp; Account Mapping</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("json")}
+                className={`px-2.5 py-1 rounded font-medium transition-colors flex items-center gap-1.5 ${
+                  viewMode === "json"
+                    ? "bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-2xs font-semibold"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+                }`}
+              >
+                <Code2 className="h-3.5 w-3.5 text-purple-600" />
+                <span>REST JSON</span>
+              </button>
+            </div>
 
-          {/* Navigation Tabs */}
-          <div className="pt-3">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid grid-cols-3 h-8 text-xs bg-muted/60 p-1">
-                <TabsTrigger value="overview" className="text-xs gap-1.5 data-[state=active]:bg-background">
-                  <FileText className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Overview &amp; Details</span>
-                </TabsTrigger>
-                <TabsTrigger value="mapping" className="text-xs gap-1.5 data-[state=active]:bg-background">
-                  <Layers className="h-3.5 w-3.5 text-blue-600" />
-                  <span>QuickBooks Mapping</span>
-                </TabsTrigger>
-                <TabsTrigger value="json" className="text-xs gap-1.5 data-[state=active]:bg-background">
-                  <Code2 className="h-3.5 w-3.5 text-purple-600" />
-                  <span>REST JSON Payload</span>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {/* Quick action tools */}
+            <div className="flex items-center gap-1.5 text-slate-500 dark:text-zinc-400">
+              <button
+                type="button"
+                className="hidden md:flex items-center gap-1 text-[11px] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800"
+              >
+                <span>Give feedback</span>
+              </button>
+              <button
+                type="button"
+                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200"
+                title="QuickBooks Form Settings"
+              >
+                <Settings className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200"
+                title="Help"
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+              </button>
+              <div
+                className="h-6 w-6 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xs cursor-pointer hover:bg-blue-700"
+                title="Intuit Assist"
+              >
+                <Sparkles className="h-3 w-3" />
+              </div>
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors ml-1"
+                title="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        </DialogHeader>
+        </div>
 
-        {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {activeTab === "overview" && (
-            <div className="space-y-4 text-xs">
-              {/* Product / Line Item Hero Box */}
-              <div className="p-4 rounded-xl border border-border/80 bg-muted/20 space-y-2">
-                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Tag className="h-3.5 w-3.5 text-primary" />
-                  <span>Line Item / Purchased Product</span>
-                </div>
-                <div className="text-sm font-bold text-foreground leading-snug">
-                  {item.product_name}
-                </div>
-                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                  {item.department && (
-                    <Badge variant="secondary" className="px-2 py-0.5 text-[11px] font-medium">
-                      Class: {item.department}
-                    </Badge>
-                  )}
-                  {item.location && (
-                    <Badge variant="outline" className="px-2 py-0.5 text-[11px] font-medium flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-muted-foreground" />
-                      <span>{item.location}</span>
-                    </Badge>
-                  )}
-                  {item.ref_no && (
-                    <Badge variant="outline" className="px-2 py-0.5 text-[11px] font-mono">
-                      Ref: {item.ref_no}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* 4 Core Classification Tiles */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Vendor / Payee */}
-                <div className="p-3.5 rounded-xl border border-border/70 bg-card space-y-2">
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span className="flex items-center gap-1.5 font-semibold text-[11px] uppercase tracking-wider">
-                      <Building2 className="h-3.5 w-3.5 text-indigo-500" />
-                      <span>Vendor / Payee</span>
-                    </span>
-                    {item.vendor_resolution?.status === "EXISTS" ? (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200">
-                        Mapped in QBO
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200">
-                        Auto-Create in QBO
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="text-sm font-bold text-foreground truncate" title={item.vendor_resolution?.name || item.raw_payee}>
-                    {item.vendor_resolution?.name || item.raw_payee}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground space-y-0.5">
-                    <div>QuickBooks Vendor ID: <span className="font-mono font-medium text-foreground">{item.vendor_resolution?.id || "Auto-Generated"}</span></div>
-                    {item.vendor_resolution?.notes && (
-                      <div className="text-[10px] text-muted-foreground/80 italic">{item.vendor_resolution.notes}</div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Expense Account (GL) */}
-                <div className="p-3.5 rounded-xl border border-border/70 bg-card space-y-2">
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span className="flex items-center gap-1.5 font-semibold text-[11px] uppercase tracking-wider">
-                      <Tag className="h-3.5 w-3.5 text-emerald-500" />
-                      <span>Expense Account (GL)</span>
-                    </span>
-                    {item.expense_account_resolution?.acct_num ? (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
-                        GL: {item.expense_account_resolution.acct_num}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        {item.expense_account_resolution?.account_type || "Expense"}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="text-sm font-bold text-foreground truncate" title={item.expense_account_resolution?.name || item.category}>
-                    {item.expense_account_resolution?.name || item.category}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground space-y-0.5">
-                    <div className="truncate">Category: <span className="font-medium text-foreground">{item.category}</span></div>
-                    <div>QuickBooks Account ID: <span className="font-mono font-medium text-foreground">{item.expense_account_resolution?.id || "Auto-Resolved"}</span></div>
-                  </div>
-                </div>
-
-                {/* Payment Account */}
-                <div className="p-3.5 rounded-xl border border-border/70 bg-card space-y-2">
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span className="flex items-center gap-1.5 font-semibold text-[11px] uppercase tracking-wider">
-                      <CreditCard className="h-3.5 w-3.5 text-amber-500" />
-                      <span>Payment Settlement</span>
-                    </span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
-                      {item.payment_method || "Credit Card"}
-                    </Badge>
-                  </div>
-                  <div className="text-sm font-bold text-foreground truncate" title={item.payment_account_resolution?.name}>
-                    {item.payment_account_resolution?.name || "Business Credit Card / Checking"}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground space-y-0.5">
-                    <div>Payment Type: <span className="font-medium text-foreground">{item.payment_account_resolution?.payment_type || "CreditCard"}</span></div>
-                    <div>QuickBooks Account ID: <span className="font-mono font-medium text-foreground">{item.payment_account_resolution?.id || "Auto-Resolved"}</span></div>
-                  </div>
-                </div>
-
-                {/* Department & Audit References */}
-                <div className="p-3.5 rounded-xl border border-border/70 bg-card space-y-2">
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span className="flex items-center gap-1.5 font-semibold text-[11px] uppercase tracking-wider">
-                      <ShieldCheck className="h-3.5 w-3.5 text-purple-500" />
-                      <span>Document &amp; Class</span>
-                    </span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
-                      Doc #{item.doc_number || item.ref_no}
-                    </Badge>
-                  </div>
-                  <div className="text-sm font-bold text-foreground">
-                    Class: {item.department || "General Administration"}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground space-y-0.5">
-                    <div>Location: <span className="font-medium text-foreground">{item.location || "Default"}</span></div>
-                    <div>Reference ID: <span className="font-mono font-medium text-foreground">{item.ref_no || "-"}</span></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Attached Documents & Receipts */}
-              <div className="p-3.5 rounded-xl border border-border/70 bg-card space-y-2">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="flex items-center gap-1.5 font-semibold text-[11px] uppercase tracking-wider">
-                    <Paperclip className="h-3.5 w-3.5 text-amber-500" />
-                    <span>Attached Documents &amp; Receipts ({item.attachments?.length || item.attachments_count || 0})</span>
-                  </span>
-                  {item.attachments && item.attachments.length > 0 ? (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 font-medium">
-                      Auto-Uploads to QuickBooks
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
-                      No attachments
-                    </Badge>
-                  )}
-                </div>
-                {item.attachments && item.attachments.length > 0 ? (
-                  <div className="space-y-1.5 pt-1">
-                    {item.attachments.map((att: any) => (
-                      <div key={att.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 hover:bg-muted/70 border border-border/40 text-xs transition-colors">
-                        <div className="flex items-center gap-2 truncate min-w-0">
-                          <FileText className="h-4 w-4 text-primary shrink-0" />
-                          <span className="font-semibold truncate text-foreground">{att.filename}</span>
+        {/* ========================================================================= */}
+        {/* Scrollable Body */}
+        {/* ========================================================================= */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {viewMode === "form" && (
+            <div className="space-y-4 max-w-[1460px] mx-auto">
+              {/* TOP HERO & FORM FIELDS (White Card) */}
+              <div className="bg-white dark:bg-zinc-900 rounded-md p-4 border border-slate-200 dark:border-zinc-800 shadow-2xs space-y-3">
+                {/* Row 1: Payee + Payment Account + AMOUNT */}
+                <div className="flex flex-wrap lg:flex-nowrap items-start justify-between gap-4">
+                  {/* Left inputs */}
+                  <div className="flex flex-wrap items-start gap-4 flex-1 min-w-0">
+                    {/* Payee */}
+                    <div className="w-full sm:w-[260px] space-y-1">
+                      <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                        Payee
+                      </label>
+                      <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-[#2ca01c] dark:border-emerald-600 text-xs font-medium text-slate-900 dark:text-white shadow-2xs h-8">
+                        <span className="truncate">
+                          {item.vendor_resolution?.name || item.raw_payee || "Who did you pay?"}
+                        </span>
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1.5" />
+                      </div>
+                      {item.vendor_resolution?.id && (
+                        <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono truncate">
+                          QBO Vendor ID: {item.vendor_resolution.id} {item.vendor_resolution.status ? `(${item.vendor_resolution.status})` : ""}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[11px] text-muted-foreground font-mono">
-                            {att.size_bytes ? `${(att.size_bytes / 1024).toFixed(1)} KB` : (att.content_type || "PDF")}
-                          </span>
+                      )}
+                    </div>
+
+                    {/* Payment account */}
+                    <div className="w-full sm:w-[260px] space-y-1">
+                      <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                        Payment account
+                      </label>
+                      <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs font-medium text-slate-900 dark:text-white shadow-2xs h-8">
+                        <span className="truncate">
+                          {item.payment_account_resolution?.name || "Business Credit Card"}
+                        </span>
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1.5" />
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">
+                        Balance <strong className="text-slate-800 dark:text-zinc-200">${formattedAmountNumber}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Amount on Right */}
+                  <div className="text-right shrink-0 min-w-[160px]">
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-zinc-400">
+                      AMOUNT
+                    </div>
+                    <div className="text-3xl font-extrabold text-slate-900 dark:text-white font-sans tracking-tight pt-0.5">
+                      ${formattedAmountNumber}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 2: Secondary Fields */}
+                {!topFieldsCollapsed && (
+                  <div className="flex flex-wrap items-start gap-4 pt-2 border-t border-slate-100 dark:border-zinc-800/80">
+                    {/* Payment Date */}
+                    <div className="w-full sm:w-[160px] space-y-1">
+                      <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                        Payment Date
+                      </label>
+                      <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white shadow-2xs h-8">
+                        <span>{item.payment_date || item.txn_date_api || "09/18/2026"}</span>
+                        <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
+                      </div>
+                    </div>
+
+                    {/* Payment Method */}
+                    <div className="w-full sm:w-[160px] space-y-1">
+                      <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                        Payment Method
+                      </label>
+                      <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white shadow-2xs h-8">
+                        <span>{item.payment_method || "Credit Card"}</span>
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
+                      </div>
+                    </div>
+
+                    {/* Ref no. */}
+                    <div className="w-full sm:w-[160px] space-y-1">
+                      <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                        Ref no.
+                      </label>
+                      <div className="px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white font-mono shadow-2xs h-8 flex items-center">
+                        {item.doc_number || item.ref_no || `REQ-${item.request_id}`}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Centered Chevron Toggle */}
+                <div className="flex justify-center -mb-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setTopFieldsCollapsed(!topFieldsCollapsed)}
+                    className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                    title={topFieldsCollapsed ? "Expand form fields" : "Collapse form fields"}
+                  >
+                    {topFieldsCollapsed ? (
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* ========================================================================= */}
+              {/* SECTION 1: CATEGORY DETAILS */}
+              {/* ========================================================================= */}
+              <div className="bg-white dark:bg-zinc-900 rounded-md border border-slate-200 dark:border-zinc-800 shadow-2xs overflow-hidden">
+                <div className="px-4 py-2 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-900">
+                  <button
+                    type="button"
+                    onClick={() => setCategoryDetailsOpen(!categoryDetailsOpen)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white hover:text-slate-700"
+                  >
+                    {categoryDetailsOpen ? (
+                      <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                    ) : (
+                      <ChevronUp className="h-3.5 w-3.5 text-slate-500" />
+                    )}
+                    <span>Category details</span>
+                  </button>
+
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Copy Table Lines">
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                    <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Spreadsheet View">
+                      <Table className="h-3.5 w-3.5" />
+                    </button>
+                    <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Table Settings">
+                      <Settings className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {categoryDetailsOpen && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/60 text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                          <th className="w-10 py-1.5 px-2.5 text-center">#</th>
+                          <th className="py-1.5 px-2.5 w-[260px]">CATEGORY</th>
+                          <th className="py-1.5 px-2.5 min-w-[320px]">DESCRIPTION</th>
+                          <th className="py-1.5 px-2.5 w-28 text-right">AMOUNT</th>
+                          <th className="py-1.5 px-2.5 w-16 text-center">BILLABLE</th>
+                          <th className="py-1.5 px-2.5 w-36">CUSTOMER</th>
+                          <th className="w-14 py-1.5 px-2.5 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
+                        {/* Row 1 with actual data */}
+                        <tr className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/50">
+                          <td className="py-2 px-2.5 text-center text-slate-400">
+                            <div className="flex items-center justify-center gap-1">
+                              <GripVertical className="h-3 w-3 text-slate-300 dark:text-zinc-600" />
+                              <span className="font-semibold text-slate-600 dark:text-zinc-400 text-[11px]">1</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5">
+                            <div className="flex items-center justify-between px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xs h-7">
+                              <div className="truncate text-xs">
+                                <span className="font-semibold text-slate-900 dark:text-white">
+                                  {item.expense_account_resolution?.name || item.category || "Expense"}
+                                </span>
+                                {item.expense_account_resolution?.acct_num && (
+                                  <span className="text-[10px] text-muted-foreground ml-1 font-mono">
+                                    ({item.expense_account_resolution.acct_num})
+                                  </span>
+                                )}
+                              </div>
+                              <ChevronDown className="h-3 w-3 text-slate-400 ml-1 shrink-0" />
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5">
+                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 truncate shadow-2xs text-xs h-7 flex items-center">
+                              {item.product_name || item.raw_payee}
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-right">
+                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white font-mono font-semibold text-right shadow-2xs text-xs h-7 flex items-center justify-end">
+                              {formattedAmountNumber}
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-center">
+                            <input
+                              type="checkbox"
+                              readOnly
+                              className="rounded border-slate-300 text-[#2ca01c] focus:ring-[#2ca01c] h-3.5 w-3.5"
+                            />
+                          </td>
+                          <td className="py-2 px-2.5">
+                            <div className="flex items-center justify-between px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 shadow-2xs text-xs h-7">
+                              <span className="truncate">{item.department || "Internal"}</span>
+                              <ChevronDown className="h-3 w-3 text-slate-400 ml-1 shrink-0" />
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-center">
+                            <div className="flex items-center justify-center gap-1 text-slate-400">
+                              <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Duplicate Row">
+                                <Copy className="h-3 w-3" />
+                              </button>
+                              <button type="button" className="hover:text-rose-600 p-0.5" title="Delete Row">
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Row 2 empty placeholder */}
+                        <tr className="hover:bg-slate-50/30 dark:hover:bg-zinc-800/30">
+                          <td className="py-2 px-2.5 text-center text-slate-300 dark:text-zinc-600">
+                            <div className="flex items-center justify-center gap-1">
+                              <GripVertical className="h-3 w-3 text-slate-200 dark:text-zinc-700" />
+                              <span className="text-[11px]">2</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
+                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
+                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
+                          <td className="py-2 px-2.5 text-center"><input type="checkbox" disabled className="rounded border-slate-200 text-slate-300 h-3.5 w-3.5" /></td>
+                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
+                          <td className="py-2 px-2.5 text-center">
+                            <div className="flex items-center justify-center gap-1 text-slate-300 dark:text-zinc-700">
+                              <Copy className="h-3 w-3" />
+                              <Trash2 className="h-3 w-3" />
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <div className="p-2.5 border-t border-slate-200 dark:border-zinc-800 flex items-center gap-2 bg-slate-50/50 dark:bg-zinc-900/40">
+                      <button
+                        type="button"
+                        className="px-2.5 py-1 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded text-[11px] font-semibold text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs"
+                      >
+                        Add lines
+                      </button>
+                      <button
+                        type="button"
+                        className="px-2.5 py-1 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded text-[11px] font-semibold text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs"
+                      >
+                        Clear all lines
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ========================================================================= */}
+              {/* SECTION 2: ITEM DETAILS */}
+              {/* ========================================================================= */}
+              <div className="bg-white dark:bg-zinc-900 rounded-md border border-slate-200 dark:border-zinc-800 shadow-2xs overflow-hidden">
+                <div className="px-4 py-2 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-900">
+                  <button
+                    type="button"
+                    onClick={() => setItemDetailsOpen(!itemDetailsOpen)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white hover:text-slate-700"
+                  >
+                    {itemDetailsOpen ? (
+                      <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                    ) : (
+                      <ChevronUp className="h-3.5 w-3.5 text-slate-500" />
+                    )}
+                    <span>Item details</span>
+                  </button>
+
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Copy Table Lines">
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                    <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Spreadsheet View">
+                      <Table className="h-3.5 w-3.5" />
+                    </button>
+                    <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Table Settings">
+                      <Settings className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {itemDetailsOpen && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/60 text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                          <th className="w-10 py-1.5 px-2.5 text-center">#</th>
+                          <th className="py-1.5 px-2.5 w-[220px]">PRODUCT/SERVICE</th>
+                          <th className="py-1.5 px-2.5 min-w-[300px]">DESCRIPTION</th>
+                          <th className="py-1.5 px-2.5 w-16 text-right">QTY</th>
+                          <th className="py-1.5 px-2.5 w-24 text-right">RATE</th>
+                          <th className="py-1.5 px-2.5 w-24 text-right">AMOUNT</th>
+                          <th className="py-1.5 px-2.5 w-16 text-center">BILLABLE</th>
+                          <th className="py-1.5 px-2.5 w-36">CUSTOMER</th>
+                          <th className="w-14 py-1.5 px-2.5 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
+                        {/* Row 1 data */}
+                        <tr className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/50">
+                          <td className="py-2 px-2.5 text-center text-slate-400">
+                            <div className="flex items-center justify-center gap-1">
+                              <GripVertical className="h-3 w-3 text-slate-300 dark:text-zinc-600" />
+                              <span className="font-semibold text-slate-600 dark:text-zinc-400 text-[11px]">1</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5">
+                            <div className="flex items-center justify-between px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 font-semibold text-slate-900 dark:text-white shadow-2xs text-xs h-7">
+                              <span className="truncate">{item.product_name}</span>
+                              <ChevronDown className="h-3 w-3 text-slate-400 ml-1 shrink-0" />
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5">
+                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 truncate shadow-2xs text-xs h-7 flex items-center">
+                              {item.memo || `${item.raw_payee} - ${item.product_name}`}
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-right">
+                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 font-mono text-slate-900 dark:text-white text-right shadow-2xs text-xs h-7 flex items-center justify-end">
+                              1
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-right">
+                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 font-mono text-slate-900 dark:text-white text-right shadow-2xs text-xs h-7 flex items-center justify-end">
+                              {formattedAmountNumber}
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-right">
+                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 font-mono font-semibold text-slate-900 dark:text-white text-right shadow-2xs text-xs h-7 flex items-center justify-end">
+                              {formattedAmountNumber}
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-center">
+                            <input
+                              type="checkbox"
+                              readOnly
+                              className="rounded border-slate-300 text-[#2ca01c] focus:ring-[#2ca01c] h-3.5 w-3.5"
+                            />
+                          </td>
+                          <td className="py-2 px-2.5">
+                            <div className="flex items-center justify-between px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 shadow-2xs text-xs h-7">
+                              <span className="truncate">{item.department || "-"}</span>
+                              <ChevronDown className="h-3 w-3 text-slate-400 ml-1 shrink-0" />
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-center">
+                            <div className="flex items-center justify-center gap-1 text-slate-400">
+                              <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Duplicate">
+                                <Copy className="h-3 w-3" />
+                              </button>
+                              <button type="button" className="hover:text-rose-600 p-0.5" title="Delete">
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Row 2 blank placeholder */}
+                        <tr className="hover:bg-slate-50/30 dark:hover:bg-zinc-800/30">
+                          <td className="py-2 px-2.5 text-center text-slate-300 dark:text-zinc-600">
+                            <div className="flex items-center justify-center gap-1">
+                              <GripVertical className="h-3 w-3 text-slate-200 dark:text-zinc-700" />
+                              <span className="text-[11px]">2</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
+                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
+                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
+                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
+                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
+                          <td className="py-2 px-2.5 text-center"><input type="checkbox" disabled className="rounded border-slate-200 text-slate-300 h-3.5 w-3.5" /></td>
+                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
+                          <td className="py-2 px-2.5 text-center">
+                            <div className="flex items-center justify-center gap-1 text-slate-300 dark:text-zinc-700">
+                              <Copy className="h-3 w-3" />
+                              <Trash2 className="h-3 w-3" />
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Footer Row with Add Lines and QuickBooks Total */}
+                    <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-zinc-900">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="px-2.5 py-1 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded text-[11px] font-semibold text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs"
+                        >
+                          Add lines
+                        </button>
+                        <button
+                          type="button"
+                          className="px-2.5 py-1 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded text-[11px] font-semibold text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs"
+                        >
+                          Clear all lines
+                        </button>
+                      </div>
+
+                      <div className="flex items-baseline gap-2.5 text-right">
+                        <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Total</span>
+                        <span className="text-xl font-bold text-slate-900 dark:text-white font-sans">
+                          ${formattedAmountNumber}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ========================================================================= */}
+              {/* SECTION 3: MEMO & ATTACHMENTS (QuickBooks Bottom Layout) */}
+              {/* ========================================================================= */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-1">
+                {/* Memo Box */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                    Memo
+                  </label>
+                  <textarea
+                    rows={3}
+                    readOnly
+                    value={item.memo || `${item.raw_payee} - ${item.product_name} - ${item.location || 'HQ'} - ${item.ref_no}`}
+                    className="w-full p-2.5 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-slate-800 dark:text-zinc-200 focus:outline-hidden resize-none shadow-2xs font-mono leading-relaxed"
+                  />
+                </div>
+
+                {/* Attachments Dropzone Box */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                      Attachments
+                    </label>
+                    <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                      {item.attachments?.length || item.attachments_count || 0} file(s)
+                    </span>
+                  </div>
+
+                  {item.attachments && item.attachments.length > 0 ? (
+                    <div className="p-2 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 space-y-1.5 min-h-[80px]">
+                      {item.attachments.map((att: any) => (
+                        <div
+                          key={att.id}
+                          className="flex items-center justify-between p-1.5 rounded bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/60 text-xs"
+                        >
+                          <div className="flex items-center gap-1.5 truncate min-w-0">
+                            <FileText className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                            <span className="font-semibold text-slate-900 dark:text-white truncate text-xs">
+                              {att.filename}
+                            </span>
+                            {att.size_bytes && (
+                              <span className="text-[10px] text-slate-500 font-mono">
+                                ({(att.size_bytes / 1024).toFixed(1)} KB)
+                              </span>
+                            )}
+                          </div>
                           <a
                             href={`/api/purchasing/requests/${item.request_id}/attachments/${att.id}/download`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium px-2 py-0.5 rounded bg-primary/10 hover:bg-primary/20"
+                            className="inline-flex items-center gap-1 text-[11px] text-[#2ca01c] hover:underline font-medium shrink-0 ml-2"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <Download className="h-3 w-3" />
                             <span>Download</span>
                           </a>
                         </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded border-2 border-dashed border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900/40 p-3 flex flex-col items-center justify-center text-center space-y-0.5 min-h-[80px]">
+                      <Paperclip className="h-4 w-4 text-slate-400 mb-0.5" />
+                      <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 cursor-pointer hover:underline">
+                        Add attachment
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground/70 italic pt-0.5">
-                    No PDF receipts or invoice attachments found for this request.
-                  </div>
-                )}
-              </div>
-
-              {/* Memo & Private Note */}
-              <div className="p-3.5 rounded-xl border border-border/70 bg-muted/20 space-y-1.5">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                  QuickBooks Private Note / Memo Line
-                </span>
-                <p className="font-mono text-xs text-foreground/90 bg-background/60 p-2.5 rounded-lg border border-border/50 break-words leading-relaxed">
-                  {item.memo || `${item.raw_payee} - ${item.product_name} - ${item.location || 'HQ'} - ${item.ref_no}`}
-                </p>
-              </div>
-
-              {/* Validation Notes & Audit Status */}
-              {(item.validation_notes?.length > 0 || isSynced || isError) && (
-                <div className="p-3.5 rounded-xl border border-border/70 bg-card space-y-2">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                    Sync Readiness &amp; Audit Trail
-                  </span>
-
-                  {isSynced && (
-                    <div className="flex items-start gap-2 p-2.5 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300">
-                      <Database className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-semibold text-xs">Transaction is Recorded in QuickBooks Online</div>
-                        <div className="text-[11px] opacity-90 mt-0.5">
-                          Synced with DocNumber <strong>{item.doc_number || item.ref_no}</strong> (Purchase ID: <strong>#{item.existing_purchase_id || item.projected_payload?.Id || "Confirmed"}</strong>).
-                        </div>
+                      <div className="text-[10px] text-slate-400">
+                        Max file size: 20 MB
+                      </div>
+                      <div className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
+                        Show existing
                       </div>
                     </div>
                   )}
-
-                  {item.validation_notes?.map((note, nIdx) => (
-                    <div key={nIdx} className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
-                      <span>{note}</span>
-                    </div>
-                  ))}
-
-                  {item.validation_errors?.map((err, eIdx) => (
-                    <div key={eIdx} className="flex items-center gap-2 text-xs text-rose-600 font-medium">
-                      <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                      <span>{err}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "mapping" && (
-            <div className="space-y-4 text-xs">
-              <div className="rounded-xl border border-border/80 bg-muted/20 p-3.5 space-y-1">
-                <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
-                  <Layers className="h-4 w-4 text-blue-600" />
-                  <span>Local Portal to QuickBooks Online Data Pipeline</span>
-                </h4>
-                <p className="text-muted-foreground text-[11px] leading-relaxed">
-                  Every field from purchase request #{item.request_id} is dynamically matched against live QuickBooks Chart of Accounts, active Vendors, and Bank/Credit Card payment methods.
-                </p>
-              </div>
-
-              {/* Table of Mappings */}
-              <div className="rounded-xl border border-border/80 divide-y divide-border/60 bg-card overflow-hidden">
-                <div className="p-3 grid grid-cols-12 items-center gap-3 bg-muted/40 font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
-                  <div className="col-span-3">Target Field</div>
-                  <div className="col-span-4">Source Value</div>
-                  <div className="col-span-5">QuickBooks Target Ledger / ID</div>
-                </div>
-
-                {/* Payee / Vendor */}
-                <div className="p-3 grid grid-cols-12 items-center gap-3">
-                  <div className="col-span-3 font-semibold text-foreground flex items-center gap-1.5">
-                    <Building2 className="h-3.5 w-3.5 text-indigo-500 flex-shrink-0" />
-                    <span>Vendor / Payee</span>
-                  </div>
-                  <div className="col-span-4 text-muted-foreground truncate" title={item.raw_payee}>
-                    {item.raw_payee}
-                  </div>
-                  <div className="col-span-5 flex items-center gap-2">
-                    <ArrowRight className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                    <div className="truncate">
-                      <span className="font-semibold text-foreground">{item.vendor_resolution?.name || item.raw_payee}</span>
-                      <span className="text-[10px] text-muted-foreground block">
-                        QBO ID: {item.vendor_resolution?.id || "Auto-Create"} ({item.vendor_resolution?.status})
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expense Account */}
-                <div className="p-3 grid grid-cols-12 items-center gap-3">
-                  <div className="col-span-3 font-semibold text-foreground flex items-center gap-1.5">
-                    <Tag className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
-                    <span>Expense Account (GL)</span>
-                  </div>
-                  <div className="col-span-4 text-muted-foreground truncate" title={item.category}>
-                    {item.category}
-                  </div>
-                  <div className="col-span-5 flex items-center gap-2">
-                    <ArrowRight className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                    <div className="truncate">
-                      <span className="font-semibold text-foreground">{item.expense_account_resolution?.name || "Expense"}</span>
-                      <span className="text-[10px] text-muted-foreground block">
-                        QBO Account ID: {item.expense_account_resolution?.id || "Auto-Match"} ({item.expense_account_resolution?.account_type || "Expense"})
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Account */}
-                <div className="p-3 grid grid-cols-12 items-center gap-3">
-                  <div className="col-span-3 font-semibold text-foreground flex items-center gap-1.5">
-                    <CreditCard className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-                    <span>Payment Settlement</span>
-                  </div>
-                  <div className="col-span-4 text-muted-foreground truncate" title={item.payment_method}>
-                    {item.payment_method}
-                  </div>
-                  <div className="col-span-5 flex items-center gap-2">
-                    <ArrowRight className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                    <div className="truncate">
-                      <span className="font-semibold text-foreground">{item.payment_account_resolution?.name || "Business Checking"}</span>
-                      <span className="text-[10px] text-muted-foreground block">
-                        QBO Account ID: {item.payment_account_resolution?.id || "Auto"} ({item.payment_account_resolution?.payment_type})
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Transaction Date */}
-                <div className="p-3 grid grid-cols-12 items-center gap-3">
-                  <div className="col-span-3 font-semibold text-foreground flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
-                    <span>Txn Date</span>
-                  </div>
-                  <div className="col-span-4 text-muted-foreground">
-                    {item.payment_date}
-                  </div>
-                  <div className="col-span-5 flex items-center gap-2">
-                    <ArrowRight className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                    <span className="font-mono font-semibold text-foreground">{item.txn_date_api}</span>
-                  </div>
-                </div>
-
-                {/* DocNumber */}
-                <div className="p-3 grid grid-cols-12 items-center gap-3">
-                  <div className="col-span-3 font-semibold text-foreground flex items-center gap-1.5">
-                    <FileText className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
-                    <span>DocNumber / Ref</span>
-                  </div>
-                  <div className="col-span-4 text-muted-foreground">
-                    {item.ref_no || `REQ-${item.request_id}`}
-                  </div>
-                  <div className="col-span-5 flex items-center gap-2">
-                    <ArrowRight className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                    <span className="font-mono font-semibold text-foreground">{item.doc_number}</span>
-                  </div>
-                </div>
-
-                {/* Amount */}
-                <div className="p-3 grid grid-cols-12 items-center gap-3">
-                  <div className="col-span-3 font-semibold text-foreground flex items-center gap-1.5">
-                    <DollarSign className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
-                    <span>Total Amount</span>
-                  </div>
-                  <div className="col-span-4 text-muted-foreground font-mono">
-                    {item.formatted_amount}
-                  </div>
-                  <div className="col-span-5 flex items-center gap-2">
-                    <ArrowRight className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                      ${item.amount?.toFixed(2)} USD
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab === "json" && (
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between">
+          {/* ========================================================================= */}
+          {/* TAB 2: LIVE REST JSON PAYLOAD */}
+          {/* ========================================================================= */}
+          {viewMode === "json" && (
+            <div className="space-y-3 max-w-[1460px] mx-auto">
+              <div className="flex items-center justify-between bg-white dark:bg-zinc-900 p-3 rounded border border-slate-200 dark:border-zinc-800 shadow-2xs">
                 <div>
-                  <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                  <h4 className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
                     <Code2 className="h-3.5 w-3.5 text-purple-600" />
                     <span>QuickBooks Online REST API Purchase Payload</span>
                   </h4>
-                  <p className="text-[11px] text-muted-foreground">
-                    Payload sent directly to <code className="font-mono text-foreground">POST /v3/company/purchase</code>.
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Payload sent directly to <code className="font-mono text-purple-600 dark:text-purple-400 font-semibold">POST /v3/company/purchase</code>.
                   </p>
                 </div>
 
@@ -520,40 +732,160 @@ export function QuickBooksItemDetailsDialog({
                   variant="outline"
                   size="sm"
                   onClick={handleCopyJson}
-                  className="h-7 text-xs gap-1.5"
+                  className="h-7 text-xs gap-1.5 font-semibold"
                 >
                   {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                   <span>{copied ? "Copied!" : "Copy JSON"}</span>
                 </Button>
               </div>
 
-              <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 font-mono text-[11px] text-zinc-200 overflow-x-auto max-h-[380px] shadow-inner">
+              <div className="rounded border border-zinc-800 bg-zinc-950 p-3 font-mono text-[11px] text-zinc-200 overflow-x-auto max-h-[580px] shadow-inner leading-relaxed">
                 <pre>{JSON.stringify(item.projected_payload, null, 2)}</pre>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB 3: GL ACCOUNT MAPPING & AUDIT BREAKDOWN */}
+          {/* ========================================================================= */}
+          {viewMode === "mapping" && (
+            <div className="space-y-3 max-w-[1460px] mx-auto">
+              <div className="rounded border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 space-y-0.5 shadow-2xs">
+                <h4 className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5 text-blue-600" />
+                  <span>Local Portal to QuickBooks Online Data Pipeline</span>
+                </h4>
+                <p className="text-slate-500 dark:text-zinc-400 text-[11px] leading-relaxed">
+                  Every field from purchase request #{item.request_id} is dynamically matched against live QuickBooks Chart of Accounts, active Vendors, and Bank/Credit Card payment methods.
+                </p>
+              </div>
+
+              {/* Table of Mappings */}
+              <div className="rounded border border-slate-200 dark:border-zinc-800 divide-y divide-slate-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs overflow-hidden text-xs">
+                <div className="p-2.5 grid grid-cols-12 items-center gap-3 bg-slate-50 dark:bg-zinc-800/60 font-semibold text-[10px] text-slate-600 dark:text-zinc-400 uppercase tracking-wider">
+                  <div className="col-span-3">Target Field</div>
+                  <div className="col-span-4">Source Value</div>
+                  <div className="col-span-5">QuickBooks Target Ledger / ID</div>
+                </div>
+
+                {/* Payee / Vendor */}
+                <div className="p-2.5 grid grid-cols-12 items-center gap-3">
+                  <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                    <span>Vendor / Payee</span>
+                  </div>
+                  <div className="col-span-4 text-slate-600 dark:text-zinc-300 truncate" title={item.raw_payee}>
+                    {item.raw_payee}
+                  </div>
+                  <div className="col-span-5 flex items-center gap-2">
+                    <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
+                    <div className="truncate">
+                      <span className="font-semibold text-slate-900 dark:text-white">{item.vendor_resolution?.name || item.raw_payee}</span>
+                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 block font-mono">
+                        QBO ID: {item.vendor_resolution?.id || "Auto-Create"} ({item.vendor_resolution?.status})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expense Account */}
+                <div className="p-2.5 grid grid-cols-12 items-center gap-3">
+                  <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    <span>Expense Account (GL)</span>
+                  </div>
+                  <div className="col-span-4 text-slate-600 dark:text-zinc-300 truncate" title={item.category}>
+                    {item.category}
+                  </div>
+                  <div className="col-span-5 flex items-center gap-2">
+                    <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
+                    <div className="truncate">
+                      <span className="font-semibold text-slate-900 dark:text-white">{item.expense_account_resolution?.name || "Expense"}</span>
+                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 block font-mono">
+                        QBO Account ID: {item.expense_account_resolution?.id || "Auto-Match"} ({item.expense_account_resolution?.account_type || "Expense"})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Account */}
+                <div className="p-2.5 grid grid-cols-12 items-center gap-3">
+                  <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <CreditCard className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <span>Payment Settlement</span>
+                  </div>
+                  <div className="col-span-4 text-slate-600 dark:text-zinc-300 truncate" title={item.payment_method}>
+                    {item.payment_method}
+                  </div>
+                  <div className="col-span-5 flex items-center gap-2">
+                    <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
+                    <div className="truncate">
+                      <span className="font-semibold text-slate-900 dark:text-white">{item.payment_account_resolution?.name || "Business Checking"}</span>
+                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 block font-mono">
+                        QBO Account ID: {item.payment_account_resolution?.id || "Auto"} ({item.payment_account_resolution?.payment_type})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Transaction Date */}
+                <div className="p-2.5 grid grid-cols-12 items-center gap-3">
+                  <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                    <span>Txn Date</span>
+                  </div>
+                  <div className="col-span-4 text-slate-600 dark:text-zinc-300">
+                    {item.payment_date}
+                  </div>
+                  <div className="col-span-5 flex items-center gap-2">
+                    <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
+                    <span className="font-mono font-semibold text-slate-900 dark:text-white">{item.txn_date_api}</span>
+                  </div>
+                </div>
+
+                {/* DocNumber */}
+                <div className="p-2.5 grid grid-cols-12 items-center gap-3">
+                  <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                    <span>DocNumber / Ref</span>
+                  </div>
+                  <div className="col-span-4 text-slate-600 dark:text-zinc-300">
+                    {item.ref_no || `REQ-${item.request_id}`}
+                  </div>
+                  <div className="col-span-5 flex items-center gap-2">
+                    <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
+                    <span className="font-mono font-semibold text-slate-900 dark:text-white">{item.doc_number}</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Modal Footer */}
-        <DialogFooter className="p-4 border-t border-border/80 bg-muted/20 flex flex-wrap items-center justify-between gap-2.5">
-          <Link
-            to={`/purchasing/requests/${item.request_id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-          >
-            <span>Open Purchase Request #{item.request_id}</span>
-            <ExternalLink className="h-3.5 w-3.5" />
-          </Link>
+        {/* ========================================================================= */}
+        {/* QuickBooks Style Bottom Action Bar */}
+        {/* ========================================================================= */}
+        <div className="bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3">
+            <Link
+              to={`/purchasing/requests/${item.request_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:text-[#2ca01c] transition-colors"
+            >
+              <span>View Portal Request #{item.request_id}</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="text-xs"
+              className="text-xs font-semibold border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 h-8 px-3"
             >
-              Close
+              Cancel
             </Button>
 
             {isSynced && onDelete && (
@@ -564,7 +896,7 @@ export function QuickBooksItemDetailsDialog({
                 onClick={async () => {
                   await onDelete(item);
                 }}
-                className="text-xs font-semibold gap-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-900"
+                className="text-xs font-semibold gap-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-900 h-8 px-3"
               >
                 {isDeleting ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -576,14 +908,16 @@ export function QuickBooksItemDetailsDialog({
             )}
 
             {onSync && (
-              <Button
-                size="sm"
+              <button
+                type="button"
                 disabled={!isConnected || isSyncing}
                 onClick={async () => {
                   await onSync(item);
                 }}
-                className={`text-xs font-semibold gap-1.5 ${
-                  !isSynced ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs" : ""
+                className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-bold text-white transition-all shadow-xs h-8 ${
+                  !isConnected || isSyncing
+                    ? "bg-slate-400 cursor-not-allowed opacity-60"
+                    : "bg-[#2ca01c] hover:bg-[#248816] active:bg-[#1d6f12]"
                 }`}
               >
                 {isSyncing ? (
@@ -591,11 +925,11 @@ export function QuickBooksItemDetailsDialog({
                 ) : (
                   <Zap className="h-3.5 w-3.5" />
                 )}
-                <span>{isSynced ? "Re-Sync to QuickBooks" : "Sync to QuickBooks"}</span>
-              </Button>
+                <span>{isSynced ? "Re-Sync to QuickBooks" : "Save & Sync to QuickBooks"}</span>
+              </button>
             )}
           </div>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
