@@ -22,6 +22,7 @@ import { VendorAutocomplete } from "./VendorAutocomplete";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import DepartmentAutocomplete from "./DepartmentAutocomplete";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
+import { PaymentMethodSelect } from "./PaymentMethodSelect";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
 import { WireBankingFields } from "./WireBankingFields";
@@ -39,7 +40,7 @@ import type {
   FrequencyType,
   CustomScheduleDate,
 } from "@/types/purchasing";
-import { PAYMENT_METHOD_LABEL, RequestStatus } from "@/types/purchasing";
+import { RequestStatus } from "@/types/purchasing";
 import { TAX_RATE, formatMoney } from "./purchasingMeta";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -1509,6 +1510,7 @@ export function EditCombinedRequestDialog({
                             value={itm.gl_code || reqGlCode}
                             onChange={(val) => handleUpdatePartItem(idx, "gl_code", val)}
                             placeholder="Select GL code *"
+                            showDetailCard={false}
                           />
                         </div>
                         <div className="col-span-1 flex justify-center">
@@ -1660,23 +1662,11 @@ export function EditCombinedRequestDialog({
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                       Payment Format <span className="text-rose-500">*</span>
                     </label>
-                    <Select
+                    <PaymentMethodSelect
                       value={poPaymentMethod}
-                      onValueChange={(val: PaymentMethod) => setPoPaymentMethod(val)}
-                    >
-                      <SelectTrigger className="h-10 text-sm bg-white dark:bg-zinc-900">
-                        <SelectValue placeholder="Select payment method" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(Object.entries(PAYMENT_METHOD_LABEL) as [PaymentMethod, string][]).map(
-                          ([val, lbl]) => (
-                            <SelectItem key={val} value={val}>
-                              {lbl}
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
+                      onChange={(val) => setPoPaymentMethod(val)}
+                      placeholder="Select payment method *"
+                    />
                   </div>
 
                   <div className="space-y-1.5 sm:col-span-2">
@@ -2075,6 +2065,7 @@ export function EditCombinedRequestDialog({
                                 setInvItems(updated);
                               }}
                               placeholder="Select GL code for this line *"
+                              showDetailCard={false}
                             />
                           </div>
                         </div>

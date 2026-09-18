@@ -316,7 +316,9 @@ export function PurchaseRequests() {
           }
           return { ...prev, ...updates };
         });
-        toast.success(`Extracted: ${res.name.slice(0, 40)}... (${res.price ? '$' + res.price : ''} ${res.currency || 'USD'})`);
+        const currSymbol = res.currency === "CAD" ? "CA$" : res.currency === "EUR" ? "€" : res.currency === "GBP" ? "£" : "$";
+        const priceDisplay = res.price && res.price !== "N/A" ? `${currSymbol}${res.price} ${res.currency || "USD"}` : "";
+        toast.success(`Extracted: ${res.name.slice(0, 40)}...${priceDisplay ? ` (${priceDisplay})` : ""}`);
       }
     } catch (err: any) {
       console.warn("URL extraction notice:", err);
@@ -880,17 +882,17 @@ export function PurchaseRequests() {
       <Card className="w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[350px]">
         <div className="flex-1 min-h-0 overflow-auto relative">
           <Table className="w-full min-w-full" containerClassName="overflow-visible">
-          <TableHeader >
+          <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Title</TableHead>
-              <TableHead>Requester</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Mode</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead className="w-16 whitespace-nowrap">ID</TableHead>
+              <TableHead className="min-w-[240px]">Title</TableHead>
+              <TableHead className="whitespace-nowrap">Requester</TableHead>
+              <TableHead className="whitespace-nowrap">Type</TableHead>
+              <TableHead className="whitespace-nowrap">Mode</TableHead>
+              <TableHead className="whitespace-nowrap">Amount</TableHead>
+              <TableHead className="whitespace-nowrap">Priority</TableHead>
+              <TableHead className="whitespace-nowrap">Status</TableHead>
+              <TableHead className="whitespace-nowrap min-w-[110px]">Date</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -907,7 +909,7 @@ export function PurchaseRequests() {
                   className="cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/50"
                   onClick={() => navigate(`/purchasing/requests/${r.id}`)}
                 >
-                  <TableCell className="font-mono text-xs font-semibold text-slate-600 dark:text-zinc-400">
+                  <TableCell className="font-mono text-xs font-semibold text-slate-600 dark:text-zinc-400 whitespace-nowrap">
                     #{r.id}
                   </TableCell>
                   <TableCell className="font-medium text-slate-900 dark:text-zinc-100 min-w-[220px]">
@@ -933,13 +935,13 @@ export function PurchaseRequests() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{r.requester}</TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">{r.requester}</TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <Badge variant="secondary" className="text-xs font-normal">
                       {formatRequestType(r.request_type)}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {r.item_mode === "MULTIPLE" || (r.items && r.items.length > 0) ? (
                       <Badge variant="outline" className="border-indigo-200 text-indigo-700 bg-indigo-50/50 text-[11px]">
                         Multi Parts ({r.items?.length || "PDF"})
@@ -948,20 +950,20 @@ export function PurchaseRequests() {
                       <span className="text-xs text-slate-400">Single</span>
                     )}
                   </TableCell>
-                  <TableCell className="font-semibold text-slate-900 dark:text-zinc-100">
+                  <TableCell className="font-semibold text-slate-900 dark:text-zinc-100 whitespace-nowrap">
                     {formatMoney(r.amount)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <Badge variant="outline" className={PRIORITY_BADGE[r.priority]}>
                       {r.priority}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <Badge variant="outline" className={getStatusBadge(r.status)}>
                       {getStatusLabel(r.status)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-slate-500 text-sm">{formatDate(r.request_date)}</TableCell>
+                  <TableCell className="text-slate-500 text-sm whitespace-nowrap min-w-[110px]">{formatDate(r.request_date)}</TableCell>
                 </TableRow>
               ))
             ) : (
@@ -1516,7 +1518,7 @@ export function PurchaseRequests() {
                       </div>
                       <div className="text-[11px] text-muted-foreground flex items-center gap-2">
                         {extractedProductInfo.price && extractedProductInfo.price !== "N/A" && (
-                          <span>Price: <strong className="text-foreground font-mono">${extractedProductInfo.price} {extractedProductInfo.currency || "USD"}</strong></span>
+                          <span>Price: <strong className="text-foreground font-mono">{extractedProductInfo.price.startsWith("$") ? extractedProductInfo.price : `$${extractedProductInfo.price}`} {extractedProductInfo.currency && extractedProductInfo.currency !== "N/A" ? extractedProductInfo.currency : ""}</strong></span>
                         )}
                         {extractedProductInfo.vendor && extractedProductInfo.vendor !== "N/A" && (
                           <span>• Vendor: <strong className="text-foreground">{extractedProductInfo.vendor}</strong></span>

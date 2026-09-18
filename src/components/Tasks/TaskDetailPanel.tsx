@@ -1,4 +1,5 @@
 import { useGLCodes } from "@/hooks/usePurchasing";
+import { formatGLCode as formatGLCodeUtil, renderPaymentMethodBadge } from "@/utils/glAccountUtils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "../../components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -14,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Trash2, Edit2, Paperclip, ExternalLink, FileText, Package, ReceiptText, AlertTriangle, User, Building2, Tag, Layers } from "lucide-react";
 import Stepper from "@/components/Stepper";
-import { RequestStatus, PAYMENT_METHOD_LABEL } from "@/types/purchasing";
+import { RequestStatus } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   SPEND_FLOW,
@@ -61,15 +62,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
   const [note, setNote] = useState("");
 
   const formatGLCode = (code: string | null | undefined) => {
-    if (!code) return null;
-    const trimmed = String(code).trim();
-    const found = glCodes.find(
-      (c) => c.account_number === trimmed || c.display_label === trimmed || c.account_name.toLowerCase() === trimmed.toLowerCase()
-    );
-    if (found) {
-      return found.display_label || `${found.account_number} - ${found.account_name}`;
-    }
-    return trimmed;
+    return formatGLCodeUtil(code, glCodes);
   };
   const [isDragging, setIsDragging] = useState(false);
   const [deleteNoteId, setDeleteNoteId] = useState<number | null>(null);
@@ -388,7 +381,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
               </Card>
 
               {/* AI Product Analysis Card */}
-              {parsedProductInfo && (
+              {parsedProductInfo && task.status !== "INITIAL" && task.status !== "Draft" && (
                 <Card className="border-indigo-100 bg-indigo-50/40 dark:border-indigo-900/50 dark:bg-indigo-950/20 shadow-sm">
                   <CardHeader className="py-3 px-4 border-b border-indigo-100 dark:border-indigo-900/50">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2 text-indigo-900 dark:text-indigo-100">
@@ -469,7 +462,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                         {poShipping > 0 && (
                           <DetailField label="Shipping Fee" value={`$${Number(poShipping).toFixed(2)}`} />
                         )}
-                        <DetailField label="Payment Format" value={po.payment_method ? (PAYMENT_METHOD_LABEL[po.payment_method as keyof typeof PAYMENT_METHOD_LABEL] || po.payment_method) : "—"} />
+                        <DetailField label="Payment Format" value={po.payment_method ? renderPaymentMethodBadge(po.payment_method) : "—"} />
                         <DetailField label="GL Code" value={formatGLCode(po.gl_code || task.gl_code)} badge />
                         <DetailField label="Shipped To" value={po.shipped_to_location} />
                         <DetailField label="Approval" value={po.approval_status} />

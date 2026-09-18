@@ -30,14 +30,15 @@ export default function TasksPage() {
   };
 
   const filteredTasks = tasks.filter((task: any) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase().trim();
+    const cleanId = query.replace(/^(?:req-#|req-|rec-#|rec-|task-|#)/i, "").trim();
     
-    return Object.values(task).some(value => 
-      value !== null && 
-      value !== undefined && 
-      String(value).toLowerCase().includes(query)
-    );
+    return Object.values(task).some(value => {
+      if (value === null || value === undefined) return false;
+      const strVal = String(value).toLowerCase();
+      return strVal.includes(query) || (cleanId.length > 0 && strVal.includes(cleanId));
+    });
   });
 
   return (

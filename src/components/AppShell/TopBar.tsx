@@ -229,8 +229,26 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
         queryClient.invalidateQueries({ queryKey: ["purchasing-summary"] });
         queryClient.invalidateQueries({ queryKey: ["my-approvals-list"] });
         queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["recurring-requests-notifications"] });
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
         queryClient.invalidateQueries({ queryKey: ["invoices"] });
+
+        // Skip toast and system popups for internal workflow sync broadcasts
+        if (newNotif.type === "WORKFLOW_SYNC") {
+          return;
+        }
+
+        // Only display toast/desktop alerts if this notification is targeted to the logged-in user
+        const currentUserId = user?.id || (user as any)?.sub;
+        const isTargetUser =
+          !newNotif.user_id ||
+          newNotif.user_id === "*" ||
+          (currentUserId && String(newNotif.user_id).toLowerCase() === String(currentUserId).toLowerCase()) ||
+          (user?.email && String(newNotif.user_id).toLowerCase() === String(user.email).toLowerCase());
+
+        if (!isTargetUser) {
+          return;
+        }
 
         const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "Zenatech Portal";
 
@@ -314,7 +332,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[520px] max-w-[calc(100vw-1.5rem)] p-0 rounded-2xl overflow-hidden bg-white dark:bg-zinc-950 shadow-2xl border border-slate-200 dark:border-zinc-800">
+            <DropdownMenuContent align="end" className="w-[640px] max-w-[calc(100vw-1.5rem)] p-0 rounded-2xl overflow-hidden bg-white dark:bg-zinc-950 shadow-2xl border border-slate-200 dark:border-zinc-800">
               <NotificationDropdownContent onClose={() => setIsNotificationsOpen(false)} />
             </DropdownMenuContent>
           </DropdownMenu>

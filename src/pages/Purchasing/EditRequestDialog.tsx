@@ -1296,6 +1296,7 @@ export function EditRequestDialog({
                           value={itm.gl_code || ""}
                           onChange={(val) => handleItemChange(idx, "gl_code", val)}
                           placeholder="Select GL code"
+                          showDetailCard={false}
                         />
                       </td>
                       <td className="p-3 text-center w-12">

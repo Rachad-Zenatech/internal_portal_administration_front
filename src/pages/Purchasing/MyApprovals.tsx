@@ -2,6 +2,8 @@ import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
+import { useGLCodes } from "@/hooks/usePurchasing";
+import { renderGLAccountBadge } from "@/utils/glAccountUtils";
 import type { PurchaseRequest, RequestDetail } from "@/types/purchasing";
 import {
   formatDate,
@@ -80,6 +82,7 @@ export default function MyApprovals() {
   const [actionComment, setActionComment] = useState("");
   const [previewRequest, setPreviewRequest] = useState<PurchaseRequest | null>(null);
 
+  const { data: glCodes = [] } = useGLCodes();
   const kpiRef = useRef<HTMLDivElement>(null);
   const isHistoryMode = cardFilter === "APPROVED_HISTORY";
 
@@ -197,17 +200,20 @@ export default function MyApprovals() {
 
     const q = searchTerm.toLowerCase().trim();
     if (!q) return result;
+    const cleanId = q.replace(/^(?:req-#|req-|rec-#|rec-|#)/i, "").trim();
 
     return result.filter(
       (r) =>
         r.id.toString().includes(q) ||
+        (cleanId.length > 0 && r.id.toString().includes(cleanId)) ||
         (r.title || "").toLowerCase().includes(q) ||
         (r.requester || "").toLowerCase().includes(q) ||
         (r.department || "").toLowerCase().includes(q) ||
         (r.assigned_user || "").toLowerCase().includes(q) ||
         (r.description || "").toLowerCase().includes(q) ||
         (r.gl_code || "").toLowerCase().includes(q) ||
-        (r.status || "").toLowerCase().includes(q)
+        (r.status || "").toLowerCase().includes(q) ||
+        String(r.amount || "").includes(q)
     );
   }, [isHistoryMode, historyRequests, pendingRequests, cardFilter, priorityFilter, searchTerm]);
 
@@ -552,10 +558,8 @@ export default function MyApprovals() {
                             <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-indigo-500 shrink-0" />
                           </div>
                           {req.gl_code && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                              <span className="bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 px-1.5 py-0.5 rounded text-[10px] font-mono text-slate-600 dark:text-zinc-400">
-                                GL: {req.gl_code}
-                              </span>
+                            <div className="mt-1">
+                              {renderGLAccountBadge(req.gl_code, glCodes)}
                             </div>
                           )}
                         </div>
@@ -608,7 +612,7 @@ export default function MyApprovals() {
                       </TableCell>
 
                       {/* Date */}
-                      <TableCell className="py-3 text-xs text-muted-foreground">
+                      <TableCell className="py-3 text-xs text-muted-foreground whitespace-nowrap min-w-[105px]">
                         {formatDate(req.request_date)}
                       </TableCell>
 
@@ -786,10 +790,10 @@ export default function MyApprovals() {
                     </span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[11px]">GL Code</span>
-                    <span className="font-semibold text-slate-900 dark:text-zinc-100">
-                      {previewRequest.gl_code || "Not Assigned"}
-                    </span>
+                    <span className="text-muted-foreground block text-[11px] mb-0.5">GL Code / Account</span>
+                    <div>
+                      {renderGLAccountBadge(previewRequest.gl_code, glCodes)}
+                    </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[11px]">Current Status</span>

@@ -264,14 +264,26 @@ export default function BatchApproval() {
   // Filter requests
   const filteredRequests = useMemo(() => {
     return requests.filter((r) => {
-      if (
-        searchTerm &&
-        !r.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !r.requester.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !r.department.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !r.id.toLowerCase().includes(searchTerm.toLowerCase())
-      ) {
-        return false;
+      if (searchTerm && searchTerm.trim()) {
+        const rawTerm = searchTerm.toLowerCase().trim();
+        const cleanIdTerm = rawTerm.replace(/^(?:req-#|req-|rec-#|rec-|#)/i, "").trim();
+        const idStr = String(r.id ?? "").toLowerCase();
+        const titleStr = String(r.title ?? "").toLowerCase();
+        const reqStr = String(r.requester ?? "").toLowerCase();
+        const deptStr = String(r.department ?? "").toLowerCase();
+        const descStr = String(r.description ?? "").toLowerCase();
+
+        const matches =
+          idStr.includes(rawTerm) ||
+          (cleanIdTerm.length > 0 && idStr.includes(cleanIdTerm)) ||
+          titleStr.includes(rawTerm) ||
+          reqStr.includes(rawTerm) ||
+          deptStr.includes(rawTerm) ||
+          descStr.includes(rawTerm);
+
+        if (!matches) {
+          return false;
+        }
       }
       return true;
     });

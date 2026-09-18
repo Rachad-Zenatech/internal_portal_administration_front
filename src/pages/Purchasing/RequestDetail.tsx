@@ -1,6 +1,15 @@
 import { useGLCodes } from "@/hooks/usePurchasing";
+import {
+  renderBankAccountBadge as renderBankAccountBadgeUtil,
+  renderCategoryBadge as renderCategoryBadgeUtil,
+  renderPaymentMethodBadge,
+  parseGLAccount,
+  isBankAccountOption,
+} from "@/utils/glAccountUtils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
+import { BankAccountAutocomplete } from "./BankAccountAutocomplete";
+import { CategoryAutocomplete } from "./CategoryAutocomplete";
+import { PaymentMethodSelect } from "./PaymentMethodSelect";
 import { ManualPriceDialog } from "./ManualPriceDialog";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { updateRequest } from "@/services/purchasingService";
@@ -87,7 +96,7 @@ import { EditCombinedRequestDialog } from "./EditCombinedRequestDialog";
 import { WireTransferDialog } from "./WireTransferDialog";
 import { useAuth } from "@/lib/AuthContext";
 import Stepper from "@/components/Stepper";
-import { RequestStatus, PAYMENT_METHOD_LABEL } from "@/types/purchasing";
+import { RequestStatus } from "@/types/purchasing";
 import type {
   PurchaseOrderInput,
   WireTransferInput,
@@ -98,7 +107,6 @@ import type {
   HoldInput,
   TransitionInput,
   WorkflowAction,
-  PaymentMethod,
 } from "@/types/purchasing";
 
 // Product extraction only ever runs automatically right after creation, while
@@ -135,74 +143,14 @@ export default function RequestDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: glCodes = [] } = useGLCodes();
 
-  const getGLAccountDetails = (code: string | null | undefined): { number: string; name: string } | null => {
-    if (!code) return null;
-    const trimmed = String(code).trim();
-    if (!trimmed || trimmed === "—") return null;
 
-    // Check in glCodes list
-    const found = glCodes.find((c) => {
-      if (c.account_number === trimmed) return true;
-      if (c.display_label === trimmed) return true;
-      if (c.account_name.toLowerCase() === trimmed.toLowerCase()) return true;
-      if (trimmed.startsWith(c.account_number + " - ")) return true;
-      if (trimmed.startsWith(c.account_number + " ")) return true;
-      return false;
-    });
 
-    if (found) {
-      return {
-        number: found.account_number,
-        name: found.account_name,
-      };
-    }
-
-    if (trimmed.includes(" - ")) {
-      const parts = trimmed.split(" - ");
-      return {
-        number: parts[0].trim(),
-        name: parts.slice(1).join(" - ").trim(),
-      };
-    }
-
-    if (trimmed.includes(" ")) {
-      const firstSpace = trimmed.indexOf(" ");
-      return {
-        number: trimmed.substring(0, firstSpace).trim(),
-        name: trimmed.substring(firstSpace + 1).trim(),
-      };
-    }
-
-    return {
-      number: trimmed,
-      name: "",
-    };
+  const renderBankAccount = (val: string | null | undefined) => {
+    return renderBankAccountBadgeUtil(val, glCodes);
   };
 
-  const formatGLCode = (code: string | null | undefined) => {
-    if (!code) return "—";
-    const details = getGLAccountDetails(code);
-    if (!details) return String(code);
-    return details.name ? `${details.number} - ${details.name}` : details.number;
-  };
-
-  const renderGLAccountBadge = (code: string | null | undefined) => {
-    const details = getGLAccountDetails(code);
-    if (!details) {
-      return <span className="text-slate-400 italic text-xs">Unassigned</span>;
-    }
-    return (
-      <div className="flex items-center gap-2 flex-wrap text-xs">
-        <span className="font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 shrink-0">
-          {details.number}
-        </span>
-        {details.name ? (
-          <span className="font-medium text-slate-800 dark:text-zinc-200 break-words">
-            {details.name}
-          </span>
-        ) : null}
-      </div>
-    );
+  const renderCategory = (val: string | null | undefined) => {
+    return renderCategoryBadgeUtil(val, glCodes);
   };
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -222,14 +170,20 @@ export default function RequestDetail() {
   const [isWireDialogOpen, setIsWireDialogOpen] = useState(false);
   const [hasShownManualPrice, setHasShownManualPrice] = useState(false);
 
-  const isExtracting =
-    extractProductMutation.isPending ||
-    ((data?.request?.status === RequestStatus.New || data?.request?.status === RequestStatus.Initial) &&
-      !!data?.request?.item_url &&
-      !data?.request?.product_info &&
-      !extractionTimedOut);
+  const isDraft =
+    data?.request?.status === RequestStatus.Initial ||
+    (data?.request?.status as any) === "INITIAL" ||
+    (data?.request?.status as any) === "Draft";
 
-  const needsManualPrice = data?.request?.product_info?.price === "N/A" || extractionTimedOut;
+  const isExtracting =
+    !isDraft &&
+    (extractProductMutation.isPending ||
+      (data?.request?.status === RequestStatus.New &&
+        !!data?.request?.item_url &&
+        !data?.request?.product_info &&
+        !extractionTimedOut));
+
+  const needsManualPrice = !isDraft && (data?.request?.product_info?.price === "N/A" || extractionTimedOut);
   useEffect(() => {
     if (needsManualPrice && !hasShownManualPrice) {
       setIsManualPriceOpen(true);
@@ -285,7 +239,7 @@ export default function RequestDetail() {
     shipped_to_location: "",
     expected_delivery_date: "",
   });
-  const [invoice, setInvoice] = useState<InvoiceInput>({ vendor: "", amount: 0, invoice_date: "", due_date: "", gl_code: "", asset_flag: false });
+  const [invoice, setInvoice] = useState<InvoiceInput>({ vendor: "", amount: 0, invoice_date: "", due_date: "", gl_code: "", bank_account: "", asset_flag: false });
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItemInput[]>([]);
   const [approval, setApproval] = useState<ApprovalInput>({ approver: "", comment: "" });
   const [tracking, setTracking] = useState<TrackingInput>({ tracking_number: "" });
@@ -407,7 +361,8 @@ export default function RequestDetail() {
     if (itm.gl_code) return itm.gl_code;
     return null;
   };
-  const isCC = (request as any)?.payment_method === "CC" || data?.purchase_order?.payment_method === "CC";
+  const pmStr = String((request as any)?.payment_method || data?.purchase_order?.payment_method || "");
+  const isCC = pmStr === "CC" || pmStr.includes("(Credit Card)") || pmStr.toLowerCase().includes("credit");
   let flow = SPEND_FLOW;
   if (request.request_type === "ADMIN") flow = ADMIN_FLOW;
   else if (request.request_type === "ACCOUNTS_PAYABLE") flow = ACCOUNTS_PAYABLE_FLOW;
@@ -445,9 +400,11 @@ export default function RequestDetail() {
   };
 
   const onAction = (action: WorkflowAction) => {
+    const poPm = String(purchase_order?.payment_method || "");
     const isWire =
-      purchase_order?.payment_method === "W" ||
-      (purchase_order?.payment_method as any) === "WIRE";
+      poPm === "W" ||
+      poPm === "WIRE" ||
+      poPm.toLowerCase().includes("wire");
     if (action === "MARK_PURCHASED" && isWire) {
       setIsWireDialogOpen(true);
       return;
@@ -490,7 +447,6 @@ export default function RequestDetail() {
         "";
       const isDefaultAsset =
         request.request_type === 'RECURRING' || request.request_type === 'ACCOUNTS_PAYABLE';
-      const initialGL = purchase_order?.gl_code ?? request.gl_code ?? "";
 
       const rawItems = (request.items && request.items.length > 0)
         ? request.items
@@ -503,7 +459,7 @@ export default function RequestDetail() {
         quantity: Number(itm.quantity) || 1,
         unit_price: Number(itm.unit_price) || 0,
         amount: Number(itm.total ?? itm.amount ?? ((Number(itm.quantity) || 1) * (Number(itm.unit_price) || 0))) || 0,
-        gl_code: itm.gl_code || initialGL,
+        gl_code: itm.gl_code || "",
         asset_flag: isDefaultAsset,
       }));
 
@@ -513,7 +469,8 @@ export default function RequestDetail() {
         amount: purchase_order?.amount ?? request.amount ?? request.unit_price ?? 0,
         invoice_date: new Date().toISOString().split("T")[0],
         due_date: "",
-        gl_code: initialGL,
+        gl_code: "",
+        bank_account: "",
         asset_flag: isDefaultAsset,
       });
       setPendingFiles([]);
@@ -614,13 +571,13 @@ export default function RequestDetail() {
 
       const isMulti = invoiceItems.length > 1;
       if (isMulti) {
-        const missingGl = invoiceItems.some(it => !it.gl_code || !it.gl_code.trim());
-        if (missingGl) {
-          return toast.error("GL Code is required for all line items.");
+        const missingCategory = invoiceItems.some(it => !it.gl_code || !it.gl_code.trim());
+        if (missingCategory) {
+          return toast.error("Category is required for all line items.");
         }
       } else {
         if (!invoice.gl_code || !invoice.gl_code.trim()) {
-          return toast.error("GL Code is required.");
+          return toast.error("Category is required.");
         }
       }
 
@@ -1245,7 +1202,7 @@ export default function RequestDetail() {
               <AssignedUsersField label="Assigned To" value={request.assigned_user ?? "—"} />
               {isMulti ? (
                 <div>
-                  <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">GL Code / Account</div>
+                  <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Category</div>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <Badge variant="outline" className="bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800 text-xs font-normal">
                       Itemized per Part ({multiPartsList.length} parts)
@@ -1258,8 +1215,17 @@ export default function RequestDetail() {
                   </div>
                 </div>
               ) : (
-                <Field label="GL Code / Account" value={formatGLCode(request.gl_code || data?.purchase_order?.gl_code)} />
+                <Field label="Category" value={renderCategory(request.gl_code || data?.purchase_order?.gl_code || data?.invoice?.gl_code)} />
               )}
+              <Field
+                label="Bank Account"
+                value={renderBankAccount(
+                  data?.invoice?.bank_account ||
+                  (isBankAccountOption(parseGLAccount(request.gl_code, glCodes)) ? request.gl_code : null) ||
+                  (isBankAccountOption(parseGLAccount(data?.purchase_order?.gl_code, glCodes)) ? data?.purchase_order?.gl_code : null) ||
+                  data?.purchase_order?.payment_method
+                )}
+              />
               <Field label="Requested" value={formatDate(request.request_date)} />
               <Field label="Last Updated" value={formatDate(request.updated_at)} />
               {isRecurring && (
@@ -1383,7 +1349,7 @@ export default function RequestDetail() {
                       <div className="col-span-1 text-center">#</div>
                       <div className="col-span-5">Part / Description</div>
                       <div className="col-span-2 text-right pr-6">Amount</div>
-                      <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">GL Code / Account</div>
+                      <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">Category</div>
                     </div>
                     {multiPartsList.map((itm: any, idx: number) => {
                       const itemGL = getItemGLCode(itm, idx);
@@ -1418,7 +1384,7 @@ export default function RequestDetail() {
                             )}
                           </div>
                           <div className="col-span-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
-                            {renderGLAccountBadge(itemGL)}
+                            {renderCategory(itemGL)}
                           </div>
                         </div>
                       );
@@ -1441,109 +1407,111 @@ export default function RequestDetail() {
                       <span className="min-w-0 truncate">Open Product Page ({request.item_url || purchase_order?.item_url})</span>
                     </a>
 
-                    {request.product_info ? (
-                      <Card className="border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/50 dark:bg-indigo-950/20 shadow-sm mt-2">
-                        <CardHeader className="py-3 px-4 border-b border-indigo-100 dark:border-indigo-900/50">
-                          <CardTitle className="text-sm font-semibold flex items-center justify-between text-indigo-900 dark:text-indigo-100">
-                            <div className="flex items-center gap-2">
-                              <Package className="h-4 w-4" /> AI Product Analysis
-                            </div>
-                            {(request.product_info.price === "N/A" || request.product_info.name === "N/A") && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs px-2"
-                                onClick={() => extractProductMutation.mutate(undefined)}
-                                disabled={extractProductMutation.isPending}
-                              >
-                                <RefreshCw className={cn("h-3 w-3 mr-1", extractProductMutation.isPending && "animate-spin")} />
-                                Re-run Analysis
-                              </Button>
-                            )}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4 grid grid-cols-2 gap-4 text-sm">
-                          <div className="col-span-2">
-                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Product Name</div>
-                            <div className="font-medium text-slate-900 dark:text-slate-100">{request.product_info.name}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Price</div>
-                            <div className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-baseline gap-2 flex-wrap">
-                              <span>
-                                {request.product_info.price ? (request.product_info.price.startsWith("$") ? request.product_info.price : `$${request.product_info.price}`) : "—"}
-                                {request.product_info.currency && request.product_info.currency.toUpperCase() !== "N/A" ? ` ${request.product_info.currency}` : ""}
-                              </span>
-                              {hasCrawledForeignPrice && (
-                                <span className="text-xs font-semibold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700">
-                                  ({formatMoney(crawledOrigPrice!)} {crawledOrigCurr})
-                                </span>
+                    {!isDraft && (
+                      request.product_info ? (
+                        <Card className="border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/50 dark:bg-indigo-950/20 shadow-sm mt-2">
+                          <CardHeader className="py-3 px-4 border-b border-indigo-100 dark:border-indigo-900/50">
+                            <CardTitle className="text-sm font-semibold flex items-center justify-between text-indigo-900 dark:text-indigo-100">
+                              <div className="flex items-center gap-2">
+                                <Package className="h-4 w-4" /> AI Product Analysis
+                              </div>
+                              {(request.product_info.price === "N/A" || request.product_info.name === "N/A") && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs px-2"
+                                  onClick={() => extractProductMutation.mutate(undefined)}
+                                  disabled={extractProductMutation.isPending}
+                                >
+                                  <RefreshCw className={cn("h-3 w-3 mr-1", extractProductMutation.isPending && "animate-spin")} />
+                                  Re-run Analysis
+                                </Button>
                               )}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-4 grid grid-cols-2 gap-4 text-sm">
+                            <div className="col-span-2">
+                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Product Name</div>
+                              <div className="font-medium text-slate-900 dark:text-slate-100">{request.product_info.name}</div>
                             </div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Brand</div>
-                            <div className="text-slate-700 dark:text-slate-300">{request.product_info.brand}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Vendor</div>
-                            <div className="text-slate-700 dark:text-slate-300">{request.product_info.vendor}</div>
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Category</div>
-                            <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 max-w-full truncate block" title={request.product_info.category}>{request.product_info.category}</Badge>
-                          </div>
-                          <div className="col-span-2">
-                            <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Description</div>
-                            <div className="text-slate-600 dark:text-slate-400 leading-relaxed text-xs">{request.product_info.description}</div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ) : isExtracting ? (
-                      <div className="flex items-center gap-3 p-3 mt-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                        <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
-                          <RefreshCw className="h-4 w-4 text-indigo-600 dark:text-indigo-400 animate-spin" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">Automatically Extracting...</h4>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">Please wait while the AI extracts the product details from the URL. This may take up to 15 seconds.</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 mt-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                            <Package className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                            <div>
+                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Price</div>
+                              <div className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-baseline gap-2 flex-wrap">
+                                <span>
+                                  {request.product_info.price ? (request.product_info.price.startsWith("$") ? request.product_info.price : `$${request.product_info.price}`) : "—"}
+                                  {request.product_info.currency && request.product_info.currency.toUpperCase() !== "N/A" ? ` ${request.product_info.currency}` : ""}
+                                </span>
+                                {hasCrawledForeignPrice && (
+                                  <span className="text-xs font-semibold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700">
+                                    ({formatMoney(crawledOrigPrice!)} {crawledOrigCurr})
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Brand</div>
+                              <div className="text-slate-700 dark:text-slate-300">{request.product_info.brand}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Vendor</div>
+                              <div className="text-slate-700 dark:text-slate-300">{request.product_info.vendor}</div>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Category</div>
+                              <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 max-w-full truncate block" title={request.product_info.category}>{request.product_info.category}</Badge>
+                            </div>
+                            <div className="col-span-2">
+                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Description</div>
+                              <div className="text-slate-600 dark:text-slate-400 leading-relaxed text-xs">{request.product_info.description}</div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : isExtracting ? (
+                        <div className="flex items-center gap-3 p-3 mt-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                          <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+                            <RefreshCw className="h-4 w-4 text-indigo-600 dark:text-indigo-400 animate-spin" />
                           </div>
                           <div className="flex-1">
-                            <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">Product details unavailable</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Automatic extraction couldn't retrieve details from this link. You can retry or continue without it.</p>
+                            <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">Automatically Extracting...</h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Please wait while the AI extracts the product details from the URL. This may take up to 15 seconds.</p>
                           </div>
                         </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="h-8 gap-1.5 text-xs shrink-0 self-start sm:self-auto bg-white dark:bg-slate-800"
-                          disabled={extractProductMutation.isPending}
-                          onClick={() => {
-                            setExtractionTimedOut(false);
-                            extractProductMutation.mutate(undefined, {
-                              onSuccess: () => {
-                                refetch();
-                                toast.success("Product details extracted successfully");
-                              },
-                              onError: (err: any) => {
-                                refetch();
-                                toast.error(err?.message || "Failed to extract product details");
-                              },
-                            });
-                          }}
-                        >
-                          <RefreshCw className={cn("h-3.5 w-3.5", extractProductMutation.isPending && "animate-spin")} />
-                          Retry Extraction
-                        </Button>
-                      </div>
+                      ) : (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 mt-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                              <Package className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">Product details unavailable</h4>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">Automatic extraction couldn't retrieve details from this link. You can retry or continue without it.</p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1.5 text-xs shrink-0 self-start sm:self-auto bg-white dark:bg-slate-800"
+                            disabled={extractProductMutation.isPending}
+                            onClick={() => {
+                              setExtractionTimedOut(false);
+                              extractProductMutation.mutate(undefined, {
+                                onSuccess: () => {
+                                  refetch();
+                                  toast.success("Product details extracted successfully");
+                                },
+                                onError: (err: any) => {
+                                  refetch();
+                                  toast.error(err?.message || "Failed to extract product details");
+                                },
+                              });
+                            }}
+                          >
+                            <RefreshCw className={cn("h-3.5 w-3.5", extractProductMutation.isPending && "animate-spin")} />
+                            Retry Extraction
+                          </Button>
+                        </div>
+                      )
                     )}
                   </div>
                 </div>
@@ -1679,7 +1647,7 @@ export default function RequestDetail() {
                         <TableHead className="w-16 text-right font-semibold">Qty</TableHead>
                         <TableHead className="w-24 text-right font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
                         <TableHead className="w-24 text-right pr-6 font-semibold">Total ({quoteNativeCurrency})</TableHead>
-                        <TableHead className="w-48 pl-4 border-l border-slate-200 dark:border-zinc-700 font-semibold">GL Code / Account</TableHead>
+                        <TableHead className="w-48 pl-4 border-l border-slate-200 dark:border-zinc-700 font-semibold">Category</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1712,7 +1680,7 @@ export default function RequestDetail() {
                               )}
                             </TableCell>
                             <TableCell className="text-xs text-slate-700 dark:text-zinc-300 pl-4 border-l border-slate-100 dark:border-zinc-800">
-                              {renderGLAccountBadge(getItemGLCode(itm, idx))}
+                              {renderCategory(getItemGLCode(itm, idx))}
                             </TableCell>
                           </TableRow>
                         );
@@ -1805,7 +1773,16 @@ export default function RequestDetail() {
                   <Field label="Vendor" value={purchase_order.vendor} />
                   <Field label="Item" value={purchase_order.item} />
                   <Field label="Quote / PO #" value={purchase_order.quote_number ?? "—"} />
-                  <Field label="GL Code / Account" value={formatGLCode(purchase_order.gl_code || request.gl_code)} />
+                  <Field label="Category" value={renderCategory(purchase_order.gl_code || request.gl_code)} />
+                  <Field
+                    label="Bank Account"
+                    value={renderBankAccount(
+                      data?.invoice?.bank_account ||
+                      (isBankAccountOption(parseGLAccount(purchase_order.gl_code, glCodes)) ? purchase_order.gl_code : null) ||
+                      (isBankAccountOption(parseGLAccount(request.gl_code, glCodes)) ? request.gl_code : null) ||
+                      purchase_order.payment_method
+                    )}
+                  />
                   {!isMulti && <Field label="Quantity" value={String(request.quantity ?? 1)} />}
                   {!isMulti && <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />}
                   {isMulti && quoteShippingNative > 0 && (
@@ -1813,7 +1790,7 @@ export default function RequestDetail() {
                   )}
                   <Field label="Total Amount (Pre-Tax)" value={`${formatMoney(purchase_order.amount || request.amount)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
                   <Field label="Total Amount (After-Tax)" value={`${formatMoney((purchase_order.amount || request.amount) * (1 + TAX_RATE))}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
-                  <Field label="Payment Format" value={purchase_order.payment_method ? PAYMENT_METHOD_LABEL[purchase_order.payment_method] : "—"} />
+                  <Field label="Payment Format" value={purchase_order.payment_method ? renderPaymentMethodBadge(purchase_order.payment_method) : "—"} />
                   <Field label="Shipped To" value={purchase_order.shipped_to_location ?? "—"} />
                   <Field label="Approval" value={purchase_order.approval_status} />
                   <Field label="Tracking #" value={purchase_order.tracking_number && purchase_order.tracking_number !== "SHIPPED" ? purchase_order.tracking_number : "—"} />
@@ -1848,7 +1825,7 @@ export default function RequestDetail() {
                             <TableHead className="w-16 text-right text-xs font-semibold">Qty</TableHead>
                             <TableHead className="w-24 text-right text-xs font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
                             <TableHead className="w-24 text-right text-xs font-semibold pr-6">Total ({quoteNativeCurrency})</TableHead>
-                            <TableHead className="w-48 text-xs font-semibold pl-4 border-l border-slate-200 dark:border-zinc-700">GL Code / Account</TableHead>
+                            <TableHead className="w-48 text-xs font-semibold pl-4 border-l border-slate-200 dark:border-zinc-700">Category</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1881,7 +1858,7 @@ export default function RequestDetail() {
                                   )}
                                 </TableCell>
                                 <TableCell className="text-xs text-slate-700 dark:text-zinc-300 pl-4 border-l border-slate-100 dark:border-zinc-800">
-                                  {renderGLAccountBadge(getItemGLCode(itm, idx))}
+                                  {renderCategory(getItemGLCode(itm, idx))}
                                 </TableCell>
                               </TableRow>
                             );
@@ -1969,14 +1946,18 @@ export default function RequestDetail() {
                 </div>
 
                 <Field
-                  label="GL Code"
+                  label="Bank Account"
+                  value={renderBankAccount(inv.bank_account)}
+                />
+                <Field
+                  label="Category"
                   value={
                     inv.items && inv.items.length > 1 ? (
                       <Badge variant="outline" className="bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-300 dark:border-zinc-700 text-xs font-normal">
                         Split ({inv.items.length} lines)
                       </Badge>
                     ) : (
-                      formatGLCode(inv.gl_code || request.gl_code)
+                      renderCategory(inv.gl_code)
                     )
                   }
                 />
@@ -1985,13 +1966,13 @@ export default function RequestDetail() {
                 {inv.items && inv.items.length > 0 && (
                   <div className="col-span-2 mt-2 pt-3 border-t border-slate-100 dark:border-zinc-800">
                     <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2 flex items-center justify-between">
-                      <span>Itemized GL Allocations ({inv.items.length} items)</span>
+                      <span>Itemized Category Allocations ({inv.items.length} items)</span>
                     </div>
                     <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
                       <div className="bg-slate-50 dark:bg-zinc-800/50 px-3 py-1.5 grid grid-cols-12 gap-2 font-medium text-slate-500">
                         <div className="col-span-5">Item</div>
                         <div className="col-span-2 text-right pr-6">Amount</div>
-                        <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">GL Code</div>
+                        <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">Category</div>
                         <div className="col-span-1 text-center">Asset</div>
                       </div>
                       {inv.items.map((it, idx) => (
@@ -2003,7 +1984,7 @@ export default function RequestDetail() {
                             {formatMoney(it.amount)}
                           </div>
                           <div className="col-span-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
-                            {renderGLAccountBadge(it.gl_code)}
+                            {renderCategory(it.gl_code)}
                           </div>
                           <div className="col-span-1 text-center">
                             {it.asset_flag ? <Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">Asset</Badge> : "—"}
@@ -2025,9 +2006,6 @@ export default function RequestDetail() {
                   <span>Wire Transfer Details</span>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-semibold px-2.5 py-0.5 my-auto">
-                    TREASURY RECORDED
-                  </Badge>
                   {Boolean(
                     request.request_type === "ACCOUNTS_PAYABLE" ||
                     request.status === RequestStatus.Purchased ||
@@ -2351,19 +2329,10 @@ export default function RequestDetail() {
                   />
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Payment Format <span className="text-red-500">*</span></label>
-                    <Select
-                      value={po.payment_method ?? undefined}
-                      onValueChange={(v) => setPo({ ...po, payment_method: v as PaymentMethod })}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select payment format..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(Object.entries(PAYMENT_METHOD_LABEL) as [PaymentMethod, string][]).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <PaymentMethodSelect
+                      value={po.payment_method}
+                      onChange={(v) => setPo({ ...po, payment_method: v })}
+                    />
                   </div>
                 </TwoUp>
 
@@ -2774,10 +2743,32 @@ export default function RequestDetail() {
 
                 {invoiceItems.length > 1 ? (
                   <div className="space-y-3 pt-1">
+                    <TwoUp>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">
+                          Bank Account <span className="text-rose-500">*</span>
+                        </label>
+                        <BankAccountAutocomplete
+                          value={invoice.bank_account || ""}
+                          onChange={(v) => setInvoice({ ...invoice, bank_account: v })}
+                          placeholder="Select Bank Account *"
+                        />
+                      </div>
+                      {request.request_type !== "RECURRING" ? (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Asset Flag</label>
+                          <div className="flex items-center h-10">
+                            <input type="checkbox" className="h-4 w-4" checked={invoice.asset_flag || false} onChange={(e) => setInvoice({ ...invoice, asset_flag: e.target.checked })} />
+                            <span className="ml-2 text-sm text-slate-700">Mark as Asset</span>
+                          </div>
+                        </div>
+                      ) : <div />}
+                    </TwoUp>
+
                     <div className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 p-3 space-y-2.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
-                          Default GL Code / Account
+                          Default Category
                         </label>
                         <Button
                           type="button"
@@ -2787,36 +2778,36 @@ export default function RequestDetail() {
                           onClick={() => {
                             if (invoice.gl_code?.trim()) {
                               setInvoiceItems(prev => prev.map(item => ({ ...item, gl_code: invoice.gl_code || "" })));
-                              toast.success("Applied GL Code to all line items");
+                              toast.success("Applied Category to all line items");
                             } else {
-                              toast.error("Select a GL code above first");
+                              toast.error("Select a category above first");
                             }
                           }}
                         >
                           Apply to All Lines
                         </Button>
                       </div>
-                      <GLCodeAutocomplete
+                      <CategoryAutocomplete
                         value={invoice.gl_code || ""}
                         onChange={(v) => {
                           setInvoice(prev => ({ ...prev, gl_code: v }));
                         }}
-                        placeholder="Select GL code to apply to lines..."
+                        placeholder="Select category to apply to lines..."
                       />
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
-                          Line Items GL Allocation ({invoiceItems.length} items) <span className="text-rose-500">*</span>
+                          Line Items Category Allocation ({invoiceItems.length} items) <span className="text-rose-500">*</span>
                         </span>
-                        <span className="text-xs text-slate-500">GL Code is required for all items</span>
+                        <span className="text-xs text-slate-500">Category is required for all items</span>
                       </div>
                       <div className="border border-slate-200 dark:border-zinc-800 rounded-lg divide-y divide-slate-200 dark:divide-zinc-800 text-xs shadow-xs bg-white dark:bg-zinc-900">
                         <div className="bg-slate-100/80 dark:bg-zinc-800/70 px-3 py-2.5 grid grid-cols-12 gap-3 font-semibold text-slate-700 dark:text-zinc-300">
                           <div className="col-span-5">Item / Description</div>
                           <div className="col-span-2 text-right pr-6">Amount</div>
-                          <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">GL Code *</div>
+                          <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">Category *</div>
                           <div className="col-span-1 text-center">Asset</div>
                         </div>
                         <div className="divide-y divide-slate-100 dark:divide-zinc-800/50">
@@ -2832,7 +2823,7 @@ export default function RequestDetail() {
                                 {formatMoney(itm.amount)}
                               </div>
                               <div className="col-span-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
-                                <GLCodeAutocomplete
+                                <CategoryAutocomplete
                                   value={itm.gl_code || ""}
                                   onChange={(v) => {
                                     setInvoiceItems(prev => {
@@ -2841,7 +2832,7 @@ export default function RequestDetail() {
                                       return updated;
                                     });
                                   }}
-                                  placeholder="Select GL code *"
+                                  placeholder="Select category *"
                                 />
                               </div>
                               <div className="col-span-1 flex justify-center">
@@ -2874,17 +2865,29 @@ export default function RequestDetail() {
                     </div>
                   </div>
                 ) : (
-                  <TwoUp>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">
-                        GL Code / Account <span className="text-rose-500">*</span>
-                      </label>
-                      <GLCodeAutocomplete
-                        value={invoice.gl_code ?? data?.purchase_order?.gl_code ?? data?.request.gl_code ?? ""}
-                        onChange={(v) => setInvoice({ ...invoice, gl_code: v })}
-                        placeholder="Select GL Code *"
-                      />
-                    </div>
+                  <>
+                    <TwoUp>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">
+                          Bank Account <span className="text-rose-500">*</span>
+                        </label>
+                        <BankAccountAutocomplete
+                          value={invoice.bank_account || ""}
+                          onChange={(v) => setInvoice({ ...invoice, bank_account: v })}
+                          placeholder="Select Bank Account *"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">
+                          Category <span className="text-rose-500">*</span>
+                        </label>
+                        <CategoryAutocomplete
+                          value={invoice.gl_code || ""}
+                          onChange={(v) => setInvoice({ ...invoice, gl_code: v })}
+                          placeholder="Select Category *"
+                        />
+                      </div>
+                    </TwoUp>
                     {request.request_type !== "RECURRING" && (
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Asset Flag</label>
@@ -2894,7 +2897,7 @@ export default function RequestDetail() {
                         </div>
                       </div>
                     )}
-                  </TwoUp>
+                  </>
                 )}
 
                 <div className="space-y-2">

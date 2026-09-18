@@ -16,4 +16,9 @@ export interface GLCodeOption {
   account_name: string;
   account_type: string;
   display_label: string;
+  bank_name?: string | null;
+  bank_account_last4?: string | null;
+  subsidiary?: string | null;
+  is_bank_account?: boolean;
+  is_credit_card?: boolean;
 }

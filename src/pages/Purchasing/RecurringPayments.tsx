@@ -791,14 +791,34 @@ export default function RecurringPayments() {
       const parsedStatus = parseRequestStatus(r.status);
       const isRejected = parsedStatus === RequestStatus.Rejected;
 
-      if (
-        searchTerm &&
-        !r.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !r.requester.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !r.department.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !r.id.toLowerCase().includes(searchTerm.toLowerCase())
-      ) {
-        return false;
+      if (searchTerm && searchTerm.trim()) {
+        const rawTerm = searchTerm.toLowerCase().trim();
+        const cleanIdTerm = rawTerm.replace(/^(?:req-#|req-|rec-#|rec-|#)/i, "").trim();
+        const idStr = String(r.id ?? "").toLowerCase();
+        const titleStr = String(r.title ?? "").toLowerCase();
+        const reqStr = String(r.requester ?? "").toLowerCase();
+        const deptStr = String(r.department ?? "").toLowerCase();
+        const descStr = String(r.description ?? "").toLowerCase();
+        const vendorStr = String((r as any).vendor ?? r.product_info?.vendor ?? "").toLowerCase();
+        const statusStr = String(r.status ?? "").toLowerCase();
+        const amountStr = String(r.amount ?? "");
+        const glStr = String(r.gl_code ?? "").toLowerCase();
+
+        const matches =
+          idStr.includes(rawTerm) ||
+          (cleanIdTerm.length > 0 && idStr.includes(cleanIdTerm)) ||
+          titleStr.includes(rawTerm) ||
+          reqStr.includes(rawTerm) ||
+          deptStr.includes(rawTerm) ||
+          descStr.includes(rawTerm) ||
+          vendorStr.includes(rawTerm) ||
+          statusStr.includes(rawTerm) ||
+          amountStr.includes(rawTerm) ||
+          glStr.includes(rawTerm);
+
+        if (!matches) {
+          return false;
+        }
       }
       if (cardFilter === "DUE_SOON") {
         if (!isDueSoon(r)) return false;

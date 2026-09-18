@@ -295,13 +295,19 @@ export default function QuickBooksPage() {
 
       // Search Query
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchTitle = item.product_name?.toLowerCase().includes(q);
-        const matchVendor = item.raw_payee?.toLowerCase().includes(q);
-        const matchReq = `req-#${item.request_id}`.toLowerCase().includes(q) || String(item.request_id).includes(q);
-        const matchRef = item.ref_no?.toLowerCase().includes(q);
-        const matchGl = item.category?.toLowerCase().includes(q);
-        if (!matchTitle && !matchVendor && !matchReq && !matchRef && !matchGl) return false;
+        const q = searchQuery.toLowerCase().trim();
+        const cleanId = q.replace(/^(?:req-#|req-|rec-#|rec-|#)/i, "").trim();
+        const reqStr = String(item.request_id || "");
+        const matchTitle = (item.product_name || "").toLowerCase().includes(q);
+        const matchVendor = (item.raw_payee || "").toLowerCase().includes(q);
+        const matchReq =
+          `req-#${reqStr}`.toLowerCase().includes(q) ||
+          reqStr.includes(q) ||
+          (cleanId.length > 0 && reqStr.includes(cleanId));
+        const matchRef = (item.ref_no || "").toLowerCase().includes(q);
+        const matchGl = (item.category || "").toLowerCase().includes(q);
+        const matchAmt = String(item.amount || "").includes(q);
+        if (!matchTitle && !matchVendor && !matchReq && !matchRef && !matchGl && !matchAmt) return false;
       }
 
       return true;

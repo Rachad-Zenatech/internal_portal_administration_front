@@ -40,12 +40,13 @@ export type ApprovalDecision = "APPROVED" | "REJECTED";
 
 export type PaymentStatus = "UNPAID" | "WAITING_PAYMENT" | "PAID";
 
-export type PaymentMethod = "CC" | "DC" | "W";
+export type PaymentMethod = "CC" | "DC" | "W" | string;
 
-export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+export const PAYMENT_METHOD_LABEL: Record<string, string> = {
   CC: "Credit Card",
   DC: "Debit Card",
   W: "Wire",
+  WIRE: "Wire Transfer",
 };
 
 export type Currency = {
@@ -213,6 +214,7 @@ export type Invoice = {
   payment_status: PaymentStatus;
   paid_date: string | null;
   gl_code: string | null;
+  bank_account?: string | null;
   asset_flag: boolean;
   invoice_type?: string | null;
   description?: string | null;
@@ -347,6 +349,7 @@ export type InvoiceInput = {
   invoice_date: string;
   due_date?: string | null;
   gl_code?: string | null;
+  bank_account?: string | null;
   asset_flag?: boolean;
   invoice_type?: string | null;
   description?: string | null;

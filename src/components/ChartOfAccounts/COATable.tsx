@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AlertTriangle, Trash2, Search, ChevronDown, ArrowUpDown, Info, Power, PowerOff } from "lucide-react";
+import { parseGLAccount } from "@/utils/glAccountUtils";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -181,7 +182,30 @@ export default function COATable({ result, loadingData }: COATableProps) {
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         ),
-        cell: ({ row }) => <span>{row.original.account_name}</span>,
+        cell: ({ row }) => {
+          const raw = `${row.original.account_number} - ${row.original.account_name}`;
+          const parsed = parseGLAccount(raw);
+          if (parsed && parsed.is_bank_account && parsed.bank_name) {
+            return (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-medium text-slate-800 dark:text-slate-200">
+                  {parsed.bank_name}
+                </span>
+                {parsed.bank_account_last4 && (
+                  <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80 font-medium">
+                    •••• {parsed.bank_account_last4}
+                  </span>
+                )}
+                {parsed.subsidiary && (
+                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/80">
+                    {parsed.subsidiary}
+                  </span>
+                )}
+              </div>
+            );
+          }
+          return <span>{row.original.account_name}</span>;
+        },
       },
       {
         accessorKey: "account_type",
