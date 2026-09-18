@@ -955,7 +955,7 @@ export function EditRequestDialog({
                   onChange={(e) => setFormData({ ...formData, item_url: e.target.value })}
                   placeholder="https://..."
                   disabled={!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE"}
-                  className={`h-9 text-xs ${!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE" ? "bg-slate-100 dark:bg-zinc-800/60 cursor-not-allowed text-slate-500 dark:text-zinc-400" : ""}`}
+                  className={`h-9 text-base sm:text-xs ${!isLinkEditable && formData.request_type !== "ACCOUNTS_PAYABLE" ? "bg-slate-100 dark:bg-zinc-800/60 cursor-not-allowed text-slate-500 dark:text-zinc-400" : ""}`}
                 />
               </div>
             )}

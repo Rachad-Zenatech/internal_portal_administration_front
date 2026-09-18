@@ -1482,7 +1482,7 @@ export function PurchaseRequests() {
                       }
                     }}
                     placeholder="https://www.amazon.ca/... (paste product link to auto-populate title & pricing)"
-                    className="h-9 text-xs pr-24 font-mono"
+                    className="h-9 text-base sm:text-xs pr-24 font-mono"
                   />
                   <Button
                     type="button"

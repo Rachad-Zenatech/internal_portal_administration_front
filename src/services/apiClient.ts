@@ -34,6 +34,7 @@ function notifyActionListeners() {
 export interface ApiRequestOptions extends RequestInit {
   actionLabel?: string;
   actionSubtitle?: string;
+  skipGlobalLoading?: boolean;
 }
 
 function resolveActionMeta(
@@ -470,10 +471,13 @@ async function monitoredFetch(endpoint: string, options: ApiRequestOptions): Pro
   const method = (options.method || "GET").toUpperCase();
   const isMutating = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
   const isIgnored =
+    Boolean(options.skipGlobalLoading) ||
     targetEndpoint.includes("/observability/") ||
     targetEndpoint.includes("/client-performance") ||
     targetEndpoint.includes("/heartbeat") ||
-    targetEndpoint.includes("/stream");
+    targetEndpoint.includes("/stream") ||
+    targetEndpoint.includes("/extract-product-info") ||
+    targetEndpoint.includes("/extract-product");
 
   let actionId: string | null = null;
   if (isMutating && !isIgnored) {

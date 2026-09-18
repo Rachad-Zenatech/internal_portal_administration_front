@@ -287,6 +287,9 @@ export type PurchasingSummary = {
   recurring_reviewed?: number;
   recurring_rejected?: number;
   my_approvals_count?: number;
+  user_action_counts?: Record<string, number>;
+  user_unread_notif_counts?: Record<string, number>;
+  has_user_notifications?: Record<string, boolean>;
 };
 
 export type RequestCreateInput = {
