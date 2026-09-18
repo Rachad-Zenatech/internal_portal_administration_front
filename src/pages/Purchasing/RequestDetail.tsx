@@ -5,6 +5,7 @@ import {
   renderPaymentMethodBadge,
   parseGLAccount,
   isBankAccountOption,
+  mapPaymentMethodToBankAccount,
 } from "@/utils/glAccountUtils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BankAccountAutocomplete } from "./BankAccountAutocomplete";
@@ -470,7 +471,7 @@ export default function RequestDetail() {
         invoice_date: new Date().toISOString().split("T")[0],
         due_date: "",
         gl_code: "",
-        bank_account: "",
+        bank_account: mapPaymentMethodToBankAccount(purchase_order?.payment_method || (request as any)?.payment_method, glCodes) || "",
         asset_flag: isDefaultAsset,
       });
       setPendingFiles([]);
@@ -1218,12 +1219,22 @@ export default function RequestDetail() {
                 <Field label="Category" value={renderCategory(request.gl_code || data?.purchase_order?.gl_code || data?.invoice?.gl_code)} />
               )}
               <Field
+                label="Payment Method"
+                value={
+                  (data?.purchase_order?.payment_method || (request as any)?.payment_method)
+                    ? renderPaymentMethodBadge(data?.purchase_order?.payment_method || (request as any)?.payment_method)
+                    : "—"
+                }
+              />
+              <Field
                 label="Bank Account"
                 value={renderBankAccount(
                   data?.invoice?.bank_account ||
+                  (request as any)?.bank_account ||
+                  (purchase_order as any)?.bank_account ||
                   (isBankAccountOption(parseGLAccount(request.gl_code, glCodes)) ? request.gl_code : null) ||
                   (isBankAccountOption(parseGLAccount(data?.purchase_order?.gl_code, glCodes)) ? data?.purchase_order?.gl_code : null) ||
-                  data?.purchase_order?.payment_method
+                  mapPaymentMethodToBankAccount(data?.purchase_order?.payment_method || (request as any)?.payment_method, glCodes)
                 )}
               />
               <Field label="Requested" value={formatDate(request.request_date)} />
@@ -1775,12 +1786,18 @@ export default function RequestDetail() {
                   <Field label="Quote / PO #" value={purchase_order.quote_number ?? "—"} />
                   <Field label="Category" value={renderCategory(purchase_order.gl_code || request.gl_code)} />
                   <Field
+                    label="Payment Method"
+                    value={purchase_order.payment_method ? renderPaymentMethodBadge(purchase_order.payment_method) : "—"}
+                  />
+                  <Field
                     label="Bank Account"
                     value={renderBankAccount(
                       data?.invoice?.bank_account ||
+                      (purchase_order as any)?.bank_account ||
+                      (request as any)?.bank_account ||
                       (isBankAccountOption(parseGLAccount(purchase_order.gl_code, glCodes)) ? purchase_order.gl_code : null) ||
                       (isBankAccountOption(parseGLAccount(request.gl_code, glCodes)) ? request.gl_code : null) ||
-                      purchase_order.payment_method
+                      mapPaymentMethodToBankAccount(purchase_order.payment_method || (request as any)?.payment_method, glCodes)
                     )}
                   />
                   {!isMulti && <Field label="Quantity" value={String(request.quantity ?? 1)} />}
@@ -1790,7 +1807,6 @@ export default function RequestDetail() {
                   )}
                   <Field label="Total Amount (Pre-Tax)" value={`${formatMoney(purchase_order.amount || request.amount)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
                   <Field label="Total Amount (After-Tax)" value={`${formatMoney((purchase_order.amount || request.amount) * (1 + TAX_RATE))}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
-                  <Field label="Payment Format" value={purchase_order.payment_method ? renderPaymentMethodBadge(purchase_order.payment_method) : "—"} />
                   <Field label="Shipped To" value={purchase_order.shipped_to_location ?? "—"} />
                   <Field label="Approval" value={purchase_order.approval_status} />
                   <Field label="Tracking #" value={purchase_order.tracking_number && purchase_order.tracking_number !== "SHIPPED" ? purchase_order.tracking_number : "—"} />

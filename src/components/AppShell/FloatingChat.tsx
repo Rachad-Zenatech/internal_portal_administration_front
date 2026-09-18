@@ -13,9 +13,11 @@ import {
   ShoppingBag,
   BookOpen,
   FileSpreadsheet,
-  Compass,
   ChevronDown,
   ChevronUp,
+  ShieldCheck,
+  Repeat,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Message, MessageAvatar, MessageContent, MessageGroup } from "@/components/ui/message";
@@ -49,23 +51,33 @@ type WindowWithWebkitAudio = Window &
 const SUGGESTIONS = [
   {
     icon: ShoppingBag,
-    label: "Pending Requests",
-    query: "What purchase requests are currently pending approval?",
+    label: "Pending Approvals",
+    query: "Which purchase requests are currently waiting for approval?",
   },
   {
-    icon: BookOpen,
-    label: "Submit a Request",
-    query: "How do I create and submit a new purchase request in this portal?",
+    icon: ShieldCheck,
+    label: "Approval Limits & Matrix",
+    query: "Do I need approval for an expensive purchase over $5,000?",
+  },
+  {
+    icon: Repeat,
+    label: "Recurring Subscriptions",
+    query: "Show all recurring payments and subscriptions with their next due date.",
   },
   {
     icon: FileSpreadsheet,
-    label: "GL Codes & Categories",
-    query: "How do I search for and assign GL codes to purchase line items?",
+    label: "GL Categories & Coding",
+    query: "What GL code and category should I use for software subscriptions?",
   },
   {
-    icon: Compass,
-    label: "Approval Workflow",
-    query: "Explain the approval levels and thresholds for purchase requests.",
+    icon: BookOpen,
+    label: "Create Purchase Request",
+    query: "Help me create a new purchase request for developer hardware.",
+  },
+  {
+    icon: TrendingUp,
+    label: "Purchasing Summary",
+    query: "Give me a high-level summary of our purchasing numbers and unpaid bills.",
   },
 ];
 
@@ -296,15 +308,18 @@ export default function FloatingChat() {
                     <div className="font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
                       <Sparkles className="h-3.5 w-3.5" /> How to use ZenaBot
                     </div>
-                    <ul className="space-y-1 text-slate-600 dark:text-slate-300 list-disc list-inside">
+                    <ul className="space-y-1.5 text-slate-600 dark:text-slate-300 list-disc list-inside">
                       <li>
-                        <strong className="font-medium text-slate-800 dark:text-slate-100">Purchasing & PRs:</strong> Ask about status, approvals, items, or how to submit requests.
+                        <strong className="font-medium text-slate-800 dark:text-slate-100">Purchasing & Approvals:</strong> Check request statuses, approval policies (under $1k, $5k, $10k thresholds), or list pending approvals.
                       </li>
                       <li>
-                        <strong className="font-medium text-slate-800 dark:text-slate-100">Accounting & GL:</strong> Inquire about GL codes, descriptions, and expense categories.
+                        <strong className="font-medium text-slate-800 dark:text-slate-100">GL Categories & Banks:</strong> Find expense categories (e.g. <code>[6010] Software</code>) or bank payment accounts.
                       </li>
                       <li>
-                        <strong className="font-medium text-slate-800 dark:text-slate-100">Copy Answers:</strong> Click the copy icon below any response to copy text.
+                        <strong className="font-medium text-slate-800 dark:text-slate-100">Recurring Payments:</strong> Audit recurring subscriptions, review cycles, and next renewal due dates.
+                      </li>
+                      <li>
+                        <strong className="font-medium text-slate-800 dark:text-slate-100">Actions & Drafts:</strong> Create draft requests with vendor URLs or advance workflow stages directly.
                       </li>
                       <li>
                         <strong className="font-medium text-slate-800 dark:text-slate-100">Shortcuts:</strong> Press <kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">Enter</kbd> to send, <kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">Shift + Enter</kbd> for a new line.

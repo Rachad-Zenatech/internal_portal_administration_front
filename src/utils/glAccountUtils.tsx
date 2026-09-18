@@ -341,7 +341,7 @@ export function parsePaymentMethod(val: string | null | undefined): {
 } | null {
   if (!val) return null;
   const trimmed = val.trim();
-  if (!trimmed || trimmed === "—") return null;
+  if (!trimmed || trimmed === "—" || trimmed === "-" || trimmed === "null" || trimmed === "None" || trimmed === "undefined") return null;
 
   if (trimmed === "CC" || trimmed.toLowerCase() === "credit card") {
     return { bank_name: "Credit Card", card_type: "Credit Card", raw: trimmed };
@@ -353,27 +353,38 @@ export function parsePaymentMethod(val: string | null | undefined): {
     return { bank_name: "Wire Transfer", card_type: "Wire", raw: trimmed };
   }
 
-  const isCC = trimmed.includes("(Credit Card)") || trimmed.toLowerCase().includes("credit");
-  const isDC = trimmed.includes("(Debit Card)") || trimmed.toLowerCase().includes("debit");
+  const isCC = trimmed.includes("(Credit Card)") || trimmed.toLowerCase().includes("credit") || trimmed.startsWith("201");
+  const isDC = trimmed.includes("(Debit Card)") || trimmed.toLowerCase().includes("debit") || trimmed.startsWith("10");
   const isWire = trimmed.toLowerCase().includes("wire");
 
   // Clean suffix (Credit Card) or (Debit Card)
   let clean = trimmed.replace(/\s*\((?:Credit Card|Debit Card)\)\s*$/i, "").trim();
 
-  // Try matching <Bank Name> - <Last 4> (<Subsidiary>)
-  const match = CARD_OR_BANK_REGEX.exec(clean);
-  if (match) {
-    return {
-      bank_name: match[1].replace(/^[-\s]+|[-\s]+$/g, ""),
-      last4: match[2],
-      subsidiary: match[3] || null,
-      card_type: isCC ? "Credit Card" : isDC ? "Debit Card" : isWire ? "Wire" : "Other",
-      raw: trimmed,
-    };
+  let subsidiary: string | null = null;
+  const subMatch = /\(([^)]+)\)/.exec(clean);
+  if (subMatch) {
+    subsidiary = subMatch[1].trim();
+    clean = clean.replace(/\([^)]+\)/, "").trim();
+  }
+
+  let last4: string | null = null;
+  const digitMatch = /(\d{4,5})/.exec(clean);
+  if (digitMatch) {
+    last4 = digitMatch[1];
+    clean = clean.replace(/\d{4,5}/, "").replace(/^[-\s]+|[-\s]+$/g, "").trim();
+  }
+
+  let bankName = "";
+  if (clean) {
+    bankName = expandBankName(clean);
+  } else {
+    bankName = isCC ? "Credit Card" : isDC ? "Debit Card" : isWire ? "Wire Transfer" : "Card";
   }
 
   return {
-    bank_name: clean,
+    bank_name: bankName,
+    last4: last4,
+    subsidiary: subsidiary,
     card_type: isCC ? "Credit Card" : isDC ? "Debit Card" : isWire ? "Wire" : "Other",
     raw: trimmed,
   };
@@ -414,9 +425,11 @@ export function renderPaymentMethodBadge(val: string | null | undefined): React.
             {parsed.subsidiary}
           </span>
         )}
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700 bg-white dark:bg-zinc-900">
-          Credit Card
-        </Badge>
+        {parsed.bank_name !== "Credit Card" && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700 bg-white dark:bg-zinc-900">
+            Credit Card
+          </Badge>
+        )}
       </div>
     );
   }
@@ -438,9 +451,11 @@ export function renderPaymentMethodBadge(val: string | null | undefined): React.
             {parsed.subsidiary}
           </span>
         )}
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 bg-white dark:bg-zinc-900">
-          Debit Card
-        </Badge>
+        {parsed.bank_name !== "Debit Card" && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 bg-white dark:bg-zinc-900">
+            Debit Card
+          </Badge>
+        )}
       </div>
     );
   }
@@ -450,6 +465,54 @@ export function renderPaymentMethodBadge(val: string | null | undefined): React.
       {val}
     </span>
   );
+}
+
+/**
+ * Maps a payment method / payment format string into its corresponding bank account string as default.
+ * Finds any matching bank account from the chart of accounts, or formats the bank name, last 4, and entity.
+ */
+export function mapPaymentMethodToBankAccount(
+  val: string | null | undefined,
+  glCodesList: GLCodeOption[] = []
+): string | null {
+  if (!val) return null;
+  const parsedPm = parsePaymentMethod(val);
+  if (!parsedPm) return null;
+
+  // If generic without bank or last4, cannot map
+  if (!parsedPm.last4 && (!parsedPm.bank_name || parsedPm.bank_name === "Credit Card" || parsedPm.bank_name === "Debit Card" || parsedPm.bank_name === "Wire Transfer" || parsedPm.bank_name === "Card")) {
+    return null;
+  }
+
+  // 1. Try finding exact matching bank account in glCodesList by last4
+  if (parsedPm.last4) {
+    const l4 = parsedPm.last4;
+    const glMatch = glCodesList.find(
+      c => (c.is_bank_account || c.is_credit_card || c.account_type === "Bank" || c.account_type === "Credit Card") &&
+           (c.bank_account_last4 === l4 || Boolean(c.account_name?.includes(l4)) || Boolean(c.display_label?.includes(l4)) || c.account_number === l4)
+    );
+    if (glMatch) {
+      return glMatch.display_label || `${glMatch.account_number} - ${glMatch.account_name}`;
+    }
+  }
+
+  // 2. Build structured string: Bank Name - Last4 - Subsidiary
+  const parts: string[] = [];
+  if (parsedPm.bank_name && parsedPm.bank_name !== "Credit Card" && parsedPm.bank_name !== "Debit Card" && parsedPm.bank_name !== "Wire Transfer" && parsedPm.bank_name !== "Card") {
+    parts.push(expandBankName(parsedPm.bank_name));
+  } else if (parsedPm.subsidiary) {
+    parts.push(parsedPm.subsidiary);
+  }
+
+  if (parsedPm.last4) {
+    parts.push(parsedPm.last4);
+  }
+
+  if (parsedPm.subsidiary && !parts.includes(parsedPm.subsidiary)) {
+    parts.push(parsedPm.subsidiary);
+  }
+
+  return parts.length > 0 ? parts.join(" - ") : null;
 }
 
 /**
@@ -567,7 +630,11 @@ export function renderBankAccountBadge(
 
   const str = String(rawVal).trim();
   const GENERIC_PAYMENT_TYPES = ["dc", "cc", "wire", "check", "card", "debit card", "credit card", "other", "n/a"];
-  if (GENERIC_PAYMENT_TYPES.includes(str.toLowerCase())) {
+  if (
+    GENERIC_PAYMENT_TYPES.includes(str.toLowerCase()) ||
+    str.toLowerCase().includes("(credit card)") ||
+    str.toLowerCase().includes("(debit card)")
+  ) {
     return <span className="text-slate-400 italic text-xs">—</span>;
   }
 
