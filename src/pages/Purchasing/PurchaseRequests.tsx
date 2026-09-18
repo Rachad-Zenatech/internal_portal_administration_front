@@ -97,6 +97,7 @@ import { resolveUserDepartment } from "@/lib/userDepartment";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { QuickBooksExportDialog } from "./QuickBooksExportDialog";
 import { uploadAttachments, extractProductInfoFromUrl } from "@/services/purchasingService";
+import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 
 function RequesterAutocomplete({
   value,
@@ -262,6 +263,7 @@ const EMPTY_FORM: RequestCreateInput = {
   quantity: 1,
   unit_price: 0,
   amount: 0,
+  currency: "USD",
   gl_code: "",
   project_name: "",
 };
@@ -660,8 +662,9 @@ export function PurchaseRequests() {
         ...form,
         title: effectiveTitle,
         item_mode: isAP ? "SINGLE" : itemMode,
-        amount: isAP ? (Number(apWireForm.amount) || 0) : finalUsdAmount,
-        currency: isAP ? (apWireForm.currency || "USD") : "USD",
+        amount: isAP ? (Number(apWireForm.amount) || 0) : (itemMode === "MULTIPLE" && isForeign ? finalUsdAmount : totalCalculatedAmount),
+        currency: isAP ? (apWireForm.currency || "USD") : (form.currency || "USD"),
+        product_info: extractedProductInfo || form.product_info || undefined,
         due_date: isAP ? (apWireForm.due_date || undefined) : undefined,
         items: isAP ? undefined : finalItems,
         quote_file_id: undefined,
@@ -1666,18 +1669,55 @@ export function PurchaseRequests() {
               </div>
             )}
 
-            {/* 6. Single Item specific Quantity (Hidden for Accounts Payable) */}
+            {/* 6. Single Item specific Pricing & Quantity (Hidden for Accounts Payable) */}
             {form.request_type !== "ACCOUNTS_PAYABLE" && itemMode === "SINGLE" && (
-              <div className="space-y-1.5 pt-1 max-w-[200px]">
-                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Quantity</label>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={form.quantity ?? 1}
-                  onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
-                  className="h-9 text-xs"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Quantity</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.quantity ?? 1}
+                    onChange={(e) => {
+                      const q = Number(e.target.value) || 1;
+                      setForm((prev) => ({
+                        ...prev,
+                        quantity: q,
+                        amount: (Number(prev.unit_price) || 0) * q,
+                      }));
+                    }}
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Unit Price</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.unit_price ? form.unit_price : ""}
+                    onChange={(e) => {
+                      const p = parseFloat(e.target.value) || 0;
+                      setForm((prev) => ({
+                        ...prev,
+                        unit_price: p,
+                        amount: p * (prev.quantity || 1),
+                      }));
+                    }}
+                    className="h-9 text-xs font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Currency</label>
+                  <CurrencyAutocomplete
+                    value={form.currency || "USD"}
+                    onChange={(curr) => setForm((prev) => ({ ...prev, currency: curr }))}
+                  />
+                </div>
               </div>
             )}
 

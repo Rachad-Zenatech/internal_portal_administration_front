@@ -30,7 +30,6 @@ import {
   Paperclip,
   ReceiptText,
   Stamp,
-  RefreshCw,
   Upload,
   X,
   AlertTriangle,
@@ -87,7 +86,6 @@ import {
 import {
   usePurchaseRequest,
   useTransitionRequest,
-  useExtractProductInfo,
   useUploadAttachments,
   useUpdateReviewStatus,
   useUpdateWireTransfer,
@@ -110,11 +108,7 @@ import type {
   WorkflowAction,
 } from "@/types/purchasing";
 
-// Product extraction only ever runs automatically right after creation, while
-// the request is still NEW. If it hasn't produced product_info by this point,
-// treat it as failed rather than polling/blocking forever — the backend has
-// no explicit success/failure signal, only the presence of product_info.
-const EXTRACTION_TIMEOUT_MS = 60000;
+
 import {
   ACTION_META,
   ADMIN_FLOW,
@@ -156,53 +150,15 @@ export default function RequestDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch } = usePurchaseRequest(id);
-  const extractProductMutation = useExtractProductInfo(id ?? "");
-
-  // Extraction only ever runs automatically right after creation (NEW status).
-  // Reset the "gave up" flag whenever we land on a different request.
-  const [extractionTimedOut, setExtractionTimedOut] = useState(false);
-  useEffect(() => {
-    setExtractionTimedOut(false);
-  }, [id]);
-
   const [isManualPriceOpen, setIsManualPriceOpen] = useState(false);
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [quickProjectValue, setQuickProjectValue] = useState("");
   const [isWireDialogOpen, setIsWireDialogOpen] = useState(false);
-  const [hasShownManualPrice, setHasShownManualPrice] = useState(false);
 
   const isDraft =
     data?.request?.status === RequestStatus.Initial ||
     (data?.request?.status as any) === "INITIAL" ||
     (data?.request?.status as any) === "Draft";
-
-  const isExtracting =
-    !isDraft &&
-    (extractProductMutation.isPending ||
-      (data?.request?.status === RequestStatus.New &&
-        !!data?.request?.item_url &&
-        !data?.request?.product_info &&
-        !extractionTimedOut));
-
-  const needsManualPrice = !isDraft && (data?.request?.product_info?.price === "N/A" || extractionTimedOut);
-  useEffect(() => {
-    if (needsManualPrice && !hasShownManualPrice) {
-      setIsManualPriceOpen(true);
-      setHasShownManualPrice(true);
-    }
-  }, [needsManualPrice, hasShownManualPrice]);
-
-  // Poll for the extraction result while it may still be in flight; give up
-  // (and stop blocking the workflow) after EXTRACTION_TIMEOUT_MS.
-  useEffect(() => {
-    if (!isExtracting || extractProductMutation.isPending) return;
-    const pollInterval = setInterval(() => refetch(), 3000);
-    const giveUp = setTimeout(() => setExtractionTimedOut(true), EXTRACTION_TIMEOUT_MS);
-    return () => {
-      clearInterval(pollInterval);
-      clearTimeout(giveUp);
-    };
-  }, [isExtracting, extractProductMutation.isPending, refetch]);
 
   const transition = useTransitionRequest(id ?? "");
   const updateWireTransfer = useUpdateWireTransfer(id ?? "");
@@ -290,6 +246,7 @@ export default function RequestDetail() {
   const [confirmGoods, setConfirmGoods] = useState({ description: "" });
   const [isActivityLogsOpen, setIsActivityLogsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [activeDetailTab, setActiveDetailTab] = useState<string>("overview");
 
   useEffect(() => {
     if (user?.id) {
@@ -329,6 +286,20 @@ export default function RequestDetail() {
       }
     }
   }, [data?.request, isRecurring]);
+
+  const hasItemsTab = Boolean((data?.request?.items && data.request.items.length > 0) || (data?.request?.quote_data?.items && data.request.quote_data.items.length > 0));
+  const hasPoTab = Boolean(data?.purchase_order);
+  const hasInvoiceTab = Boolean(data?.invoice);
+  const hasWireTab = Boolean(data?.wire_transfer);
+  const hasRecurringTab = Boolean(isRecurring);
+
+  useEffect(() => {
+    if (activeDetailTab === "items" && !hasItemsTab) setActiveDetailTab("overview");
+    if (activeDetailTab === "po" && !hasPoTab) setActiveDetailTab("overview");
+    if (activeDetailTab === "invoice" && !hasInvoiceTab) setActiveDetailTab("overview");
+    if (activeDetailTab === "wire" && !hasWireTab) setActiveDetailTab("overview");
+    if (activeDetailTab === "recurring" && !hasRecurringTab) setActiveDetailTab("overview");
+  }, [activeDetailTab, hasItemsTab, hasPoTab, hasInvoiceTab, hasWireTab, hasRecurringTab]);
 
   if (isLoading) {
     return <div className="p-8 text-sm text-muted-foreground">Loading request...</div>;
@@ -898,7 +869,7 @@ export default function RequestDetail() {
             <Button
               variant="destructive"
               size="sm"
-              disabled={transition.isPending || isExtracting}
+              disabled={transition.isPending}
               onClick={() => onAction("DELETE_REQUEST")}
               className="h-8 text-xs gap-1.5 shadow-xs"
             >
@@ -1031,11 +1002,6 @@ export default function RequestDetail() {
           }).length > 0 && (
             <div className="flex flex-wrap items-center gap-2 shrink-0">
               <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Action:</span>
-              {isExtracting && (
-                <span className="text-xs text-slate-500 dark:text-zinc-400 italic">
-                  Waiting for product details...
-                </span>
-              )}
               {isRecurring && !isReviewed && available_actions.includes("RECORD_INVOICE") && (
                 <Button
                   size="sm"
@@ -1057,7 +1023,7 @@ export default function RequestDetail() {
                 .map((action) => {
                   const meta = ACTION_META[action];
                   const isRecordInvoiceDisabled = isRecurring && action === "RECORD_INVOICE" && !isReviewed;
-                  const isDisabled = transition.isPending || isExtracting || isRecordInvoiceDisabled;
+                  const isDisabled = transition.isPending || isRecordInvoiceDisabled;
                   const buttonTitle = isRecordInvoiceDisabled
                     ? "Recurring request must be marked as 'Reviewed' before recording an invoice."
                     : undefined;
@@ -1140,707 +1106,427 @@ export default function RequestDetail() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 xl:col-span-9 space-y-6">
-          <Card className="border border-slate-200 dark:border-zinc-800">
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" /> Request Details</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 text-sm">
-              <Field label="Requester" value={request.requester} />
-              <Field label="Department" value={request.department} />
-              <Field
-                label="Group Project"
-                value={
-                  request.project_name ? (
-                    <div className="flex items-center gap-1.5">
-                      <Badge
-                        variant="outline"
-                        className="text-xs bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
-                        onClick={() => navigate(`/purchasing/requests?project=${encodeURIComponent(request.project_name!)}`)}
-                        title={`View all requests in project: ${request.project_name}`}
-                      >
-                        <FolderKanban className="h-3 w-3 mr-1 text-indigo-500" />
-                        {request.project_name}
+        <div className="lg:col-span-8 xl:col-span-9 space-y-4">
+          <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="w-full space-y-4">
+            <div className="border-b border-slate-200 dark:border-zinc-800 pb-1">
+              <TabsList className="h-auto p-1 bg-slate-100/90 dark:bg-zinc-800/90 rounded-lg flex flex-wrap items-center gap-1 w-full sm:w-auto justify-start">
+                <TabsTrigger
+                  value="overview"
+                  className="text-xs px-3.5 h-8 gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs font-medium"
+                >
+                  <FileText className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                  <span>Request Overview</span>
+                </TabsTrigger>
+
+                {hasItemsTab && (
+                  <TabsTrigger
+                    value="items"
+                    className="text-xs px-3.5 h-8 gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs font-medium"
+                  >
+                    <Package className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>Line Items &amp; Quotes</span>
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                      {request.items?.length || request.quote_data?.items?.length || 0}
+                    </span>
+                  </TabsTrigger>
+                )}
+
+                {hasPoTab && (
+                  <TabsTrigger
+                    value="po"
+                    className="text-xs px-3.5 h-8 gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs font-medium"
+                  >
+                    <Truck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Purchase Order</span>
+                    {purchase_order?.id && (
+                      <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        #{purchase_order.id}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                )}
+
+                {hasInvoiceTab && (
+                  <TabsTrigger
+                    value="invoice"
+                    className="text-xs px-3.5 h-8 gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs font-medium"
+                  >
+                    <ReceiptText className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                    <span>Invoice &amp; Bill</span>
+                    {inv?.paid_date ? (
+                      <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        Paid
+                      </span>
+                    ) : inv?.payment_status ? (
+                      <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        {PAYMENT_LABEL[inv.payment_status] || inv.payment_status}
+                      </span>
+                    ) : null}
+                  </TabsTrigger>
+                )}
+
+                {hasWireTab && (
+                  <TabsTrigger
+                    value="wire"
+                    className="text-xs px-3.5 h-8 gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs font-medium"
+                  >
+                    <Landmark className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>Wire Transfer</span>
+                  </TabsTrigger>
+                )}
+
+                {hasRecurringTab && (
+                  <TabsTrigger
+                    value="recurring"
+                    className="text-xs px-3.5 h-8 gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs font-medium"
+                  >
+                    <CalendarClock className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                    <span>Recurring Horizon</span>
+                    {request.recurring_schedule?.completed_installments !== undefined && (
+                      <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300">
+                        {request.recurring_schedule.completed_installments}/{request.recurring_schedule.total_installments || 24}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                )}
+              </TabsList>
+            </div>
+
+            {/* TAB 1: Request Overview */}
+            <TabsContent value="overview" className="m-0 focus-visible:outline-none space-y-6">
+              <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <CardHeader className="pb-3 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/30">
+                  <CardTitle className="text-base font-semibold flex items-center justify-between text-slate-900 dark:text-zinc-100">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <span>Request Overview</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs font-normal bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700">
+                        {formatRequestType(request.request_type)}
                       </Badge>
-                      {canEditRequest && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setQuickProjectValue(request.project_name || "");
-                            setIsProjectDialogOpen(true);
-                          }}
-                          className="text-[11px] text-indigo-600 hover:underline dark:text-indigo-400"
-                        >
-                          Change
-                        </button>
+                      {request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0) ? (
+                        <Badge variant="outline" className="text-xs font-medium bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">
+                          Multi-Part ({request.items?.length || multiPartsList.length} items)
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs font-medium bg-slate-100 text-slate-700 border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                          Single Item
+                        </Badge>
                       )}
                     </div>
-                  ) : canEditRequest ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setQuickProjectValue("");
-                        setIsProjectDialogOpen(true);
-                      }}
-                      className="h-6 px-1.5 text-xs text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40 gap-1 font-normal"
-                    >
-                      <FolderKanban className="h-3 w-3" />
-                      <span>+ Add to Project</span>
-                    </Button>
-                  ) : (
-                    <span className="text-slate-400 italic">None</span>
-                  )
-                }
-              />
-              <Field label="Type" value={formatRequestType(request.request_type)} />
-              <Field
-                label="Configuration"
-                value={
-                  request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)
-                    ? `Multiple Parts (${request.items?.length || 0} parts)`
-                    : "Single Item"
-                }
-              />
-              <AssignedUsersField label="Assigned To" value={request.assigned_user ?? "—"} />
-              {isMulti ? (
-                <div>
-                  <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Category</div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <Badge variant="outline" className="bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800 text-xs font-normal">
-                      Itemized per Part ({multiPartsList.length} parts)
-                    </Badge>
-                    {data?.invoice?.items && data.invoice.items.length > 0 && (
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                        • Recorded in Bill
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <Field label="Category" value={renderCategory(request.gl_code || data?.purchase_order?.gl_code || data?.invoice?.gl_code)} />
-              )}
-              <Field
-                label="Payment Method"
-                value={
-                  (data?.purchase_order?.payment_method || (request as any)?.payment_method)
-                    ? renderPaymentMethodBadge(data?.purchase_order?.payment_method || (request as any)?.payment_method)
-                    : "—"
-                }
-              />
-              <Field
-                label="Bank Account"
-                value={renderBankAccount(
-                  data?.invoice?.bank_account ||
-                  (request as any)?.bank_account ||
-                  (purchase_order as any)?.bank_account ||
-                  (isBankAccountOption(parseGLAccount(request.gl_code, glCodes)) ? request.gl_code : null) ||
-                  (isBankAccountOption(parseGLAccount(data?.purchase_order?.gl_code, glCodes)) ? data?.purchase_order?.gl_code : null) ||
-                  mapPaymentMethodToBankAccount(data?.purchase_order?.payment_method || (request as any)?.payment_method, glCodes)
-                )}
-              />
-              <Field label="Requested" value={formatDate(request.request_date)} />
-              <Field label="Last Updated" value={formatDate(request.updated_at)} />
-              {isRecurring && (
-                <Field
-                  label="Next Due Date"
-                  value={
-                    request.due_date ? (
-                      <span className="font-semibold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                        {formatDate(request.due_date)}
-                      </span>
-                    ) : (
-                      "—"
-                    )
-                  }
-                />
-              )}
-              {isRecurring && (
-                <>
-                  <Field
-                    label="Schedule Timeframe & Range"
-                    value={
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <Badge
-                          variant="outline"
-                          className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 text-xs font-semibold py-0.5 px-2"
-                        >
-                          <CalendarClock className="h-3 w-3 mr-1 text-indigo-600 dark:text-indigo-400" />
-                          {request.recurring_schedule?.frequency === 'CUSTOM' || Boolean(request.recurring_schedule?.schedule_dates?.length) ? `${request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 0} Milestone Dates` : formatRemainingDuration(request.recurring_schedule?.end_date, request.recurring_schedule?.start_date || request.due_date).text}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground font-medium">
-                          ({formatDate(request.recurring_schedule?.start_date || request.due_date || request.request_date)} – {request.recurring_schedule?.end_date ? formatDate(request.recurring_schedule.end_date) : "Ongoing"})
-                        </span>
-                      </div>
-                    }
-                  />
-                  <Field
-                    label="Installment Progress"
-                    value={
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 dark:text-zinc-100">
-                          {request.recurring_schedule?.completed_installments || 0} / {request.recurring_schedule?.total_installments || 24} Cycles Completed
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 text-[11px] px-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 cursor-pointer"
-                          onClick={() => setIsScheduleLedgerOpen(true)}
-                        >
-                          <CalendarClock className="h-3 w-3 mr-1" />
-                          View Schedule
-                        </Button>
-                      </div>
-                    }
-                  />
-                </>
-              )}
-              {!(request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)) && (
-                <>
-                  <Field label="SKU / Part #" value={request.sku || request.items?.[0]?.sku || "—"} />
-                  <Field label="Quantity" value={String(request.quantity ?? 1)} />
-                  <Field
-                    label="Unit Price"
-                    value={
-                      <span>
-                        {formatMoney(request.unit_price ?? 0)} {request.currency || "USD"}
-                        {hasCrawledForeignPrice && (
-                          <span className="text-slate-500 text-xs ml-1.5 font-normal">
-                            ({formatMoney(crawledOrigPrice!)} {crawledOrigCurr})
-                          </span>
-                        )}
-                      </span>
-                    }
-                  />
-                </>
-              )}
-              <Field
-                label="Total Amount (Pre-Tax)"
-                value={
-                  <span>
-                    {formatMoney(request.amount ?? 0)} {request.currency || "USD"}
-                    {hasCrawledForeignPrice && (
-                      <span className="text-slate-500 text-xs ml-1.5 font-normal">
-                        ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1))} {crawledOrigCurr})
-                      </span>
-                    )}
-                  </span>
-                }
-              />
-              <Field
-                label="Total Amount (After-Tax)"
-                value={
-                  <span>
-                    {formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} {request.currency || "USD"}
-                    {hasCrawledForeignPrice && (
-                      <span className="text-slate-500 text-xs ml-1.5 font-normal">
-                        ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1) * (1 + TAX_RATE))} {crawledOrigCurr})
-                      </span>
-                    )}
-                  </span>
-                }
-              />
-              <Field label="Currency" value={request.currency || "USD"} />
-              <div className="col-span-2">
-                <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Description</div>
-                <div className="text-slate-800 dark:text-zinc-200">{request.description || "—"}</div>
-              </div>
-
-              {isMulti && multiPartsList.length > 0 && (
-                <div className="col-span-2 pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
-                      Parts &amp; GL Account Allocations ({multiPartsList.length} items)
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      Per-part accounting allocation
-                    </span>
-                  </div>
-                  <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
-                    <div className="bg-slate-50 dark:bg-zinc-800/60 px-3 py-2 grid grid-cols-12 gap-3 font-semibold text-slate-600 dark:text-zinc-400">
-                      <div className="col-span-1 text-center">#</div>
-                      <div className="col-span-5">Part / Description</div>
-                      <div className="col-span-2 text-right pr-6">Amount</div>
-                      <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">Category</div>
-                    </div>
-                    {multiPartsList.map((itm: any, idx: number) => {
-                      const itemGL = getItemGLCode(itm, idx);
-                      const rawPrice = Number(itm.original_unit_price ?? itm.unit_price ?? 0);
-                      const rawTot = Number(itm.original_total ?? itm.total ?? (rawPrice * (Number(itm.quantity) || 1)));
-                      const itemCurr = (itm.original_currency || (isForeignQuote ? quoteNativeCurrency : request.currency) || "USD").toUpperCase();
-                      const isItemForeign = itemCurr !== "USD" && isForeignQuote;
-                      const usdEquivalent = isItemForeign && quoteExchangeRate > 0 ? Math.round(rawTot * quoteExchangeRate * 100) / 100 : null;
-                      const usdUnitEquivalent = isItemForeign && quoteExchangeRate > 0 ? Math.round(rawPrice * quoteExchangeRate * 100) / 100 : null;
-
-                      return (
-                        <div key={itm.id || idx} className="px-3 py-2.5 grid grid-cols-12 gap-3 items-center bg-white dark:bg-zinc-900 hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
-                          <div className="col-span-1 text-center font-mono text-slate-400">{idx + 1}</div>
-                          <div className="col-span-5 pr-2">
-                            <div className="font-medium text-slate-900 dark:text-zinc-100 break-words whitespace-normal leading-snug">
-                              {itm.sku ? <span className="font-mono text-indigo-600 dark:text-indigo-400 mr-1">[{itm.sku}]</span> : null}
-                              {itm.description}
-                            </div>
-                            <div className="text-[11px] text-slate-500 mt-0.5">
-                              Qty: {itm.quantity} {rawPrice > 0 ? `· ${formatMoney(rawPrice, itemCurr)} each` : ""}
-                              {usdUnitEquivalent !== null && (
-                                <span className="text-slate-400 ml-1 font-normal">(≈ {formatMoney(usdUnitEquivalent, "USD")} USD)</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="col-span-2 text-right pr-6 font-mono font-semibold text-slate-800 dark:text-zinc-200">
-                            <div>{formatMoney(rawTot, itemCurr)}</div>
-                            {usdEquivalent !== null && (
-                              <div className="text-[11px] font-normal text-slate-500 dark:text-zinc-400">
-                                ≈ {formatMoney(usdEquivalent, "USD")} USD
-                              </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-5 space-y-6">
+                  {/* Top Details Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 text-sm">
+                    <Field label="Requester" value={`${request.requester || "Unknown"}${request.department ? ` (${request.department})` : ""}`} />
+                    <AssignedUsersField label="Assigned To" value={request.assigned_user ?? "—"} />
+                    <Field
+                      label="Group Project"
+                      value={
+                        request.project_name ? (
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                              onClick={() => navigate(`/purchasing/requests?project=${encodeURIComponent(request.project_name!)}`)}
+                              title={`View all requests in project: ${request.project_name}`}
+                            >
+                              <FolderKanban className="h-3 w-3 mr-1 text-indigo-500" />
+                              {request.project_name}
+                            </Badge>
+                            {canEditRequest && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setQuickProjectValue(request.project_name || "");
+                                  setIsProjectDialogOpen(true);
+                                }}
+                                className="text-[11px] text-indigo-600 hover:underline dark:text-indigo-400"
+                              >
+                                Change
+                              </button>
                             )}
                           </div>
-                          <div className="col-span-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
-                            {renderCategory(itemGL)}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {(request.item_url || purchase_order?.item_url) && (
-                <div className="col-span-2">
-                  <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Product / Vendor Link</div>
-                  <div className="flex flex-col gap-3">
-                    <a
-                      href={(request.item_url || purchase_order?.item_url || "").startsWith("http") ? (request.item_url || purchase_order?.item_url || "#") : `https://${request.item_url || purchase_order?.item_url}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={request.item_url || purchase_order?.item_url || undefined}
-                      className="inline-flex max-w-full items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 transition-colors"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                      <span className="min-w-0 truncate">Open Product Page ({request.item_url || purchase_order?.item_url})</span>
-                    </a>
+                        ) : canEditRequest ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setQuickProjectValue("");
+                              setIsProjectDialogOpen(true);
+                            }}
+                            className="h-6 px-1.5 text-xs text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40 gap-1 font-normal"
+                          >
+                            <FolderKanban className="h-3 w-3" />
+                            <span>+ Add to Project</span>
+                          </Button>
+                        ) : (
+                          <span className="text-slate-400 italic">None</span>
+                        )
+                      }
+                    />
 
-                    {!isDraft && (
-                      request.product_info ? (
-                        <Card className="border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/50 dark:bg-indigo-950/20 shadow-sm mt-2">
-                          <CardHeader className="py-3 px-4 border-b border-indigo-100 dark:border-indigo-900/50">
-                            <CardTitle className="text-sm font-semibold flex items-center justify-between text-indigo-900 dark:text-indigo-100">
-                              <div className="flex items-center gap-2">
-                                <Package className="h-4 w-4" /> AI Product Analysis
-                              </div>
-                              {(request.product_info.price === "N/A" || request.product_info.name === "N/A") && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs px-2"
-                                  onClick={() => extractProductMutation.mutate(undefined)}
-                                  disabled={extractProductMutation.isPending}
-                                >
-                                  <RefreshCw className={cn("h-3 w-3 mr-1", extractProductMutation.isPending && "animate-spin")} />
-                                  Re-run Analysis
-                                </Button>
-                              )}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="p-4 grid grid-cols-2 gap-4 text-sm">
-                            <div className="col-span-2">
-                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Product Name</div>
-                              <div className="font-medium text-slate-900 dark:text-slate-100">{request.product_info.name}</div>
-                            </div>
-                            <div>
-                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Price</div>
-                              <div className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-baseline gap-2 flex-wrap">
-                                <span>
-                                  {request.product_info.price ? (request.product_info.price.startsWith("$") ? request.product_info.price : `$${request.product_info.price}`) : "—"}
-                                  {request.product_info.currency && request.product_info.currency.toUpperCase() !== "N/A" ? ` ${request.product_info.currency}` : ""}
-                                </span>
-                                {hasCrawledForeignPrice && (
-                                  <span className="text-xs font-semibold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700">
-                                    ({formatMoney(crawledOrigPrice!)} {crawledOrigCurr})
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Brand</div>
-                              <div className="text-slate-700 dark:text-slate-300">{request.product_info.brand}</div>
-                            </div>
-                            <div>
-                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Vendor</div>
-                              <div className="text-slate-700 dark:text-slate-300">{request.product_info.vendor}</div>
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Category</div>
-                              <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 max-w-full truncate block" title={request.product_info.category}>{request.product_info.category}</Badge>
-                            </div>
-                            <div className="col-span-2">
-                              <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">Description</div>
-                              <div className="text-slate-600 dark:text-slate-400 leading-relaxed text-xs">{request.product_info.description}</div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ) : isExtracting ? (
-                        <div className="flex items-center gap-3 p-3 mt-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                          <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
-                            <RefreshCw className="h-4 w-4 text-indigo-600 dark:text-indigo-400 animate-spin" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">Automatically Extracting...</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Please wait while the AI extracts the product details from the URL. This may take up to 15 seconds.</p>
+                    <Field label="Requested Date" value={formatDate(request.request_date)} />
+                    <Field label="Last Updated" value={formatDate(request.updated_at)} />
+                    {isRecurring && (
+                      <Field
+                        label="Next Due Date"
+                        value={
+                          request.due_date ? (
+                            <span className="font-semibold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
+                              <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                              {formatDate(request.due_date)}
+                            </span>
+                          ) : (
+                            "—"
+                          )
+                        }
+                      />
+                    )}
+                  </div>
+
+                  {/* Financial & Accounting Section */}
+                  <div className="pt-4 border-t border-slate-100 dark:border-zinc-800">
+                    <div className="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                      Accounting &amp; Payment Details
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 text-sm">
+                      {isMulti ? (
+                        <div>
+                          <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Category</div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="outline" className="bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800 text-xs font-normal">
+                              Itemized per Part ({multiPartsList.length} parts)
+                            </Badge>
+                            {data?.invoice?.items && data.invoice.items.length > 0 && (
+                              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                                • Recorded in Bill
+                              </span>
+                            )}
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 mt-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                              <Package className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">Product details unavailable</h4>
-                              <p className="text-xs text-slate-500 dark:text-slate-400">Automatic extraction couldn't retrieve details from this link. You can retry or continue without it.</p>
-                            </div>
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-8 gap-1.5 text-xs shrink-0 self-start sm:self-auto bg-white dark:bg-slate-800"
-                            disabled={extractProductMutation.isPending}
-                            onClick={() => {
-                              setExtractionTimedOut(false);
-                              extractProductMutation.mutate(undefined, {
-                                onSuccess: () => {
-                                  refetch();
-                                  toast.success("Product details extracted successfully");
-                                },
-                                onError: (err: any) => {
-                                  refetch();
-                                  toast.error(err?.message || "Failed to extract product details");
-                                },
-                              });
-                            }}
-                          >
-                            <RefreshCw className={cn("h-3.5 w-3.5", extractProductMutation.isPending && "animate-spin")} />
-                            Retry Extraction
-                          </Button>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                        <Field label="Category" value={renderCategory(request.gl_code || data?.purchase_order?.gl_code || data?.invoice?.gl_code)} />
+                      )}
 
-          {/* Dedicated Recurring Contract & Schedule Horizon Card */}
-          {isRecurring && (
-            <Card className="border border-indigo-200/90 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/50 via-white to-sky-50/30 dark:from-indigo-950/20 dark:via-zinc-900/40 dark:to-zinc-900 shadow-sm overflow-hidden">
-              <CardHeader className="pb-3 border-b border-indigo-100/80 dark:border-indigo-950/60">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-indigo-950 dark:text-indigo-200">
-                    <CalendarClock className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                    Scheduled Range &amp; Payment Horizon
-                  </CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs px-2.5 font-semibold text-indigo-700 bg-white hover:bg-indigo-50 dark:bg-zinc-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 shadow-2xs"
-                    onClick={() => setIsScheduleLedgerOpen(true)}
-                  >
-                    <Calendar className="h-3.5 w-3.5 mr-1" />
-                    Open Installment Ledger
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
-                    <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Scheduled Horizon</div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                      {formatDate(request.recurring_schedule?.start_date || request.due_date || request.request_date)}
-                    </div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <span>to</span>
-                      <strong className="text-slate-800 dark:text-zinc-200">
-                        {request.recurring_schedule?.end_date ? formatDate(request.recurring_schedule.end_date) : "Ongoing (2 Yrs)"}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
-                    <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Remaining Duration</div>
-                    <div className="mt-1">
-                      <Badge variant="outline" className="bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold border-indigo-300 text-xs">
-                        {request.recurring_schedule?.frequency === 'CUSTOM' || Boolean(request.recurring_schedule?.schedule_dates?.length) ? `${request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 0} Milestone Dates` : formatRemainingDuration(request.recurring_schedule?.end_date, request.recurring_schedule?.start_date || request.due_date).text}
-                      </Badge>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground mt-1">
-                      {FREQUENCY_LABELS[(request.recurring_schedule?.frequency as FrequencyType) || "MONTHLY"] || "Monthly"} ({formatMoney(request.recurring_schedule?.amount_per_cycle || request.amount || 0)} / cycle)
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
-                    <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Cycle Progress</div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                      {request.recurring_schedule?.completed_installments || 0} / {request.recurring_schedule?.total_installments || 24} Cycles
-                    </div>
-                    <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                      <div
-                        className="bg-indigo-600 h-full rounded-full transition-all"
-                        style={{
-                          width: `${Math.min(100, Math.round(((request.recurring_schedule?.completed_installments || 0) / (request.recurring_schedule?.total_installments || 24)) * 100))}%`
-                        }}
+                      <Field
+                        label="Payment Method"
+                        value={
+                          (data?.purchase_order?.payment_method || (request as any)?.payment_method)
+                            ? renderPaymentMethodBadge(data?.purchase_order?.payment_method || (request as any)?.payment_method)
+                            : "—"
+                        }
                       />
+
+                      <Field
+                        label="Bank Account"
+                        value={renderBankAccount(
+                          data?.invoice?.bank_account ||
+                          (request as any)?.bank_account ||
+                          (purchase_order as any)?.bank_account ||
+                          (isBankAccountOption(parseGLAccount(request.gl_code, glCodes)) ? request.gl_code : null) ||
+                          (isBankAccountOption(parseGLAccount(data?.purchase_order?.gl_code, glCodes)) ? data?.purchase_order?.gl_code : null) ||
+                          mapPaymentMethodToBankAccount(data?.purchase_order?.payment_method || (request as any)?.payment_method, glCodes)
+                        )}
+                      />
+
+                      {/* Financial Totals for Single Items */}
+                      {!(request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)) && (
+                        <>
+                          <Field label="SKU / Part #" value={request.sku || request.items?.[0]?.sku || "—"} />
+                          <Field label="Quantity" value={String(request.quantity ?? 1)} />
+                          <Field
+                            label="Unit Price"
+                            value={
+                              <span>
+                                {formatMoney(request.unit_price ?? 0)} {request.currency || "USD"}
+                                {hasCrawledForeignPrice && (
+                                  <span className="text-slate-500 text-xs ml-1.5 font-normal">
+                                    ({formatMoney(crawledOrigPrice!)} {crawledOrigCurr})
+                                  </span>
+                                )}
+                              </span>
+                            }
+                          />
+                        </>
+                      )}
+
+                      <Field
+                        label="Total (Pre-Tax)"
+                        value={
+                          <span className="font-semibold text-slate-900 dark:text-zinc-100">
+                            {formatMoney(request.amount ?? 0)} {request.currency || "USD"}
+                            {hasCrawledForeignPrice && (
+                              <span className="text-slate-500 text-xs ml-1.5 font-normal">
+                                ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1))} {crawledOrigCurr})
+                              </span>
+                            )}
+                          </span>
+                        }
+                      />
+
+                      <Field
+                        label="Total (After-Tax · 13% HST)"
+                        value={
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            {formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} {request.currency || "USD"}
+                            {hasCrawledForeignPrice && (
+                              <span className="text-slate-500 text-xs ml-1.5 font-normal">
+                                ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1) * (1 + TAX_RATE))} {crawledOrigCurr})
+                              </span>
+                            )}
+                          </span>
+                        }
+                      />
+
+                      <Field label="Currency" value={request.currency || "USD"} />
                     </div>
                   </div>
 
-                  <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
-                    <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Total Commitment</div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                      {formatMoney(request.recurring_schedule?.total_amount || ((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24)))}
+                  {/* Description */}
+                  {request.description && (
+                    <div className="pt-4 border-t border-slate-100 dark:border-zinc-800">
+                      <div className="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
+                        Description
+                      </div>
+                      <div className="text-sm text-slate-800 dark:text-zinc-200 bg-slate-50 dark:bg-zinc-900/50 p-3.5 rounded-lg border border-slate-100 dark:border-zinc-800 whitespace-pre-wrap leading-relaxed">
+                        {request.description}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
-                      {formatMoney((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.completed_installments || 0))} paid to date
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  )}
 
+                  {/* Product / Vendor URL & AI Extraction for Single Item */}
+                  {(request.item_url || purchase_order?.item_url) && (
+                    <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3">
+                      <div className="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                        Vendor Listing &amp; Product Extraction
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        <a
+                          href={(request.item_url || purchase_order?.item_url || "").startsWith("http") ? (request.item_url || purchase_order?.item_url || "#") : `https://${request.item_url || purchase_order?.item_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={request.item_url || purchase_order?.item_url || undefined}
+                          className="inline-flex max-w-full items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 transition-colors self-start"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                          <span className="min-w-0 truncate">Open Vendor Product Page</span>
+                        </a>
 
-          {Boolean((request.items && request.items.length > 0) || (request.quote_data?.items && request.quote_data.items.length > 0)) && (
-            <Card className="border border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-b from-indigo-50/20 to-transparent shadow-sm">
-              <CardHeader className="pb-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-indigo-950 dark:text-indigo-200">
-                    <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                    <span className="font-semibold text-base">Quotation Items &amp; Parts Breakdown ({(request.items?.length || request.quote_data?.items?.length || 0)})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 font-mono text-xs font-semibold">
-                      {isForeignQuote
-                        ? `Currency: ${quoteNativeCurrency} (Converted @ 1 ${quoteNativeCurrency} = $${quoteExchangeRate} USD)`
-                        : `Currency: USD`}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Company & Quote Metadata */}
-                <div className="text-xs text-slate-600 dark:text-zinc-400 flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 border-t border-indigo-100 dark:border-indigo-900/40 mt-1">
-                  {vendorCompanyName && (
-                    <span className="flex items-center gap-1">
-                      <Building2 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                      <strong>Company / Vendor:</strong>
-                      <span className="font-medium text-slate-900 dark:text-zinc-100">{vendorCompanyName}</span>
-                    </span>
-                  )}
-                  {customerCompanyName && (
-                    <span><strong>Customer / Bill To:</strong> {customerCompanyName}</span>
-                  )}
-                  {request.quote_data?.quote_number && (
-                    <span><strong>Quote Ref:</strong> <span className="font-mono">{request.quote_data.quote_number}</span></span>
-                  )}
-                  {request.quote_data?.quote_date && (
-                    <span><strong>Date:</strong> {request.quote_data.quote_date}</span>
-                  )}
-                  {request.quote_data?.valid_until && (
-                    <span><strong>Valid Until:</strong> {request.quote_data.valid_until}</span>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-slate-50 dark:bg-zinc-800/60">
-                      <TableRow>
-                        <TableHead className="w-10 text-center">#</TableHead>
-                        <TableHead className="w-24 font-semibold">SKU</TableHead>
-                        <TableHead className="font-semibold">Description</TableHead>
-                        <TableHead className="w-16 text-right font-semibold">Qty</TableHead>
-                        <TableHead className="w-24 text-right font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
-                        <TableHead className="w-24 text-right pr-6 font-semibold">Total ({quoteNativeCurrency})</TableHead>
-                        <TableHead className="w-48 pl-4 border-l border-slate-200 dark:border-zinc-700 font-semibold">Category</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(request.items?.length ? request.items : (request.quote_data?.items || [])).map((itm: any, idx: number) => {
-                        const rawPrice = Number(itm.original_unit_price ?? itm.unit_price ?? 0);
-                        const rawTot = Number(itm.original_total ?? itm.total ?? (rawPrice * (Number(itm.quantity) || 1)));
-                        const convPrice = Number(itm.converted_unit_price ?? (rawPrice * quoteExchangeRate));
-                        const convTot = Number(itm.converted_total ?? (rawTot * quoteExchangeRate));
-
-                        return (
-                          <TableRow key={itm.id || idx}>
-                            <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
-                            <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
-                            <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-sm">{itm.description}</TableCell>
-                            <TableCell className="text-right text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
-                            <TableCell className="text-right text-slate-600 dark:text-zinc-400">
-                              <div>{formatMoney(rawPrice)} {quoteNativeCurrency}</div>
-                              {isForeignQuote && (
-                                <div className="text-[10.5px] text-slate-400 font-mono">
-                                  ({formatMoney(convPrice)} USD)
+                        {!isDraft && request.product_info && (
+                          <Card className="border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/50 dark:bg-indigo-950/20 shadow-sm">
+                            <CardHeader className="py-2.5 px-4 border-b border-indigo-100 dark:border-indigo-900/50">
+                              <CardTitle className="text-sm font-semibold flex items-center justify-between text-indigo-900 dark:text-indigo-100">
+                                <div className="flex items-center gap-2">
+                                  <Package className="h-4 w-4 text-indigo-600" />
+                                  <span>Extracted Product Information</span>
+                                </div>
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                              <div className="sm:col-span-2">
+                                <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-0.5">Product Name</div>
+                                <div className="font-medium text-slate-900 dark:text-slate-100">{request.product_info.name}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-0.5">Price</div>
+                                <div className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-baseline gap-2 flex-wrap">
+                                  <span>
+                                    {request.product_info.price ? (request.product_info.price.startsWith("$") ? request.product_info.price : `$${request.product_info.price}`) : "—"}
+                                    {request.product_info.currency && request.product_info.currency.toUpperCase() !== "N/A" ? ` ${request.product_info.currency}` : ""}
+                                  </span>
+                                  {hasCrawledForeignPrice && (
+                                    <span className="text-xs font-semibold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700">
+                                      ({formatMoney(crawledOrigPrice!)} {crawledOrigCurr})
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-0.5">Brand</div>
+                                <div className="text-slate-700 dark:text-slate-300">{request.product_info.brand}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-0.5">Vendor</div>
+                                <div className="text-slate-700 dark:text-slate-300">{request.product_info.vendor}</div>
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-0.5">Category</div>
+                                <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 max-w-full truncate inline-block" title={request.product_info.category}>{request.product_info.category}</Badge>
+                              </div>
+                              {request.product_info.description && request.product_info.description !== "N/A" && (
+                                <div className="sm:col-span-2">
+                                  <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-0.5">Description</div>
+                                  <div className="text-slate-600 dark:text-slate-400 leading-relaxed text-xs">{request.product_info.description}</div>
                                 </div>
                               )}
-                            </TableCell>
-                            <TableCell className="text-right pr-6 font-semibold font-mono text-slate-900 dark:text-zinc-100">
-                              <div>{formatMoney(rawTot)} {quoteNativeCurrency}</div>
-                              {isForeignQuote && (
-                                <div className="text-[10.5px] text-slate-400 font-mono font-normal">
-                                  ({formatMoney(convTot)} USD)
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-xs text-slate-700 dark:text-zinc-300 pl-4 border-l border-slate-100 dark:border-zinc-800">
-                              {renderCategory(getItemGLCode(itm, idx))}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-zinc-800">
-                  {/* Math Matching Status Indicator */}
-                  <div className="text-xs">
-                    {totalsMatch ? (
-                      <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 bg-emerald-50/80 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-900/60 font-medium">
-                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-                        <span>
-                          Calculated sum matches Grand Total ({formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
-                          {isForeignQuote ? ` / ${formatMoney(statedGrandTotalUsd)} USD` : ""})
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md border border-amber-200 dark:border-amber-900/60">
-                        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-                        <span>
-                          Discrepancy: Calculated sum is {formatMoney(calculatedQuoteTotalNative)} {quoteNativeCurrency} vs stated Grand Total of {formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Summary Totals Breakdown */}
-                  <div className="text-right space-y-1 text-xs min-w-[220px]">
-                    <div className="text-slate-500 flex justify-between gap-4">
-                      <span>Items Subtotal:</span>
-                      <span className="font-medium font-mono text-slate-700 dark:text-zinc-300">
-                        {formatMoney(itemsSumNative)} {quoteNativeCurrency}
-                        {isForeignQuote && <span className="text-[10.5px] text-slate-400 ml-1">({formatMoney(itemsSumNative * quoteExchangeRate)} USD)</span>}
-                      </span>
-                    </div>
-                    {quoteShippingNative > 0 && (
-                      <div className="text-slate-600 dark:text-zinc-300 flex justify-between gap-4 font-medium">
-                        <span className="flex items-center gap-1"><Truck className="h-3 w-3 text-indigo-500" /> Shipping Fee:</span>
-                        <span className="font-mono">
-                          {formatMoney(quoteShippingNative)} {quoteNativeCurrency}
-                          {isForeignQuote && <span className="text-[10.5px] text-slate-400 ml-1">({formatMoney(quoteShippingNative * quoteExchangeRate)} USD)</span>}
-                        </span>
-                      </div>
-                    )}
-                    {quoteTaxNative > 0 && (
-                      <div className="text-slate-500 flex justify-between gap-4">
-                        <span>Tax:</span>
-                        <span className="font-medium font-mono">
-                          {formatMoney(quoteTaxNative)} {quoteNativeCurrency}
-                          {isForeignQuote && <span className="text-[10.5px] text-slate-400 ml-1">({formatMoney(quoteTaxNative * quoteExchangeRate)} USD)</span>}
-                        </span>
-                      </div>
-                    )}
-                    {quoteDiscountNative > 0 && (
-                      <div className="text-emerald-600 flex justify-between gap-4">
-                        <span>Discount:</span>
-                        <span className="font-medium font-mono">
-                          -{formatMoney(quoteDiscountNative)} {quoteNativeCurrency}
-                          {isForeignQuote && <span className="text-[10.5px] text-emerald-500 ml-1">(-{formatMoney(quoteDiscountNative * quoteExchangeRate)} USD)</span>}
-                        </span>
-                      </div>
-                    )}
-                    <div className="pt-1.5 border-t border-slate-200 dark:border-zinc-800 text-sm flex justify-between gap-4 items-baseline">
-                      <span className="text-slate-900 dark:text-zinc-100 font-semibold">Grand Total:</span>
-                      <div className="text-right">
-                        <div className="font-bold text-slate-900 dark:text-zinc-100 text-base font-mono">
-                          {formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
-                        </div>
-                        {isForeignQuote && (
-                          <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
-                            ({formatMoney(statedGrandTotalUsd)} USD)
-                          </div>
+                            </CardContent>
+                          </Card>
                         )}
                       </div>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {purchase_order && (
-            <Card className="border border-slate-200 dark:border-zinc-800">
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Package className="h-4 w-4" /> Purchase Order · {purchase_order.id}</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <Field label="Vendor" value={purchase_order.vendor} />
-                  <Field label="Item" value={purchase_order.item} />
-                  <Field label="Quote / PO #" value={purchase_order.quote_number ?? "—"} />
-                  <Field label="Category" value={renderCategory(purchase_order.gl_code || request.gl_code)} />
-                  <Field
-                    label="Payment Method"
-                    value={purchase_order.payment_method ? renderPaymentMethodBadge(purchase_order.payment_method) : "—"}
-                  />
-                  <Field
-                    label="Bank Account"
-                    value={renderBankAccount(
-                      data?.invoice?.bank_account ||
-                      (purchase_order as any)?.bank_account ||
-                      (request as any)?.bank_account ||
-                      (isBankAccountOption(parseGLAccount(purchase_order.gl_code, glCodes)) ? purchase_order.gl_code : null) ||
-                      (isBankAccountOption(parseGLAccount(request.gl_code, glCodes)) ? request.gl_code : null) ||
-                      mapPaymentMethodToBankAccount(purchase_order.payment_method || (request as any)?.payment_method, glCodes)
-                    )}
-                  />
-                  {!isMulti && <Field label="Quantity" value={String(request.quantity ?? 1)} />}
-                  {!isMulti && <Field label="Unit Price" value={formatMoney(request.unit_price ?? 0)} />}
-                  {isMulti && quoteShippingNative > 0 && (
-                    <Field label="Shipping Fee" value={`${formatMoney(quoteShippingNative)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
                   )}
-                  <Field label="Total Amount (Pre-Tax)" value={`${formatMoney(purchase_order.amount || request.amount)}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
-                  <Field label="Total Amount (After-Tax)" value={`${formatMoney((purchase_order.amount || request.amount) * (1 + TAX_RATE))}${purchase_order.currency ? ` ${purchase_order.currency}` : ""}`} />
-                  <Field label="Shipped To" value={purchase_order.shipped_to_location ?? "—"} />
-                  <Field label="Approval" value={purchase_order.approval_status} />
-                  <Field label="Tracking #" value={purchase_order.tracking_number && purchase_order.tracking_number !== "SHIPPED" ? purchase_order.tracking_number : "—"} />
-                  <Field label="Shipping Note" value={purchase_order.shipping_note || "—"} />
-                  <Field label="Goods Received" value={purchase_order.goods_received ? `Yes, on ${formatDate(purchase_order.goods_received_at)}` : "No"} />
-                  <Field label="Goods Received Notes" value={purchase_order.goods_received_note || "—"} />
-                  {purchase_order.description && (
-                    <div className="col-span-2">
-                      <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Description</div>
-                      <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{purchase_order.description}</div>
-                    </div>
-                  )}
-                </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                {isMulti && Boolean((request.items && request.items.length > 0) || (request.quote_data?.items && request.quote_data.items.length > 0)) && (
-                  <div className="pt-3 border-t border-slate-200 dark:border-zinc-800 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                        Line Items &amp; Parts Breakdown ({(request.items?.length || request.quote_data?.items?.length)} items)
+            {/* TAB 2: Line Items & Quotes Breakdown */}
+            {hasItemsTab && (
+              <TabsContent value="items" className="m-0 focus-visible:outline-none space-y-6">
+                <Card className="border border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-b from-indigo-50/20 to-transparent shadow-sm">
+                  <CardHeader className="pb-3 border-b border-indigo-100 dark:border-indigo-900/40">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 text-indigo-950 dark:text-indigo-200">
+                        <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                        <span className="font-semibold text-base">Items &amp; Parts Breakdown ({(request.items?.length || request.quote_data?.items?.length || 0)})</span>
                       </div>
-                      <Badge variant="outline" className="text-[11px] font-mono">
-                        Currency: {quoteNativeCurrency}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 font-mono text-xs font-semibold">
+                          {isForeignQuote
+                            ? `Currency: ${quoteNativeCurrency} (Converted @ 1 ${quoteNativeCurrency} = $${quoteExchangeRate} USD)`
+                            : `Currency: ${quoteNativeCurrency || request.currency || "USD"}`}
+                        </Badge>
+                      </div>
                     </div>
+
+                    {/* Company & Quote Metadata (if present) */}
+                    {(vendorCompanyName || customerCompanyName || request.quote_data?.quote_number || request.quote_data?.quote_date) && (
+                      <div className="text-xs text-slate-600 dark:text-zinc-400 flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 border-t border-indigo-100/60 dark:border-indigo-900/30 mt-1">
+                        {vendorCompanyName && (
+                          <span className="flex items-center gap-1">
+                            <Building2 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <strong>Vendor:</strong>
+                            <span className="font-medium text-slate-900 dark:text-zinc-100">{vendorCompanyName}</span>
+                          </span>
+                        )}
+                        {customerCompanyName && (
+                          <span><strong>Bill To:</strong> {customerCompanyName}</span>
+                        )}
+                        {request.quote_data?.quote_number && (
+                          <span><strong>Quote Ref:</strong> <span className="font-mono font-medium text-slate-800 dark:text-zinc-200">{request.quote_data.quote_number}</span></span>
+                        )}
+                        {request.quote_data?.quote_date && (
+                          <span><strong>Date:</strong> {request.quote_data.quote_date}</span>
+                        )}
+                        {request.quote_data?.valid_until && (
+                          <span><strong>Valid Until:</strong> {request.quote_data.valid_until}</span>
+                        )}
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-4">
                     <div className="rounded-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
                       <Table>
                         <TableHeader className="bg-slate-50 dark:bg-zinc-800/60">
                           <TableRow>
                             <TableHead className="w-10 text-center text-xs">#</TableHead>
-                            <TableHead className="w-28 text-xs font-semibold">SKU</TableHead>
+                            <TableHead className="w-24 text-xs font-semibold">SKU / Part #</TableHead>
                             <TableHead className="text-xs font-semibold">Description</TableHead>
                             <TableHead className="w-16 text-right text-xs font-semibold">Qty</TableHead>
-                            <TableHead className="w-24 text-right text-xs font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
-                            <TableHead className="w-24 text-right text-xs font-semibold pr-6">Total ({quoteNativeCurrency})</TableHead>
+                            <TableHead className="w-28 text-right text-xs font-semibold">Unit Price ({quoteNativeCurrency})</TableHead>
+                            <TableHead className="w-28 text-right text-xs font-semibold pr-6">Total ({quoteNativeCurrency})</TableHead>
                             <TableHead className="w-48 text-xs font-semibold pl-4 border-l border-slate-200 dark:border-zinc-700">Category</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1852,7 +1538,7 @@ export default function RequestDetail() {
                             const convTot = Number(itm.converted_total ?? (rawTot * quoteExchangeRate));
 
                             return (
-                              <TableRow key={itm.id || idx}>
+                              <TableRow key={itm.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30">
                                 <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
                                 <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
                                 <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">{itm.description}</TableCell>
@@ -1883,8 +1569,27 @@ export default function RequestDetail() {
                       </Table>
                     </div>
 
-                    {/* PO Line Items Summary Breakdown */}
-                    <div className="flex justify-end pt-1">
+                    {/* Totals Breakdown and Math Matching */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                      <div className="text-xs">
+                        {totalsMatch ? (
+                          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 bg-emerald-50/80 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-900/60 font-medium">
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                            <span>
+                              Calculated sum matches Grand Total ({formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
+                              {isForeignQuote ? ` / ${formatMoney(statedGrandTotalUsd)} USD` : ""})
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md border border-amber-200 dark:border-amber-900/60">
+                            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                            <span>
+                              Discrepancy: Calculated sum is {formatMoney(calculatedQuoteTotalNative)} {quoteNativeCurrency} vs stated {formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
                       <div className="text-right space-y-1 text-xs min-w-[220px]">
                         <div className="text-slate-500 flex justify-between gap-4">
                           <span>Items Subtotal:</span>
@@ -1935,196 +1640,327 @@ export default function RequestDetail() {
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
 
-          {inv && (
-            <Card className="border border-slate-200 dark:border-zinc-800">
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><ReceiptText className="h-4 w-4" /> Invoice · {inv.id}</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                <Field label="Vendor" value={inv.vendor} />
-                <Field label="Amount" value={formatMoney(inv.amount)} />
-                <Field label="Description" value={inv.description ?? "—"} />
-                <Field label="Bill Date" value={formatDate(inv.paid_date || inv.invoice_date)} />
-                <Field label="Date Arrived" value={formatDate(inv.due_date)} />
-                <div>
-                  <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Payment Status</div>
-                  {/* payment_status only tracks the pre-payment lifecycle; a settled
-                      invoice is identified by paid_date. */}
-                  {inv.paid_date ? (
-                    <Badge variant="outline" className={STATUS_BADGE.COMPLETED}>Settled · {formatDate(inv.paid_date)}</Badge>
-                  ) : (
-                    <Badge variant="outline" className={PAYMENT_BADGE[inv.payment_status]}>{PAYMENT_LABEL[inv.payment_status]}</Badge>
-                  )}
-                </div>
-
-                <Field
-                  label="Bank Account"
-                  value={renderBankAccount(inv.bank_account)}
-                />
-                <Field
-                  label="Category"
-                  value={
-                    inv.items && inv.items.length > 1 ? (
-                      <Badge variant="outline" className="bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-300 dark:border-zinc-700 text-xs font-normal">
-                        Split ({inv.items.length} lines)
-                      </Badge>
-                    ) : (
-                      renderCategory(inv.gl_code)
-                    )
-                  }
-                />
-                <Field label="Asset Flag" value={inv.asset_flag ? "Yes" : "No"} />
-
-                {inv.items && inv.items.length > 0 && (
-                  <div className="col-span-2 mt-2 pt-3 border-t border-slate-100 dark:border-zinc-800">
-                    <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2 flex items-center justify-between">
-                      <span>Itemized Category Allocations ({inv.items.length} items)</span>
-                    </div>
-                    <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
-                      <div className="bg-slate-50 dark:bg-zinc-800/50 px-3 py-1.5 grid grid-cols-12 gap-2 font-medium text-slate-500">
-                        <div className="col-span-5">Item</div>
-                        <div className="col-span-2 text-right pr-6">Amount</div>
-                        <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">Category</div>
-                        <div className="col-span-1 text-center">Asset</div>
+            {/* TAB 3: Purchase Order */}
+            {hasPoTab && purchase_order && (
+              <TabsContent value="po" className="m-0 focus-visible:outline-none space-y-6">
+                <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
+                  <CardHeader className="pb-3 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/30">
+                    <CardTitle className="text-base font-semibold flex items-center justify-between text-slate-900 dark:text-zinc-100">
+                      <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        <span>Purchase Order · {purchase_order.id}</span>
                       </div>
-                      {inv.items.map((it, idx) => (
-                        <div key={idx} className="px-3 py-2 grid grid-cols-12 gap-2 items-center bg-white dark:bg-zinc-900">
-                          <div className="col-span-5 break-words whitespace-normal leading-snug font-medium text-slate-800 dark:text-zinc-200" title={it.description}>
-                            {it.sku ? <span className="font-mono text-indigo-600 dark:text-indigo-400 mr-1">[{it.sku}]</span> : null}{it.description}
-                          </div>
-                          <div className="col-span-2 text-right pr-6 font-mono font-medium text-slate-700 dark:text-zinc-300">
-                            {formatMoney(it.amount)}
-                          </div>
-                          <div className="col-span-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
-                            {renderCategory(it.gl_code)}
-                          </div>
-                          <div className="col-span-1 text-center">
-                            {it.asset_flag ? <Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">Asset</Badge> : "—"}
-                          </div>
-                        </div>
-                      ))}
+                      {purchase_order.quote_number && (
+                        <Badge variant="outline" className="text-xs font-mono">
+                          PO / Quote Ref: {purchase_order.quote_number}
+                        </Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-5 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 text-sm">
+                      <Field label="Vendor" value={purchase_order.vendor} />
+                      <Field label="Item" value={purchase_order.item} />
+                      <Field label="Shipped To" value={purchase_order.shipped_to_location ?? "—"} />
+                      <Field label="Approval Status" value={purchase_order.approval_status} />
+                      <Field label="Tracking #" value={purchase_order.tracking_number && purchase_order.tracking_number !== "SHIPPED" ? purchase_order.tracking_number : "—"} />
+                      <Field label="Shipping Note" value={purchase_order.shipping_note || "—"} />
+                      <Field label="Goods Received" value={purchase_order.goods_received ? `Yes, on ${formatDate(purchase_order.goods_received_at)}` : "No"} />
+                      <Field label="Goods Notes" value={purchase_order.goods_received_note || "—"} />
+                      <Field label="Expected Delivery" value={formatDate(purchase_order.expected_delivery_date) || "—"} />
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                    {purchase_order.description && (
+                      <div className="pt-3 border-t border-slate-100 dark:border-zinc-800">
+                        <div className="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Description</div>
+                        <div className="text-sm text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{purchase_order.description}</div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
 
-          {data?.wire_transfer && (
-            <Card className="border border-slate-200 dark:border-zinc-800">
-              <CardHeader className="bg-indigo-50/40 dark:bg-indigo-950/20 border-b border-slate-100 dark:border-zinc-800 px-6 py-3.5 flex flex-row items-center justify-between">
-                <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-semibold text-base">
-                  <Landmark className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                  <span>Wire Transfer Details</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  {Boolean(
-                    request.request_type === "ACCOUNTS_PAYABLE" ||
-                    request.status === RequestStatus.Purchased ||
-                    (request.status as string) === "ORDERED" ||
-                    request.status === RequestStatus.WaitingPayment ||
-                    (request.status as string) === "SENT_TO_AP"
-                  ) && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditWireOpen(true)}
-                      className="h-7 text-xs px-2.5 bg-white dark:bg-zinc-900 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 dark:border-indigo-800 dark:text-indigo-300 gap-1.5 shadow-xs"
-                    >
-                      <Pencil className="h-3 w-3" />
-                      <span>Edit Wire Info</span>
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                  <Field label="Entered By" value={data.wire_transfer.entered_by || "—"} />
-                  <Field label="Entry Date" value={formatDate(data.wire_transfer.entry_date)} />
-                  <Field label="Payment Date" value={formatDate(data.wire_transfer.payment_date)} />
-                  <Field label="Due Date" value={formatDate(data.wire_transfer.due_date)} />
-                  <Field label="Pay Date (Terms)" value={data.wire_transfer.pay_date || "—"} />
-                  <Field label="Pay From" value={data.wire_transfer.pay_from || "—"} />
-                  <Field label="Vendor" value={data.wire_transfer.vendor || "—"} />
-                  <Field label="New Vendor?" value={data.wire_transfer.is_new_vendor ? "Yes" : "No"} />
-                  <Field label="Invoice #" value={data.wire_transfer.invoice_number || "—"} />
-                  <Field label="Amount" value={`${formatMoney(data.wire_transfer.amount || 0)} ${data.wire_transfer.currency || "USD"}`} />
-                  <Field
-                    label="Conversion Rate"
-                    value={
-                      data.wire_transfer.conversion_rate
-                        ? `${data.wire_transfer.conversion_rate}${
-                            data.wire_transfer.currency &&
-                            data.wire_transfer.currency.toUpperCase() !== "USD" &&
-                            parseFloat(data.wire_transfer.conversion_rate) > 0
-                              ? ` (≈ $${(
-                                  Number(data.wire_transfer.amount || 0) *
-                                  parseFloat(data.wire_transfer.conversion_rate)
-                                ).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD)`
-                              : ""
-                          }`
-                        : (data.wire_transfer.currency || "USD").toUpperCase() === "USD"
-                        ? "1.00 (USD)"
-                        : "—"
-                    }
-                  />
-                  <Field label="Vendor Email" value={data.wire_transfer.vendor_email || "—"} />
-                  <Field label="Bank Name" value={data.wire_transfer.bank_name || "—"} />
-                  <Field label="Bank Country" value={data.wire_transfer.bank_country || "—"} />
-                  <Field label="Tax ID" value={data.wire_transfer.tax_id || "—"} />
-                  <Field
-                    label="Bank Account #"
-                    value={
-                      data.wire_transfer.bank_account_number
-                        ? data.wire_transfer.bank_account_number.trim().length > 4
-                          ? `•••• •••• ${data.wire_transfer.bank_account_number.trim().slice(-4)}`
-                          : data.wire_transfer.bank_account_number
-                        : "—"
-                    }
-                  />
-                  <Field label="Routing (Wire)" value={data.wire_transfer.routing_wire || "—"} />
-                  <Field label="Routing (ACH)" value={data.wire_transfer.routing_ach || "—"} />
-                  <Field label="SWIFT Code" value={data.wire_transfer.swift_code || "—"} />
-                  <Field label="BIC" value={data.wire_transfer.bic || "—"} />
-                  <Field label="IBAN" value={data.wire_transfer.iban || "—"} />
-                  <Field label="Sort Code" value={data.wire_transfer.sort_code || "—"} />
-                  <Field label="Transit Code (CA)" value={data.wire_transfer.transit_code_ca || "—"} />
-                  <Field label="Transit Number (CA)" value={data.wire_transfer.transit_number_ca || "—"} />
-                  <Field label="Institution Code" value={data.wire_transfer.institution_code || "—"} />
-                  <Field label="Branch Code" value={data.wire_transfer.branch_code || "—"} />
-                  <Field label="BSB Australia" value={data.wire_transfer.bsb_australia || "—"} />
-                  <Field label="Clearing Code" value={data.wire_transfer.clearing_code || "—"} />
-                  <Field label="Bank Code" value={data.wire_transfer.bank_code || "—"} />
-                  <Field label="ABA" value={data.wire_transfer.aba || "—"} />
-                  <Field label="Region" value={data.wire_transfer.region || "—"} />
-                  <Field label="Contact Name (China)" value={data.wire_transfer.contact_name_china || "—"} />
-                  {data.wire_transfer.comments && (
-                    <div className="col-span-2 sm:col-span-3">
-                      <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Comments / Memo</div>
-                      <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{data.wire_transfer.comments}</div>
+            {/* TAB 4: Invoice & Bill */}
+            {hasInvoiceTab && inv && (
+              <TabsContent value="invoice" className="m-0 focus-visible:outline-none space-y-6">
+                <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
+                  <CardHeader className="pb-3 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/30">
+                    <CardTitle className="text-base font-semibold flex items-center justify-between text-slate-900 dark:text-zinc-100">
+                      <div className="flex items-center gap-2">
+                        <ReceiptText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        <span>Invoice &amp; Bill · {inv.id}</span>
+                      </div>
+                      <Badge variant="outline" className={inv.paid_date ? STATUS_BADGE.COMPLETED : PAYMENT_BADGE[inv.payment_status]}>
+                        {inv.paid_date ? `Settled · ${formatDate(inv.paid_date)}` : (PAYMENT_LABEL[inv.payment_status] || inv.payment_status)}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-5 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 text-sm">
+                      <Field label="Vendor" value={inv.vendor} />
+                      <Field label="Amount" value={formatMoney(inv.amount)} />
+                      <Field label="Bill Date" value={formatDate(inv.paid_date || inv.invoice_date)} />
+                      <Field label="Due Date / Date Arrived" value={formatDate(inv.due_date)} />
+                      <Field
+                        label="Bank Account"
+                        value={renderBankAccount(inv.bank_account)}
+                      />
+                      <Field
+                        label="Category"
+                        value={
+                          inv.items && inv.items.length > 1 ? (
+                            <Badge variant="outline" className="bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-300 dark:border-zinc-700 text-xs font-normal">
+                              Split ({inv.items.length} lines)
+                            </Badge>
+                          ) : (
+                            renderCategory(inv.gl_code)
+                          )
+                        }
+                      />
+                      <Field label="Asset Flag" value={inv.asset_flag ? "Yes" : "No"} />
                     </div>
-                  )}
-                  {data.wire_transfer.vendor_address && (
-                    <div className="col-span-2 sm:col-span-3">
-                      <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Vendor Address</div>
-                      <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{data.wire_transfer.vendor_address}</div>
+
+                    {inv.description && (
+                      <div className="pt-3 border-t border-slate-100 dark:border-zinc-800">
+                        <div className="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Description</div>
+                        <div className="text-sm text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{inv.description}</div>
+                      </div>
+                    )}
+
+                    {inv.items && inv.items.length > 0 && (
+                      <div className="mt-2 pt-3 border-t border-slate-100 dark:border-zinc-800">
+                        <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2 flex items-center justify-between">
+                          <span>Itemized Category Allocations ({inv.items.length} items)</span>
+                        </div>
+                        <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
+                          <div className="bg-slate-50 dark:bg-zinc-800/50 px-3 py-1.5 grid grid-cols-12 gap-2 font-medium text-slate-500">
+                            <div className="col-span-5">Item</div>
+                            <div className="col-span-2 text-right pr-6">Amount</div>
+                            <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">Category</div>
+                            <div className="col-span-1 text-center">Asset</div>
+                          </div>
+                          {inv.items.map((it, idx) => (
+                            <div key={idx} className="px-3 py-2 grid grid-cols-12 gap-2 items-center bg-white dark:bg-zinc-900">
+                              <div className="col-span-5 break-words whitespace-normal leading-snug font-medium text-slate-800 dark:text-zinc-200" title={it.description}>
+                                {it.sku ? <span className="font-mono text-indigo-600 dark:text-indigo-400 mr-1">[{it.sku}]</span> : null}{it.description}
+                              </div>
+                              <div className="col-span-2 text-right pr-6 font-mono font-medium text-slate-700 dark:text-zinc-300">
+                                {formatMoney(it.amount)}
+                              </div>
+                              <div className="col-span-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
+                                {renderCategory(it.gl_code)}
+                              </div>
+                              <div className="col-span-1 text-center">
+                                {it.asset_flag ? <Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">Asset</Badge> : "—"}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {/* TAB 5: Wire Transfer */}
+            {hasWireTab && data?.wire_transfer && (
+              <TabsContent value="wire" className="m-0 focus-visible:outline-none space-y-6">
+                <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
+                  <CardHeader className="bg-indigo-50/40 dark:bg-indigo-950/20 border-b border-slate-100 dark:border-zinc-800 px-6 py-3.5 flex flex-row items-center justify-between">
+                    <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-semibold text-base">
+                      <Landmark className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                      <span>Wire Transfer Details</span>
                     </div>
-                  )}
-                  {data.wire_transfer.bank_address && (
-                    <div className="col-span-2 sm:col-span-3">
-                      <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Bank Address</div>
-                      <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{data.wire_transfer.bank_address}</div>
+                    <div className="flex items-center gap-2.5">
+                      {Boolean(
+                        request.request_type === "ACCOUNTS_PAYABLE" ||
+                        request.status === RequestStatus.Purchased ||
+                        (request.status as string) === "ORDERED" ||
+                        request.status === RequestStatus.WaitingPayment ||
+                        (request.status as string) === "SENT_TO_AP"
+                      ) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsEditWireOpen(true)}
+                          className="h-7 text-xs px-2.5 bg-white dark:bg-zinc-900 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 dark:border-indigo-800 dark:text-indigo-300 gap-1.5 shadow-xs"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          <span>Edit Wire Info</span>
+                        </Button>
+                      )}
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  </CardHeader>
+                  <CardContent className="p-5 space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                      <Field label="Entered By" value={data.wire_transfer.entered_by || "—"} />
+                      <Field label="Entry Date" value={formatDate(data.wire_transfer.entry_date)} />
+                      <Field label="Payment Date" value={formatDate(data.wire_transfer.payment_date)} />
+                      <Field label="Due Date" value={formatDate(data.wire_transfer.due_date)} />
+                      <Field label="Pay Date (Terms)" value={data.wire_transfer.pay_date || "—"} />
+                      <Field label="Pay From" value={data.wire_transfer.pay_from || "—"} />
+                      <Field label="Vendor" value={data.wire_transfer.vendor || "—"} />
+                      <Field label="New Vendor?" value={data.wire_transfer.is_new_vendor ? "Yes" : "No"} />
+                      <Field label="Invoice #" value={data.wire_transfer.invoice_number || "—"} />
+                      <Field label="Amount" value={`${formatMoney(data.wire_transfer.amount || 0)} ${data.wire_transfer.currency || "USD"}`} />
+                      <Field
+                        label="Conversion Rate"
+                        value={
+                          data.wire_transfer.conversion_rate
+                            ? `${data.wire_transfer.conversion_rate}${
+                                data.wire_transfer.currency &&
+                                data.wire_transfer.currency.toUpperCase() !== "USD" &&
+                                parseFloat(data.wire_transfer.conversion_rate) > 0
+                                  ? ` (≈ $${(
+                                      Number(data.wire_transfer.amount || 0) *
+                                      parseFloat(data.wire_transfer.conversion_rate)
+                                    ).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD)`
+                                  : ""
+                              }`
+                            : (data.wire_transfer.currency || "USD").toUpperCase() === "USD"
+                            ? "1.00 (USD)"
+                            : "—"
+                        }
+                      />
+                      <Field label="Vendor Email" value={data.wire_transfer.vendor_email || "—"} />
+                      <Field label="Bank Name" value={data.wire_transfer.bank_name || "—"} />
+                      <Field label="Bank Country" value={data.wire_transfer.bank_country || "—"} />
+                      <Field label="Tax ID" value={data.wire_transfer.tax_id || "—"} />
+                      <Field
+                        label="Bank Account #"
+                        value={
+                          data.wire_transfer.bank_account_number
+                            ? data.wire_transfer.bank_account_number.trim().length > 4
+                              ? `•••• •••• ${data.wire_transfer.bank_account_number.trim().slice(-4)}`
+                              : data.wire_transfer.bank_account_number
+                            : "—"
+                        }
+                      />
+                      <Field label="Routing (Wire)" value={data.wire_transfer.routing_wire || "—"} />
+                      <Field label="Routing (ACH)" value={data.wire_transfer.routing_ach || "—"} />
+                      <Field label="SWIFT Code" value={data.wire_transfer.swift_code || "—"} />
+                      <Field label="BIC" value={data.wire_transfer.bic || "—"} />
+                      <Field label="IBAN" value={data.wire_transfer.iban || "—"} />
+                      <Field label="Sort Code" value={data.wire_transfer.sort_code || "—"} />
+                      <Field label="Transit Code (CA)" value={data.wire_transfer.transit_code_ca || "—"} />
+                      <Field label="Transit Number (CA)" value={data.wire_transfer.transit_number_ca || "—"} />
+                      <Field label="Institution Code" value={data.wire_transfer.institution_code || "—"} />
+                      <Field label="Branch Code" value={data.wire_transfer.branch_code || "—"} />
+                      <Field label="BSB Australia" value={data.wire_transfer.bsb_australia || "—"} />
+                      <Field label="Clearing Code" value={data.wire_transfer.clearing_code || "—"} />
+                      <Field label="Bank Code" value={data.wire_transfer.bank_code || "—"} />
+                      <Field label="ABA" value={data.wire_transfer.aba || "—"} />
+                      <Field label="Region" value={data.wire_transfer.region || "—"} />
+                      <Field label="Contact Name (China)" value={data.wire_transfer.contact_name_china || "—"} />
+                      {data.wire_transfer.comments && (
+                        <div className="col-span-2 sm:col-span-3">
+                          <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Comments / Memo</div>
+                          <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{data.wire_transfer.comments}</div>
+                        </div>
+                      )}
+                      {data.wire_transfer.vendor_address && (
+                        <div className="col-span-2 sm:col-span-3">
+                          <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Vendor Address</div>
+                          <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{data.wire_transfer.vendor_address}</div>
+                        </div>
+                      )}
+                      {data.wire_transfer.bank_address && (
+                        <div className="col-span-2 sm:col-span-3">
+                          <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Bank Address</div>
+                          <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{data.wire_transfer.bank_address}</div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {/* TAB 6: Recurring Horizon */}
+            {hasRecurringTab && (
+              <TabsContent value="recurring" className="m-0 focus-visible:outline-none space-y-6">
+                <Card className="border border-indigo-200/90 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/50 via-white to-sky-50/30 dark:from-indigo-950/20 dark:via-zinc-900/40 dark:to-zinc-900 shadow-sm overflow-hidden">
+                  <CardHeader className="pb-3 border-b border-indigo-100/80 dark:border-indigo-950/60">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-indigo-950 dark:text-indigo-200">
+                        <CalendarClock className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                        Scheduled Range &amp; Payment Horizon
+                      </CardTitle>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs px-2.5 font-semibold text-indigo-700 bg-white hover:bg-indigo-50 dark:bg-zinc-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 shadow-2xs"
+                        onClick={() => setIsScheduleLedgerOpen(true)}
+                      >
+                        <Calendar className="h-3.5 w-3.5 mr-1" />
+                        Open Installment Ledger
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
+                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Scheduled Horizon</div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
+                          {formatDate(request.recurring_schedule?.start_date || request.due_date || request.request_date)}
+                        </div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <span>to</span>
+                          <strong className="text-slate-800 dark:text-zinc-200">
+                            {request.recurring_schedule?.end_date ? formatDate(request.recurring_schedule.end_date) : "Ongoing (2 Yrs)"}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
+                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Remaining Duration</div>
+                        <div className="mt-1">
+                          <Badge variant="outline" className="bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold border-indigo-300 text-xs">
+                            {request.recurring_schedule?.frequency === 'CUSTOM' || Boolean(request.recurring_schedule?.schedule_dates?.length) ? `${request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 0} Milestone Dates` : formatRemainingDuration(request.recurring_schedule?.end_date, request.recurring_schedule?.start_date || request.due_date).text}
+                          </Badge>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          {FREQUENCY_LABELS[(request.recurring_schedule?.frequency as FrequencyType) || "MONTHLY"] || "Monthly"} ({formatMoney(request.recurring_schedule?.amount_per_cycle || request.amount || 0)} / cycle)
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
+                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Cycle Progress</div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
+                          {request.recurring_schedule?.completed_installments || 0} / {request.recurring_schedule?.total_installments || 24} Cycles
+                        </div>
+                        <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                          <div
+                            className="bg-indigo-600 h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.min(100, Math.round(((request.recurring_schedule?.completed_installments || 0) / (request.recurring_schedule?.total_installments || 24)) * 100))}%`
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
+                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Total Commitment</div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
+                          {formatMoney(request.recurring_schedule?.total_amount || ((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24)))}
+                        </div>
+                        <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                          {formatMoney((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.completed_installments || 0))} paid to date
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+          </Tabs>
         </div>
 
         {/* Activity: approvals + notifications */}
@@ -2965,7 +2801,7 @@ export default function RequestDetail() {
                         htmlFor="pass_to_level_2"
                         className="text-xs font-semibold text-purple-950 dark:text-purple-200 cursor-pointer flex items-center gap-1.5"
                       >
-                        <span>Pass to Level 2 Approver (CEO Shaun Passley)</span>
+                        <span>Pass to Level 2 Approver (Company Approver)</span>
                         <Badge variant="outline" className="text-[10px] bg-purple-100/80 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 border-purple-300">
                           ≥ $10,000
                         </Badge>
@@ -2973,7 +2809,7 @@ export default function RequestDetail() {
                     </div>
                     <p className="text-[11px] text-purple-700 dark:text-purple-300 pl-6 leading-relaxed">
                       {approval.pass_to_level_2
-                        ? "This approval will pass to CEO Shaun Passley for final Level 2 approval. The request will stay in Waiting Approval state until approved or rejected by the Level 2 approver."
+                        ? "This approval will pass to the assigned Company Level 2 Approver(s) for final Level 2 approval. The request will stay in Waiting Approval state until approved or rejected by a Level 2 approver."
                         : "Level 2 executive approval bypassed. This request will move directly to payment processing upon approval."}
                     </p>
                   </div>
