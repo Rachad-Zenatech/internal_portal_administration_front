@@ -424,6 +424,18 @@ export function getCountryBankingSpec(country: string) {
 }
 
 
+export interface QuickBooksPreviewPart {
+  line_num?: number;
+  description: string;
+  amount: number;
+  formatted_amount?: string;
+  category?: string;
+  account_id?: string | null;
+  account_name?: string | null;
+  acct_num?: string | null;
+  customer?: string | null;
+}
+
 export interface QuickBooksPreviewItem {
   request_id: number;
   product_name: string;
@@ -473,6 +485,8 @@ export interface QuickBooksPreviewItem {
     content_type: string;
     size_bytes?: number;
   }>;
+  parts_count?: number;
+  parts?: QuickBooksPreviewPart[];
   attachments_count?: number;
   validation_notes: string[];
   validation_errors: string[];

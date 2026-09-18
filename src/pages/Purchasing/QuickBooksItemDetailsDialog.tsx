@@ -10,21 +10,15 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   History,
-  Settings,
-  HelpCircle,
-  Sparkles,
   X,
   ChevronDown,
   ChevronUp,
   GripVertical,
   Copy,
-  Trash2,
-  Table,
   Layers,
   Paperclip,
   Calendar,
   Code2,
-  FileText,
   Download,
   Check,
   Loader2,
@@ -39,8 +33,9 @@ import {
   Building2,
   Tag,
   ShieldCheck,
+  Split,
 } from "lucide-react";
-import type { QuickBooksPreviewItem } from "@/services/purchasingService";
+import type { QuickBooksPreviewItem, QuickBooksPreviewPart } from "@/services/purchasingService";
 
 interface QuickBooksItemDetailsDialogProps {
   item: QuickBooksPreviewItem | null;
@@ -59,14 +54,11 @@ export function QuickBooksItemDetailsDialog({
   onOpenChange,
   onSync,
   isSyncing = false,
-  onDelete,
-  isDeleting = false,
   isConnected = true,
 }: QuickBooksItemDetailsDialogProps) {
   const [viewMode, setViewMode] = useState<"form" | "mapping" | "json">("form");
   const [copied, setCopied] = useState(false);
   const [categoryDetailsOpen, setCategoryDetailsOpen] = useState(true);
-  const [itemDetailsOpen, setItemDetailsOpen] = useState(true);
   const [topFieldsCollapsed, setTopFieldsCollapsed] = useState(false);
 
   if (!item) return null;
@@ -79,6 +71,34 @@ export function QuickBooksItemDetailsDialog({
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }) || "0.00";
+
+  // Derive split lines / parts
+  const displayLines: QuickBooksPreviewPart[] = (item.parts && item.parts.length > 0)
+    ? item.parts
+    : (item.projected_payload?.Line && Array.isArray(item.projected_payload.Line) && item.projected_payload.Line.length > 0)
+      ? item.projected_payload.Line.map((l: any, idx: number) => ({
+          line_num: idx + 1,
+          description: l.Description || item.product_name,
+          amount: Number(l.Amount) || (item.amount / item.projected_payload.Line.length),
+          formatted_amount: `$${(Number(l.Amount) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          category: l.AccountBasedExpenseLineDetail?.AccountRef?.name || item.expense_account_resolution?.name || item.category || "Expense",
+          account_name: l.AccountBasedExpenseLineDetail?.AccountRef?.name || item.expense_account_resolution?.name,
+          account_id: l.AccountBasedExpenseLineDetail?.AccountRef?.value,
+          acct_num: item.expense_account_resolution?.acct_num,
+          customer: item.department || "Internal",
+        }))
+      : [{
+          line_num: 1,
+          description: item.product_name || item.raw_payee,
+          amount: item.amount,
+          formatted_amount: formattedAmountNumber,
+          category: item.expense_account_resolution?.name || item.category || "Expense",
+          account_name: item.expense_account_resolution?.name,
+          acct_num: item.expense_account_resolution?.acct_num,
+          customer: item.department || "Internal",
+        }];
+
+  const isMultiPart = displayLines.length > 1;
 
   const handleCopyJson = () => {
     if (!item.projected_payload) return;
@@ -133,6 +153,12 @@ export function QuickBooksItemDetailsDialog({
                   <span>Requires Mapping</span>
                 </span>
               )}
+              {isMultiPart && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1">
+                  <Split className="h-3 w-3 text-indigo-500" />
+                  <span>{displayLines.length} Split Parts</span>
+                </span>
+              )}
             </DialogTitle>
           </div>
 
@@ -179,32 +205,6 @@ export function QuickBooksItemDetailsDialog({
 
             {/* Quick action tools */}
             <div className="flex items-center gap-1.5 text-slate-500 dark:text-zinc-400">
-              <button
-                type="button"
-                className="hidden md:flex items-center gap-1 text-[11px] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800"
-              >
-                <span>Give feedback</span>
-              </button>
-              <button
-                type="button"
-                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200"
-                title="QuickBooks Form Settings"
-              >
-                <Settings className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200"
-                title="Help"
-              >
-                <HelpCircle className="h-3.5 w-3.5" />
-              </button>
-              <div
-                className="h-6 w-6 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xs cursor-pointer hover:bg-blue-700"
-                title="Intuit Assist"
-              >
-                <Sparkles className="h-3 w-3" />
-              </div>
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
@@ -330,7 +330,7 @@ export function QuickBooksItemDetailsDialog({
               </div>
 
               {/* ========================================================================= */}
-              {/* SECTION 1: CATEGORY DETAILS */}
+              {/* SECTION: CATEGORY DETAILS (Multi-Line & Split Support) */}
               {/* ========================================================================= */}
               <div className="bg-white dark:bg-zinc-900 rounded-md border border-slate-200 dark:border-zinc-800 shadow-2xs overflow-hidden">
                 <div className="px-4 py-2 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-900">
@@ -344,286 +344,112 @@ export function QuickBooksItemDetailsDialog({
                     ) : (
                       <ChevronUp className="h-3.5 w-3.5 text-slate-500" />
                     )}
-                    <span>Category details</span>
+                    <span>Category details {isMultiPart && `(${displayLines.length} Itemized Split Lines)`}</span>
                   </button>
 
                   <div className="flex items-center gap-2 text-slate-400">
                     <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Copy Table Lines">
                       <Copy className="h-3.5 w-3.5" />
-                    </button>
-                    <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Spreadsheet View">
-                      <Table className="h-3.5 w-3.5" />
-                    </button>
-                    <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Table Settings">
-                      <Settings className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
 
                 {categoryDetailsOpen && (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left border-collapse">
+                    <table className="w-full table-fixed text-xs text-left border-collapse">
                       <thead>
                         <tr className="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/60 text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-                          <th className="w-10 py-1.5 px-2.5 text-center">#</th>
-                          <th className="py-1.5 px-2.5 w-[260px]">CATEGORY</th>
-                          <th className="py-1.5 px-2.5 min-w-[320px]">DESCRIPTION</th>
+                          <th className="w-9 py-1.5 px-2 text-center shrink-0">#</th>
+                          <th className="py-1.5 px-2.5 w-[28%]">CATEGORY</th>
+                          <th className="py-1.5 px-2.5 w-[42%]">DESCRIPTION</th>
                           <th className="py-1.5 px-2.5 w-28 text-right">AMOUNT</th>
                           <th className="py-1.5 px-2.5 w-16 text-center">BILLABLE</th>
-                          <th className="py-1.5 px-2.5 w-36">CUSTOMER</th>
-                          <th className="w-14 py-1.5 px-2.5 text-center"></th>
+                          <th className="py-1.5 px-2.5 w-32">CUSTOMER / DEPT</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
-                        {/* Row 1 with actual data */}
-                        <tr className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/50">
-                          <td className="py-2 px-2.5 text-center text-slate-400">
-                            <div className="flex items-center justify-center gap-1">
-                              <GripVertical className="h-3 w-3 text-slate-300 dark:text-zinc-600" />
-                              <span className="font-semibold text-slate-600 dark:text-zinc-400 text-[11px]">1</span>
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5">
-                            <div className="flex items-center justify-between px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xs h-7">
-                              <div className="truncate text-xs">
-                                <span className="font-semibold text-slate-900 dark:text-white">
-                                  {item.expense_account_resolution?.name || item.category || "Expense"}
-                                </span>
-                                {item.expense_account_resolution?.acct_num && (
-                                  <span className="text-[10px] text-muted-foreground ml-1 font-mono">
-                                    ({item.expense_account_resolution.acct_num})
+                        {displayLines.map((line, idx) => {
+                          const lineAmountStr = (line.amount !== undefined)
+                            ? line.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : formattedAmountNumber;
+                          const lineCatName = line.account_name || line.category || item.expense_account_resolution?.name || item.category || "Expense";
+                          const lineAcctNum = line.acct_num || item.expense_account_resolution?.acct_num;
+
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/50 transition-colors">
+                              <td className="py-2 px-2 text-center text-slate-400">
+                                <div className="flex items-center justify-center gap-0.5">
+                                  <GripVertical className="h-3 w-3 text-slate-300 dark:text-zinc-600" />
+                                  <span className="font-semibold text-slate-600 dark:text-zinc-400 text-[11px]">
+                                    {line.line_num || idx + 1}
                                   </span>
-                                )}
-                              </div>
-                              <ChevronDown className="h-3 w-3 text-slate-400 ml-1 shrink-0" />
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5">
-                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 truncate shadow-2xs text-xs h-7 flex items-center">
-                              {item.product_name || item.raw_payee}
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5 text-right">
-                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white font-mono font-semibold text-right shadow-2xs text-xs h-7 flex items-center justify-end">
-                              {formattedAmountNumber}
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5 text-center">
-                            <input
-                              type="checkbox"
-                              readOnly
-                              className="rounded border-slate-300 text-[#2ca01c] focus:ring-[#2ca01c] h-3.5 w-3.5"
-                            />
-                          </td>
-                          <td className="py-2 px-2.5">
-                            <div className="flex items-center justify-between px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 shadow-2xs text-xs h-7">
-                              <span className="truncate">{item.department || "Internal"}</span>
-                              <ChevronDown className="h-3 w-3 text-slate-400 ml-1 shrink-0" />
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5 text-center">
-                            <div className="flex items-center justify-center gap-1 text-slate-400">
-                              <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Duplicate Row">
-                                <Copy className="h-3 w-3" />
-                              </button>
-                              <button type="button" className="hover:text-rose-600 p-0.5" title="Delete Row">
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* Row 2 empty placeholder */}
-                        <tr className="hover:bg-slate-50/30 dark:hover:bg-zinc-800/30">
-                          <td className="py-2 px-2.5 text-center text-slate-300 dark:text-zinc-600">
-                            <div className="flex items-center justify-center gap-1">
-                              <GripVertical className="h-3 w-3 text-slate-200 dark:text-zinc-700" />
-                              <span className="text-[11px]">2</span>
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
-                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
-                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
-                          <td className="py-2 px-2.5 text-center"><input type="checkbox" disabled className="rounded border-slate-200 text-slate-300 h-3.5 w-3.5" /></td>
-                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
-                          <td className="py-2 px-2.5 text-center">
-                            <div className="flex items-center justify-center gap-1 text-slate-300 dark:text-zinc-700">
-                              <Copy className="h-3 w-3" />
-                              <Trash2 className="h-3 w-3" />
-                            </div>
-                          </td>
-                        </tr>
+                                </div>
+                              </td>
+                              <td className="py-2 px-2.5 min-w-0">
+                                <div
+                                  title={`${lineCatName} ${lineAcctNum ? `(${lineAcctNum})` : ''}`}
+                                  className="flex items-center justify-between px-2.5 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xs h-7 min-w-0"
+                                >
+                                  <div className="truncate text-xs min-w-0">
+                                    <span className="font-semibold text-slate-900 dark:text-white">
+                                      {lineCatName}
+                                    </span>
+                                    {lineAcctNum && (
+                                      <span className="text-[10px] text-muted-foreground ml-1 font-mono">
+                                        ({lineAcctNum})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <ChevronDown className="h-3 w-3 text-slate-400 ml-1 shrink-0" />
+                                </div>
+                              </td>
+                              <td className="py-2 px-2.5 min-w-0">
+                                <div
+                                  title={line.description || item.product_name}
+                                  className="px-2.5 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 truncate shadow-2xs text-xs h-7 flex items-center min-w-0 cursor-default"
+                                >
+                                  <span className="truncate">{line.description || item.product_name}</span>
+                                </div>
+                              </td>
+                              <td className="py-2 px-2.5 text-right">
+                                <div className="px-2.5 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white font-mono font-semibold text-right shadow-2xs text-xs h-7 flex items-center justify-end">
+                                  {lineAmountStr}
+                                </div>
+                              </td>
+                              <td className="py-2 px-2.5 text-center">
+                                <input
+                                  type="checkbox"
+                                  readOnly
+                                  className="rounded border-slate-300 text-[#2ca01c] focus:ring-[#2ca01c] h-3.5 w-3.5"
+                                />
+                              </td>
+                              <td className="py-2 px-2.5 min-w-0">
+                                <div
+                                  title={line.customer || item.department || "Internal"}
+                                  className="flex items-center justify-between px-2.5 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 shadow-2xs text-xs h-7 min-w-0"
+                                >
+                                  <span className="truncate">{line.customer || item.department || "General"}</span>
+                                  <ChevronDown className="h-3 w-3 text-slate-400 ml-1 shrink-0" />
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
 
-                    <div className="p-2.5 border-t border-slate-200 dark:border-zinc-800 flex items-center gap-2 bg-slate-50/50 dark:bg-zinc-900/40">
-                      <button
-                        type="button"
-                        className="px-2.5 py-1 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded text-[11px] font-semibold text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs"
-                      >
-                        Add lines
-                      </button>
-                      <button
-                        type="button"
-                        className="px-2.5 py-1 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded text-[11px] font-semibold text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs"
-                      >
-                        Clear all lines
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ========================================================================= */}
-              {/* SECTION 2: ITEM DETAILS */}
-              {/* ========================================================================= */}
-              <div className="bg-white dark:bg-zinc-900 rounded-md border border-slate-200 dark:border-zinc-800 shadow-2xs overflow-hidden">
-                <div className="px-4 py-2 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-900">
-                  <button
-                    type="button"
-                    onClick={() => setItemDetailsOpen(!itemDetailsOpen)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white hover:text-slate-700"
-                  >
-                    {itemDetailsOpen ? (
-                      <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
-                    ) : (
-                      <ChevronUp className="h-3.5 w-3.5 text-slate-500" />
-                    )}
-                    <span>Item details</span>
-                  </button>
-
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Copy Table Lines">
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
-                    <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Spreadsheet View">
-                      <Table className="h-3.5 w-3.5" />
-                    </button>
-                    <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Table Settings">
-                      <Settings className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {itemDetailsOpen && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/60 text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-                          <th className="w-10 py-1.5 px-2.5 text-center">#</th>
-                          <th className="py-1.5 px-2.5 w-[220px]">PRODUCT/SERVICE</th>
-                          <th className="py-1.5 px-2.5 min-w-[300px]">DESCRIPTION</th>
-                          <th className="py-1.5 px-2.5 w-16 text-right">QTY</th>
-                          <th className="py-1.5 px-2.5 w-24 text-right">RATE</th>
-                          <th className="py-1.5 px-2.5 w-24 text-right">AMOUNT</th>
-                          <th className="py-1.5 px-2.5 w-16 text-center">BILLABLE</th>
-                          <th className="py-1.5 px-2.5 w-36">CUSTOMER</th>
-                          <th className="w-14 py-1.5 px-2.5 text-center"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
-                        {/* Row 1 data */}
-                        <tr className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/50">
-                          <td className="py-2 px-2.5 text-center text-slate-400">
-                            <div className="flex items-center justify-center gap-1">
-                              <GripVertical className="h-3 w-3 text-slate-300 dark:text-zinc-600" />
-                              <span className="font-semibold text-slate-600 dark:text-zinc-400 text-[11px]">1</span>
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5">
-                            <div className="flex items-center justify-between px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 font-semibold text-slate-900 dark:text-white shadow-2xs text-xs h-7">
-                              <span className="truncate">{item.product_name}</span>
-                              <ChevronDown className="h-3 w-3 text-slate-400 ml-1 shrink-0" />
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5">
-                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 truncate shadow-2xs text-xs h-7 flex items-center">
-                              {item.memo || `${item.raw_payee} - ${item.product_name}`}
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5 text-right">
-                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 font-mono text-slate-900 dark:text-white text-right shadow-2xs text-xs h-7 flex items-center justify-end">
-                              1
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5 text-right">
-                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 font-mono text-slate-900 dark:text-white text-right shadow-2xs text-xs h-7 flex items-center justify-end">
-                              {formattedAmountNumber}
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5 text-right">
-                            <div className="px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 font-mono font-semibold text-slate-900 dark:text-white text-right shadow-2xs text-xs h-7 flex items-center justify-end">
-                              {formattedAmountNumber}
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5 text-center">
-                            <input
-                              type="checkbox"
-                              readOnly
-                              className="rounded border-slate-300 text-[#2ca01c] focus:ring-[#2ca01c] h-3.5 w-3.5"
-                            />
-                          </td>
-                          <td className="py-2 px-2.5">
-                            <div className="flex items-center justify-between px-2 py-1 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 shadow-2xs text-xs h-7">
-                              <span className="truncate">{item.department || "-"}</span>
-                              <ChevronDown className="h-3 w-3 text-slate-400 ml-1 shrink-0" />
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5 text-center">
-                            <div className="flex items-center justify-center gap-1 text-slate-400">
-                              <button type="button" className="hover:text-slate-700 dark:hover:text-zinc-200 p-0.5" title="Duplicate">
-                                <Copy className="h-3 w-3" />
-                              </button>
-                              <button type="button" className="hover:text-rose-600 p-0.5" title="Delete">
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* Row 2 blank placeholder */}
-                        <tr className="hover:bg-slate-50/30 dark:hover:bg-zinc-800/30">
-                          <td className="py-2 px-2.5 text-center text-slate-300 dark:text-zinc-600">
-                            <div className="flex items-center justify-center gap-1">
-                              <GripVertical className="h-3 w-3 text-slate-200 dark:text-zinc-700" />
-                              <span className="text-[11px]">2</span>
-                            </div>
-                          </td>
-                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
-                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
-                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
-                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
-                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
-                          <td className="py-2 px-2.5 text-center"><input type="checkbox" disabled className="rounded border-slate-200 text-slate-300 h-3.5 w-3.5" /></td>
-                          <td className="py-2 px-2.5"><div className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 h-7" /></td>
-                          <td className="py-2 px-2.5 text-center">
-                            <div className="flex items-center justify-center gap-1 text-slate-300 dark:text-zinc-700">
-                              <Copy className="h-3 w-3" />
-                              <Trash2 className="h-3 w-3" />
-                            </div>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-
-                    {/* Footer Row with Add Lines and QuickBooks Total */}
-                    <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-zinc-900">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="px-2.5 py-1 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded text-[11px] font-semibold text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs"
-                        >
-                          Add lines
-                        </button>
-                        <button
-                          type="button"
-                          className="px-2.5 py-1 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded text-[11px] font-semibold text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs"
-                        >
-                          Clear all lines
-                        </button>
+                    {/* Category Details Bottom Total */}
+                    <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between bg-slate-50/40 dark:bg-zinc-900/60">
+                      <div className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium flex items-center gap-2">
+                        <span>{displayLines.length} category {displayLines.length === 1 ? 'line' : 'lines'}</span>
+                        {isMultiPart && (
+                          <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+                            Split Parts Preserved
+                          </span>
+                        )}
                       </div>
 
-                      <div className="flex items-baseline gap-2.5 text-right">
+                      <div className="flex items-baseline gap-2 text-right">
                         <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Total</span>
                         <span className="text-xl font-bold text-slate-900 dark:text-white font-sans">
                           ${formattedAmountNumber}
@@ -635,7 +461,7 @@ export function QuickBooksItemDetailsDialog({
               </div>
 
               {/* ========================================================================= */}
-              {/* SECTION 3: MEMO & ATTACHMENTS (QuickBooks Bottom Layout) */}
+              {/* SECTION: MEMO & ATTACHMENTS (QuickBooks Bottom Layout) */}
               {/* ========================================================================= */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-1">
                 {/* Memo Box */}
@@ -646,7 +472,7 @@ export function QuickBooksItemDetailsDialog({
                   <textarea
                     rows={3}
                     readOnly
-                    value={item.memo || `${item.raw_payee} - ${item.product_name} - ${item.location || 'HQ'} - ${item.ref_no}`}
+                    value={item.memo || `${item.raw_payee} - ${item.product_name} - ${item.location || 'HQ'} - ${item.ref_no}${item.department ? ` - ${item.department}` : ''}`}
                     className="w-full p-2.5 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-slate-800 dark:text-zinc-200 focus:outline-hidden resize-none shadow-2xs font-mono leading-relaxed"
                   />
                 </div>
@@ -669,9 +495,9 @@ export function QuickBooksItemDetailsDialog({
                           key={att.id}
                           className="flex items-center justify-between p-1.5 rounded bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/60 text-xs"
                         >
-                          <div className="flex items-center gap-1.5 truncate min-w-0">
-                            <FileText className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                            <span className="font-semibold text-slate-900 dark:text-white truncate text-xs">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Paperclip className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate font-medium text-slate-800 dark:text-zinc-200">
                               {att.filename}
                             </span>
                             {att.size_bytes && (
@@ -788,25 +614,66 @@ export function QuickBooksItemDetailsDialog({
                   </div>
                 </div>
 
-                {/* Expense Account */}
-                <div className="p-2.5 grid grid-cols-12 items-center gap-3">
-                  <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <Tag className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                    <span>Expense Account (GL)</span>
-                  </div>
-                  <div className="col-span-4 text-slate-600 dark:text-zinc-300 truncate" title={item.category}>
-                    {item.category}
-                  </div>
-                  <div className="col-span-5 flex items-center gap-2">
-                    <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
-                    <div className="truncate">
-                      <span className="font-semibold text-slate-900 dark:text-white">{item.expense_account_resolution?.name || "Expense"}</span>
-                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 block font-mono">
-                        QBO Account ID: {item.expense_account_resolution?.id || "Auto-Match"} ({item.expense_account_resolution?.account_type || "Expense"})
-                      </span>
+                {/* Expense Account (or Itemized Split Lines) */}
+                {isMultiPart ? (
+                  <div className="p-3 space-y-2 bg-slate-50/40 dark:bg-zinc-900/40">
+                    <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Split className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                      <span>Expense Accounts (Itemized {displayLines.length} Split Lines)</span>
+                    </div>
+                    <div className="rounded border border-slate-200 dark:border-zinc-800 overflow-hidden">
+                      <div className="p-2 grid grid-cols-12 gap-2 bg-slate-100 dark:bg-zinc-800 font-semibold text-[10px] text-slate-600 dark:text-zinc-400 uppercase">
+                        <div className="col-span-1">#</div>
+                        <div className="col-span-4">Line Description</div>
+                        <div className="col-span-2 text-right">Amount</div>
+                        <div className="col-span-5">Target QBO Expense Account</div>
+                      </div>
+                      <div className="divide-y divide-slate-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                        {displayLines.map((line, lIdx) => (
+                          <div key={lIdx} className="p-2 grid grid-cols-12 gap-2 items-center text-xs">
+                            <div className="col-span-1 font-mono font-bold text-slate-500">{line.line_num || lIdx + 1}</div>
+                            <div className="col-span-4 truncate font-medium text-slate-800 dark:text-zinc-200" title={line.description}>
+                              {line.description}
+                            </div>
+                            <div className="col-span-2 text-right font-mono font-semibold text-slate-900 dark:text-white">
+                              ${(line.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                            <div className="col-span-5 flex items-center gap-1.5 truncate">
+                              <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
+                              <div className="truncate">
+                                <span className="font-semibold text-slate-900 dark:text-white">
+                                  {line.account_name || line.category || item.expense_account_resolution?.name || "Expense"}
+                                </span>
+                                <span className="text-[10px] text-slate-500 dark:text-zinc-400 block font-mono">
+                                  QBO ID: {line.account_id || item.expense_account_resolution?.id || "Auto-Match"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="p-2.5 grid grid-cols-12 items-center gap-3">
+                    <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Tag className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <span>Expense Account (GL)</span>
+                    </div>
+                    <div className="col-span-4 text-slate-600 dark:text-zinc-300 truncate" title={item.category}>
+                      {item.category}
+                    </div>
+                    <div className="col-span-5 flex items-center gap-2">
+                      <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
+                      <div className="truncate">
+                        <span className="font-semibold text-slate-900 dark:text-white">{item.expense_account_resolution?.name || "Expense"}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-zinc-400 block font-mono">
+                          QBO Account ID: {item.expense_account_resolution?.id || "Auto-Match"} ({item.expense_account_resolution?.account_type || "Expense"})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Payment Account */}
                 <div className="p-2.5 grid grid-cols-12 items-center gap-3">
@@ -885,27 +752,8 @@ export function QuickBooksItemDetailsDialog({
               onClick={() => onOpenChange(false)}
               className="text-xs font-semibold border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 h-8 px-3"
             >
-              Cancel
+              Close
             </Button>
-
-            {isSynced && onDelete && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!isConnected || isDeleting}
-                onClick={async () => {
-                  await onDelete(item);
-                }}
-                className="text-xs font-semibold gap-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-900 h-8 px-3"
-              >
-                {isDeleting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-                <span>Remove from QuickBooks</span>
-              </Button>
-            )}
 
             {onSync && (
               <button
