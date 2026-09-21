@@ -1278,7 +1278,7 @@ export default function RequestDetail() {
                     value={
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-slate-900 dark:text-zinc-100">
-                          {request.recurring_schedule?.completed_installments || 0} / {request.recurring_schedule?.total_installments || 24} Cycles Completed
+                          {request.recurring_schedule?.total_installments ? `${request.recurring_schedule?.completed_installments || 0} / ${request.recurring_schedule?.total_installments} Cycles Completed` : `${request.recurring_schedule?.completed_installments || 0} Cycles Completed (Ongoing)`}
                         </span>
                         <Button
                           variant="outline"
@@ -1560,7 +1560,7 @@ export default function RequestDetail() {
                     <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                       <span>to</span>
                       <strong className="text-slate-800 dark:text-zinc-200">
-                        {request.recurring_schedule?.end_date ? formatDate(request.recurring_schedule.end_date) : "Ongoing (2 Yrs)"}
+                        {request.recurring_schedule?.end_date ? formatDate(request.recurring_schedule.end_date) : "Ongoing"}
                       </strong>
                     </div>
                   </div>
@@ -1580,22 +1580,32 @@ export default function RequestDetail() {
                   <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
                     <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Cycle Progress</div>
                     <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                      {request.recurring_schedule?.completed_installments || 0} / {request.recurring_schedule?.total_installments || 24} Cycles
+                      {request.recurring_schedule?.total_installments 
+                        ? `${request.recurring_schedule?.completed_installments || 0} / ${request.recurring_schedule?.total_installments} Cycles` 
+                        : `${request.recurring_schedule?.completed_installments || 0} Cycles Settled (Ongoing)`}
                     </div>
                     <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
                       <div
                         className="bg-indigo-600 h-full rounded-full transition-all"
                         style={{
-                          width: `${Math.min(100, Math.round(((request.recurring_schedule?.completed_installments || 0) / (request.recurring_schedule?.total_installments || 24)) * 100))}%`
+                          width: request.recurring_schedule?.total_installments 
+                            ? `${Math.min(100, Math.round(((request.recurring_schedule?.completed_installments || 0) / request.recurring_schedule?.total_installments) * 100))}%`
+                            : ((request.recurring_schedule?.completed_installments || 0) > 0 ? "100%" : "0%")
                         }}
                       />
                     </div>
                   </div>
 
                   <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
-                    <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Total Commitment</div>
+                    <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                      {request.recurring_schedule?.total_amount || request.recurring_schedule?.total_installments ? "Total Commitment" : "Cycle Commitment"}
+                    </div>
                     <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                      {formatMoney(request.recurring_schedule?.total_amount || ((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24)))}
+                      {request.recurring_schedule?.total_amount 
+                        ? formatMoney(request.recurring_schedule.total_amount) 
+                        : request.recurring_schedule?.total_installments 
+                        ? formatMoney((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * request.recurring_schedule.total_installments) 
+                        : `${formatMoney(request.recurring_schedule?.amount_per_cycle || request.amount || 0)} / cycle`}
                     </div>
                     <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
                       {formatMoney((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.completed_installments || 0))} paid to date
