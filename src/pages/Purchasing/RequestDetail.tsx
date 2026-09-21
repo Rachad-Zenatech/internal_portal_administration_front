@@ -10,13 +10,15 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BankAccountAutocomplete } from "./BankAccountAutocomplete";
 import { CategoryAutocomplete } from "./CategoryAutocomplete";
+import DepartmentAutocomplete from "./DepartmentAutocomplete";
+import LocationAutocomplete from "./LocationAutocomplete";
 import { PaymentMethodSelect } from "./PaymentMethodSelect";
 import { ManualPriceDialog } from "./ManualPriceDialog";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { updateRequest } from "@/services/purchasingService";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { VendorAutocomplete } from "./VendorAutocomplete";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { useNavigate, useParams } from "react-router-dom";
@@ -128,7 +130,6 @@ import {
   formatRequestType,
   formatActivityAction,
   formatActivityValue,
-  SHIPPED_TO_LOCATIONS,
   TAX_RATE,
 } from "./purchasingMeta";
 
@@ -196,7 +197,17 @@ export default function RequestDetail() {
     shipped_to_location: "",
     expected_delivery_date: "",
   });
-  const [invoice, setInvoice] = useState<InvoiceInput>({ vendor: "", amount: 0, invoice_date: "", due_date: "", gl_code: "", bank_account: "", asset_flag: false });
+  const [invoice, setInvoice] = useState<InvoiceInput>({
+    vendor: "",
+    amount: 0,
+    invoice_date: "",
+    due_date: "",
+    gl_code: "",
+    bank_account: "",
+    asset_flag: false,
+    department: "",
+    from_location: "",
+  });
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItemInput[]>([]);
   const [approval, setApproval] = useState<ApprovalInput>({ approver: "", comment: "" });
   const [tracking, setTracking] = useState<TrackingInput>({ tracking_number: "" });
@@ -444,6 +455,8 @@ export default function RequestDetail() {
         gl_code: "",
         bank_account: mapPaymentMethodToBankAccount(purchase_order?.payment_method || (request as any)?.payment_method, glCodes) || "",
         asset_flag: isDefaultAsset,
+        department: request.department ?? "",
+        from_location: "",
       });
       setPendingFiles([]);
     }
@@ -540,6 +553,8 @@ export default function RequestDetail() {
       void dispatch({ action, purchase_order: { ...po, amount: Number(po.amount) || 0, quantity: Number(po.quantity) || 1, unit_price: Number(po.unit_price) || 0, currency: po.currency || "USD", items: poItems } });
     } else if (kind === "invoice") {
       if (!invoice.vendor || !invoice.invoice_date) return toast.error("Vendor and bill date are required.");
+      if (!invoice.department || !invoice.department.trim()) return toast.error("Class is required.");
+      if (!invoice.from_location || !invoice.from_location.trim()) return toast.error("From Location is required.");
 
       const isMulti = invoiceItems.length > 1;
       if (isMulti) {
@@ -562,6 +577,8 @@ export default function RequestDetail() {
             invoice_type: "Purchase",
             amount: Number(invoice.amount) || 0,
             due_date: cleanDueDate,
+            department: invoice.department?.trim() || undefined,
+            from_location: invoice.from_location?.trim() || undefined,
             gl_code: invoice.gl_code?.trim() || (invoiceItems.length > 0 ? invoiceItems[0].gl_code?.trim() : undefined),
             items: isMulti ? invoiceItems.map(it => ({
               ...it,
@@ -1722,6 +1739,8 @@ export default function RequestDetail() {
                           )
                         }
                       />
+                      <Field label="Class (Department)" value={inv.department || "—"} />
+                      <Field label="From Location" value={inv.from_location || "—"} />
                       <Field label="Asset Flag" value={inv.asset_flag ? "Yes" : "No"} />
                     </div>
 
@@ -2593,6 +2612,31 @@ export default function RequestDetail() {
                   )}
                 </TwoUp>
 
+                <TwoUp>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Class <span className="text-red-500">*</span>
+                    </label>
+                    <DepartmentAutocomplete
+                      value={invoice.department || ""}
+                      onChange={(v) => setInvoice({ ...invoice, department: v })}
+                      placeholder="Select department / class *"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      From Location <span className="text-red-500">*</span>
+                    </label>
+                    <LocationAutocomplete
+                      value={invoice.from_location || ""}
+                      onChange={(v) => setInvoice({ ...invoice, from_location: v })}
+                      placeholder="Select or enter location *"
+                      required
+                    />
+                  </div>
+                </TwoUp>
+
                 {invoiceItems.length > 1 ? (
                   <div className="space-y-3 pt-1">
                     <TwoUp>
@@ -3258,67 +3302,4 @@ function FieldInput({
   );
 }
 
-// Test
 
-
-
-function LocationAutocomplete({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const [query, setQuery] = useState(value);
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setQuery(value);
-  }, [value]);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    if (!q) return SHIPPED_TO_LOCATIONS;
-    return SHIPPED_TO_LOCATIONS.filter((c) => c.toLowerCase().includes(q));
-  }, [query]);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <Input
-        value={query}
-        onFocus={() => setIsOpen(true)}
-        onChange={(e) => {
-          const next = e.target.value;
-          setQuery(next);
-          onChange(next);
-          setIsOpen(true);
-        }}
-        placeholder="Enter location"
-        maxLength={200}
-      />
-      {isOpen && filtered.length > 0 && (
-        <div className="absolute z-50 right-0 left-0 mt-1.5 w-full max-h-72 overflow-y-auto bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg shadow-xl py-1 text-sm">
-          {filtered.map((loc) => (
-            <div
-              key={loc}
-              className="px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/80 flex items-center gap-2"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setQuery(loc);
-                onChange(loc);
-                setIsOpen(false);
-              }}
-            >
-              <span className="font-medium">{loc}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

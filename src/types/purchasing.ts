@@ -216,6 +216,8 @@ export type Invoice = {
   gl_code: string | null;
   bank_account?: string | null;
   asset_flag: boolean;
+  department?: string | null;
+  from_location?: string | null;
   invoice_type?: string | null;
   description?: string | null;
   created_at: string;
@@ -354,6 +356,8 @@ export type InvoiceInput = {
   gl_code?: string | null;
   bank_account?: string | null;
   asset_flag?: boolean;
+  department?: string | null;
+  from_location?: string | null;
   invoice_type?: string | null;
   description?: string | null;
   items?: InvoiceItemInput[];
