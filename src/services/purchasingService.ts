@@ -447,7 +447,9 @@ export interface QuickBooksPreviewItem {
   payment_method: string;
   category: string;
   department: string;
+  class?: string;
   location: string;
+  from_location?: string;
   ref_no: string;
   doc_number: string;
   memo: string;

@@ -215,9 +215,9 @@ export default function Sidebar({
 
         <button
           onClick={onToggle}
-          className="rounded-lg p-2 hover:bg-sidebar-accent flex-shrink-0"
+          className="rounded-lg p-2 hover:bg-sidebar-accent flex-shrink-0 cursor-pointer"
         >
-          <PanelRight size={16} />
+          <PanelRight size={20} />
         </button>
       </div>
 
