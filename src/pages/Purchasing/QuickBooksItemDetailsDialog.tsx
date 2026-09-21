@@ -301,12 +301,32 @@ export function QuickBooksItemDetailsDialog({
                     </div>
 
                     {/* Ref no. */}
-                    <div className="w-full sm:w-[160px] space-y-1">
+                    <div className="w-full sm:w-[150px] space-y-1">
                       <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
                         Ref no.
                       </label>
                       <div className="px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white font-mono shadow-2xs h-8 flex items-center">
                         {item.doc_number || item.ref_no || `REQ-${item.request_id}`}
+                      </div>
+                    </div>
+
+                    {/* Class */}
+                    <div className="w-full sm:w-[160px] space-y-1">
+                      <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                        Class
+                      </label>
+                      <div className="px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white truncate shadow-2xs h-8 flex items-center font-medium">
+                        <span className="truncate">{item.class || item.department || "General"}</span>
+                      </div>
+                    </div>
+
+                    {/* From Location */}
+                    <div className="w-full sm:w-[180px] space-y-1">
+                      <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                        From Location
+                      </label>
+                      <div className="px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white truncate shadow-2xs h-8 flex items-center font-medium">
+                        <span className="truncate">{item.from_location || item.location || "Vancouver, BC"}</span>
                       </div>
                     </div>
                   </div>

@@ -974,9 +974,14 @@ export default function QuickBooksPage() {
                                   </Badge>
                                 ) : null}
                               </div>
-                              {item.department && (
-                                <span className="text-[10px] text-muted-foreground block">Class: {item.department}</span>
-                              )}
+                              <div className="flex flex-wrap gap-x-2 text-[10px] text-muted-foreground">
+                                {item.department && (
+                                  <span>Class: <strong className="font-medium text-slate-700 dark:text-zinc-300">{item.department}</strong></span>
+                                )}
+                                {(item.location || item.from_location) && (
+                                  <span>From: <strong className="font-medium text-slate-700 dark:text-zinc-300">{item.location || item.from_location}</strong></span>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
 

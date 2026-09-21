@@ -20,6 +20,8 @@ const ChartOfAccounts = lazy(() => import("./pages/Configurations/ChartOfAccount
 const PayableContacts = lazy(() => import("./pages/Configurations/PayableContacts"));
 const Entities = lazy(() => import("./pages/Configurations/Entities"));
 const Projects = lazy(() => import("./pages/Configurations/Projects"));
+const Locations = lazy(() => import("./pages/Configurations/Locations"));
+const Classes = lazy(() => import("./pages/Configurations/Classes"));
 
 const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
 const PurchaseRequests = lazy(() => import("./pages/Purchasing/PurchaseRequests"));
@@ -123,6 +125,10 @@ function App() {
               <Route path="/configurations/entities" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Entities /></ProtectedRoute>} />
               <Route path="/configuration/projects" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Projects /></ProtectedRoute>} />
               <Route path="/configurations/projects" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Projects /></ProtectedRoute>} />
+              <Route path="/configuration/locations" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Locations /></ProtectedRoute>} />
+              <Route path="/configurations/locations" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Locations /></ProtectedRoute>} />
+              <Route path="/configuration/classes" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Classes /></ProtectedRoute>} />
+              <Route path="/configurations/classes" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Classes /></ProtectedRoute>} />
               <Route path="/configuration/entities" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Entities /></ProtectedRoute>} />
               <Route path="/purchasing/payable-contacts" element={<ProtectedRoute><PayableContacts /></ProtectedRoute>} />
               <Route path="/purchasing/vendors" element={<ProtectedRoute><PayableContacts /></ProtectedRoute>} />
