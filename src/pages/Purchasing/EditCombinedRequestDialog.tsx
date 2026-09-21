@@ -21,6 +21,7 @@ import {
 import { VendorAutocomplete } from "./VendorAutocomplete";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import DepartmentAutocomplete from "./DepartmentAutocomplete";
+import LocationAutocomplete from "./LocationAutocomplete";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { PaymentMethodSelect } from "./PaymentMethodSelect";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
@@ -207,6 +208,8 @@ export function EditCombinedRequestDialog({
   const [invDate, setInvDate] = useState("");
   const [invDueDate, setInvDueDate] = useState("");
   const [invAssetFlag, setInvAssetFlag] = useState(false);
+  const [invDepartment, setInvDepartment] = useState("");
+  const [invFromLocation, setInvFromLocation] = useState("");
   const [invGlCode, setInvGlCode] = useState("");
   const [invDescription, setInvDescription] = useState("");
   const [invItems, setInvItems] = useState<any[]>([]);
@@ -406,6 +409,8 @@ export function EditCombinedRequestDialog({
         );
         setInvDueDate(invoice.due_date ? String(invoice.due_date).split("T")[0] : "");
         setInvAssetFlag(Boolean(invoice.asset_flag));
+        setInvDepartment(invoice.department || request?.department || "");
+        setInvFromLocation(invoice.from_location || "");
         setInvGlCode(invoice.gl_code || purchaseOrder?.gl_code || request?.gl_code || "");
         setInvDescription(invoice.description || "");
 
@@ -897,6 +902,8 @@ export function EditCombinedRequestDialog({
         amount: invAmount,
         invoice_date: invDate || new Date().toISOString().split("T")[0],
         due_date: invDueDate || null,
+        department: invDepartment.trim() || null,
+        from_location: invFromLocation.trim() || null,
         gl_code: invGlCode.trim() || poGlCode.trim() || reqGlCode.trim() || null,
         asset_flag: invAssetFlag,
         description: invDescription.trim() || null,
@@ -2021,6 +2028,30 @@ export function EditCombinedRequestDialog({
                       value={invGlCode}
                       onChange={setInvGlCode}
                       placeholder="Search or enter GL code for invoice..."
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Class <span className="text-rose-500">*</span>
+                    </label>
+                    <DepartmentAutocomplete
+                      value={invDepartment}
+                      onChange={setInvDepartment}
+                      placeholder="Department / class *"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      From Location <span className="text-rose-500">*</span>
+                    </label>
+                    <LocationAutocomplete
+                      value={invFromLocation}
+                      onChange={setInvFromLocation}
+                      placeholder="Location *"
+                      required
                     />
                   </div>
                 </div>

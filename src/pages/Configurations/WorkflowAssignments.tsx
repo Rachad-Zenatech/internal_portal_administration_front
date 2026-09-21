@@ -15,7 +15,7 @@ import {
   Edit2, X, Search, ChevronDown, ChevronRight, Check,
   Building2, UserCheck, Users, User, RefreshCw, CheckCircle2, AlertCircle,
   ChevronsUpDown, ShoppingCart, CreditCard, Landmark, SlidersHorizontal, CheckSquare,
-  Plus, FolderPlus, GripVertical, Trash2, Folder, Layers
+  Plus, FolderPlus, GripVertical, Trash2, Folder, Layers, ShieldCheck
 } from "lucide-react";
 
 type Assignment = {
@@ -79,6 +79,17 @@ const PRIMARY_ROLE_TABS = [
     badgeColor: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
   },
   {
+    key: "COMPANY_LEVEL_2_APPROVER",
+    label: "Level 2 Company Approvers",
+    shortLabel: "Level 2 Approvers",
+    icon: ShieldCheck,
+    color: "text-purple-600 dark:text-purple-400",
+    badgeColor: "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800",
+    roleCode: "COMPANY_LEVEL_2_APPROVER",
+    desc: "Executive / Company-wide final sign-off for requests ≥ $10k, escalated amounts, or corporate oversight.",
+    states: ["Waiting Approval (>= $10k or Escalated, Company Level 2)"]
+  },
+  {
     key: "PURCHASING",
     label: "Purchasing Team",
     shortLabel: "Purchasing",
@@ -118,6 +129,7 @@ const PRIMARY_ROLE_TABS = [
 ];
 
 const SUGGESTED_ROLES = [
+  { code: "COMPANY_LEVEL_2_APPROVER", label: "Level 2 Approver", desc: "Company Level 2 executive approval (≥ $10k)" },
   { code: "PURCHASING", label: "Purchasing", desc: "Purchasing and procurement processing" },
   { code: "AP", label: "Accounts Payable", desc: "Invoice payment and debit/wire handling" },
   { code: "TREASURY", label: "Treasury", desc: "Treasury and high-value payment approval" },
@@ -968,7 +980,20 @@ export default function WorkflowAssignments() {
     return userIds.size;
   };
 
-  // Render Operational Role dedicated tab content
+  const handleDeleteAssignment = async (id: number, roleName: string) => {
+    if (!window.confirm(`Are you sure you want to delete the assignment for ${roleName}?`)) {
+      return;
+    }
+    try {
+      await api.delete(`/purchasing/assignments/${id}`);
+      toast.info(`Assignment for ${roleName} deleted`);
+      fetchData();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Failed to delete assignment");
+    }
+  };
+
+  // Render Operational & Approver Role dedicated tab content
   const renderRoleTabContent = (tabConfig: typeof PRIMARY_ROLE_TABS[1]) => {
     const roleCode = tabConfig.roleCode!;
     const roleAssignments = assignments.filter((a) => a.role.toUpperCase() === roleCode.toUpperCase());
@@ -1002,22 +1027,69 @@ export default function WorkflowAssignments() {
               </div>
             )}
           </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                setForm({
+                  role: roleCode,
+                  user_id: "",
+                  user_ids: [],
+                  department: null,
+                  request_type: "ALL",
+                  active: true,
+                });
+                setIsFormOpen(true);
+              }}
+              className={`h-8 text-xs text-white gap-1.5 shadow-xs ${
+                roleCode === "COMPANY_LEVEL_2_APPROVER"
+                  ? "bg-purple-600 hover:bg-purple-700"
+                  : "bg-indigo-600 hover:bg-indigo-700"
+              }`}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Assign {tabConfig.shortLabel}
+            </Button>
+          </div>
         </div>
 
         <CardContent className="p-0">
           {roleAssignments.length === 0 ? (
-            <div className="p-12 text-center space-y-3">
+            <div className="p-12 text-center space-y-4">
               <div className="mx-auto w-12 h-12 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400">
                 <tabConfig.icon className="h-6 w-6 opacity-60" />
               </div>
-              <div>
+              <div className="space-y-1">
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   No team members currently assigned to {tabConfig.label}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground">
                   Requests routed to this role will require operational assignment.
                 </p>
               </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setForm({
+                    role: roleCode,
+                    user_id: "",
+                    user_ids: [],
+                    department: null,
+                    request_type: "ALL",
+                    active: true,
+                  });
+                  setIsFormOpen(true);
+                }}
+                className={`h-8 text-xs text-white gap-1.5 shadow-xs ${
+                  roleCode === "COMPANY_LEVEL_2_APPROVER"
+                    ? "bg-purple-600 hover:bg-purple-700"
+                    : "bg-indigo-600 hover:bg-indigo-700"
+                }`}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Assign {tabConfig.shortLabel} Now
+              </Button>
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1080,6 +1152,11 @@ export default function WorkflowAssignments() {
                                 {u.full_name || u.email}
                               </span>
                               {u.email && <span className="text-[11px] text-muted-foreground">({u.email})</span>}
+                              {u.job_title && (
+                                <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
+                                  &middot; {u.job_title}
+                                </span>
+                              )}
                             </Badge>
                           ))
                         )}
@@ -1108,6 +1185,15 @@ export default function WorkflowAssignments() {
                       >
                         <Edit2 className="mr-1.5 h-3.5 w-3.5" /> Edit Assignment
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteAssignment(a.id, a.role)}
+                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
+                        title="Delete Assignment"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
                 );
@@ -1128,10 +1214,10 @@ export default function WorkflowAssignments() {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
               Workflow Roles & Approvers
             </h1>
-            <HelpIcon text="Manage Level 1 Department Approver Groups, multi-approver assignments, drag-and-drop hierarchy, and operational teams (AP, Treasury, Purchasing)." />
+            <HelpIcon text="Manage Level 1 Department Approvers, Level 2 Company Approvers, multi-approver assignments, drag-and-drop hierarchy, and operational teams (AP, Treasury, Purchasing)." />
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure custom department groups, assign multiple Level 1 approvers, and manage operational routing.
+            Configure Level 1 & 2 approvers, custom department groups, multi-user approval routing, and operational handlers.
           </p>
         </div>
 
@@ -1852,22 +1938,14 @@ export default function WorkflowAssignments() {
           </Card>
         </TabsContent>
 
-        {/* ── TAB 2: Purchasing Team ── */}
-        <TabsContent value="PURCHASING" className="space-y-4 m-0">
-          {renderRoleTabContent(PRIMARY_ROLE_TABS[1])}
-        </TabsContent>
+        {/* ── Role Tabs (Level 2 Approvers, Purchasing, AP, Treasury) ── */}
+        {PRIMARY_ROLE_TABS.filter((t) => t.roleCode).map((tab) => (
+          <TabsContent key={tab.key} value={tab.key} className="space-y-4 m-0">
+            {renderRoleTabContent(tab)}
+          </TabsContent>
+        ))}
 
-        {/* ── TAB 3: Accounts Payable (AP) Team ── */}
-        <TabsContent value="AP" className="space-y-4 m-0">
-          {renderRoleTabContent(PRIMARY_ROLE_TABS[2])}
-        </TabsContent>
-
-        {/* ── TAB 4: Treasury Team ── */}
-        <TabsContent value="TREASURY" className="space-y-4 m-0">
-          {renderRoleTabContent(PRIMARY_ROLE_TABS[3])}
-        </TabsContent>
-
-        {/* ── TAB 5: All Operational Roles Overview ── */}
+        {/* ── TAB: All Operational Roles Overview ── */}
         <TabsContent value="all_roles" className="space-y-4 m-0">
           <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-zinc-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1985,6 +2063,11 @@ export default function WorkflowAssignments() {
                                       {u.full_name || u.email}
                                     </span>
                                     {u.email && <span className="text-[11px] text-muted-foreground">({u.email})</span>}
+                                    {u.job_title && (
+                                      <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
+                                        &middot; {u.job_title}
+                                      </span>
+                                    )}
                                   </Badge>
                                 ))
                               )}
@@ -2012,6 +2095,15 @@ export default function WorkflowAssignments() {
                               className="h-8 px-3 shadow-xs"
                             >
                               <Edit2 className="mr-1.5 h-3.5 w-3.5" /> Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteAssignment(a.id, a.role)}
+                              className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
+                              title="Delete Assignment"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </div>
@@ -2167,13 +2259,13 @@ export default function WorkflowAssignments() {
         </DialogContent>
       </Dialog>
 
-      {/* ── EDIT OPERATIONAL ROLE DIALOG ── */}
+      {/* ── EDIT ROLE ASSIGNMENT DIALOG ── */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>{form.id ? "Edit Role Assignment" : "Configure Role Assignment"}</DialogTitle>
             <DialogDescription>
-              Assign team members to operational roles (AP, Treasury, Purchasing).
+              Assign team members and approvers to operational and executive roles (Level 2 Approvers, AP, Treasury, Purchasing).
             </DialogDescription>
           </DialogHeader>
 
