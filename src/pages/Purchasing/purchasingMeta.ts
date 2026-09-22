@@ -337,6 +337,7 @@ export const REQUEST_TYPE_LABEL: Record<string, string> = {
   "ACCOUNTS PAYABLE": "Accounts Payable",
   ADMIN: "Admin",
   RECURRING: "Recurring",
+  SCHEDULED_PAYMENT: "Scheduled Payment",
   ALL: "All Types",
 };
 

@@ -442,7 +442,7 @@ export default function RequestDetail() {
         quantity: Number(itm.quantity) || 1,
         unit_price: Number(itm.unit_price) || 0,
         amount: Number(itm.total ?? itm.amount ?? ((Number(itm.quantity) || 1) * (Number(itm.unit_price) || 0))) || 0,
-        gl_code: itm.gl_code || "",
+        gl_code: itm.gl_code || purchase_order?.gl_code || request.gl_code || "",
         asset_flag: isDefaultAsset,
       }));
 
@@ -452,7 +452,7 @@ export default function RequestDetail() {
         amount: purchase_order?.amount ?? request.amount ?? request.unit_price ?? 0,
         invoice_date: new Date().toISOString().split("T")[0],
         due_date: "",
-        gl_code: "",
+        gl_code: purchase_order?.gl_code || request.gl_code || "",
         bank_account: mapPaymentMethodToBankAccount(purchase_order?.payment_method || (request as any)?.payment_method, glCodes) || "",
         asset_flag: isDefaultAsset,
         department: request.department ?? "",
@@ -1352,10 +1352,10 @@ export default function RequestDetail() {
                       {/* Financial Totals for Single Items */}
                       {!(request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)) && (
                         <>
-                          <Field label="SKU / Part #" value={request.sku || request.items?.[0]?.sku || "—"} />
-                          <Field label="Quantity" value={String(request.quantity ?? 1)} />
+                          {!isRecurring && <Field label="SKU / Part #" value={request.sku || request.items?.[0]?.sku || "—"} />}
+                          {!isRecurring && <Field label="Quantity" value={String(request.quantity ?? 1)} />}
                           <Field
-                            label="Unit Price"
+                            label={isRecurring ? "Amount / Cycle" : "Unit Price"}
                             value={
                               <span>
                                 {formatMoney(request.unit_price ?? 0)} {request.currency || "USD"}

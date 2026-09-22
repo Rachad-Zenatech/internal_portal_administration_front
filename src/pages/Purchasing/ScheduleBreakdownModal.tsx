@@ -24,12 +24,14 @@ interface ScheduleBreakdownModalProps {
   request: PurchaseRequest | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEditRequest?: (request: PurchaseRequest) => void;
 }
 
 export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
   request,
   open,
   onOpenChange,
+  onEditRequest,
 }) => {
   const navigate = useNavigate();
 
@@ -270,7 +272,11 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
               size="sm"
               onClick={() => {
                 onOpenChange(false);
-                navigate(`/purchasing/requests/${request.id}`);
+                if (onEditRequest && request) {
+                  onEditRequest(request);
+                } else if (request) {
+                  navigate(`/purchasing/requests/${request.id}`);
+                }
               }}
               className="gap-1 text-xs"
             >

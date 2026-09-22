@@ -3,7 +3,7 @@ import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
 import { RequestStatus, type PurchaseRequest,
   type RecurringNotificationSettings, type RequestDetail, type CustomScheduleDate } from "@/types/purchasing";
@@ -66,11 +66,12 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import GLCodeAutocomplete from "./GLCodeAutocomplete";
 import {
   formatRemainingDuration,
   calculateInstallmentsCount,
   generatePaymentSchedule,
+  getRecurringAmounts,
+  formatDateToIso,
   type FrequencyType,
 } from "./recurringScheduleUtils";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
@@ -215,6 +216,7 @@ function getDueStatus(dateStr?: string | null, status?: string) {
 export default function RecurringPayments() {
   const kpiRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { id: routeRequestId } = useParams<{ id?: string }>();
   const queryClient = useQueryClient();
   const { roles: userRoles, hasRole, hasPermission, user } = useAuth();
   const { data: usersList = [] } = useUsersList();
@@ -371,7 +373,7 @@ export default function RecurringPayments() {
     queryKey: ["recurring-requests"],
     queryFn: async () => {
       return await apiClient.get<PurchaseRequest[]>(
-        "/api/purchasing/requests?request_type=RECURRING"
+        "/api/purchasing/requests?request_type=RECURRING,SCHEDULED_PAYMENT"
       );
     },
     enabled: !!canAccess,
@@ -415,21 +417,40 @@ export default function RecurringPayments() {
     },
   });
 
+  // Helper to generate default 2-installment schedule starting from a base date
+  const getInitialDefaultSchedule = (baseDate?: string, amount?: number) => {
+    const sDate = baseDate || new Date().toISOString().split("T")[0];
+    const nextMonth = new Date(sDate + "T00:00:00");
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const nextMonthIso = formatDateToIso(nextMonth);
+    return {
+      is_scheduled: true,
+      frequency: "CUSTOM" as FrequencyType,
+      start_date: sDate,
+      end_date: nextMonthIso,
+      schedule_dates: [
+        { date: sDate, amount: amount && amount > 0 ? amount : undefined, note: "Installment #1" },
+        { date: nextMonthIso, amount: amount && amount > 0 ? amount : undefined, note: "Installment #2" },
+      ] as CustomScheduleDate[],
+    };
+  };
+
   // Create recurring request state
+  const initialSchedule = getInitialDefaultSchedule();
   const [newForm, setNewForm] = useState({
     title: "",
     requester: "",
     department: "",
     amount: "",
-    due_date: "",
+    due_date: initialSchedule.start_date,
     description: "",
     gl_code: "",
     priority: "MEDIUM",
-    is_scheduled: false,
-    frequency: "MONTHLY" as FrequencyType,
-    start_date: "",
-    end_date: "",
-    schedule_dates: [] as CustomScheduleDate[],
+    is_scheduled: true,
+    frequency: "CUSTOM" as FrequencyType,
+    start_date: initialSchedule.start_date,
+    end_date: initialSchedule.end_date,
+    schedule_dates: initialSchedule.schedule_dates,
   });
 
   // Edit recurring request form state
@@ -443,8 +464,8 @@ export default function RecurringPayments() {
     description: "",
     gl_code: "",
     priority: "MEDIUM",
-    is_scheduled: false,
-    frequency: "MONTHLY" as FrequencyType,
+    is_scheduled: true,
+    frequency: "CUSTOM" as FrequencyType,
     start_date: "",
     end_date: "",
     completed_installments: 0,
@@ -463,6 +484,7 @@ export default function RecurringPayments() {
       : resolveUserDepartment(user, rolesList);
 
     const todayIso = new Date().toISOString().split("T")[0];
+    const sched = getInitialDefaultSchedule(todayIso);
     setNewForm({
       title: "",
       requester: displayName,
@@ -472,11 +494,11 @@ export default function RecurringPayments() {
       description: "",
       gl_code: "",
       priority: "MEDIUM",
-      is_scheduled: false,
-      frequency: "MONTHLY",
-      start_date: todayIso,
-      end_date: "",
-      schedule_dates: [],
+      is_scheduled: true,
+      frequency: "CUSTOM",
+      start_date: sched.start_date,
+      end_date: sched.end_date,
+      schedule_dates: sched.schedule_dates,
     });
     setIsCreateOpen(true);
   };
@@ -518,6 +540,7 @@ export default function RecurringPayments() {
       toast.success(`Recurring request #${res.request.id} created successfully`);
       setIsCreateOpen(false);
       const todayIso = new Date().toISOString().split("T")[0];
+      const sched = getInitialDefaultSchedule(todayIso);
       setNewForm({
         title: "",
         requester: "",
@@ -527,11 +550,11 @@ export default function RecurringPayments() {
         description: "",
         gl_code: "",
         priority: "MEDIUM",
-        is_scheduled: false,
-        frequency: "MONTHLY",
-        start_date: todayIso,
-        end_date: "",
-        schedule_dates: [],
+        is_scheduled: true,
+        frequency: "CUSTOM",
+        start_date: sched.start_date,
+        end_date: sched.end_date,
+        schedule_dates: sched.schedule_dates,
       });
       queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
       queryClient.invalidateQueries({ queryKey: ["purchasing"] });
@@ -551,8 +574,7 @@ export default function RecurringPayments() {
     },
     onSuccess: (res) => {
       toast.success(`Recurring request #${res.request.id} updated successfully`);
-      setIsEditOpen(false);
-      setEditingRequest(null);
+      handleCloseEdit();
       queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
       queryClient.invalidateQueries({ queryKey: ["purchasing"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
@@ -561,6 +583,14 @@ export default function RecurringPayments() {
       toast.error(err?.message || "Failed to update recurring request");
     },
   });
+
+  const handleCloseEdit = () => {
+    setIsEditOpen(false);
+    setEditingRequest(null);
+    if (routeRequestId) {
+      navigate("/purchasing/recurring", { replace: true });
+    }
+  };
 
   const handleOpenEdit = (req: PurchaseRequest) => {
     setEditingRequest(req);
@@ -576,6 +606,7 @@ export default function RecurringPayments() {
       }
     }
     const sched = req.recurring_schedule;
+    const isSched = sched?.is_scheduled !== undefined ? Boolean(sched.is_scheduled) : true;
     let schedDates: CustomScheduleDate[] = [];
     if (sched?.schedule_dates && sched.schedule_dates.length > 0) {
       schedDates = sched.schedule_dates;
@@ -585,6 +616,15 @@ export default function RecurringPayments() {
         amount: sched?.amount_per_cycle || req.amount,
         note: `Installment #${i + 1}`,
       }));
+    } else if (isSched) {
+      const baseDate = sched?.start_date ? sched.start_date.split("T")[0] : (req.due_date ? req.due_date.split("T")[0] : new Date().toISOString().split("T")[0]);
+      const nextMonth = new Date(baseDate + "T00:00:00");
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      const nextMonthIso = formatDateToIso(nextMonth);
+      schedDates = [
+        { date: baseDate, amount: req.amount || undefined, note: "Installment #1" },
+        { date: nextMonthIso, amount: req.amount || undefined, note: "Installment #2" },
+      ];
     }
     setEditForm({
       id: req.id,
@@ -596,15 +636,35 @@ export default function RecurringPayments() {
       description: req.description || "",
       gl_code: req.gl_code || "",
       priority: req.priority || "MEDIUM",
-      is_scheduled: Boolean(sched?.is_scheduled),
-      frequency: (sched?.frequency as FrequencyType) || "MONTHLY",
-      start_date: sched?.start_date ? sched.start_date.split("T")[0] : (req.due_date ? req.due_date.split("T")[0] : ""),
-      end_date: sched?.end_date ? sched.end_date.split("T")[0] : "",
+      is_scheduled: isSched,
+      frequency: (sched?.frequency as FrequencyType) || "CUSTOM",
+      start_date: sched?.start_date ? sched.start_date.split("T")[0] : (schedDates[0]?.date || (req.due_date ? req.due_date.split("T")[0] : "")),
+      end_date: sched?.end_date ? sched.end_date.split("T")[0] : (schedDates[schedDates.length - 1]?.date || ""),
       completed_installments: sched?.completed_installments || 0,
       schedule_dates: schedDates,
     });
     setIsEditOpen(true);
   };
+
+  // Auto-open request when navigating to /purchasing/requests/:id
+  useEffect(() => {
+    if (!routeRequestId) return;
+    const found = requests.find((r) => String(r.id) === String(routeRequestId));
+    if (found) {
+      handleOpenEdit(found);
+    } else if (!isLoading) {
+      apiClient
+        .get<RequestDetail>(`/api/purchasing/requests/${routeRequestId}`)
+        .then((res) => {
+          if (res?.request) {
+            handleOpenEdit(res.request);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load request #" + routeRequestId, err);
+        });
+    }
+  }, [routeRequestId, requests, isLoading]);
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -620,12 +680,6 @@ export default function RecurringPayments() {
       toast.error("Please enter or select a department");
       return;
     }
-    const amt = parseFloat(newForm.amount);
-    if (isNaN(amt) || amt <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-
     const isCustom = newForm.frequency === "CUSTOM";
     const customDates = isCustom ? newForm.schedule_dates : [];
     const isSched = Boolean(
@@ -633,13 +687,71 @@ export default function RecurringPayments() {
       (isCustom ? customDates.length > 0 : newForm.start_date && newForm.end_date)
     );
 
+    const customSum = isCustom ? customDates.reduce((acc, itm) => acc + (itm.amount != null ? itm.amount : 0), 0) : 0;
+    let baseAmt = parseFloat(newForm.amount) || 0;
+
+    if (isSched && isCustom) {
+      if (customDates.length === 0) {
+        toast.error("Please add at least one installment date");
+        return;
+      }
+      if (customSum <= 0 && baseAmt <= 0) {
+        toast.error("Please enter an amount for the installment dates (greater than $0.00)");
+        return;
+      }
+    } else {
+      if (baseAmt <= 0) {
+        toast.error("Please enter a valid amount greater than $0.00");
+        return;
+      }
+    }
+
     let totalCycles: number | null = null;
     let totalAmt: number | null = null;
+    let amt = baseAmt;
 
     if (isSched) {
       if (isCustom) {
         totalCycles = customDates.length;
-        totalAmt = customDates.reduce((acc, itm) => acc + (itm.amount || amt), 0);
+        totalAmt = customSum > 0 ? customSum : (baseAmt > 0 ? baseAmt * totalCycles : 0);
+        amt = totalAmt > 0 ? totalAmt : baseAmt;
+        const cycleAmt = totalCycles > 0 ? Math.round((totalAmt / totalCycles) * 100) / 100 : amt;
+        const sanitizedDates = customDates.map((d, i) => ({
+          date: d.date,
+          amount: d.amount != null && d.amount > 0 ? d.amount : cycleAmt,
+          note: d.note || `Installment #${i + 1}`,
+        }));
+
+        const effectiveStartDate = sanitizedDates.length > 0 ? sanitizedDates[0].date : newForm.start_date;
+        const effectiveEndDate = sanitizedDates.length > 0 ? sanitizedDates[sanitizedDates.length - 1].date : newForm.end_date;
+        const effectiveDueDate = effectiveStartDate || newForm.due_date;
+
+        createMutation.mutate({
+          title: newForm.title,
+          requester: newForm.requester,
+          department: newForm.department,
+          request_type: "RECURRING",
+          priority: newForm.priority,
+          amount: amt,
+          unit_price: amt,
+          quantity: 1,
+          description: newForm.description,
+          gl_code: null,
+          due_date: effectiveDueDate || null,
+          recurring_schedule: {
+            is_scheduled: true,
+            frequency: newForm.frequency,
+            start_date: effectiveStartDate,
+            end_date: effectiveEndDate,
+            total_installments: totalCycles,
+            completed_installments: 0,
+            amount_per_cycle: cycleAmt,
+            total_amount: totalAmt,
+            custom_dates: sanitizedDates.map((d) => d.date),
+            schedule_dates: sanitizedDates,
+          },
+        });
+        return;
       } else {
         totalCycles = calculateInstallmentsCount(newForm.start_date, newForm.end_date, newForm.frequency);
         totalAmt = totalCycles ? Math.round(amt * totalCycles * 100) / 100 : null;
@@ -648,6 +760,7 @@ export default function RecurringPayments() {
 
     const effectiveStartDate = isCustom && customDates.length > 0 ? customDates[0].date : newForm.start_date;
     const effectiveEndDate = isCustom && customDates.length > 0 ? customDates[customDates.length - 1].date : newForm.end_date;
+    const effectiveDueDate = (isSched && effectiveStartDate) ? effectiveStartDate : newForm.due_date;
 
     createMutation.mutate({
       title: newForm.title,
@@ -659,9 +772,8 @@ export default function RecurringPayments() {
       unit_price: amt,
       quantity: 1,
       description: newForm.description,
-      gl_code: newForm.gl_code || null,
-      due_date: newForm.due_date || (isSched ? effectiveStartDate : null),
-      review_status: "WAITING_FOR_REVIEW",
+      gl_code: null,
+      due_date: effectiveDueDate || null,
       recurring_schedule: isSched
         ? {
             is_scheduled: true,
@@ -670,7 +782,7 @@ export default function RecurringPayments() {
             end_date: effectiveEndDate,
             total_installments: totalCycles,
             completed_installments: 0,
-            amount_per_cycle: amt,
+            amount_per_cycle: totalCycles && totalCycles > 0 ? Math.round((totalAmt! / totalCycles) * 100) / 100 : amt,
             total_amount: totalAmt,
             custom_dates: isCustom ? customDates.map((d) => d.date) : null,
             schedule_dates: isCustom ? customDates : null,
@@ -702,11 +814,6 @@ export default function RecurringPayments() {
       toast.error("Please enter or select a department");
       return;
     }
-    const amt = parseFloat(editForm.amount);
-    if (isNaN(amt) || amt <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
 
     const isCustom = editForm.frequency === "CUSTOM";
     const customDates = isCustom ? editForm.schedule_dates : [];
@@ -715,13 +822,73 @@ export default function RecurringPayments() {
       (isCustom ? customDates.length > 0 : editForm.start_date && editForm.end_date)
     );
 
+    const customSum = isCustom ? customDates.reduce((acc, itm) => acc + (itm.amount != null ? itm.amount : 0), 0) : 0;
+    let baseAmt = parseFloat(editForm.amount) || 0;
+
+    if (isSched && isCustom) {
+      if (customDates.length === 0) {
+        toast.error("Please add at least one installment date");
+        return;
+      }
+      if (customSum <= 0 && baseAmt <= 0) {
+        toast.error("Please enter an amount for the installment dates (greater than $0.00)");
+        return;
+      }
+    } else {
+      if (baseAmt <= 0) {
+        toast.error("Please enter a valid amount greater than $0.00");
+        return;
+      }
+    }
+
     let totalCycles: number | null = null;
     let totalAmt: number | null = null;
+    let amt = baseAmt;
 
     if (isSched) {
       if (isCustom) {
         totalCycles = customDates.length;
-        totalAmt = customDates.reduce((acc, itm) => acc + (itm.amount || amt), 0);
+        totalAmt = customSum > 0 ? customSum : (baseAmt > 0 ? baseAmt * totalCycles : 0);
+        amt = totalAmt > 0 ? totalAmt : baseAmt;
+        const cycleAmt = totalCycles > 0 ? Math.round((totalAmt / totalCycles) * 100) / 100 : amt;
+        const sanitizedDates = customDates.map((d, i) => ({
+          date: d.date,
+          amount: d.amount != null && d.amount > 0 ? d.amount : cycleAmt,
+          note: d.note || `Installment #${i + 1}`,
+        }));
+
+        const effectiveStartDate = sanitizedDates.length > 0 ? sanitizedDates[0].date : editForm.start_date;
+        const effectiveEndDate = sanitizedDates.length > 0 ? sanitizedDates[sanitizedDates.length - 1].date : editForm.end_date;
+        const effectiveDueDate = effectiveStartDate || editForm.due_date;
+
+        updateMutation.mutate({
+          id: editForm.id,
+          payload: {
+            title: editForm.title,
+            requester: editForm.requester,
+            department: editForm.department,
+            priority: editForm.priority,
+            amount: amt,
+            unit_price: amt,
+            quantity: 1,
+            description: editForm.description,
+            gl_code: editingRequest?.gl_code || editForm.gl_code || null,
+            due_date: effectiveDueDate || null,
+            recurring_schedule: {
+              is_scheduled: true,
+              frequency: editForm.frequency,
+              start_date: effectiveStartDate,
+              end_date: effectiveEndDate,
+              total_installments: totalCycles,
+              completed_installments: editForm.completed_installments || 0,
+              amount_per_cycle: cycleAmt,
+              total_amount: totalAmt,
+              custom_dates: sanitizedDates.map((d) => d.date),
+              schedule_dates: sanitizedDates,
+            },
+          },
+        });
+        return;
       } else {
         totalCycles = calculateInstallmentsCount(editForm.start_date, editForm.end_date, editForm.frequency);
         totalAmt = totalCycles ? Math.round(amt * totalCycles * 100) / 100 : null;
@@ -730,6 +897,7 @@ export default function RecurringPayments() {
 
     const effectiveStartDate = isCustom && customDates.length > 0 ? customDates[0].date : editForm.start_date;
     const effectiveEndDate = isCustom && customDates.length > 0 ? customDates[customDates.length - 1].date : editForm.end_date;
+    const effectiveDueDate = (isSched && effectiveStartDate) ? effectiveStartDate : editForm.due_date;
 
     updateMutation.mutate({
       id: editForm.id,
@@ -742,8 +910,8 @@ export default function RecurringPayments() {
         unit_price: amt,
         quantity: 1,
         description: editForm.description,
-        gl_code: editForm.gl_code || null,
-        due_date: editForm.due_date || (isSched ? effectiveStartDate : null),
+        gl_code: editingRequest?.gl_code || editForm.gl_code || null,
+        due_date: effectiveDueDate || null,
         recurring_schedule: isSched
           ? {
               is_scheduled: true,
@@ -752,7 +920,7 @@ export default function RecurringPayments() {
               end_date: effectiveEndDate,
               total_installments: totalCycles,
               completed_installments: editForm.completed_installments || 0,
-              amount_per_cycle: amt,
+              amount_per_cycle: totalCycles && totalCycles > 0 ? Math.round((totalAmt! / totalCycles) * 100) / 100 : amt,
               total_amount: totalAmt,
               custom_dates: isCustom ? customDates.map((d) => d.date) : null,
               schedule_dates: isCustom ? customDates : null,
@@ -803,6 +971,13 @@ export default function RecurringPayments() {
         const statusStr = String(r.status ?? "").toLowerCase();
         const amountStr = String(r.amount ?? "");
         const glStr = String(r.gl_code ?? "").toLowerCase();
+        const { displayAmount, nextFormatted, totalFormatted } = getRecurringAmounts(
+          r.recurring_schedule,
+          r.amount,
+          r.currency || "USD",
+          r.status,
+          r.due_date || r.request_date
+        );
 
         const matches =
           idStr.includes(rawTerm) ||
@@ -814,6 +989,9 @@ export default function RecurringPayments() {
           vendorStr.includes(rawTerm) ||
           statusStr.includes(rawTerm) ||
           amountStr.includes(rawTerm) ||
+          displayAmount.toLowerCase().includes(rawTerm) ||
+          nextFormatted.toLowerCase().includes(rawTerm) ||
+          (totalFormatted && totalFormatted.toLowerCase().includes(rawTerm)) ||
           glStr.includes(rawTerm);
 
         if (!matches) {
@@ -1240,6 +1418,13 @@ export default function RecurringPayments() {
                 filteredRequests.map((req) => {
                   const revStatus = req.review_status || "WAITING_FOR_REVIEW";
                   const isRev = revStatus === "REVIEWED";
+                  const { nextFormatted, totalFormatted } = getRecurringAmounts(
+                    req.recurring_schedule,
+                    req.amount,
+                    req.currency || "USD",
+                    req.status,
+                    req.due_date || req.request_date
+                  );
                   return (
                     <TableRow
                       key={req.id}
@@ -1300,7 +1485,21 @@ export default function RecurringPayments() {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                        {formatMoney(req.amount)}
+                        <div className="flex flex-col">
+                          <div className="flex items-baseline gap-1 font-bold text-slate-900 dark:text-zinc-100">
+                            <span>{nextFormatted}</span>
+                            {totalFormatted && (
+                              <span className="text-xs font-semibold text-muted-foreground">
+                                / {totalFormatted}
+                              </span>
+                            )}
+                          </div>
+                          {totalFormatted && (
+                            <span className="text-[10px] text-muted-foreground font-normal">
+                              Next / Total
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={getStatusBadge(req.status)}>
@@ -1819,34 +2018,58 @@ export default function RecurringPayments() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                      Amount (USD) <span className="text-red-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Amount (USD) <span className="text-red-500">*</span>
+                      </label>
+                      {newForm.is_scheduled && (
+                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                          (Managed by Schedule)
+                        </span>
+                      )}
+                    </div>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
                       <Input
                         type="number"
                         step="0.01"
                         placeholder="0.00"
-                        value={newForm.amount}
+                        value={
+                          newForm.is_scheduled && newForm.frequency === "CUSTOM" && newForm.schedule_dates.length > 0
+                            ? (newForm.schedule_dates.reduce((acc, itm) => acc + (itm.amount != null ? itm.amount : 0), 0) || "").toString()
+                            : newForm.amount
+                        }
                         onChange={(e) =>
                           setNewForm({ ...newForm, amount: e.target.value })
                         }
-                        className="h-10 text-sm font-mono pl-7"
-                        required
+                        disabled={newForm.is_scheduled}
+                        className="h-10 text-sm font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                        required={!newForm.is_scheduled}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
+                      {newForm.is_scheduled && (
+                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                          (Managed by Schedule)
+                        </span>
+                      )}
+                    </div>
                     <Input
                       type="date"
-                      value={newForm.due_date}
+                      value={
+                        newForm.is_scheduled && newForm.frequency === "CUSTOM" && newForm.schedule_dates.length > 0
+                          ? (newForm.schedule_dates[0]?.date || newForm.due_date)
+                          : newForm.due_date
+                      }
                       onChange={(e) =>
                         setNewForm({ ...newForm, due_date: e.target.value })
                       }
-                      className="h-10 text-sm"
+                      disabled={newForm.is_scheduled}
+                      className="h-10 text-sm disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -1888,14 +2111,6 @@ export default function RecurringPayments() {
                       required
                     />
                   </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
-                  <GLCodeAutocomplete
-                    value={newForm.gl_code}
-                    onChange={(val) => setNewForm({ ...newForm, gl_code: val })}
-                  />
                 </div>
 
                 <div className="space-y-1.5 flex-1 flex flex-col">
@@ -1947,7 +2162,11 @@ export default function RecurringPayments() {
 
       {/* Edit Recurring Request Modal */}
       {isEditOpen && editingRequest && (
-        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <Dialog open={isEditOpen} onOpenChange={(open) => {
+          if (!open) {
+            handleCloseEdit();
+          }
+        }}>
           <DialogContent className="w-[96vw] max-w-[96vw] sm:max-w-[1440px] 2xl:max-w-[1600px] max-h-[92vh] overflow-y-auto p-6 sm:p-8 rounded-2xl">
             <form onSubmit={handleEditSubmit} className="space-y-5">
               <DialogHeader>
@@ -1957,10 +2176,10 @@ export default function RecurringPayments() {
                   </div>
                   <div>
                     <DialogTitle className="text-xl font-bold text-slate-900 dark:text-zinc-100">
-                      Edit Recurring Payment Request #{editingRequest.id}
+                      Edit Recurring Request #{editForm.id}
                     </DialogTitle>
                     <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                      Update recurring subscription details, amount, schedule milestones, and GL account mapping.
+                      Update recurring terms, billing dates, or individual milestones.
                     </DialogDescription>
                   </div>
                 </div>
@@ -1974,7 +2193,6 @@ export default function RecurringPayments() {
                       Title / Service Name <span className="text-red-500">*</span>
                     </label>
                     <Input
-                      placeholder="e.g. AWS Cloud Infrastructure, Zoom Enterprise"
                       value={editForm.title}
                       onChange={(e) =>
                         setEditForm({ ...editForm, title: e.target.value })
@@ -1986,34 +2204,57 @@ export default function RecurringPayments() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                        Amount (USD) <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                          Amount (USD) <span className="text-red-500">*</span>
+                        </label>
+                        {editForm.is_scheduled && (
+                          <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                            (Managed by Schedule)
+                          </span>
+                        )}
+                      </div>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
                         <Input
                           type="number"
                           step="0.01"
-                          placeholder="0.00"
-                          value={editForm.amount}
+                          value={
+                            editForm.is_scheduled && editForm.frequency === "CUSTOM" && editForm.schedule_dates.length > 0
+                              ? (editForm.schedule_dates.reduce((acc, itm) => acc + (itm.amount != null ? itm.amount : 0), 0) || "").toString()
+                              : editForm.amount
+                          }
                           onChange={(e) =>
                             setEditForm({ ...editForm, amount: e.target.value })
                           }
-                          className="h-10 text-sm font-mono pl-7"
-                          required
+                          disabled={editForm.is_scheduled}
+                          className="h-10 text-sm font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                          required={!editForm.is_scheduled}
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
+                        {editForm.is_scheduled && (
+                          <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                            (Managed by Schedule)
+                          </span>
+                        )}
+                      </div>
                       <Input
                         type="date"
-                        value={editForm.due_date}
+                        value={
+                          editForm.is_scheduled && editForm.frequency === "CUSTOM" && editForm.schedule_dates.length > 0
+                            ? (editForm.schedule_dates[0]?.date || editForm.due_date)
+                            : editForm.due_date
+                        }
                         onChange={(e) =>
                           setEditForm({ ...editForm, due_date: e.target.value })
                         }
-                        className="h-10 text-sm"
+                        disabled={editForm.is_scheduled}
+                        className="h-10 text-sm disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -2057,14 +2298,6 @@ export default function RecurringPayments() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
-                    <GLCodeAutocomplete
-                      value={editForm.gl_code}
-                      onChange={(val) => setEditForm({ ...editForm, gl_code: val })}
-                    />
-                  </div>
-
                   <div className="space-y-1.5 flex-1 flex flex-col">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>
                     <textarea
@@ -2100,10 +2333,7 @@ export default function RecurringPayments() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    setIsEditOpen(false);
-                    setEditingRequest(null);
-                  }}
+                  onClick={handleCloseEdit}
                 >
                   Cancel
                 </Button>
@@ -2239,6 +2469,10 @@ export default function RecurringPayments() {
         request={scheduleModalRequest}
         open={!!scheduleModalRequest}
         onOpenChange={(open) => !open && setScheduleModalRequest(null)}
+        onEditRequest={(req) => {
+          setScheduleModalRequest(null);
+          handleOpenEdit(req);
+        }}
       />
     </div>
   );
