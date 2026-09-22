@@ -376,6 +376,7 @@ export default function RecurringPayments() {
     },
     enabled: !!canAccess,
     refetchOnWindowFocus: true,
+    refetchInterval: 3000,
   });
 
   // Toggle review status mutation
@@ -635,11 +636,13 @@ export default function RecurringPayments() {
 
     let totalCycles: number | null = null;
     let totalAmt: number | null = null;
+    let cycleAmt = amt;
 
     if (isSched) {
       if (isCustom) {
         totalCycles = customDates.length;
         totalAmt = customDates.reduce((acc, itm) => acc + (itm.amount || amt), 0);
+        cycleAmt = customDates[0]?.amount != null && customDates[0].amount > 0 ? customDates[0].amount : amt;
       } else {
         totalCycles = calculateInstallmentsCount(newForm.start_date, newForm.end_date, newForm.frequency);
         totalAmt = totalCycles ? Math.round(amt * totalCycles * 100) / 100 : null;
@@ -655,8 +658,8 @@ export default function RecurringPayments() {
       department: newForm.department,
       request_type: "RECURRING",
       priority: newForm.priority,
-      amount: amt,
-      unit_price: amt,
+      amount: cycleAmt,
+      unit_price: cycleAmt,
       quantity: 1,
       description: newForm.description,
       gl_code: newForm.gl_code || null,
@@ -670,7 +673,7 @@ export default function RecurringPayments() {
             end_date: effectiveEndDate,
             total_installments: totalCycles,
             completed_installments: 0,
-            amount_per_cycle: amt,
+            amount_per_cycle: cycleAmt,
             total_amount: totalAmt,
             custom_dates: isCustom ? customDates.map((d) => d.date) : null,
             schedule_dates: isCustom ? customDates : null,
@@ -717,11 +720,15 @@ export default function RecurringPayments() {
 
     let totalCycles: number | null = null;
     let totalAmt: number | null = null;
+    let cycleAmt = amt;
 
     if (isSched) {
       if (isCustom) {
         totalCycles = customDates.length;
         totalAmt = customDates.reduce((acc, itm) => acc + (itm.amount || amt), 0);
+        const completedCount = editForm.completed_installments || 0;
+        const activeCycleDate = customDates[completedCount] || customDates[0];
+        cycleAmt = activeCycleDate?.amount != null && activeCycleDate.amount > 0 ? activeCycleDate.amount : amt;
       } else {
         totalCycles = calculateInstallmentsCount(editForm.start_date, editForm.end_date, editForm.frequency);
         totalAmt = totalCycles ? Math.round(amt * totalCycles * 100) / 100 : null;
@@ -738,8 +745,8 @@ export default function RecurringPayments() {
         requester: editForm.requester,
         department: editForm.department,
         priority: editForm.priority,
-        amount: amt,
-        unit_price: amt,
+        amount: cycleAmt,
+        unit_price: cycleAmt,
         quantity: 1,
         description: editForm.description,
         gl_code: editForm.gl_code || null,
@@ -752,7 +759,7 @@ export default function RecurringPayments() {
               end_date: effectiveEndDate,
               total_installments: totalCycles,
               completed_installments: editForm.completed_installments || 0,
-              amount_per_cycle: amt,
+              amount_per_cycle: cycleAmt,
               total_amount: totalAmt,
               custom_dates: isCustom ? customDates.map((d) => d.date) : null,
               schedule_dates: isCustom ? customDates : null,

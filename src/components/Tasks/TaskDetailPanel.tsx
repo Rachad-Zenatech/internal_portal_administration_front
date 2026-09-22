@@ -232,6 +232,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
     ? task.items
     : (parsedQuoteData?.items || parsedQuoteData?.line_items || []);
   const isMulti = task.item_mode === "MULTIPLE" || rawItems.length > 0;
+  const isRecurring = category === 'RECURRING';
 
   return (
     <Sheet open={!!task} onOpenChange={(open) => !open && onClose()}>
@@ -330,23 +331,25 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                   <DetailField label="Requester" value={task.requester_name || task.requester} icon={User} />
                   <DetailField label="Department" value={task.department} icon={Building2} />
                   <DetailField label="Type" value={formatRequestType(task.category || task.request_type)} icon={Layers} />
-                  <DetailField
-                    label="Configuration"
-                    value={
-                      isMulti ? (
-                        <Badge variant="outline" className="text-xs bg-indigo-50/50 text-indigo-700 border-indigo-200">
-                          Multi Parts ({rawItems.length} parts)
-                        </Badge>
-                      ) : (
-                        "Single Item"
-                      )
-                    }
-                  />
+                  {!isRecurring && (
+                    <DetailField
+                      label="Configuration"
+                      value={
+                        isMulti ? (
+                          <Badge variant="outline" className="text-xs bg-indigo-50/50 text-indigo-700 border-indigo-200">
+                            Multi Parts ({rawItems.length} parts)
+                          </Badge>
+                        ) : (
+                          "Single Item"
+                        )
+                      }
+                    />
+                  )}
                   <DetailField label="Assigned To" value={task.assignee_name} icon={User} />
-                  <DetailField label="GL Code" value={formatGLCode(task.gl_code)} icon={Tag} badge />
+                  {!isRecurring && <DetailField label="GL Code" value={formatGLCode(task.gl_code)} icon={Tag} badge />}
                   <DetailField label="Requested Date" value={task.created_at ? formatDate(task.created_at) : null} />
                   <DetailField label="Last Updated" value={task.updated_at ? formatDate(task.updated_at) : null} />
-                  {!isMulti && (
+                  {!isMulti && !isRecurring && (
                     <>
                       <DetailField label="Quantity" value={quantity} />
                       <DetailField label="Unit Price" value={`$${unitPrice.toFixed(2)}`} />

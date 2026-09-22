@@ -265,10 +265,15 @@ export default function RequestDetail() {
     }
   }, [user]);
 
-  const isRecurring = data?.request?.request_type === "RECURRING";
+  const isScheduledPayment =
+    data?.request?.request_type === "SCHEDULED_PAYMENT" ||
+    (data?.request?.request_type === "RECURRING" && Boolean(data?.request?.recurring_schedule?.is_scheduled || data?.request?.recurring_schedule?.frequency === "CUSTOM"));
+  const isRecurring =
+    data?.request?.request_type === "RECURRING" ||
+    data?.request?.request_type === "SCHEDULED_PAYMENT";
   const isAPRequest = data?.request?.request_type === "ACCOUNTS_PAYABLE";
   const backUrl = isRecurring ? "/purchasing/recurring" : "/purchasing/requests";
-  const backLabel = isRecurring ? "Recurring Payments" : "Purchase Requests";
+  const backLabel = isScheduledPayment ? "Scheduled Payments" : (isRecurring ? "Recurring Payments" : "Purchase Requests");
 
   useEffect(() => {
     if (data?.request) {
@@ -279,7 +284,7 @@ export default function RequestDetail() {
               path: `/purchasing/requests/${data.request.id}`,
               items: [
                 { title: "Purchasing" },
-                { title: "Recurring Payments", path: "/purchasing/recurring" },
+                { title: isScheduledPayment ? "Scheduled Payments" : "Recurring Payments", path: "/purchasing/recurring" },
                 { title: `${data.request.title} (${data.request.id})` },
               ],
             },
@@ -446,16 +451,29 @@ export default function RequestDetail() {
         asset_flag: isDefaultAsset,
       }));
 
+      const isRecurringReq = request.request_type === 'RECURRING';
+      const completedInstallments = request.recurring_schedule?.completed_installments || 0;
+      const currentCycleDate = request.recurring_schedule?.schedule_dates?.[completedInstallments];
+      const cycleAmount = currentCycleDate?.amount != null && Number(currentCycleDate.amount) > 0
+        ? Number(currentCycleDate.amount)
+        : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
+            ? Number(request.recurring_schedule.amount_per_cycle)
+            : (purchase_order?.amount ?? request.unit_price ?? request.amount ?? 0));
+
+      const defaultInvoiceAmount = isRecurringReq
+        ? cycleAmount
+        : (purchase_order?.amount ?? request.amount ?? request.unit_price ?? 0);
+
       setInvoiceItems(prefilledItems);
       setInvoice({
         vendor: defaultVendor,
-        amount: purchase_order?.amount ?? request.amount ?? request.unit_price ?? 0,
+        amount: defaultInvoiceAmount,
         invoice_date: new Date().toISOString().split("T")[0],
         due_date: "",
         gl_code: "",
         bank_account: mapPaymentMethodToBankAccount(purchase_order?.payment_method || (request as any)?.payment_method, glCodes) || "",
         asset_flag: isDefaultAsset,
-        department: request.department ?? "",
+        department: "",
         from_location: "",
       });
       setPendingFiles([]);
@@ -1198,10 +1216,10 @@ export default function RequestDetail() {
                     className="text-xs px-3.5 h-8 gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs font-medium"
                   >
                     <CalendarClock className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
-                    <span>Recurring Horizon</span>
+                    <span>{isScheduledPayment ? "Milestones" : "Recurring Horizon"}</span>
                     {request.recurring_schedule?.completed_installments !== undefined && (
                       <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300">
-                        {request.recurring_schedule.completed_installments}/{request.recurring_schedule.total_installments || 24}
+                        {request.recurring_schedule.completed_installments}/{request.recurring_schedule.total_installments || (request.recurring_schedule.schedule_dates?.length || 24)}
                       </span>
                     )}
                   </TabsTrigger>
@@ -1222,14 +1240,16 @@ export default function RequestDetail() {
                       <Badge variant="outline" className="text-xs font-normal bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700">
                         {formatRequestType(request.request_type)}
                       </Badge>
-                      {request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0) ? (
-                        <Badge variant="outline" className="text-xs font-medium bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">
-                          Multi-Part ({request.items?.length || multiPartsList.length} items)
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-xs font-medium bg-slate-100 text-slate-700 border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
-                          Single Item
-                        </Badge>
+                      {!isRecurring && (
+                        request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0) ? (
+                          <Badge variant="outline" className="text-xs font-medium bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">
+                            Multi-Part ({request.items?.length || multiPartsList.length} items)
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs font-medium bg-slate-100 text-slate-700 border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                            Single Item
+                          </Badge>
+                        )
                       )}
                     </div>
                   </CardTitle>
@@ -1310,22 +1330,24 @@ export default function RequestDetail() {
                       Accounting &amp; Payment Details
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 text-sm">
-                      {isMulti ? (
-                        <div>
-                          <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Category</div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <Badge variant="outline" className="bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800 text-xs font-normal">
-                              Itemized per Part ({multiPartsList.length} parts)
-                            </Badge>
-                            {data?.invoice?.items && data.invoice.items.length > 0 && (
-                              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                                • Recorded in Bill
-                              </span>
-                            )}
+                      {!isRecurring && (
+                        isMulti ? (
+                          <div>
+                            <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">Category</div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <Badge variant="outline" className="bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800 text-xs font-normal">
+                                Itemized per Part ({multiPartsList.length} parts)
+                              </Badge>
+                              {data?.invoice?.items && data.invoice.items.length > 0 && (
+                                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                                  • Recorded in Bill
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <Field label="Category" value={renderCategory(request.gl_code || data?.purchase_order?.gl_code || data?.invoice?.gl_code)} />
+                        ) : (
+                          <Field label="Category" value={renderCategory(request.gl_code || data?.purchase_order?.gl_code || data?.invoice?.gl_code)} />
+                        )
                       )}
 
                       <Field
@@ -1350,7 +1372,7 @@ export default function RequestDetail() {
                       />
 
                       {/* Financial Totals for Single Items */}
-                      {!(request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)) && (
+                      {!isRecurring && !(request.item_mode === "MULTIPLE" || (request.items && request.items.length > 0)) && (
                         <>
                           <Field label="SKU / Part #" value={request.sku || request.items?.[0]?.sku || "—"} />
                           <Field label="Quantity" value={String(request.quantity ?? 1)} />
@@ -1370,33 +1392,110 @@ export default function RequestDetail() {
                         </>
                       )}
 
-                      <Field
-                        label="Total (Pre-Tax)"
-                        value={
-                          <span className="font-semibold text-slate-900 dark:text-zinc-100">
-                            {formatMoney(request.amount ?? 0)} {request.currency || "USD"}
-                            {hasCrawledForeignPrice && (
-                              <span className="text-slate-500 text-xs ml-1.5 font-normal">
-                                ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1))} {crawledOrigCurr})
+                      {isScheduledPayment ? (
+                        <>
+                          <Field
+                            label="Active Milestone Amount"
+                            value={
+                              <span className="font-semibold text-slate-900 dark:text-zinc-100">
+                                {formatMoney(
+                                  request.recurring_schedule?.schedule_dates?.[request.recurring_schedule?.completed_installments || 0]?.amount ||
+                                  request.recurring_schedule?.amount_per_cycle ||
+                                  request.amount ||
+                                  0
+                                )} {request.currency || "USD"}
                               </span>
-                            )}
-                          </span>
-                        }
-                      />
+                            }
+                          />
+                          <Field
+                            label="Total Contract Commitment"
+                            value={
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                {formatMoney(
+                                  request.recurring_schedule?.total_amount ||
+                                  (request.recurring_schedule?.schedule_dates && request.recurring_schedule.schedule_dates.length > 0
+                                    ? request.recurring_schedule.schedule_dates.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
+                                    : (request.recurring_schedule?.total_installments
+                                        ? (request.recurring_schedule.amount_per_cycle || request.amount || 0) * request.recurring_schedule.total_installments
+                                        : (request.amount || 0)))
+                                )} {request.currency || "USD"}
+                              </span>
+                            }
+                          />
+                          <Field
+                            label="Milestone Progress"
+                            value={
+                              <span className="font-medium text-slate-700 dark:text-zinc-300">
+                                Installment {(request.recurring_schedule?.completed_installments || 0) + 1} of {request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 1}
+                              </span>
+                            }
+                          />
+                        </>
+                      ) : isRecurring ? (
+                        <>
+                          <Field
+                            label="Cycle Amount"
+                            value={
+                              <span className="font-semibold text-slate-900 dark:text-zinc-100">
+                                {formatMoney(
+                                  request.recurring_schedule?.amount_per_cycle ||
+                                  request.amount ||
+                                  0
+                                )} {request.currency || "USD"}
+                              </span>
+                            }
+                          />
+                          <Field
+                            label="Cadence & Frequency"
+                            value={
+                              <span className="font-medium text-slate-700 dark:text-zinc-300">
+                                {FREQUENCY_LABELS[(request.recurring_schedule?.frequency as FrequencyType) || "MONTHLY"] || "Monthly"}
+                              </span>
+                            }
+                          />
+                          <Field
+                            label="Total Commitment"
+                            value={
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                {formatMoney(
+                                  request.recurring_schedule?.total_amount ||
+                                  ((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24))
+                                )} {request.currency || "USD"}
+                              </span>
+                            }
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <Field
+                            label="Total"
+                            value={
+                              <span className="font-semibold text-slate-900 dark:text-zinc-100">
+                                {formatMoney(request.amount ?? 0)} {request.currency || "USD"}
+                                {hasCrawledForeignPrice && (
+                                  <span className="text-slate-500 text-xs ml-1.5 font-normal">
+                                    ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1))} {crawledOrigCurr})
+                                  </span>
+                                )}
+                              </span>
+                            }
+                          />
 
-                      <Field
-                        label="Total (After-Tax · 13% HST)"
-                        value={
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                            {formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} {request.currency || "USD"}
-                            {hasCrawledForeignPrice && (
-                              <span className="text-slate-500 text-xs ml-1.5 font-normal">
-                                ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1) * (1 + TAX_RATE))} {crawledOrigCurr})
+                          <Field
+                            label="Total (After-Tax · 13% HST)"
+                            value={
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                {formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} {request.currency || "USD"}
+                                {hasCrawledForeignPrice && (
+                                  <span className="text-slate-500 text-xs ml-1.5 font-normal">
+                                    ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1) * (1 + TAX_RATE))} {crawledOrigCurr})
+                                  </span>
+                                )}
                               </span>
-                            )}
-                          </span>
-                        }
-                      />
+                            }
+                          />
+                        </>
+                      )}
 
                       <Field label="Currency" value={request.currency || "USD"} />
                     </div>
@@ -1910,7 +2009,7 @@ export default function RequestDetail() {
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm font-bold flex items-center gap-2 text-indigo-950 dark:text-indigo-200">
                         <CalendarClock className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                        Scheduled Range &amp; Payment Horizon
+                        {isScheduledPayment ? "Scheduled Milestone Payments & Horizon" : "Recurring Payment & Subscription Horizon"}
                       </CardTitle>
                       <Button
                         variant="outline"
@@ -1919,14 +2018,16 @@ export default function RequestDetail() {
                         onClick={() => setIsScheduleLedgerOpen(true)}
                       >
                         <Calendar className="h-3.5 w-3.5 mr-1" />
-                        Open Installment Ledger
+                        {isScheduledPayment ? "Open Milestone Ledger" : "Open Installment Ledger"}
                       </Button>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-4 space-y-4">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
-                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Scheduled Horizon</div>
+                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                          {isScheduledPayment ? "Milestone Span" : "Scheduled Horizon"}
+                        </div>
                         <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
                           {formatDate(request.recurring_schedule?.start_date || request.due_date || request.request_date)}
                         </div>
@@ -1939,7 +2040,9 @@ export default function RequestDetail() {
                       </div>
 
                       <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
-                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Remaining Duration</div>
+                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                          {isScheduledPayment ? "Milestone Plan" : "Duration & Cadence"}
+                        </div>
                         <div className="mt-1">
                           <Badge variant="outline" className="bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold border-indigo-300 text-xs">
                             {request.recurring_schedule?.frequency === 'CUSTOM' || Boolean(request.recurring_schedule?.schedule_dates?.length) ? `${request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 0} Milestone Dates` : formatRemainingDuration(request.recurring_schedule?.end_date, request.recurring_schedule?.start_date || request.due_date).text}
@@ -1951,30 +2054,100 @@ export default function RequestDetail() {
                       </div>
 
                       <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
-                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Cycle Progress</div>
+                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                          {isScheduledPayment ? "Milestones Settled" : "Cycle Progress"}
+                        </div>
                         <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                          {request.recurring_schedule?.completed_installments || 0} / {request.recurring_schedule?.total_installments || 24} Cycles
+                          {request.recurring_schedule?.completed_installments || 0} / {request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 24} {isScheduledPayment ? "Milestones" : "Cycles"}
                         </div>
                         <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
                           <div
                             className="bg-indigo-600 h-full rounded-full transition-all"
                             style={{
-                              width: `${Math.min(100, Math.round(((request.recurring_schedule?.completed_installments || 0) / (request.recurring_schedule?.total_installments || 24)) * 100))}%`
+                              width: `${Math.min(100, Math.round(((request.recurring_schedule?.completed_installments || 0) / (request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 24)) * 100))}%`
                             }}
                           />
                         </div>
                       </div>
 
                       <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
-                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Total Commitment</div>
+                        <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                          {isScheduledPayment ? "Contract Commitment" : "Total Commitment"}
+                        </div>
                         <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                          {formatMoney(request.recurring_schedule?.total_amount || ((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24)))}
+                          {formatMoney(
+                            request.recurring_schedule?.total_amount ||
+                            (request.recurring_schedule?.schedule_dates && request.recurring_schedule.schedule_dates.length > 0
+                              ? request.recurring_schedule.schedule_dates.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
+                              : ((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24)))
+                          )}
                         </div>
                         <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
-                          {formatMoney((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.completed_installments || 0))} paid to date
+                          {formatMoney(
+                            request.recurring_schedule?.schedule_dates && request.recurring_schedule.schedule_dates.length > 0
+                              ? request.recurring_schedule.schedule_dates.slice(0, request.recurring_schedule.completed_installments || 0).reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
+                              : (request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.completed_installments || 0)
+                          )} paid to date
                         </div>
                       </div>
                     </div>
+
+                    {/* If custom milestone schedule dates are defined, render an inline preview table */}
+                    {isScheduledPayment && request.recurring_schedule?.schedule_dates && request.recurring_schedule.schedule_dates.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-indigo-100/60 dark:border-indigo-950/40">
+                        <div className="text-xs font-semibold text-indigo-900 dark:text-indigo-200 mb-2 flex items-center justify-between">
+                          <span>Milestone Installment Ledger ({request.recurring_schedule.schedule_dates.length} Milestones)</span>
+                          <span className="text-[11px] font-normal text-muted-foreground">
+                            Cycle {(request.recurring_schedule.completed_installments || 0) + 1} Active
+                          </span>
+                        </div>
+                        <div className="border border-indigo-100/80 dark:border-indigo-950/60 rounded-lg overflow-hidden divide-y divide-indigo-50 dark:divide-zinc-800 text-xs">
+                          <div className="bg-indigo-50/60 dark:bg-zinc-800/60 px-3 py-1.5 grid grid-cols-12 gap-2 font-semibold text-indigo-900 dark:text-indigo-200">
+                            <div className="col-span-1">#</div>
+                            <div className="col-span-3">Target Date</div>
+                            <div className="col-span-5">Milestone / Description</div>
+                            <div className="col-span-3 text-right">Amount</div>
+                          </div>
+                          {request.recurring_schedule.schedule_dates.map((m: any, idx: number) => {
+                            const completedCount = request.recurring_schedule?.completed_installments || 0;
+                            const isPaid = idx < completedCount;
+                            const isCurrent = idx === completedCount;
+                            return (
+                              <div
+                                key={idx}
+                                className={`px-3 py-2 grid grid-cols-12 gap-2 items-center transition-colors ${
+                                  isPaid
+                                    ? "bg-emerald-50/40 dark:bg-emerald-950/10 text-muted-foreground"
+                                    : isCurrent
+                                    ? "bg-amber-50/70 dark:bg-amber-950/30 font-medium text-amber-950 dark:text-amber-200"
+                                    : "bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200"
+                                }`}
+                              >
+                                <div className="col-span-1 flex items-center gap-1">
+                                  {isPaid ? (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                  ) : isCurrent ? (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0 animate-ping" />
+                                  ) : (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-zinc-600 shrink-0" />
+                                  )}
+                                  <span>{idx + 1}</span>
+                                </div>
+                                <div className="col-span-3 font-mono">{formatDate(m.date)}</div>
+                                <div className="col-span-5 truncate" title={m.note || `Milestone #${idx + 1}`}>
+                                  {m.note || `Milestone #${idx + 1}`}
+                                  {isPaid && <span className="ml-1.5 text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">(Settled)</span>}
+                                  {isCurrent && <span className="ml-1.5 text-[10px] text-amber-700 dark:text-amber-300 font-bold">(Active Next)</span>}
+                                </div>
+                                <div className="col-span-3 text-right font-mono font-semibold">
+                                  {formatMoney(m.amount != null ? m.amount : request.recurring_schedule?.amount_per_cycle || request.amount || 0)}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

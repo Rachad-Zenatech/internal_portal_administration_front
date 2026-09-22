@@ -956,7 +956,7 @@ export function EditCombinedRequestDialog({
   const priceVariance = hasPo && hasInvoice ? Math.abs(invAmount - poAmount) : 0;
   const hasVariance = priceVariance > 0.01;
 
-  const isRecurring = requestType === "RECURRING";
+  const isRecurring = requestType === "RECURRING" || requestType === "SCHEDULED_PAYMENT";
   const isAccountsPayable = requestType === "ACCOUNTS_PAYABLE" || Boolean(wireTransfer);
 
   return (
@@ -1154,7 +1154,8 @@ export function EditCombinedRequestDialog({
                     <SelectContent>
                       <SelectItem value="SPEND">General Purchasing (Spend)</SelectItem>
                       <SelectItem value="ACCOUNTS_PAYABLE">Accounts Payable (Wire/Check)</SelectItem>
-                      <SelectItem value="RECURRING">Recurring Payments</SelectItem>
+                      <SelectItem value="RECURRING">Recurring Payments (Subscriptions)</SelectItem>
+                      <SelectItem value="SCHEDULED_PAYMENT">Scheduled Payments (Milestones)</SelectItem>
                       <SelectItem value="ADMIN">Admin Purchasing</SelectItem>
                       <SelectItem value="QUOTE">Quote Review</SelectItem>
                     </SelectContent>
