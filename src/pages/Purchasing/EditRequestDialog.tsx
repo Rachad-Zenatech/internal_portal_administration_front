@@ -584,10 +584,10 @@ export function EditRequestDialog({
               frequency: schedFrequency || "MONTHLY",
               start_date: formData.due_date || schedStartDate || new Date().toISOString().split("T")[0],
               end_date: null,
-              total_installments: 24,
+              total_installments: null,
               completed_installments: request?.recurring_schedule?.completed_installments || 0,
               amount_per_cycle: calculatedAmount,
-              total_amount: calculatedAmount * 24,
+              total_amount: null,
             };
       }
 
