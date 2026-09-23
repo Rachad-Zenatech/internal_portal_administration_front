@@ -43,6 +43,7 @@ export default function Breadcrumbs() {
     const specialNames: Record<string, string> = {
       recurring: "Recurring Payments",
       "recurring-payments": "Recurring Payments",
+      "scheduled-payments": "Scheduled Payments",
       requests: "Purchase Requests",
       "my-approvals": "My Approvals",
       "user-role-assignment": "User Role Assignments",

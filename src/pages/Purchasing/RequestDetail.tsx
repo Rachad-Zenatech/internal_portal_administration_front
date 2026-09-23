@@ -284,7 +284,7 @@ export default function RequestDetail() {
             detail: {
               path: `/purchasing/requests/${data.request.id}`,
               items: [
-                { title: "Purchasing" },
+                { title: "Purchasing", path: "/purchasing/requests" },
                 { title: isScheduledPayment ? "Scheduled Payments" : "Recurring Payments", path: "/purchasing/recurring" },
                 { title: `${data.request.title} (${data.request.id})` },
               ],
@@ -302,7 +302,7 @@ export default function RequestDetail() {
         );
       }
     }
-  }, [data?.request, isRecurring]);
+  }, [data?.request, isRecurring, isScheduledPayment]);
 
   const hasItemsTab = Boolean((data?.request?.items && data.request.items.length > 0) || (data?.request?.quote_data?.items && data.request.quote_data.items.length > 0));
   const hasPoTab = Boolean(data?.purchase_order);

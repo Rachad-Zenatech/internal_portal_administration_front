@@ -120,6 +120,14 @@ export default function PurchaseRequestDetail() {
     description: "",
   });
 
+  const isScheduledPayment =
+    request?.request_type === "SCHEDULED_PAYMENT" ||
+    (request?.request_type === "RECURRING" &&
+      Boolean(request?.recurring_schedule?.is_scheduled || request?.recurring_schedule?.frequency === "CUSTOM"));
+  const isRecurring =
+    request?.request_type === "RECURRING" ||
+    request?.request_type === "SCHEDULED_PAYMENT";
+
   useEffect(() => {
     if (request) {
       document.dispatchEvent(
@@ -127,15 +135,22 @@ export default function PurchaseRequestDetail() {
           detail: {
             path: window.location.pathname,
             items: [
-              { title: "Purchasing", path: "/purchasing/recurring" },
-              { title: "Recurring Payments", path: "/purchasing/recurring" },
+              { title: "Purchasing", path: "/purchasing/requests" },
+              {
+                title: isScheduledPayment
+                  ? "Scheduled Payments"
+                  : isRecurring
+                  ? "Recurring Payments"
+                  : "Purchase Requests",
+                path: isRecurring ? "/purchasing/recurring" : "/purchasing/requests",
+              },
               { title: `${request.title} (#${request.id})` },
             ],
           },
         })
       );
     }
-  }, [request]);
+  }, [request, isScheduledPayment, isRecurring]);
 
   const handleOpenEdit = () => {
     if (!request) return;
