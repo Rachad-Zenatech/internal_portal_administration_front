@@ -448,24 +448,6 @@ export function PurchaseRequests() {
     setIsDialogOpen(true);
   };
 
-  useEffect(() => {
-    if (isDialogOpen && !form.department && (user || usersList.length > 0)) {
-      const defaultRequester = form.requester || user?.full_name || user?.email || "";
-      const matchedUser = usersList.find(
-        (u) =>
-          (u.full_name && u.full_name.toLowerCase() === defaultRequester.toLowerCase().trim()) ||
-          (u.email && u.email.toLowerCase() === defaultRequester.toLowerCase().trim()) ||
-          (user?.id && u.id === user.id)
-      );
-      const effectiveRoles = rolesList.length > 0 ? rolesList : roles;
-      const defaultDept = matchedUser
-        ? resolveUserDepartment(matchedUser, effectiveRoles)
-        : (resolveUserDepartment({ ...user, roles }, effectiveRoles) || (user?.department && user.department.toUpperCase() !== "REQUESTER" ? user.department : "") || "");
-      if (defaultDept) {
-        setForm((prev) => (prev.department ? prev : { ...prev, department: defaultDept }));
-      }
-    }
-  }, [isDialogOpen, form.requester, form.department, user, roles, usersList, rolesList]);
 
   // Handle Quote PDF upload & extraction
   const handleQuoteFileUpload = async (file: File) => {

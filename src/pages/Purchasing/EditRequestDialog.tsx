@@ -251,24 +251,6 @@ export function EditRequestDialog({
     contact_name_china: wireTransfer?.contact_name_china || "",
   }));
 
-  useEffect(() => {
-    if (open && (!formData.department || formData.department === "General") && (usersList.length > 0 || user)) {
-      const targetRequester = formData.requester || request?.requester || user?.full_name || user?.email || "";
-      const matched = usersList.find(
-        (u) =>
-          (u.full_name && u.full_name.toLowerCase() === targetRequester.toLowerCase().trim()) ||
-          (u.email && u.email.toLowerCase() === targetRequester.toLowerCase().trim()) ||
-          (user?.id && u.id === user.id)
-      );
-      const effectiveRoles = rolesList.length > 0 ? rolesList : roles;
-      const resolved = matched
-        ? resolveUserDepartment(matched, effectiveRoles)
-        : (resolveUserDepartment({ ...user, roles }, effectiveRoles) || (user?.department && user.department.toUpperCase() !== "REQUESTER" ? user.department : "") || "");
-      if (resolved) {
-        setFormData((prev) => (!prev.department || prev.department === "General" ? { ...prev, department: resolved } : prev));
-      }
-    }
-  }, [open, formData.requester, formData.department, usersList, rolesList, user, roles, request]);
 
   useEffect(() => {
     if (request && open) {

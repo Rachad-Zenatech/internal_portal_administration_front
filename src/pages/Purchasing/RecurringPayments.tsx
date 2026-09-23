@@ -504,31 +504,6 @@ export default function RecurringPayments() {
     setIsCreateOpen(true);
   };
 
-  // Auto-default requester and department on dialog open if not yet set
-  useEffect(() => {
-    if (isCreateOpen && !newForm.requester) {
-      const displayName = user?.full_name || user?.email || "";
-      setNewForm((prev) => ({
-        ...prev,
-        requester: displayName,
-      }));
-    }
-    if (isCreateOpen && !newForm.department && (user || usersList.length > 0)) {
-      const displayName = newForm.requester || user?.full_name || user?.email || "";
-      const matchedUser = usersList.find(
-        (u) =>
-          (u.full_name && u.full_name.toLowerCase() === displayName.toLowerCase().trim()) ||
-          (u.email && u.email.toLowerCase() === displayName.toLowerCase().trim()) ||
-          (user?.id && u.id === user.id)
-      );
-      const defaultDept = matchedUser
-        ? resolveUserDepartment(matchedUser, rolesList)
-        : resolveUserDepartment(user, rolesList);
-      if (defaultDept) {
-        setNewForm((prev) => (prev.department ? prev : { ...prev, department: defaultDept }));
-      }
-    }
-  }, [isCreateOpen, user, newForm.requester, newForm.department, usersList, rolesList]);
 
   const createMutation = useMutation({
     mutationFn: async (payload: any) => {
