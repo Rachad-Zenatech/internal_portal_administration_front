@@ -70,6 +70,7 @@ export default function Sidebar({
     if (path.includes("/purchasing/recurring")) {
       const searchParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
       const filterKey = searchParams.get("filter")?.toUpperCase();
+      if (filterKey === "MA_SCHEDULED" || filterKey === "SCHEDULED") return purchasingSummary.recurring_scheduled_count ?? 0;
       if (filterKey === "DUE_SOON") return purchasingSummary.recurring_due_soon_count ?? 0;
       if (filterKey === "WAITING_REVIEW") return purchasingSummary.recurring_waiting_review ?? 0;
       if (filterKey === "REVIEWED") return purchasingSummary.recurring_reviewed ?? 0;

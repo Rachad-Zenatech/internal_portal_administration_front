@@ -62,6 +62,7 @@ export const navigation = [
     navigationCode: "RECURRING_PAYMENTS",
     subItems: [
       { label: "All Subscriptions", path: "/purchasing/recurring" },
+      { label: "M&A Scheduled Payments", path: "/purchasing/recurring?filter=MA_SCHEDULED" },
       { label: "Due in 7 Days", path: "/purchasing/recurring?filter=DUE_SOON" },
       { label: "Waiting for Review", path: "/purchasing/recurring?filter=WAITING_REVIEW" },
       { label: "Reviewed (AP)", path: "/purchasing/recurring?filter=REVIEWED" },

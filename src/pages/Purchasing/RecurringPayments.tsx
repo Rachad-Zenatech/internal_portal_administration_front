@@ -355,18 +355,20 @@ export default function RecurringPayments() {
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
 
   useEffect(() => {
+    const isMaScheduled = cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED";
     document.dispatchEvent(
       new CustomEvent("set-breadcrumb-trail", {
         detail: {
-          path: "/purchasing/recurring",
+          path: window.location.pathname,
           items: [
             { title: "Purchasing", path: "/purchasing/requests" },
-            { title: "Recurring Payments" },
+            { title: "Recurring Payments", path: isMaScheduled ? "/purchasing/recurring" : undefined },
+            ...(isMaScheduled ? [{ title: "M&A Scheduled Payments" }] : []),
           ],
         },
       })
     );
-  }, []);
+  }, [cardFilter]);
 
   // Fetch all RECURRING requests with live polling
   const { data: requests = [], isLoading } = useQuery<PurchaseRequest[]>({
@@ -919,6 +921,21 @@ export default function RecurringPayments() {
     });
   };
 
+  // Helper to check if a recurring request is an M&A scheduled payment
+  const isScheduledPayment = (r: PurchaseRequest) => {
+    return Boolean(
+      r.request_type === "SCHEDULED_PAYMENT" ||
+      r.recurring_schedule?.is_scheduled ||
+      r.recurring_schedule?.frequency === "CUSTOM" ||
+      (r.department && (
+        r.department.toLowerCase().includes("m&a") ||
+        r.department.toLowerCase().includes("merger") ||
+        r.department.toLowerCase().includes("acquisition") ||
+        r.department.toLowerCase().includes("deal")
+      ))
+    );
+  };
+
   // Helper to check if a recurring request is due within 7 days
   const isDueSoon = (r: PurchaseRequest) => {
     const dateStr = r.due_date || r.request_date;
@@ -978,7 +995,10 @@ export default function RecurringPayments() {
           return false;
         }
       }
-      if (cardFilter === "DUE_SOON") {
+      if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
+        if (isRejected) return false;
+        if (!isScheduledPayment(r)) return false;
+      } else if (cardFilter === "DUE_SOON") {
         if (!isDueSoon(r)) return false;
       } else if (cardFilter === "WAITING_REVIEW") {
         if (isRejected) return false;
@@ -1010,6 +1030,7 @@ export default function RecurringPayments() {
   const stats = useMemo(() => {
     const activeSubs = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
     const total = activeSubs.length;
+    const maScheduled = activeSubs.filter(isScheduledPayment).length;
     const dueSoon = requests.filter(isDueSoon).length;
     const waitingReview = activeSubs.filter(
       (r) => (r.review_status || "WAITING_FOR_REVIEW") === "WAITING_FOR_REVIEW"
@@ -1019,7 +1040,7 @@ export default function RecurringPayments() {
     ).length;
     const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length;
     const totalAmount = activeSubs.reduce((sum, r) => sum + (r.amount || 0), 0);
-    return { total, dueSoon, waitingReview, reviewed, rejected, totalAmount };
+    return { total, maScheduled, dueSoon, waitingReview, reviewed, rejected, totalAmount };
   }, [requests]);
 
   if (!canAccess) {
@@ -1161,6 +1182,13 @@ export default function RecurringPayments() {
             color: "blue",
           },
           {
+            key: "MA_SCHEDULED",
+            label: "M&A Scheduled",
+            count: stats.maScheduled,
+            icon: CalendarClock,
+            color: "violet",
+          },
+          {
             key: "DUE_SOON",
             label: "Due in 7 Days",
             count: stats.dueSoon,
@@ -1199,7 +1227,7 @@ export default function RecurringPayments() {
       />
 
       {/* Compact Interactive KPI Filter Cards */}
-      <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
+      <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
         {/* 1. All Subscriptions */}
         <Card
           onClick={() => handleCardFilterChange("ALL")}
@@ -1223,7 +1251,30 @@ export default function RecurringPayments() {
           </CardContent>
         </Card>
 
-        {/* 2. Due Within 7 Days Alert Filter Card */}
+        {/* 2. M&A Scheduled Payments */}
+        <Card
+          onClick={() => handleCardFilterChange(cardFilter === "MA_SCHEDULED" ? "ALL" : "MA_SCHEDULED")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-indigo-300 ${
+            cardFilter === "MA_SCHEDULED" ? "ring-2 ring-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-indigo-700 dark:text-indigo-300">
+                M&A Scheduled
+              </p>
+              <h3 className="text-base sm:text-lg font-bold text-indigo-600 dark:text-indigo-400 leading-tight mt-0.5">
+                {stats.maScheduled}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Milestone contracts</p>
+            </div>
+            <div className="p-1.5 rounded-md bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 shrink-0">
+              <CalendarClock size={16} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 3. Due Within 7 Days Alert Filter Card */}
         <Card
           onClick={() => handleCardFilterChange(cardFilter === "DUE_SOON" ? "ALL" : "DUE_SOON")}
           className={`border cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg ${
