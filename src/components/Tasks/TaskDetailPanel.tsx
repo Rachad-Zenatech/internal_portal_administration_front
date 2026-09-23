@@ -17,6 +17,7 @@ import { Trash2, Edit2, Paperclip, ExternalLink, FileText, Package, ReceiptText,
 import Stepper from "@/components/Stepper";
 import { RequestStatus } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
+import HelpIcon from "@/components/ui/HelpIcon";
 import {
   SPEND_FLOW,
   ADMIN_FLOW,
@@ -39,7 +40,7 @@ interface TaskDetailPanelProps {
   readOnly?: boolean;
 }
 
-function DetailField({ label, value, icon: Icon, badge }: { label: string; value: React.ReactNode; icon?: any; badge?: boolean }) {
+function DetailField({ label, value, icon: Icon, badge }: { label: React.ReactNode; value: React.ReactNode; icon?: any; badge?: boolean }) {
   return (
     <div className="space-y-1">
       <div className="text-xs font-medium text-slate-500 dark:text-zinc-400 flex items-center gap-1.5">
