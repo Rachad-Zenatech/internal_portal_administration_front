@@ -1928,7 +1928,7 @@ export default function RequestDetail() {
                       />
                       <Field label="Class (Department)" value={inv.department || "—"} />
                       <Field label="From Location" value={inv.from_location || "—"} />
-                      <Field label="Asset Flag" value={inv.asset_flag ? "Yes" : "No"} />
+                      <Field label={<span className="flex items-center gap-1"><span>Asset Flag</span><HelpIcon text="Asset Flag designates whether this invoice represents a Capitalized Fixed Asset (CapEx) — such as equipment, hardware, lease/financing agreements, or software licenses — rather than an immediate operational expense (OpEx). When checked, the cost is capitalized on the balance sheet and depreciated/amortized over time instead of expensed in full in the current period. It automatically defaults to active for Scheduled Payments, Recurring obligations, and Accounts Payable." /></span>} value={inv.asset_flag ? "Yes" : "No"} />
                     </div>
 
                     {inv.description && (
@@ -1948,7 +1948,7 @@ export default function RequestDetail() {
                             <div className="col-span-5">Item</div>
                             <div className="col-span-2 text-right pr-6">Amount</div>
                             <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">Category</div>
-                            <div className="col-span-1 text-center">Asset</div>
+                            <div className="col-span-1 flex items-center justify-center gap-0.5"><span>Asset</span><HelpIcon text="Mark as Capitalized Fixed Asset (CapEx)" iconClassName="h-3 w-3" /></div>
                           </div>
                           {inv.items.map((it, idx) => (
                             <div key={idx} className="px-3 py-2 grid grid-cols-12 gap-2 items-center bg-white dark:bg-zinc-900">
@@ -1962,7 +1962,7 @@ export default function RequestDetail() {
                                 {renderCategory(it.gl_code)}
                               </div>
                               <div className="col-span-1 text-center">
-                                {it.asset_flag ? <Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">Asset</Badge> : "—"}
+                                {it.asset_flag ? <span className="inline-flex items-center gap-1"><Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">Asset</Badge><HelpIcon text="Capitalized Fixed Asset (CapEx)" iconClassName="h-3 w-3" /></span> : "—"}
                               </div>
                             </div>
                           ))}
@@ -2864,7 +2864,10 @@ export default function RequestDetail() {
                     <FieldInput label="Date Arrived" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
                   ) : (
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Asset Flag</label>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-sm font-medium">Asset Flag</label>
+                        <HelpIcon text="Asset Flag designates whether this invoice represents a Capitalized Fixed Asset (CapEx) — such as equipment, hardware, lease/financing agreements, or software licenses — rather than an immediate operational expense (OpEx). When checked, the cost is capitalized on the balance sheet and depreciated/amortized over time instead of expensed in full in the current period. It automatically defaults to active for Scheduled Payments, Recurring obligations, and Accounts Payable." />
+                      </div>
                       <div className="flex items-center h-10">
                         <input type="checkbox" className="h-4 w-4" checked={invoice.asset_flag || false} onChange={(e) => setInvoice({ ...invoice, asset_flag: e.target.checked })} />
                         <span className="ml-2 text-sm text-slate-700">Mark as Asset</span>
@@ -2913,7 +2916,10 @@ export default function RequestDetail() {
                       </div>
                       {request.request_type !== "RECURRING" ? (
                         <div className="space-y-2">
-                          <label className="text-sm font-medium">Asset Flag</label>
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-sm font-medium">Asset Flag</label>
+                            <HelpIcon text="Asset Flag designates whether this invoice represents a Capitalized Fixed Asset (CapEx) — such as equipment, hardware, lease/financing agreements, or software licenses — rather than an immediate operational expense (OpEx). When checked, the cost is capitalized on the balance sheet and depreciated/amortized over time instead of expensed in full in the current period. It automatically defaults to active for Scheduled Payments, Recurring obligations, and Accounts Payable." />
+                          </div>
                           <div className="flex items-center h-10">
                             <input type="checkbox" className="h-4 w-4" checked={invoice.asset_flag || false} onChange={(e) => setInvoice({ ...invoice, asset_flag: e.target.checked })} />
                             <span className="ml-2 text-sm text-slate-700">Mark as Asset</span>
@@ -2965,7 +2971,7 @@ export default function RequestDetail() {
                           <div className="col-span-5">Item / Description</div>
                           <div className="col-span-2 text-right pr-6">Amount</div>
                           <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">Category *</div>
-                          <div className="col-span-1 text-center">Asset</div>
+                          <div className="col-span-1 flex items-center justify-center gap-0.5"><span>Asset</span><HelpIcon text="Mark as Capitalized Fixed Asset (CapEx)" iconClassName="h-3 w-3" /></div>
                         </div>
                         <div className="divide-y divide-slate-100 dark:divide-zinc-800/50">
                           {invoiceItems.map((itm, idx) => (
@@ -3047,7 +3053,10 @@ export default function RequestDetail() {
                     </TwoUp>
                     {request.request_type !== "RECURRING" && (
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Asset Flag</label>
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-sm font-medium">Asset Flag</label>
+                          <HelpIcon text="Asset Flag designates whether this invoice represents a Capitalized Fixed Asset (CapEx) — such as equipment, hardware, lease/financing agreements, or software licenses — rather than an immediate operational expense (OpEx). When checked, the cost is capitalized on the balance sheet and depreciated/amortized over time instead of expensed in full in the current period. It automatically defaults to active for Scheduled Payments, Recurring obligations, and Accounts Payable." />
+                        </div>
                         <div className="flex items-center h-10">
                           <input type="checkbox" className="h-4 w-4" checked={invoice.asset_flag || false} onChange={(e) => setInvoice({ ...invoice, asset_flag: e.target.checked })} />
                           <span className="ml-2 text-sm text-slate-700">Mark as Asset</span>
@@ -3398,10 +3407,10 @@ export default function RequestDetail() {
   );
 }
 
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
+function Field({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1">{label}</div>
+      <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1 flex items-center gap-1">{label}</div>
       <div className="text-slate-800 dark:text-zinc-200">{value}</div>
     </div>
   );

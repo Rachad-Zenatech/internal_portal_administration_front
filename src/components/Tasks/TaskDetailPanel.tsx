@@ -543,7 +543,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                     <DetailField label="Date Arrived" value={formatDate(task.invoice.due_date || task.purchase_order?.goods_received_at)} />
                     <DetailField label="Paid Date" value={formatDate(task.invoice.paid_date)} />
                     <DetailField label="GL Code" value={formatGLCode(task.invoice.gl_code || task.gl_code)} badge />
-                    <DetailField label="Asset Flag" value={task.invoice.asset_flag ? "Yes" : "No"} />
+                    <DetailField label={<span className="inline-flex items-center gap-1"><span>Asset Flag</span><HelpIcon text="Asset Flag designates whether this invoice represents a Capitalized Fixed Asset (CapEx) — such as equipment, hardware, lease/financing agreements, or software licenses — rather than an immediate operational expense (OpEx). When checked, the cost is capitalized on the balance sheet and depreciated/amortized over time instead of expensed in full in the current period. It automatically defaults to active for Scheduled Payments, Recurring obligations, and Accounts Payable." /></span>} value={task.invoice.asset_flag ? "Yes" : "No"} />
                   </CardContent>
                 </Card>
               )}

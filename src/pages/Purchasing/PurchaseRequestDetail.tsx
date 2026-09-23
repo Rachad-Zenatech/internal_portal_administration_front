@@ -47,6 +47,7 @@ import {
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
 import { Button } from "@/components/ui/button";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1029,8 +1030,11 @@ export default function PurchaseRequestDetail() {
                     </div>
                   </div>
 
-                  <div className="p-3.5 flex justify-between gap-2">
-                    <span className="text-muted-foreground font-medium">Asset Flag</span>
+                  <div className="p-3.5 flex justify-between gap-2 items-center">
+                    <span className="text-muted-foreground font-medium flex items-center gap-1">
+                      <span>Asset Flag</span>
+                      <HelpIcon text="Asset Flag designates whether this invoice represents a Capitalized Fixed Asset (CapEx) — such as equipment, hardware, lease/financing agreements, or software licenses — rather than an immediate operational expense (OpEx). When checked, the cost is capitalized on the balance sheet and depreciated/amortized over time instead of expensed in full in the current period. It automatically defaults to active for Scheduled Payments, Recurring obligations, and Accounts Payable." />
+                    </span>
                     <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
                       {invoice.asset_flag ? "Yes" : "No"}
                     </span>
