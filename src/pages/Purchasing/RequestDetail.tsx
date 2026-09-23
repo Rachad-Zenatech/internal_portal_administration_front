@@ -54,6 +54,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatRemainingDuration, FREQUENCY_LABELS, type FrequencyType } from "./recurringScheduleUtils";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
+import PurchaseRequestDetail from "./PurchaseRequestDetail";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -329,6 +330,10 @@ export default function RequestDetail() {
         <p className="mt-4 text-sm text-red-600">Request not found.</p>
       </div>
     );
+  }
+
+  if (isRecurring) {
+    return <PurchaseRequestDetail />;
   }
 
   const { request, purchase_order, invoice: inv, approvals, available_actions } = data;

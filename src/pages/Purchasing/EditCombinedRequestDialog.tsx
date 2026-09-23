@@ -147,7 +147,7 @@ export function EditCombinedRequestDialog({
     vendor: wireTransfer?.vendor || purchaseOrder?.vendor || invoice?.vendor || "",
     is_new_vendor: wireTransfer?.is_new_vendor || false,
     pay_date: wireTransfer?.pay_date || "Same Day",
-    amount: wireTransfer?.amount ?? (request?.amount || 0),
+    amount: wireTransfer?.amount ?? (request?.amount || undefined),
     currency: wireTransfer?.currency || request?.currency || "USD",
     conversion_rate: wireTransfer?.conversion_rate ? String(wireTransfer.conversion_rate) : "1.0",
     pay_from: wireTransfer?.pay_from || "",

@@ -219,7 +219,7 @@ const EMPTY_WIRE_FORM: WireTransferInput = {
   vendor: "",
   is_new_vendor: false,
   pay_date: "Same Day",
-  amount: 0,
+  amount: undefined,
   currency: "USD",
   conversion_rate: "1.0",
   pay_from: "",

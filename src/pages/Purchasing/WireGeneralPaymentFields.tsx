@@ -120,6 +120,79 @@ export function WireGeneralPaymentFields({
     onCurrencyChange?.(code);
   };
 
+  const [amountInput, setAmountInput] = useState<string>(() => {
+    return form.amount !== undefined && form.amount !== null && Number(form.amount) > 0
+      ? String(form.amount)
+      : "";
+  });
+
+  useEffect(() => {
+    const num = Number(form.amount);
+    if (form.amount === undefined || form.amount === null || isNaN(num) || num === 0) {
+      if (amountInput !== "" && Number(amountInput) !== 0) {
+        setAmountInput("");
+      }
+    } else if (Number(amountInput) !== num) {
+      setAmountInput(String(form.amount));
+    }
+  }, [form.amount]);
+
+  const handleAmountInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value.replace(/[$,]/g, "");
+
+    if (raw === "") {
+      setAmountInput("");
+      setForm((prev) => ({ ...prev, amount: undefined }));
+      onAmountChange?.(0);
+      return;
+    }
+
+    if (!/^\d*\.?\d*$/.test(raw)) {
+      return;
+    }
+
+    // If typing digits after 0 (e.g. "05" -> "5", but keep "0." or "0")
+    if (raw.length > 1 && raw.startsWith("0") && raw[1] !== ".") {
+      raw = raw.replace(/^0+/, "");
+      if (raw === "") raw = "0";
+    }
+
+    setAmountInput(raw);
+    const parsed = parseFloat(raw);
+    const numericVal = isNaN(parsed) ? 0 : parsed;
+    setForm((prev) => ({ ...prev, amount: numericVal }));
+    onAmountChange?.(numericVal);
+    onClearValidationError?.("amount");
+  };
+
+  const handleAmountInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (amountInput === "0" || amountInput === "0.00" || amountInput === "0.0") {
+      setAmountInput("");
+      setForm((prev) => ({ ...prev, amount: undefined }));
+      onAmountChange?.(0);
+    } else if (amountInput) {
+      e.target.select();
+    }
+  };
+
+  const handleAmountInputBlur = () => {
+    if (amountInput === "" || amountInput === ".") {
+      setAmountInput("");
+      setForm((prev) => ({ ...prev, amount: undefined }));
+      onAmountChange?.(0);
+    } else {
+      const parsed = parseFloat(amountInput);
+      if (!isNaN(parsed) && parsed > 0) {
+        setForm((prev) => ({ ...prev, amount: parsed }));
+        onAmountChange?.(parsed);
+      } else {
+        setAmountInput("");
+        setForm((prev) => ({ ...prev, amount: undefined }));
+        onAmountChange?.(0);
+      }
+    }
+  };
+
   return (
     <div className="space-y-3.5">
       {/* 1. Processing & Entry Card */}
@@ -357,18 +430,14 @@ export function WireGeneralPaymentFields({
                 {CURRENCY_SYMBOLS[(form.currency || "USD").toUpperCase()] || "$"}
               </span>
               <Input
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                value={form.amount ?? ""}
-                onChange={(e) => {
-                  const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
-                  setForm((prev) => ({ ...prev, amount: val }));
-                  onAmountChange?.(val);
-                  onClearValidationError?.("amount");
-                }}
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 placeholder="0.00"
+                value={amountInput}
+                onChange={handleAmountInputChange}
+                onFocus={handleAmountInputFocus}
+                onBlur={handleAmountInputBlur}
                 className={`h-9 text-xs font-semibold pl-7 text-indigo-700 dark:text-indigo-300 bg-slate-50/50 dark:bg-zinc-800/50 font-mono ${
                   validationErrors.amount ? "border-red-500 focus-visible:ring-red-500" : ""
                 }`}
