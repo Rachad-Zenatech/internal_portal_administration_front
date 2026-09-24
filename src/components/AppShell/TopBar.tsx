@@ -216,13 +216,17 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Connect to SSE stream
-    const token = sessionStorage.getItem("token") || "";
-    const eventSource = new EventSource(`${BASE_URL || ""}/api/notifications/stream?token=${token}`, { withCredentials: true });
+    // Real-time notifications run over WebSocket rather than SSE: CloudFront
+    // caps the total duration of a streaming HTTP response at ~60s, which
+    // severed the SSE stream every minute and produced a permanent reconnect
+    // loop (ERR_HTTP2_PROTOCOL_ERROR alongside a 200).
+    let socket: WebSocket | null = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isMounted = true;
 
-    eventSource.onmessage = (event) => {
-      try {
-        const newNotif = JSON.parse(event.data);
+    const toWebSocketScheme = (url: string) => url.replace(/^http/i, "ws");
+
+    const handleNotification = (newNotif: any) => {
         // Invalidate queries so that the notification list and count fetch the latest state
         queryClient.invalidateQueries({ queryKey: ["notifications"] });
         queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
@@ -278,18 +282,61 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             (url) => navigate(url)
           );
         }
-      } catch (err) {
-        console.error("Failed to parse SSE notification:", err);
+    };
+
+    const connect = () => {
+      if (!isMounted) return;
+      try {
+        const rawBase = BASE_URL || "";
+        const base = /^https?:\/\//i.test(rawBase)
+          ? toWebSocketScheme(rawBase)
+          : `${toWebSocketScheme(window.location.origin)}${rawBase}`;
+        const token = sessionStorage.getItem("token") || "";
+        const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
+
+        socket = new WebSocket(`${base}/ws/notifications${tokenParam}`);
+
+        socket.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            // Keep-alive frames carry no notification payload.
+            if (!payload || payload.type === "ping") return;
+            handleNotification(payload);
+          } catch (err) {
+            console.error("Failed to parse notification frame:", err);
+          }
+        };
+
+        socket.onclose = () => {
+          socket = null;
+          // Unlike EventSource, WebSocket does not reconnect on its own.
+          if (isMounted) {
+            reconnectTimeout = setTimeout(connect, 5000);
+          }
+        };
+
+        socket.onerror = () => {
+          // onclose always follows and owns the reconnect.
+          socket?.close();
+        };
+      } catch {
+        if (isMounted) {
+          reconnectTimeout = setTimeout(connect, 5000);
+        }
       }
     };
 
-    eventSource.onerror = (err) => {
-      console.error("EventSource failed:", err);
-      // Browser handles reconnection automatically for SSE
-    };
+    connect();
 
     return () => {
-      eventSource.close();
+      isMounted = false;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (socket) {
+        // Detach before closing so unmount does not schedule a reconnect and
+        // leave an extra socket behind.
+        socket.onclose = null;
+        socket.close();
+      }
     };
   }, [inAppAlerts, windowsNotifications, navigate, queryClient]);
 
