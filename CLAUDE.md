@@ -60,15 +60,21 @@ Lean rules for this enterprise internal portal.
         q = asyncio.Queue()
         broadcaster.add_listener(q)
         try:
-            yield ": connected\n\n"
+            yield ": connected
+
+"
             while True:
                 try:
                     msg = await asyncio.wait_for(q.get(), timeout=30.0)
                     if msg.user_id == "*" or str(msg.user_id).lower() == str(user_id).lower():
-                        yield f"data: {msg.model_dump_json()}\n\n"
+                        yield f"data: {msg.model_dump_json()}
+
+"
                 except asyncio.TimeoutError:
                     # Lightweight keep-alive comment/ping to prevent CloudFront/proxy timeouts without querying the database
-                    yield ": ping\n\n"
+                    yield ": ping
+
+"
         except (asyncio.CancelledError, GeneratorExit):
             pass
         finally:
