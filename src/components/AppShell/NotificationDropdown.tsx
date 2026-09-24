@@ -408,9 +408,9 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
   const { data: recurringRequests = [] } = useQuery<PurchaseRequest[]>({
     queryKey: ["recurring-requests"],
     queryFn: async () => {
-      return await apiClient.get<PurchaseRequest[]>("/api/purchasing/requests?request_type=RECURRING");
+      return await apiClient.get<PurchaseRequest[]>("/api/purchasing/requests?request_type=RECURRING,SCHEDULED_PAYMENT");
     },
-    refetchInterval: 5000,
+    refetchInterval: 10000,
     refetchOnWindowFocus: true,
   });
 
