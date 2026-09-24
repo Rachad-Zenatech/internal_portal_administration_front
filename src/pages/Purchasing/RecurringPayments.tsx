@@ -49,6 +49,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Calendar as CalendarIcon,
   CalendarClock,
   Table as TableIcon,
@@ -64,10 +74,12 @@ import {
   ChevronRight,
   ShieldAlert,
   Edit2,
+  Trash2,
   XCircle,
   Layers,
 } from "lucide-react";
 import { toast } from "sonner";
+import { deletePurchaseRequest } from "@/services/purchasingService";
 import {
   formatRemainingDuration,
   calculateInstallmentsCount,
@@ -359,20 +371,35 @@ export default function RecurringPayments() {
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
 
   useEffect(() => {
-    const isMaScheduled = cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED";
+    let subTitle: string | undefined;
+    if (viewMode === "calendar") {
+      subTitle = "Calendar View";
+    } else if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
+      subTitle = "M&A Scheduled Payments";
+    } else if (cardFilter === "DUE_SOON") {
+      subTitle = "Due in 7 Days";
+    } else if (cardFilter === "WAITING_REVIEW") {
+      subTitle = "Waiting for Review";
+    } else if (cardFilter === "REVIEWED") {
+      subTitle = "Reviewed (AP)";
+    } else if (cardFilter === "COMPLETED") {
+      subTitle = "Completed";
+    } else if (cardFilter === "REJECTED") {
+      subTitle = "Rejected";
+    }
+
     document.dispatchEvent(
       new CustomEvent("set-breadcrumb-trail", {
         detail: {
           path: window.location.pathname,
           items: [
-            { title: "Purchasing", path: "/purchasing/requests" },
-            { title: "Recurring Payments", path: isMaScheduled ? "/purchasing/recurring" : undefined },
-            ...(isMaScheduled ? [{ title: "M&A Scheduled Payments" }] : []),
+            { title: "Recurring Payments", path: subTitle ? "/purchasing/recurring" : undefined },
+            ...(subTitle ? [{ title: subTitle }] : []),
           ],
         },
       })
     );
-  }, [cardFilter]);
+  }, [cardFilter, viewMode]);
 
   // Fetch all RECURRING requests with live polling
   const { data: requests = [], isLoading } = useQuery<PurchaseRequest[]>({
@@ -384,8 +411,8 @@ export default function RecurringPayments() {
     },
     enabled: !!canAccess,
     refetchOnWindowFocus: true,
-    refetchInterval: false,
-    staleTime: 30000,
+    refetchInterval: 10000,
+    staleTime: 5000,
   });
 
   // Toggle review status mutation
@@ -564,6 +591,26 @@ export default function RecurringPayments() {
     },
     onError: (err: any) => {
       toast.error(err?.message || "Failed to update recurring request");
+    },
+  });
+
+  const [requestToDelete, setRequestToDelete] = useState<PurchaseRequest | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await deletePurchaseRequest(id);
+    },
+    onSuccess: () => {
+      toast.success("Recurring payment deleted successfully");
+      setRequestToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+      queryClient.invalidateQueries({ queryKey: ["purchasing", "requests"] });
+      queryClient.invalidateQueries({ queryKey: ["purchasing-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to delete recurring payment");
     },
   });
 
@@ -1012,6 +1059,9 @@ export default function RecurringPayments() {
       } else if (cardFilter === "REVIEWED") {
         if (isRejected) return false;
         if (r.review_status !== "REVIEWED") return false;
+      } else if (cardFilter === "COMPLETED") {
+        const isComp = parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID";
+        if (!isComp) return false;
       } else if (cardFilter === "REJECTED") {
         if (!isRejected) return false;
       } else if (cardFilter === "ALL") {
@@ -1023,7 +1073,8 @@ export default function RecurringPayments() {
       }
       if (statusFilter !== "ALL") {
         const targetStatus = parseRequestStatus(statusFilter);
-        if (parsedStatus !== targetStatus && r.status !== statusFilter) {
+        const isComp = statusFilter === "COMPLETED" && (parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID");
+        if (!isComp && parsedStatus !== targetStatus && r.status !== statusFilter) {
           return false;
         }
       }
@@ -1043,9 +1094,12 @@ export default function RecurringPayments() {
     const reviewed = activeSubs.filter(
       (r) => r.review_status === "REVIEWED"
     ).length;
+    const completed = requests.filter(
+      (r) => parseRequestStatus(r.status) === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID"
+    ).length;
     const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length;
     const totalAmount = activeSubs.reduce((sum, r) => sum + (r.amount || 0), 0);
-    return { total, maScheduled, dueSoon, waitingReview, reviewed, rejected, totalAmount };
+    return { total, maScheduled, dueSoon, waitingReview, reviewed, completed, rejected, totalAmount };
   }, [requests]);
 
   if (!canAccess) {
@@ -1229,6 +1283,13 @@ export default function RecurringPayments() {
             color: "sky",
           },
           {
+            key: "COMPLETED",
+            label: "Completed",
+            count: stats.completed,
+            icon: CheckCircle2,
+            color: "green",
+          },
+          {
             key: "REJECTED",
             label: "Rejected",
             count: stats.rejected,
@@ -1246,7 +1307,7 @@ export default function RecurringPayments() {
       />
 
       {/* Compact Interactive KPI Filter Cards */}
-      <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
+      <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
         {/* 1. All Subscriptions */}
         <Card
           onClick={() => handleCardFilterChange("ALL")}
@@ -1320,7 +1381,7 @@ export default function RecurringPayments() {
           </CardContent>
         </Card>
 
-        {/* 3. Waiting for Review */}
+        {/* 4. Waiting for Review */}
         <Card
           onClick={() => handleCardFilterChange(cardFilter === "WAITING_REVIEW" ? "ALL" : "WAITING_REVIEW")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-amber-300 ${
@@ -1343,7 +1404,7 @@ export default function RecurringPayments() {
           </CardContent>
         </Card>
 
-        {/* 4. Reviewed (AP Signed-Off) */}
+        {/* 5. Reviewed (AP Signed-Off) */}
         <Card
           onClick={() => handleCardFilterChange(cardFilter === "REVIEWED" ? "ALL" : "REVIEWED")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-sky-300 ${
@@ -1366,7 +1427,30 @@ export default function RecurringPayments() {
           </CardContent>
         </Card>
 
-        {/* 5. Rejected */}
+        {/* 6. Completed */}
+        <Card
+          onClick={() => handleCardFilterChange(cardFilter === "COMPLETED" ? "ALL" : "COMPLETED")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-emerald-300 ${
+            cardFilter === "COMPLETED" ? "ring-2 ring-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                Completed
+              </p>
+              <h3 className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 leading-tight mt-0.5">
+                {stats.completed}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Fully paid / done</p>
+            </div>
+            <div className="p-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 shrink-0">
+              <CheckCircle2 size={16} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 7. Rejected */}
         <Card
           onClick={() => handleCardFilterChange(cardFilter === "REJECTED" ? "ALL" : "REJECTED")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-rose-300 ${
@@ -1641,6 +1725,18 @@ export default function RecurringPayments() {
                             }}
                           >
                             <Edit2 size={14} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                            title="Delete Recurring Request"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRequestToDelete(req);
+                            }}
+                          >
+                            <Trash2 size={14} />
                           </Button>
                         </div>
                       </TableCell>
@@ -2545,6 +2641,33 @@ export default function RecurringPayments() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!requestToDelete} onOpenChange={(open) => !open && setRequestToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Recurring Payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong className="text-slate-900 dark:text-zinc-100">{requestToDelete?.title}</strong> (ID #{requestToDelete?.id})? This will permanently remove the recurring payment schedule and all associated cycle records. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (requestToDelete) {
+                  deleteMutation.mutate(requestToDelete.id);
+                }
+              }}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete Payment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Schedule Breakdown Ledger Modal */}
       <ScheduleBreakdownModal
         request={scheduleModalRequest}

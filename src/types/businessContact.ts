@@ -1,3 +1,29 @@
+export interface BankingDetails {
+  bank_country?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  routing_wire?: string;
+  routing_ach?: string;
+  swift_code?: string;
+  bic?: string;
+  iban?: string;
+  sort_code?: string;
+  transit_code_ca?: string;
+  institution_code?: string;
+  branch_code?: string;
+  bsb_australia?: string;
+  bank_code?: string;
+  clearing_code?: string;
+  aba?: string;
+  tax_id?: string;
+  region?: string;
+  contact_name_china?: string;
+  vendor_address?: string;
+  vendor_email?: string;
+  bank_address?: string;
+  [key: string]: any;
+}
+
 export interface BusinessContactReference {
   id: number;
   source_company: string;
@@ -14,7 +40,7 @@ export interface BusinessContactReference {
   account_name: string;
   account_type: string;
   is_active: boolean;
-  banking_details?: Record<string, any> | null;
+  banking_details?: BankingDetails | null;
   created_at?: string;
   updated_at?: string;
 }

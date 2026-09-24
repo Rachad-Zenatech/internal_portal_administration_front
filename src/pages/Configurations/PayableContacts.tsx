@@ -9,6 +9,11 @@ import {
   RefreshCw,
   Building2,
   Trash2,
+  Landmark,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   flexRender,
@@ -29,6 +34,11 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -54,7 +64,294 @@ import {
   useSyncBusinessContacts,
   useBatchDeleteBusinessContacts,
 } from "@/hooks/useBusinessContact";
-import type { BusinessContactReference } from "@/types/businessContact";
+import type { BusinessContactReference, BankingDetails } from "@/types/businessContact";
+
+function BankingDetailsCell({
+  banking,
+  contact,
+}: {
+  banking?: BankingDetails | null;
+  contact: BusinessContactReference;
+}) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  if (!banking || typeof banking !== "object") {
+    return (
+      <span className="text-[11px] text-muted-foreground italic">
+        Not configured
+      </span>
+    );
+  }
+
+  const hasBankingInfo =
+    Object.entries(banking).some(
+      ([k, v]) => k !== "bank_country" && typeof v === "string" && v.trim().length > 0
+    ) || Boolean(banking.bank_name?.trim());
+
+  if (!hasBankingInfo) {
+    return (
+      <span className="text-[11px] text-muted-foreground italic">
+        Not configured
+      </span>
+    );
+  }
+
+  const copyVal = (key: string, val: string) => {
+    navigator.clipboard.writeText(val);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const maskedAcct = banking.bank_account_number
+    ? banking.bank_account_number.length > 4
+      ? `•••• •••• ${banking.bank_account_number.slice(-4)}`
+      : "••••"
+    : null;
+
+  const maskedIban = banking.iban
+    ? banking.iban.length > 8
+      ? `${banking.iban.slice(0, 4)} •••• ${banking.iban.slice(-4)}`
+      : "••••"
+    : null;
+
+  return (
+    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="text-left group cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800/80 p-1.5 -m-1.5 rounded-lg transition-colors max-w-[280px]"
+          title="Click to view & copy banking instructions"
+        >
+          <div className="flex items-center gap-1.5">
+            <Landmark className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+            <span className="font-semibold text-xs text-slate-800 dark:text-zinc-200 truncate">
+              {banking.bank_name || "Banking Configured"}
+            </span>
+            {banking.bank_country && (
+              <span className="text-[10px] text-muted-foreground shrink-0 font-normal">
+                ({banking.bank_country})
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 flex-wrap mt-1">
+            {maskedIban ? (
+              <span className="font-mono text-[10px] bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-slate-700 dark:text-zinc-300">
+                IBAN: {maskedIban}
+              </span>
+            ) : maskedAcct ? (
+              <span className="font-mono text-[10px] bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-slate-700 dark:text-zinc-300">
+                Acct: {maskedAcct}
+              </span>
+            ) : null}
+
+            {banking.routing_wire && (
+              <span className="bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-mono text-[10px] px-1 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40">
+                Wire: {banking.routing_wire}
+              </span>
+            )}
+            {banking.transit_code_ca && (
+              <span className="bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 font-mono text-[10px] px-1 py-0.5 rounded border border-amber-100 dark:border-amber-900/40">
+                Transit: {banking.transit_code_ca}
+              </span>
+            )}
+            {banking.institution_code && (
+              <span className="bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 font-mono text-[10px] px-1 py-0.5 rounded border border-amber-100 dark:border-amber-900/40">
+                Inst: {banking.institution_code}
+              </span>
+            )}
+            {banking.sort_code && (
+              <span className="bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 font-mono text-[10px] px-1 py-0.5 rounded border border-blue-100 dark:border-blue-900/40">
+                Sort: {banking.sort_code}
+              </span>
+            )}
+            {banking.bsb_australia && (
+              <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono text-[10px] px-1 py-0.5 rounded border border-emerald-100 dark:border-emerald-900/40">
+                BSB: {banking.bsb_australia}
+              </span>
+            )}
+            {banking.swift_code && (
+              <span className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-mono text-[10px] px-1 py-0.5 rounded">
+                SWIFT: {banking.swift_code}
+              </span>
+            )}
+          </div>
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent className="w-80 p-4 shadow-xl rounded-xl border border-slate-200 dark:border-zinc-800 space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800">
+          <div className="flex items-center gap-2">
+            <Landmark className="h-4 w-4 text-indigo-600 shrink-0" />
+            <div>
+              <div className="font-bold text-xs text-slate-900 dark:text-zinc-100">
+                {banking.bank_name || "Banking Instructions"}
+              </div>
+              <div className="text-[10px] text-muted-foreground truncate max-w-[170px]">
+                {banking.bank_country || "United States"} &middot; {contact.display_name}
+              </div>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setRevealed(!revealed)}
+            className="h-6 text-[10px] px-1.5 gap-1 text-muted-foreground hover:text-slate-900"
+          >
+            {revealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3 text-indigo-600" />}
+            <span>{revealed ? "Mask" : "Reveal"}</span>
+          </Button>
+        </div>
+
+        <div className="space-y-1.5 text-xs">
+          {banking.bank_account_number && (
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900 px-2.5 py-1.5 rounded-lg border border-slate-100 dark:border-zinc-800">
+              <div>
+                <span className="text-[10px] text-muted-foreground block">Account Number</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100">
+                  {revealed ? banking.bank_account_number : maskedAcct}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => copyVal("acct", banking.bank_account_number || "")}
+                className="h-6 w-6 p-0"
+                title="Copy Account Number"
+              >
+                {copiedKey === "acct" ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3 text-slate-500" />}
+              </Button>
+            </div>
+          )}
+
+          {banking.routing_wire && (
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900 px-2.5 py-1.5 rounded-lg border border-slate-100 dark:border-zinc-800">
+              <div>
+                <span className="text-[10px] text-muted-foreground block">Routing (Wire)</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100">
+                  {revealed ? banking.routing_wire : `••••• ${banking.routing_wire.slice(-4)}`}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => copyVal("wire", banking.routing_wire || "")}
+                className="h-6 w-6 p-0"
+                title="Copy Wire Routing"
+              >
+                {copiedKey === "wire" ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3 text-slate-500" />}
+              </Button>
+            </div>
+          )}
+
+          {banking.routing_ach && (
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900 px-2.5 py-1.5 rounded-lg border border-slate-100 dark:border-zinc-800">
+              <div>
+                <span className="text-[10px] text-muted-foreground block">Routing (ACH)</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100">
+                  {revealed ? banking.routing_ach : `••••• ${banking.routing_ach.slice(-4)}`}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => copyVal("ach", banking.routing_ach || "")}
+                className="h-6 w-6 p-0"
+                title="Copy ACH Routing"
+              >
+                {copiedKey === "ach" ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3 text-slate-500" />}
+              </Button>
+            </div>
+          )}
+
+          {banking.swift_code && (
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900 px-2.5 py-1.5 rounded-lg border border-slate-100 dark:border-zinc-800">
+              <div>
+                <span className="text-[10px] text-muted-foreground block">SWIFT / BIC Code</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100 uppercase">
+                  {banking.swift_code}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => copyVal("swift", banking.swift_code || "")}
+                className="h-6 w-6 p-0"
+                title="Copy SWIFT Code"
+              >
+                {copiedKey === "swift" ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3 text-slate-500" />}
+              </Button>
+            </div>
+          )}
+
+          {banking.iban && (
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900 px-2.5 py-1.5 rounded-lg border border-slate-100 dark:border-zinc-800">
+              <div>
+                <span className="text-[10px] text-muted-foreground block">IBAN</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100 uppercase">
+                  {revealed ? banking.iban : maskedIban}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => copyVal("iban", banking.iban || "")}
+                className="h-6 w-6 p-0"
+                title="Copy IBAN"
+              >
+                {copiedKey === "iban" ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3 text-slate-500" />}
+              </Button>
+            </div>
+          )}
+
+          {banking.sort_code && (
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900 px-2.5 py-1.5 rounded-lg border border-slate-100 dark:border-zinc-800">
+              <div>
+                <span className="text-[10px] text-muted-foreground block">Sort Code (UK)</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100">{banking.sort_code}</span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => copyVal("sort", banking.sort_code || "")}
+                className="h-6 w-6 p-0"
+              >
+                {copiedKey === "sort" ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3 text-slate-500" />}
+              </Button>
+            </div>
+          )}
+
+          {banking.transit_code_ca && (
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900 px-2.5 py-1.5 rounded-lg border border-slate-100 dark:border-zinc-800">
+              <div>
+                <span className="text-[10px] text-muted-foreground block">Transit Code (CA)</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100">{banking.transit_code_ca}</span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => copyVal("transit", banking.transit_code_ca || "")}
+                className="h-6 w-6 p-0"
+              >
+                {copiedKey === "transit" ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3 text-slate-500" />}
+              </Button>
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 const compactLines = (value?: string | null) =>
   (value || "")
@@ -186,6 +483,16 @@ function ContactSection({
           ) : (
             "-"
           ),
+      },
+      {
+        id: "banking",
+        header: "Banking & Settlement",
+        cell: ({ row }) => (
+          <BankingDetailsCell
+            banking={row.original.banking_details}
+            contact={row.original}
+          />
+        ),
       },
       {
         id: "actions",

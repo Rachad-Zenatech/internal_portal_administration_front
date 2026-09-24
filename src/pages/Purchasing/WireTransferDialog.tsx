@@ -273,13 +273,22 @@ export function WireTransferDialog({
 
   const todayStr = new Date().toISOString().split("T")[0];
 
+  const isScheduledOrRecurring =
+    request.request_type === "SCHEDULED_PAYMENT" ||
+    request.request_type === "RECURRING" ||
+    Boolean(request.recurring_schedule);
+
+  const fallbackVendor = isScheduledOrRecurring
+    ? ""
+    : (purchaseOrder?.vendor || request.product_info?.vendor || request.requester || "");
+
   const [form, setForm] = useState<WireTransferInput>({
     entered_by: "",
     entered_by_user_id: undefined,
     entry_date: todayStr,
     due_date: request.due_date || "",
     payment_date: todayStr,
-    vendor: purchaseOrder?.vendor || request.product_info?.vendor || request.requester || "",
+    vendor: initialData?.vendor || fallbackVendor,
     is_new_vendor: false,
     pay_date: "Same Day",
     amount: purchaseOrder?.amount || request.amount || undefined,
@@ -405,7 +414,7 @@ export function WireTransferDialog({
           entry_date: initialData.entry_date || todayStr,
           due_date: initialData.due_date || "",
           payment_date: initialData.payment_date || todayStr,
-          vendor: initialData.vendor || purchaseOrder?.vendor || request.product_info?.vendor || request.requester || "",
+          vendor: initialData.vendor || fallbackVendor,
           is_new_vendor: !!initialData.is_new_vendor,
           pay_date: initialData.pay_date || "Same Day",
           amount: initialData.amount || purchaseOrder?.amount || request.amount || undefined,
@@ -443,7 +452,7 @@ export function WireTransferDialog({
           ...prev,
           entry_date: todayStr,
           payment_date: todayStr,
-          vendor: purchaseOrder?.vendor || request.product_info?.vendor || request.requester || prev.vendor,
+          vendor: fallbackVendor,
           amount: purchaseOrder?.amount || request.amount || prev.amount,
           currency: purchaseOrder?.currency || request.currency || prev.currency || "USD",
           bank_country: defaultCountry,
@@ -451,7 +460,7 @@ export function WireTransferDialog({
         handleCountryChange(defaultCountry);
       }
     }
-  }, [open, request, purchaseOrder, todayStr, initialData, defaultTab, normalizedTabs]);
+  }, [open, request, purchaseOrder, todayStr, initialData, defaultTab, normalizedTabs, fallbackVendor]);
 
   const cleanDate = (d?: string | null) => {
     if (!d || d.trim() === "" || d === "null" || d === "undefined") return undefined;

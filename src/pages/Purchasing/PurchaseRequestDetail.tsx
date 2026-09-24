@@ -21,10 +21,15 @@ import {
   X,
   UploadCloud,
   Download,
+  Landmark,
+  Pencil,
+  ChevronDown,
+  ChevronRight,
+  Trash2,
 } from "lucide-react";
 import { apiClient } from "@/services/apiClient";
-import { downloadAttachment } from "@/services/purchasingService";
-import { useRequestDetail, useTransitionRequest, useUploadAttachments, useGLCodes } from "@/hooks/usePurchasing";
+import { downloadAttachment, deletePurchaseRequest } from "@/services/purchasingService";
+import { useRequestDetail, useTransitionRequest, useUploadAttachments, useGLCodes, useUpdateWireTransfer } from "@/hooks/usePurchasing";
 import { BankAccountAutocomplete } from "./BankAccountAutocomplete";
 import { CategoryAutocomplete } from "./CategoryAutocomplete";
 import { renderBankAccountBadge, renderCategoryBadge } from "@/utils/glAccountUtils";
@@ -33,7 +38,9 @@ import {
   type RequestDetail,
   type CustomScheduleDate,
   type FrequencyType,
+  type WireTransferInput,
 } from "@/types/purchasing";
+import { WireTransferDialog } from "./WireTransferDialog";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   formatDate,
@@ -65,6 +72,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 export default function PurchaseRequestDetail() {
@@ -77,6 +94,9 @@ export default function PurchaseRequestDetail() {
 
   const request = requestDetail?.request;
   const invoice = requestDetail?.invoice;
+  const allInvoices = (requestDetail?.invoices && requestDetail.invoices.length > 0)
+    ? requestDetail.invoices
+    : (requestDetail?.invoice ? [requestDetail.invoice] : []);
   const approvals = requestDetail?.approvals || [];
   const attachments = requestDetail?.attachments || [];
   const history = requestDetail?.history || [];
@@ -84,9 +104,13 @@ export default function PurchaseRequestDetail() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isScheduleLedgerOpen, setIsScheduleLedgerOpen] = useState(false);
   const [isRecordInvoiceOpen, setIsRecordInvoiceOpen] = useState(false);
+  const [isEditWireOpen, setIsEditWireOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<ProjectedInstallment | null>(null);
   const [invoiceFiles, setInvoiceFiles] = useState<File[]>([]);
   const [isDraggingPdf, setIsDraggingPdf] = useState(false);
+  const [expandedInstallments, setExpandedInstallments] = useState<Record<number, boolean>>({});
+
+  const updateWireTransfer = useUpdateWireTransfer(id ?? "");
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -135,16 +159,19 @@ export default function PurchaseRequestDetail() {
           detail: {
             path: window.location.pathname,
             items: [
-              { title: "Purchasing", path: "/purchasing/requests" },
               {
-                title: isScheduledPayment
-                  ? "Scheduled Payments"
-                  : isRecurring
-                  ? "Recurring Payments"
-                  : "Purchase Requests",
-                path: isRecurring ? "/purchasing/recurring" : "/purchasing/requests",
+                title: "Recurring Payments",
+                path: "/purchasing/recurring",
               },
-              { title: `${request.title} (#${request.id})` },
+              ...(isScheduledPayment
+                ? [
+                    {
+                      title: "M&A Scheduled Payments",
+                      path: "/purchasing/recurring?filter=MA_SCHEDULED",
+                    },
+                  ]
+                : []),
+              { title: `${request.title || "Request"} (#${request.id})` },
             ],
           },
         })
@@ -227,6 +254,26 @@ export default function PurchaseRequestDetail() {
     },
     onError: (err: any) => {
       toast.error(err?.message || "Failed to update review status");
+    },
+  });
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error("No ID");
+      await deletePurchaseRequest(id);
+    },
+    onSuccess: () => {
+      toast.success("Recurring payment deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+      queryClient.invalidateQueries({ queryKey: ["purchasing", "requests"] });
+      queryClient.invalidateQueries({ queryKey: ["purchasing-summary"] });
+      navigate("/purchasing/recurring");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to delete recurring payment");
     },
   });
 
@@ -514,9 +561,14 @@ export default function PurchaseRequestDetail() {
     const instAmt = inst?.amount != null && inst.amount > 0 ? inst.amount : (request?.amount || 0);
     const instDate = inst?.dueDate || (request?.due_date ? String(request.due_date).split("T")[0] : new Date().toISOString().split("T")[0]);
     const instNum = inst?.installmentNumber || currentCycle;
+    const isSchedOrRec = Boolean(
+      request?.request_type === "SCHEDULED_PAYMENT" ||
+      request?.request_type === "RECURRING" ||
+      request?.recurring_schedule
+    );
 
     setInvoiceForm({
-      vendor: request?.title || "",
+      vendor: isSchedOrRec ? "" : (request?.title || ""),
       amount: instAmt.toString(),
       invoice_date: instDate,
       due_date: instDate,
@@ -556,6 +608,15 @@ export default function PurchaseRequestDetail() {
         </Button>
 
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 text-xs gap-1.5 shadow-xs"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete Request
+          </Button>
           <Button
             size="sm"
             onClick={handleOpenEdit}
@@ -798,18 +859,19 @@ export default function PurchaseRequestDetail() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/60 text-slate-600 dark:text-zinc-400 font-semibold">
-                  <th className="py-3 px-4 w-14 text-center">#</th>
+                  <th className="py-3 px-4 w-12 text-center">#</th>
                   <th className="py-3 px-4">Scheduled Date</th>
                   <th className="py-3 px-4 text-right">Cycle Amount</th>
-                  <th className="py-3 px-4 text-right">Cumulative</th>
+                  <th className="py-3 px-4 text-right">Balance</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">What Needs to Be Done</th>
+                  <th className="py-3 px-3 w-10 text-center"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60">
                 {allInstallments.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
                       No payment dates generated. Edit the schedule to set frequency or installment dates.
                     </td>
                   </tr>
@@ -817,76 +879,122 @@ export default function PurchaseRequestDetail() {
                   allInstallments.map((inst) => {
                     const isPaid = inst.status === "PAID";
                     const isCurrent = inst.status === "CURRENT";
+                    const isExpanded = expandedInstallments[inst.installmentNumber] ?? isCurrent;
 
                     return (
-                      <tr
-                        key={inst.installmentNumber}
-                        className={`hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 transition-colors ${
-                          isCurrent ? "bg-indigo-50/40 dark:bg-indigo-950/20 font-medium" : ""
-                        }`}
-                      >
-                        <td className="py-3 px-4 text-center font-bold text-slate-500">
-                          {inst.installmentNumber}
-                        </td>
-                        <td className="py-3 px-4 font-mono">
-                          {formatDate(inst.dueDate)}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-zinc-100">
-                          {formatMoney(inst.amount)}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono text-muted-foreground">
-                          {formatMoney(inst.cumulativeAmount)}
-                        </td>
-                        <td className="py-3 px-4">
-                          {isPaid ? (
-                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 font-semibold gap-1 text-[11px] py-0.5">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Settled / Paid
-                            </Badge>
-                          ) : isCurrent ? (
-                            <Badge className="bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 font-semibold gap-1 text-[11px] py-0.5">
-                              <Clock className="h-3 w-3 text-amber-600" /> Due Now
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-slate-500 border-slate-200 dark:text-zinc-400 text-[11px] py-0.5">
-                              Upcoming / Projected
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-slate-700 dark:text-zinc-300">
-                          {isPaid ? (
-                            <span className="text-emerald-700 dark:text-emerald-400 text-[11px] flex items-center gap-1 font-medium">
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                              Payment settled & recorded
-                            </span>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant={isCurrent ? "default" : "outline"}
-                                className={
-                                  isCurrent
-                                    ? "bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-7 px-2.5 gap-1.5 font-semibold shadow-2xs"
-                                    : "text-xs h-7 px-2.5 gap-1.5 text-slate-700 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 border-slate-300 dark:border-zinc-700"
-                                }
-                                onClick={() => handleOpenRecordPayment(inst)}
-                              >
-                                <Receipt className="h-3.5 w-3.5" />
-                                Record Payment
-                              </Button>
-                              {isCurrent ? (
+                      <React.Fragment key={inst.installmentNumber}>
+                        <tr
+                          onClick={() =>
+                            setExpandedInstallments((prev) => ({
+                              ...prev,
+                              [inst.installmentNumber]: !isExpanded,
+                            }))
+                          }
+                          className={`cursor-pointer hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 transition-colors ${
+                            isCurrent ? "bg-indigo-50/40 dark:bg-indigo-950/20 font-medium" : ""
+                          }`}
+                        >
+                          <td className="py-3 px-4 text-center font-bold text-slate-500">
+                            {inst.installmentNumber}
+                          </td>
+                          <td className="py-3 px-4 font-mono">
+                            {formatDate(inst.dueDate)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-zinc-100">
+                            {formatMoney(inst.amount)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono text-muted-foreground">
+                            {formatMoney(inst.balance !== undefined && inst.balance !== null ? inst.balance : inst.cumulativeAmount)}
+                          </td>
+                          <td className="py-3 px-4">
+                            {isPaid ? (
+                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 font-semibold gap-1 text-[11px] py-0.5">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Settled / Paid
+                              </Badge>
+                            ) : isCurrent ? (
+                              <Badge className="bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 font-semibold gap-1 text-[11px] py-0.5">
+                                <Clock className="h-3 w-3 text-amber-600" /> Due Now
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-slate-500 border-slate-200 dark:text-zinc-400 text-[11px] py-0.5">
+                                Upcoming / Projected
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-slate-700 dark:text-zinc-300">
+                            {isPaid ? (
+                              <span className="text-emerald-700 dark:text-emerald-400 text-[11px] flex items-center gap-1 font-medium">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                Payment settled & recorded
+                              </span>
+                            ) : isCurrent ? (
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-7 px-2.5 gap-1.5 font-semibold shadow-2xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenRecordPayment(inst);
+                                  }}
+                                >
+                                  <Receipt className="h-3.5 w-3.5" />
+                                  Record Payment
+                                </Button>
                                 <span className="text-[11px] text-amber-700 dark:text-amber-300 font-semibold flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3 text-amber-600" />
                                   Due Now
                                 </span>
-                              ) : (
-                                <span className="text-muted-foreground text-[11px]">
-                                  Upcoming cycle
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-[11px]">
+                                Upcoming cycle
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-center text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 mx-auto text-indigo-600 dark:text-indigo-400" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 mx-auto" />
+                            )}
+                          </td>
+                        </tr>
+
+                        {/* Accordion Drawer for Interest, Principal Paid & Details */}
+                        {isExpanded && (
+                          <tr className="bg-slate-50/80 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-zinc-800">
+                            <td colSpan={7} className="py-3 px-8">
+                              <div className="flex flex-wrap items-center gap-6 text-xs">
+                                <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-zinc-700">
+                                  <span className="text-muted-foreground font-medium">Interest:</span>
+                                  <span className="font-mono font-semibold text-slate-800 dark:text-zinc-200">
+                                    {inst.interest !== undefined && inst.interest !== null ? formatMoney(inst.interest) : "—"}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-zinc-700">
+                                  <span className="text-muted-foreground font-medium">Principal Paid:</span>
+                                  <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                                    {inst.principal_paid !== undefined && inst.principal_paid !== null ? formatMoney(inst.principal_paid) : "—"}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-zinc-700">
+                                  <span className="text-muted-foreground font-medium">Remaining Balance:</span>
+                                  <span className="font-mono font-semibold text-slate-700 dark:text-zinc-300">
+                                    {formatMoney(inst.balance !== undefined && inst.balance !== null ? inst.balance : inst.cumulativeAmount)}
+                                  </span>
+                                </div>
+                                {inst.note && (
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <span className="font-medium">Note:</span>
+                                    <span className="italic">{inst.note}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })
                 )}
@@ -1017,6 +1125,228 @@ export default function PurchaseRequestDetail() {
             </CardContent>
           </Card>
 
+          {/* ── Wire Transfer Details Card ── */}
+          {(requestDetail?.wire_transfer || (request as any)?.wire_transfer) ? (
+            <Card className="shadow-xs border-slate-200 dark:border-zinc-800">
+              <CardHeader className="bg-indigo-50/40 dark:bg-indigo-950/20 border-b border-slate-100 dark:border-zinc-800 px-6 py-3.5 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-semibold text-base">
+                  <Landmark className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span>Wire Transfer Details</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditWireOpen(true)}
+                    className="h-7 text-xs px-2.5 bg-white dark:bg-zinc-900 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 dark:border-indigo-800 dark:text-indigo-300 gap-1.5 shadow-xs"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    <span>Edit Wire Info</span>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4">
+                {(() => {
+                  const wt = requestDetail?.wire_transfer || (request as any)?.wire_transfer;
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Entered By</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.entered_by || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Entry Date</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{formatDate(wt.entry_date)}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Payment Date</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{formatDate(wt.payment_date)}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Due Date</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{formatDate(wt.due_date)}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Pay Date (Terms)</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.pay_date || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Pay From</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.pay_from || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Vendor</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.vendor || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">New Vendor?</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.is_new_vendor ? "Yes" : "No"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Invoice #</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.invoice_number || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Amount</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{formatMoney(wt.amount || 0)} {wt.currency || "USD"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Conversion Rate</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">
+                          {wt.conversion_rate
+                            ? `${wt.conversion_rate}${
+                                wt.currency &&
+                                wt.currency.toUpperCase() !== "USD" &&
+                                parseFloat(wt.conversion_rate) > 0
+                                  ? ` (≈ $${(
+                                      Number(wt.amount || 0) *
+                                      parseFloat(wt.conversion_rate)
+                                    ).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD)`
+                                  : ""
+                              }`
+                            : (wt.currency || "USD").toUpperCase() === "USD"
+                            ? "1.00"
+                            : "—"}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Vendor Email</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.vendor_email || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Bank Name</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.bank_name || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Bank Country</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.bank_country || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Tax ID</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.tax_id || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Bank Account #</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">
+                          {wt.bank_account_number
+                            ? wt.bank_account_number.trim().length > 4
+                              ? `•••• •••• ${wt.bank_account_number.trim().slice(-4)}`
+                              : wt.bank_account_number
+                            : "—"}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Routing (Wire)</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.routing_wire || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Routing (ACH)</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.routing_ach || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">SWIFT Code</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.swift_code || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">BIC</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.bic || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">IBAN</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.iban || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Sort Code</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.sort_code || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Transit Code (CA)</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.transit_code_ca || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Transit Number (CA)</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.transit_number_ca || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Institution Code</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.institution_code || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Branch Code</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.branch_code || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">BSB Australia</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.bsb_australia || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Clearing Code</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.clearing_code || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Bank Code</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.bank_code || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">ABA</span>
+                        <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.aba || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Region</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.region || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Contact Name (China)</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.contact_name_china || "—"}</span>
+                      </div>
+                      {wt.comments && (
+                        <div className="col-span-2 sm:col-span-3">
+                          <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1 font-medium">Comments / Memo</div>
+                          <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{wt.comments}</div>
+                        </div>
+                      )}
+                      {wt.vendor_address && (
+                        <div className="col-span-2 sm:col-span-3">
+                          <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1 font-medium">Vendor Address</div>
+                          <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{wt.vendor_address}</div>
+                        </div>
+                      )}
+                      {wt.bank_address && (
+                        <div className="col-span-2 sm:col-span-3">
+                          <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1 font-medium">Bank Address</div>
+                          <div className="text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{wt.bank_address}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="shadow-xs border-dashed border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/30">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Landmark className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  <div>
+                    <span className="text-xs font-semibold text-slate-900 dark:text-zinc-100 block">Wire Transfer Details</span>
+                    <span className="text-[11px] text-muted-foreground block">No wire transfer banking instructions recorded yet for this schedule.</span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditWireOpen(true)}
+                  className="h-7 text-xs px-2.5 bg-white dark:bg-zinc-900 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 gap-1.5 shadow-xs"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Record Wire Info</span>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* ── Invoice Details Card ── */}
           <Card className="shadow-xs border-slate-200 dark:border-zinc-800">
             <CardHeader className="pb-3 border-b border-slate-100 dark:border-zinc-800/80">
@@ -1024,91 +1354,116 @@ export default function PurchaseRequestDetail() {
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Receipt className="h-4 w-4 text-indigo-600" />
                   <span>Invoice & Billing Records</span>
-                  {invoice && (
-                    <Badge variant="outline" className="text-xs font-mono ml-2">
-                      #{invoice.id}
+                  {allInvoices.length > 0 && (
+                    <Badge variant="outline" className="text-xs font-semibold px-2 py-0.5 bg-indigo-50 text-indigo-700 border-indigo-200">
+                      {allInvoices.length} {allInvoices.length === 1 ? 'Record' : 'Records'}
                     </Badge>
                   )}
                 </CardTitle>
-                {!invoice && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleOpenRecordPayment(allInstallments[0])}
-                    className="text-xs h-7 gap-1"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Record Invoice
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleOpenRecordPayment(allInstallments.find(i => i.status === "CURRENT") || allInstallments[0])}
+                  className="text-xs h-7 gap-1"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Record Invoice
+                </Button>
               </div>
             </CardHeader>
 
             <CardContent className="p-0 text-xs">
-              {invoice ? (
-                <div className="divide-y divide-slate-100 dark:divide-zinc-800/60">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
-                    <div className="p-3.5 flex justify-between gap-2">
-                      <span className="text-muted-foreground font-medium">Vendor</span>
-                      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                        {invoice.vendor || request.title}
-                      </span>
-                    </div>
-                    <div className="p-3.5 flex justify-between gap-2">
-                      <span className="text-muted-foreground font-medium">Amount</span>
-                      <span className="font-mono font-bold text-slate-900 dark:text-zinc-100 text-right">
-                        {formatMoney(invoice.amount)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
-                    <div className="p-3.5 flex justify-between gap-2">
-                      <span className="text-muted-foreground font-medium">Bill Date</span>
-                      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                        {formatDate(invoice.invoice_date)}
-                      </span>
-                    </div>
-                    <div className="p-3.5 flex justify-between gap-2">
-                      <span className="text-muted-foreground font-medium">Date Arrived</span>
-                      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                        {formatDate(invoice.created_at)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
-                    <div className="p-3.5 flex justify-between items-center gap-2">
-                      <span className="text-muted-foreground font-medium">Payment Status</span>
-                      <Badge variant="outline" className="text-[11px] bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold py-0">
-                        {invoice.paid_date ? `Settled · ${formatDate(invoice.paid_date)}` : "Settled · " + formatDate(invoice.invoice_date)}
-                      </Badge>
-                    </div>
-                    <div className="p-3.5 flex justify-between items-center gap-2">
-                      <span className="text-muted-foreground font-medium">Bank Account</span>
-                      <div className="text-right">
-                        {renderBankAccountBadge(invoice.bank_account || (request as any)?.bank_account, glCodes)}
+              {allInvoices.length > 0 ? (
+                <div className="divide-y divide-slate-200 dark:divide-zinc-800">
+                  {allInvoices.map((inv, idx) => (
+                    <div key={inv.id || idx} className="divide-y divide-slate-100 dark:divide-zinc-800/60">
+                      <div className="bg-slate-50/80 dark:bg-zinc-800/50 px-3.5 py-2 flex items-center justify-between text-xs font-semibold">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800 dark:text-zinc-200">
+                            Billing Record #{allInvoices.length - idx}
+                          </span>
+                          <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400">
+                            #{inv.id}
+                          </Badge>
+                        </div>
+                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          {formatMoney(inv.amount)}
+                        </span>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
-                    <div className="p-3.5 flex justify-between items-center gap-2">
-                      <span className="text-muted-foreground font-medium">Category</span>
-                      <div className="text-right">
-                        {renderCategoryBadge(invoice.gl_code || (invoice as any)?.category || request.gl_code, glCodes)}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                        <div className="p-3.5 flex justify-between gap-2">
+                          <span className="text-muted-foreground font-medium">Vendor</span>
+                          <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                            {inv.vendor || request.title}
+                          </span>
+                        </div>
+                        <div className="p-3.5 flex justify-between gap-2">
+                          <span className="text-muted-foreground font-medium">Amount</span>
+                          <span className="font-mono font-bold text-slate-900 dark:text-zinc-100 text-right">
+                            {formatMoney(inv.amount)}
+                          </span>
+                        </div>
                       </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                        <div className="p-3.5 flex justify-between gap-2">
+                          <span className="text-muted-foreground font-medium">Bill Date</span>
+                          <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                            {formatDate(inv.invoice_date)}
+                          </span>
+                        </div>
+                        <div className="p-3.5 flex justify-between gap-2">
+                          <span className="text-muted-foreground font-medium">Date Arrived</span>
+                          <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                            {formatDate(inv.created_at)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                        <div className="p-3.5 flex justify-between items-center gap-2">
+                          <span className="text-muted-foreground font-medium">Payment Status</span>
+                          <Badge variant="outline" className="text-[11px] bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold py-0">
+                            {inv.paid_date ? `Settled · ${formatDate(inv.paid_date)}` : "Settled · " + formatDate(inv.invoice_date)}
+                          </Badge>
+                        </div>
+                        <div className="p-3.5 flex justify-between items-center gap-2">
+                          <span className="text-muted-foreground font-medium">Bank Account</span>
+                          <div className="text-right">
+                            {renderBankAccountBadge(inv.bank_account || (request as any)?.bank_account, glCodes)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                        <div className="p-3.5 flex justify-between items-center gap-2">
+                          <span className="text-muted-foreground font-medium">Category</span>
+                          <div className="text-right">
+                            {renderCategoryBadge(inv.gl_code || (inv as any)?.category || request.gl_code, glCodes)}
+                          </div>
+                        </div>
+                        <div className="p-3.5 flex justify-between items-center gap-2">
+                          <span className="text-muted-foreground font-medium flex items-center gap-1">
+                            <span>Asset Flag</span>
+                            <HelpIcon text="Asset Flag designates whether this invoice represents a Capitalized Fixed Asset (CapEx) — such as equipment, hardware, lease/financing agreements, or software licenses — rather than an immediate operational expense (OpEx). When checked, the cost is capitalized on the balance sheet and depreciated/amortized over time instead of expensed in full in the current period. It automatically defaults to active for Scheduled Payments, Recurring obligations, and Accounts Payable." />
+                          </span>
+                          <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                            {inv.asset_flag ? "Yes" : "No"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {inv.description && (
+                        <div className="p-3.5 flex justify-between gap-2">
+                          <span className="text-muted-foreground font-medium">Description / Memo</span>
+                          <span className="text-slate-800 dark:text-zinc-200 text-right italic">
+                            {inv.description}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div className="p-3.5 flex justify-between items-center gap-2">
-                      <span className="text-muted-foreground font-medium flex items-center gap-1">
-                        <span>Asset Flag</span>
-                        <HelpIcon text="Asset Flag designates whether this invoice represents a Capitalized Fixed Asset (CapEx) — such as equipment, hardware, lease/financing agreements, or software licenses — rather than an immediate operational expense (OpEx). When checked, the cost is capitalized on the balance sheet and depreciated/amortized over time instead of expensed in full in the current period. It automatically defaults to active for Scheduled Payments, Recurring obligations, and Accounts Payable." />
-                      </span>
-                      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                        {invoice.asset_flag ? "Yes" : "No"}
-                      </span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               ) : (
                 <div className="p-6 text-center text-muted-foreground space-y-2">
@@ -1769,6 +2124,47 @@ export default function PurchaseRequestDetail() {
           handleOpenEdit();
         }}
       />
+
+      {/* ── Wire Transfer Dialog (Edit / Record Wire Details) ── */}
+      {request && (
+        <WireTransferDialog
+          open={isEditWireOpen}
+          onOpenChange={setIsEditWireOpen}
+          request={request}
+          purchaseOrder={requestDetail?.purchase_order}
+          initialData={requestDetail?.wire_transfer || (request as any)?.wire_transfer}
+          isEditMode={Boolean(requestDetail?.wire_transfer || (request as any)?.wire_transfer)}
+          isSubmitting={updateWireTransfer.isPending}
+          onConfirm={async (data: WireTransferInput) => {
+            await updateWireTransfer.mutateAsync(data);
+            setIsEditWireOpen(false);
+            queryClient.invalidateQueries({ queryKey: ["purchasing", "request", id] });
+            queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+          }}
+        />
+      )}
+
+      {/* ── Delete Confirmation Dialog ── */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Recurring Payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong className="text-slate-900 dark:text-zinc-100">{request?.title}</strong> (ID #{request?.id})? This will permanently remove the recurring payment schedule and all associated cycle records. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete Payment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

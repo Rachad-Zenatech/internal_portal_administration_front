@@ -300,52 +300,73 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
     }
 
     const headers = [
-      "Due Date",
-      "Installment #",
-      "Total Installments",
-      "Request ID",
-      "Subscription Title",
-      "Vendor",
-      "Requester",
-      "Department",
-      "Project",
-      "Amount",
+      "Date of Payment",
+      "Entity / Note Title",
+      "Payment",
+      "Interest",
+      "Principal Paid",
+      "Balance",
       "Currency",
-      "Cumulative Amount",
-      "Installment Status",
-      "Review Status",
-      "Workflow Status",
-      "Milestone Note",
+      "Status",
     ];
 
-    const rows = filteredTransactions.map((t) => [
-      t.dueDate || "",
-      t.installmentNumber,
-      t.totalInstallments || "N/A",
-      `#${t.requestId}`,
-      `"${(t.requestTitle || "").replace(/"/g, '""')}"`,
-      `"${(t.vendor || "").replace(/"/g, '""')}"`,
-      `"${(t.requester || "").replace(/"/g, '""')}"`,
-      `"${(t.department || "").replace(/"/g, '""')}"`,
-      `"${(t.project || "").replace(/"/g, '""')}"`,
-      t.amount.toFixed(2),
-      t.currency,
-      t.cumulativeAmount.toFixed(2),
-      t.installmentStatus,
-      t.reviewStatus,
-      t.workflowStatus,
-      `"${(t.customLabel || "").replace(/"/g, '""')}"`,
-    ]);
+    let totPayment = 0;
+    let totInterest = 0;
+    let totPrincipal = 0;
+
+    const rows = filteredTransactions.map((t) => {
+      const p = t.rawInstallment?.payment != null ? Number(t.rawInstallment.payment) : t.amount;
+      const i = t.rawInstallment?.interest != null ? Number(t.rawInstallment.interest) : null;
+      const pr = t.rawInstallment?.principal_paid != null ? Number(t.rawInstallment.principal_paid) : null;
+      const b = t.rawInstallment?.balance != null ? Number(t.rawInstallment.balance) : t.cumulativeAmount;
+
+      if (typeof p === "number" && !isNaN(p)) totPayment += p;
+      if (typeof i === "number" && !isNaN(i)) totInterest += i;
+      if (typeof pr === "number" && !isNaN(pr)) totPrincipal += pr;
+
+      const statusLabel =
+        t.installmentStatus === "PAID"
+          ? "Paid"
+          : t.installmentStatus === "CURRENT"
+          ? "Due Now"
+          : "Upcoming";
+
+      const title = t.requestTitle || t.vendor || "Scheduled Note";
+
+      return [
+        t.dueDate || "",
+        `"${title.replace(/"/g, '""')}"`,
+        typeof p === "number" && !isNaN(p) ? p.toFixed(2) : "",
+        typeof i === "number" && !isNaN(i) ? i.toFixed(2) : "",
+        typeof pr === "number" && !isNaN(pr) ? pr.toFixed(2) : "",
+        typeof b === "number" && !isNaN(b) ? b.toFixed(2) : "",
+        t.currency || "USD",
+        statusLabel,
+      ];
+    });
+
+    const totalRow = [
+      "Total",
+      `"${filteredTransactions.length} Payments"`,
+      totPayment.toFixed(2),
+      totInterest > 0 ? totInterest.toFixed(2) : "",
+      totPrincipal > 0 ? totPrincipal.toFixed(2) : "",
+      "",
+      "",
+      "",
+    ];
+
+    const allRows = [...rows, totalRow];
 
     const csvContent =
       "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+      [headers.join(","), ...allRows.map((r) => r.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute(
       "download",
-      `master_scheduled_transactions_${new Date().toISOString().split("T")[0]}.csv`
+      `Master_List_${new Date().toISOString().split("T")[0]}.csv`
     );
     document.body.appendChild(link);
     link.click();

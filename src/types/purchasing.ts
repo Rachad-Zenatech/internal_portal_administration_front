@@ -107,6 +107,10 @@ export type FrequencyType =
 export interface CustomScheduleDate {
   date: string;
   amount?: number | null;
+  payment?: number | null;
+  interest?: number | null;
+  principal_paid?: number | null;
+  balance?: number | null;
   note?: string | null;
 }
 
@@ -264,6 +268,7 @@ export type RequestDetail = {
   request: PurchaseRequest;
   purchase_order: PurchaseOrder | null;
   invoice: Invoice | null;
+  invoices?: Invoice[];
   wire_transfer?: WireTransfer | null;
   approvals: Approval[];
   notifications: PurchasingNotification[];
@@ -288,6 +293,7 @@ export type PurchasingSummary = {
   recurring_due_soon_amount?: number;
   recurring_waiting_review?: number;
   recurring_reviewed?: number;
+  recurring_completed_count?: number;
   recurring_rejected?: number;
   my_approvals_count?: number;
   user_action_counts?: Record<string, number>;

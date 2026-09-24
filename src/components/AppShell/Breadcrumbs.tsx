@@ -77,6 +77,18 @@ export default function Breadcrumbs() {
 
   const activeTrail = customTrails[location.pathname];
 
+  const breadcrumbItems = pathnames
+    .map((value, index) => {
+      return {
+        value,
+        to: `/${pathnames.slice(0, index + 1).join("/")}`,
+      };
+    })
+    .filter((item) => {
+      if (item.value.toLowerCase() === "purchasing") return false;
+      return true;
+    });
+
   return (
     <nav className="flex items-center text-xs text-muted-foreground mb-2.5 sm:mb-3.5 overflow-x-auto whitespace-nowrap pt-0.5 pb-1.5 scrollbar-none min-h-[28px]">
       <Link 
@@ -109,23 +121,23 @@ export default function Breadcrumbs() {
           );
         })
       ) : (
-        pathnames.map((value, index) => {
-          const to = `/${pathnames.slice(0, index + 1).join("/")}`;
-          const isLast = index === pathnames.length - 1;
+        breadcrumbItems.map((item, index) => {
+          const isLast = index === breadcrumbItems.length - 1;
+          const displayName = customTitles[item.to] || formatName(item.value);
 
           return (
-            <div key={to} className="flex items-center">
+            <div key={item.to} className="flex items-center">
               <ChevronRight className="h-4 w-4 mx-1 opacity-50 shrink-0" />
               {isLast ? (
                 <span className="font-semibold text-foreground" aria-current="page">
-                  {customTitles[to] || formatName(value)}
+                  {displayName}
                 </span>
               ) : (
-                <Link 
-                  to={to} 
+                <Link
+                  to={item.to}
                   className="hover:text-foreground hover:underline underline-offset-4 transition-colors"
                 >
-                  {customTitles[to] || formatName(value)}
+                  {displayName}
                 </Link>
               )}
             </div>

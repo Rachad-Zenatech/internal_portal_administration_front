@@ -282,21 +282,34 @@ export default function RequestDetail() {
         document.dispatchEvent(
           new CustomEvent("set-breadcrumb-trail", {
             detail: {
-              path: `/purchasing/requests/${data.request.id}`,
+              path: window.location.pathname,
               items: [
-                { title: "Purchasing", path: "/purchasing/requests" },
-                { title: isScheduledPayment ? "Scheduled Payments" : "Recurring Payments", path: "/purchasing/recurring" },
-                { title: `${data.request.title} (${data.request.id})` },
+                {
+                  title: "Recurring Payments",
+                  path: "/purchasing/recurring",
+                },
+                ...(isScheduledPayment
+                  ? [
+                      {
+                        title: "M&A Scheduled Payments",
+                        path: "/purchasing/recurring?filter=MA_SCHEDULED",
+                      },
+                    ]
+                  : []),
+                { title: `${data.request.title || "Request"} (#${data.request.id})` },
               ],
             },
           })
         );
       } else {
         document.dispatchEvent(
-          new CustomEvent("set-breadcrumb-title", {
+          new CustomEvent("set-breadcrumb-trail", {
             detail: {
-              path: `/purchasing/requests/${data.request.id}`,
-              title: `${data.request.title} (${data.request.id})`,
+              path: window.location.pathname,
+              items: [
+                { title: "Purchase Requests", path: "/purchasing/requests" },
+                { title: `${data.request.title || "Request"} (#${data.request.id})` },
+              ],
             },
           })
         );
