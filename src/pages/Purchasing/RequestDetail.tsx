@@ -134,7 +134,7 @@ import {
   TAX_RATE,
 } from "./purchasingMeta";
 
-type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "hold" | "complete" | "markPurchased";
+type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "hold" | "complete";
 
 export default function RequestDetail() {
   const { id } = useParams<{ id: string }>();
@@ -182,7 +182,7 @@ export default function RequestDetail() {
 
   const [isScheduleLedgerOpen, setIsScheduleLedgerOpen] = useState(false);
   const [activeForm, setActiveForm] = useState<{ action: WorkflowAction; kind: FormKind } | null>(null);
-  const [purchaseQuoteNumber, setPurchaseQuoteNumber] = useState<string>("");
+  const [invoicePoNumber, setInvoicePoNumber] = useState<string>("");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [poItems, setPoItems] = useState<any[]>([]);
   const [poShippingFee, setPoShippingFee] = useState<number>(0);
@@ -417,13 +417,7 @@ export default function RequestDetail() {
         setIsWireDialogOpen(true);
         return;
       }
-      setPurchaseQuoteNumber(
-        purchase_order?.quote_number ||
-        data?.purchase_order?.quote_number ||
-        data?.request?.quote_data?.quote_number ||
-        ""
-      );
-      setActiveForm({ action: "MARK_PURCHASED", kind: "markPurchased" });
+      void dispatch({ action: "MARK_PURCHASED" });
       return;
     }
 
@@ -505,6 +499,12 @@ export default function RequestDetail() {
         department: "",
         from_location: "",
       });
+      const defaultPoNum =
+        purchase_order?.quote_number ||
+        data?.purchase_order?.quote_number ||
+        data?.request?.quote_data?.quote_number ||
+        "";
+      setInvoicePoNumber(defaultPoNum);
       setPendingFiles([]);
     }
     if (meta.form === "po") {
@@ -596,23 +596,8 @@ export default function RequestDetail() {
       if (!po.vendor || !po.item) return toast.error("Vendor and item are required.");
       if (!po.payment_method) return toast.error("Payment format is required.");
       if (!po.shipped_to_location || !po.shipped_to_location.trim()) return toast.error("Shipped to location is required.");
-      void dispatch({ action, purchase_order: { ...po, amount: Number(po.amount) || 0, quantity: Number(po.quantity) || 1, unit_price: Number(po.unit_price) || 0, currency: po.currency || "USD", items: poItems } });
-    } else if (kind === "markPurchased") {
-      if (!purchaseQuoteNumber || !purchaseQuoteNumber.trim()) return toast.error("Quote / PO # is required.");
-      const existingPo = purchase_order || data?.purchase_order || po;
-      void dispatch({
-        action: "MARK_PURCHASED",
-        purchase_order: {
-          ...existingPo,
-          vendor: existingPo?.vendor || request.department || "Vendor",
-          item: existingPo?.item || request.title || "Item",
-          amount: Number(existingPo?.amount || request.amount || 0),
-          payment_method: existingPo?.payment_method || "CC",
-          shipped_to_location: existingPo?.shipped_to_location || "Headquarters",
-          quote_number: purchaseQuoteNumber.trim(),
-        },
-      });
     } else if (kind === "invoice") {
+      if (!invoicePoNumber || !invoicePoNumber.trim()) return toast.error("PO # is required.");
       if (!invoice.vendor || !invoice.invoice_date) return toast.error("Vendor and bill date are required.");
       if (!invoice.department || !invoice.department.trim()) return toast.error("Class is required.");
       if (!invoice.from_location || !invoice.from_location.trim()) return toast.error("From Location is required.");
@@ -631,8 +616,18 @@ export default function RequestDetail() {
 
       void (async () => {
         const cleanDueDate = invoice.due_date && invoice.due_date.trim() !== "" ? invoice.due_date : undefined;
+        const currentPo = purchase_order || data?.purchase_order || po;
         const ok = await dispatch({
           action,
+          purchase_order: {
+            ...currentPo,
+            vendor: currentPo?.vendor || invoice.vendor || "Vendor",
+            item: currentPo?.item || request.title || "Item",
+            amount: Number(currentPo?.amount || invoice.amount || 0),
+            payment_method: currentPo?.payment_method || "CC",
+            shipped_to_location: currentPo?.shipped_to_location || "Headquarters",
+            quote_number: invoicePoNumber.trim(),
+          },
           invoice: {
             ...invoice,
             invoice_type: "Purchase",
@@ -2865,6 +2860,16 @@ export default function RequestDetail() {
             {activeForm?.kind === "invoice" && (
               <>
                 <TwoUp>
+                  <FieldInput
+                    label={
+                      <span>
+                        PO # <span className="text-red-500">*</span>
+                      </span>
+                    }
+                    placeholder="e.g. PO-2026-00452 or QT-88910"
+                    value={invoicePoNumber}
+                    onChange={(v) => setInvoicePoNumber(v)}
+                  />
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
                       Vendor <span className="text-red-500">*</span>
@@ -2875,16 +2880,6 @@ export default function RequestDetail() {
                       placeholder="Search or enter vendor name..."
                     />
                   </div>
-                  <FieldInput
-                    label={
-                      <span>
-                        Price / Amount <span className="text-red-500">*</span>
-                      </span>
-                    }
-                    type="number"
-                    value={String(invoice.amount)}
-                    onChange={(v) => setInvoice({ ...invoice, amount: Number(v) })}
-                  />
                 </TwoUp>
 
                 <TwoUp>
@@ -3225,27 +3220,6 @@ export default function RequestDetail() {
                 />
               </div>
             )}
-            {activeForm?.kind === "markPurchased" && (
-              <div className="space-y-4">
-                <div className="p-3.5 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-lg text-xs sm:text-sm text-slate-700 dark:text-zinc-300 leading-relaxed">
-                  Please enter the <strong className="text-slate-900 dark:text-zinc-100">Quote / PO #</strong> (or vendor confirmation number) to confirm this purchase and move it to <strong className="text-indigo-600 dark:text-indigo-400">Ordered / Purchased</strong>.
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center justify-between">
-                    <span>
-                      Quote / PO # <span className="text-red-500">*</span>
-                    </span>
-                  </label>
-                  <Input
-                    placeholder="e.g. PO-2026-00452 or QT-88910"
-                    value={purchaseQuoteNumber}
-                    onChange={(e) => setPurchaseQuoteNumber(e.target.value)}
-                    className="font-mono text-sm bg-white dark:bg-zinc-900"
-                    autoFocus
-                  />
-                </div>
-              </div>
-            )}
             {activeForm?.kind === "complete" && (
               <div className="space-y-4">
                 {/* Current Reference Info */}
@@ -3366,7 +3340,7 @@ export default function RequestDetail() {
               variant={activeForm?.action === "REJECT" ? "destructive" : "default"}
               className={activeForm?.action === "REJECT" ? "bg-rose-600 hover:bg-rose-700 text-white font-semibold" : ""}
             >
-              {activeForm?.action === "REJECT" ? "Confirm Rejection" : activeForm?.action === "MARK_PURCHASED" ? "Confirm & Mark Purchased" : "Confirm"}
+              {activeForm?.action === "REJECT" ? "Confirm Rejection" : "Confirm"}
             </Button>
           </DialogFooter>
         </DialogContent>
