@@ -157,7 +157,7 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
       const yearParam = selectedYear !== "ALL" ? parseInt(selectedYear, 10) : null;
       const monthParam = selectedMonth !== "ALL" ? parseInt(selectedMonth, 10) : null;
       const data = await getQuickBooksPreview({
-        status: "COMPLETED",
+        status: "ORDERED / PURCHASED",
         year: yearParam,
         month: monthParam,
       });
@@ -292,19 +292,19 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
       }
 
       if (exportMode === "BUNDLE") {
-        await exportQuickBooksBundle(undefined, "COMPLETED", yearParam, monthParam, startParam, endParam);
+        await exportQuickBooksBundle(undefined, "ORDERED / PURCHASED", yearParam, monthParam, startParam, endParam);
         toast.success("Complete QuickBooks bundle downloaded successfully", { id: "qb-export" });
       } else if (exportMode === "DOCUMENTS") {
-        await exportQuickBooksDocuments(undefined, "COMPLETED", yearParam, monthParam, startParam, endParam);
+        await exportQuickBooksDocuments(undefined, "ORDERED / PURCHASED", yearParam, monthParam, startParam, endParam);
         toast.success("PDF document package downloaded successfully", { id: "qb-export" });
       } else if (exportMode === "RECONCILIATION") {
-        await exportQuickBooksReconciliation(undefined, "COMPLETED", yearParam, monthParam, startParam, endParam);
+        await exportQuickBooksReconciliation(undefined, "ORDERED / PURCHASED", yearParam, monthParam, startParam, endParam);
         toast.success("Reconciliation manifest downloaded successfully", { id: "qb-export" });
       } else if (exportMode === "CSV") {
-        await exportQuickBooksCsv(undefined, "COMPLETED", yearParam, monthParam, startParam, endParam);
+        await exportQuickBooksCsv(undefined, "ORDERED / PURCHASED", yearParam, monthParam, startParam, endParam);
         toast.success("QuickBooks CSV export downloaded successfully", { id: "qb-export" });
       } else {
-        await exportQuickBooksXlsx(undefined, "COMPLETED", yearParam, monthParam, startParam, endParam);
+        await exportQuickBooksXlsx(undefined, "ORDERED / PURCHASED", yearParam, monthParam, startParam, endParam);
         toast.success("QuickBooks Excel export downloaded successfully", { id: "qb-export" });
       }
 
@@ -461,9 +461,9 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
             ) : !previewData?.items || previewData.items.length === 0 ? (
               <div className="text-center py-12 border border-dashed rounded-lg border-border/80 p-6 space-y-2">
                 <CheckCircle2 className="h-8 w-8 text-muted-foreground mx-auto opacity-50" />
-                <h4 className="text-sm font-semibold text-foreground">No completed purchase items found</h4>
+                <h4 className="text-sm font-semibold text-foreground">No eligible purchase items found</h4>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  Only completed purchase requests are staged for QuickBooks Online sync.
+                  Purchase requests with status &ldquo;Ordered / Purchased&rdquo; and after are staged for QuickBooks Online sync.
                 </p>
               </div>
             ) : (
@@ -517,6 +517,11 @@ export function QuickBooksExportDialog({ open, onOpenChange }: QuickBooksExportD
                                 <span className="text-xs text-muted-foreground font-mono bg-muted/60 px-1.5 py-0.5 rounded">
                                   Ref: {item.ref_no || "-"}
                                 </span>
+                                {(item.status || item.request_status) && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0.2 rounded font-medium bg-muted/40 text-muted-foreground border-border/80">
+                                    {String(item.status || item.request_status).replace(/_/g, " ")}
+                                  </Badge>
+                                )}
                                 {item.attachments_count && item.attachments_count > 0 ? (
                                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-mono gap-0.5 shrink-0 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800" title={`${item.attachments_count} document(s) attached`}>
                                     <Paperclip className="h-2.5 w-2.5" />

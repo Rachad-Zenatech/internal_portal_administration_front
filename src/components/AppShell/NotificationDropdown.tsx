@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -391,8 +391,48 @@ export function isRecurringNotification(notif: Notification): boolean {
 export function NotificationDropdownContent({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, roles = [], hasRole, hasPermission, canAccessNavigationItem } = useAuth();
+
+  const isSuperAdmin = hasRole("SUPER_ADMIN") || user?.is_super_admin;
+  const isRequester = hasRole("REQUESTER") || roles.some((r) => r.code === "REQUESTER");
+  const isAP =
+    roles.some((r) => {
+      const c = (r.code || "").toUpperCase();
+      const n = (r.name || "").toUpperCase();
+      return (
+        c.includes("AP") ||
+        c.includes("PAY") ||
+        n.includes("AP") ||
+        n.includes("PAY")
+      );
+    }) ||
+    hasRole("ACCTS_PAY") ||
+    hasRole("AP") ||
+    hasRole("ACCOUNTS_PAYABLE");
+  const isTreasury = roles.some((r) => {
+    const c = (r.code || "").toUpperCase();
+    const n = (r.name || "").toUpperCase();
+    return c.includes("TREASURY") || n.includes("TREASURY");
+  });
+  const hasRecurringPermission =
+    hasPermission("RECURRING_PAYMENTS_READ") ||
+    hasPermission("RECURRING_PAYMENTS_VIEW") ||
+    hasPermission("RECURRING_PAYMENTS_UPDATE") ||
+    canAccessNavigationItem("RECURRING_PAYMENTS", "PAGE_ACCESS") ||
+    canAccessNavigationItem("RECURRING_PAYMENTS", "VIEW");
+
+  // Requester role cannot see the recurring notifications tab
+  const canViewRecurringTab =
+    isSuperAdmin || (!isRequester && (isAP || isTreasury || hasRecurringPermission));
+
   const [activeTab, setActiveTab] = useState<"grouped" | "recurring" | "all" | "unread">("grouped");
+
+  useEffect(() => {
+    if (!canViewRecurringTab && activeTab === "recurring") {
+      setActiveTab("grouped");
+    }
+  }, [canViewRecurringTab, activeTab]);
+
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [isEmailTesterOpen, setIsEmailTesterOpen] = useState(false);
   const [testEmailRecipient, setTestEmailRecipient] = useState(user?.email || "alvin.tsang@zenatech.com");
@@ -410,6 +450,7 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
     queryFn: async () => {
       return await apiClient.get<PurchaseRequest[]>("/api/purchasing/requests?request_type=RECURRING,SCHEDULED_PAYMENT");
     },
+    enabled: canViewRecurringTab,
     refetchInterval: 10000,
     refetchOnWindowFocus: true,
   });
@@ -771,22 +812,24 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
               <span>Requests ({requestGroups.length})</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab("recurring")}
-              className={`px-2.5 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
-                activeTab === "recurring"
-                  ? "bg-white dark:bg-zinc-950 text-purple-600 dark:text-purple-400 shadow-xs font-bold"
-                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-              }`}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              <span>Recurring ({recurringItems.length})</span>
-              {recurringAlertsCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-purple-600 text-white text-[10px] flex items-center justify-center font-bold">
-                  {recurringAlertsCount}
-                </span>
-              )}
-            </button>
+            {canViewRecurringTab && (
+              <button
+                onClick={() => setActiveTab("recurring")}
+                className={`px-2.5 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+                  activeTab === "recurring"
+                    ? "bg-white dark:bg-zinc-950 text-purple-600 dark:text-purple-400 shadow-xs font-bold"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                }`}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>Recurring ({recurringItems.length})</span>
+                {recurringAlertsCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-purple-600 text-white text-[10px] flex items-center justify-center font-bold">
+                    {recurringAlertsCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             <button
               onClick={() => setActiveTab("all")}
