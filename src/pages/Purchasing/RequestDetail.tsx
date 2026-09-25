@@ -757,6 +757,10 @@ export default function RequestDetail() {
 
   const isReviewed = request.review_status === "REVIEWED";
 
+  // The attachments endpoint is not status-gated, so files can be attached at any
+  // active stage (including WAITING_PAYMENT). Only terminal requests are locked.
+  const canAttachFiles = request.status !== "COMPLETED" && request.status !== "REJECTED";
+
   const quoteNativeCurrency = (
     request.quote_data?.conversion?.original_currency ||
     request.quote_data?.currency ||
@@ -2490,6 +2494,12 @@ export default function RequestDetail() {
 
                 {/* Attachments Tab */}
                 <TabsContent value="attachments" className="m-0">
+                  {canAttachFiles && (
+                    <InlineAttachmentUploader
+                      isUploading={uploadAttachments.isPending}
+                      onUpload={(files) => uploadAttachments.mutate(files)}
+                    />
+                  )}
                   {(!data.attachments || data.attachments.length === 0) ? (
                     <div className="py-4 text-center">
                       <div className="inline-flex p-2 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 mb-1.5">
@@ -3602,6 +3612,67 @@ function TwoUp({ children }: { children: React.ReactNode }) {
 
 
 const ATTACHMENT_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.rtf,.odt,.ods";
+
+// Direct uploader for the Attachments tab. Unlike AttachmentDropzone (which stages
+// files for submission alongside a workflow form), this uploads immediately so files
+// can be attached without running a transition.
+function InlineAttachmentUploader({
+  onUpload,
+  isUploading,
+}: {
+  onUpload: (files: File[]) => void;
+  isUploading: boolean;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        if (!isUploading) setIsDragging(true);
+      }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        if (isUploading) return;
+        if (e.dataTransfer.files?.length) onUpload(Array.from(e.dataTransfer.files));
+      }}
+      className={cn(
+        "flex items-center justify-between gap-2 rounded-lg border border-dashed px-3 py-2 mb-3 transition-colors",
+        isDragging
+          ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30"
+          : "border-slate-300 dark:border-zinc-700"
+      )}
+    >
+      <p className="text-[11px] text-slate-500 dark:text-zinc-400 min-w-0">
+        Drag &amp; drop files here, or browse to attach.
+      </p>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={isUploading}
+        onClick={() => inputRef.current?.click()}
+        className="h-7 px-2.5 text-xs gap-1.5 shrink-0 cursor-pointer"
+      >
+        <Upload className="h-3 w-3" />
+        {isUploading ? "Uploading..." : "Upload Files"}
+      </Button>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept={ATTACHMENT_ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files?.length) onUpload(Array.from(e.target.files));
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
 
 function AttachmentDropzone({
   files,
