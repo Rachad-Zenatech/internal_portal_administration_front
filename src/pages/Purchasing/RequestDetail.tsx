@@ -369,17 +369,13 @@ export default function RequestDetail() {
     if (itm.gl_code) return itm.gl_code;
     return null;
   };
-  const pmStr = String((request as any)?.payment_method || data?.purchase_order?.payment_method || "");
-  const isCC = pmStr === "CC" || pmStr.includes("(Credit Card)") || pmStr.toLowerCase().includes("credit");
   let flow = SPEND_FLOW;
   if (request.request_type === "ADMIN") flow = ADMIN_FLOW;
   else if (request.request_type === "ACCOUNTS_PAYABLE") flow = ACCOUNTS_PAYABLE_FLOW;
   else if (request.request_type === "RECURRING") flow = RECURRING_FLOW;
   else if (request.request_type === "QUOTE") flow = QUOTE_FLOW;
 
-  if (isCC && flow === SPEND_FLOW) {
-    flow = flow.filter(st => st !== RequestStatus.WaitingPayment);
-  }
+
 
   const dispatch = async (payload: TransitionInput): Promise<boolean> => {
     try {

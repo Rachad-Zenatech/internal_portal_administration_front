@@ -105,11 +105,11 @@ export const PIPELINE_ORDER: readonly RequestStatus[] = [
   RequestStatus.UnderReview,
   RequestStatus.WaitingApproval,
   RequestStatus.Approved,
+  RequestStatus.WaitingPayment,
   RequestStatus.Purchased,
   RequestStatus.Shipped,
   RequestStatus.GoodsReceived,
   RequestStatus.InvoiceReceived,
-  RequestStatus.WaitingPayment,
   RequestStatus.Completed,
 ];
 
