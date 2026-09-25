@@ -563,17 +563,18 @@ export default function RequestDetail() {
         : (parsedPoItems[0]?.unit_price ? parsedPoItems[0].unit_price : (request.unit_price ?? 0));
 
       setPo({
-        vendor: quoteVendor || (info && isUsable(info.vendor) ? info.vendor : ""),
+        vendor: purchase_order?.vendor || quoteVendor || (info && isUsable(info.vendor) ? info.vendor : ""),
         item: isMultiReq ? (parsedPoItems.length ? `Multi Parts (${parsedPoItems.length} parts)` : (request.title || "Multi Parts")) : (request.title || (info && isUsable(info.name) ? info.name : "")),
         quantity: isMultiReq ? (parsedPoItems.length || 1) : (request.quantity ?? 1),
         unit_price: singleUnitPrice,
         amount: usdAmount,
-        quote_number: quoteNum || "",
+        quote_number: purchase_order?.quote_number || quoteNum || "",
         description: (info && isUsable(info.description) ? info.description : (request.description || "")),
         currency: "USD",
-        payment_method: undefined,
-        shipped_to_location: "",
-        expected_delivery_date: "",
+        payment_method: (purchase_order?.payment_method || (request as any)?.payment_method) as PaymentMethod | undefined,
+        shipped_to_location: purchase_order?.shipped_to_location || (request as any)?.shipped_to_location || "",
+        expected_delivery_date: purchase_order?.expected_delivery_date || "",
+        item_url: purchase_order?.item_url || request.item_url || "",
       });
     }
     if (meta.form === "approval") {
@@ -593,6 +594,18 @@ export default function RequestDetail() {
       if (!po.vendor || !po.item) return toast.error("Vendor and item are required.");
       if (!po.payment_method) return toast.error("Payment format is required.");
       if (!po.shipped_to_location || !po.shipped_to_location.trim()) return toast.error("Shipped to location is required.");
+      void dispatch({
+        action,
+        purchase_order: {
+          ...po,
+          amount: Number(po.amount) || 0,
+          quantity: Number(po.quantity) || 1,
+          unit_price: Number(po.unit_price) || 0,
+          item_url: po.item_url || request.item_url || undefined,
+          expected_delivery_date: po.expected_delivery_date?.trim() || undefined,
+          items: isMulti ? poItems : undefined,
+        },
+      });
     } else if (kind === "invoice") {
       if (!invoicePoNumber || !invoicePoNumber.trim()) return toast.error("PO # is required.");
       if (!invoice.vendor || !invoice.invoice_date) return toast.error("Vendor and bill date are required.");
