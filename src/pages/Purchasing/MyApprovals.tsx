@@ -54,6 +54,7 @@ import {
   RefreshCw,
   Filter,
   AlertTriangle,
+  Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -557,11 +558,25 @@ export default function MyApprovals() {
                             <span>{req.title || `Purchase Request #${req.id}`}</span>
                             <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-indigo-500 shrink-0" />
                           </div>
-                          {req.gl_code && (
-                            <div className="mt-1">
-                              {renderGLAccountBadge(req.gl_code, glCodes)}
-                            </div>
-                          )}
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            {req.gl_code && (
+                              <div>
+                                {renderGLAccountBadge(req.gl_code, glCodes)}
+                              </div>
+                            )}
+                            {req.item_url && (
+                              <a
+                                href={req.item_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline hover:text-indigo-700 dark:hover:text-indigo-300 bg-indigo-50/60 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-800/40"
+                              >
+                                <ExternalLink className="w-3 h-3 shrink-0" />
+                                <span>Item Link</span>
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
 
@@ -738,6 +753,20 @@ export default function MyApprovals() {
                     <SheetTitle className="text-lg font-bold text-slate-900 dark:text-zinc-100 mt-1">
                       {previewRequest.title || `Purchase Request #${previewRequest.id}`}
                     </SheetTitle>
+                    {previewRequest.item_url && (
+                      <div className="mt-2">
+                        <a
+                          href={previewRequest.item_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 bg-indigo-50/80 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 px-2.5 py-1 rounded-md border border-indigo-200/80 dark:border-indigo-800/60 transition-colors"
+                        >
+                          <Globe className="w-3.5 h-3.5 shrink-0" />
+                          <span>View Item / Product Link</span>
+                          <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
+                        </a>
+                      </div>
+                    )}
                   </div>
                   <Badge
                     variant="outline"
@@ -801,6 +830,21 @@ export default function MyApprovals() {
                       {getStatusLabel(previewRequest.status)}
                     </span>
                   </div>
+                  {previewRequest.item_url && (
+                    <div className="col-span-2 pt-2 border-t border-slate-200/60 dark:border-zinc-800/60 flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground block text-[11px]">Product Link</span>
+                      <a
+                        href={previewRequest.item_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline max-w-[280px] truncate"
+                      >
+                        <Globe className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{previewRequest.item_url}</span>
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 {/* Description / Terms */}
