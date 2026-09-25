@@ -26,11 +26,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient, BASE_URL } from "@/services/apiClient";
+import { apiClient } from "@/services/apiClient";
 import ThemeSwitch from "./ThemeSwitch";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
-import { useUnreadNotificationCount } from "@/hooks/useNotifications";
+import { useUnreadNotificationCount, useNotificationStream } from "@/hooks/useNotifications";
 import { NotificationDropdownContent } from "./NotificationDropdown";
 import FloatingChat from "./FloatingChat";
 
@@ -215,83 +215,67 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
 
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    // Connect to SSE stream
-    const token = sessionStorage.getItem("token") || "";
-    const eventSource = new EventSource(`${BASE_URL || ""}/api/notifications/stream?token=${token}`, { withCredentials: true });
+  // Subscribes to the shared notification socket owned by useNotificationStream,
+  // rather than opening a second connection of its own.
+  const handleNotification = (newNotif: any) => {
+    // Invalidate queries so that the notification list and count fetch the latest state
+    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+    queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+    queryClient.invalidateQueries({ queryKey: ["purchasing-summary"] });
+    queryClient.invalidateQueries({ queryKey: ["my-approvals-list"] });
+    queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+    queryClient.invalidateQueries({ queryKey: ["recurring-requests-notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    queryClient.invalidateQueries({ queryKey: ["invoices"] });
 
-    eventSource.onmessage = (event) => {
-      try {
-        const newNotif = JSON.parse(event.data);
-        // Invalidate queries so that the notification list and count fetch the latest state
-        queryClient.invalidateQueries({ queryKey: ["notifications"] });
-        queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
-        queryClient.invalidateQueries({ queryKey: ["purchasing"] });
-        queryClient.invalidateQueries({ queryKey: ["purchasing-summary"] });
-        queryClient.invalidateQueries({ queryKey: ["my-approvals-list"] });
-        queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
-        queryClient.invalidateQueries({ queryKey: ["recurring-requests-notifications"] });
-        queryClient.invalidateQueries({ queryKey: ["tasks"] });
-        queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    // Skip toast and system popups for internal workflow sync broadcasts
+    if (newNotif.type === "WORKFLOW_SYNC") {
+      return;
+    }
 
-        // Skip toast and system popups for internal workflow sync broadcasts
-        if (newNotif.type === "WORKFLOW_SYNC") {
-          return;
+    // Only display toast/desktop alerts if this notification is targeted to the logged-in user
+    const currentUserId = user?.id || (user as any)?.sub;
+    const isTargetUser =
+      !newNotif.user_id ||
+      newNotif.user_id === "*" ||
+      (currentUserId && String(newNotif.user_id).toLowerCase() === String(currentUserId).toLowerCase()) ||
+      (user?.email && String(newNotif.user_id).toLowerCase() === String(user.email).toLowerCase());
+
+    if (!isTargetUser) {
+      return;
+    }
+
+    const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "Zenatech Portal";
+
+    if (inAppAlerts) {
+      toast(
+        <div
+          className="cursor-pointer w-full flex flex-col gap-1"
+          onClick={() => newNotif.link_url && navigate(newNotif.link_url)}
+        >
+          <div className="font-medium">{capitalizedTitle}</div>
+          <div className="text-sm text-slate-500 dark:text-zinc-400 whitespace-pre-line">{newNotif.message}</div>
+        </div>,
+        {
+          position: "bottom-right",
+          duration: 5000,
+          closeButton: true,
         }
+      );
+    }
 
-        // Only display toast/desktop alerts if this notification is targeted to the logged-in user
-        const currentUserId = user?.id || (user as any)?.sub;
-        const isTargetUser =
-          !newNotif.user_id ||
-          newNotif.user_id === "*" ||
-          (currentUserId && String(newNotif.user_id).toLowerCase() === String(currentUserId).toLowerCase()) ||
-          (user?.email && String(newNotif.user_id).toLowerCase() === String(user.email).toLowerCase());
+    if (windowsNotifications && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      sendWindowsNotification(
+        capitalizedTitle,
+        newNotif.message || "New notification received",
+        newNotif.link_url,
+        (url) => navigate(url)
+      );
+    }
+  };
 
-        if (!isTargetUser) {
-          return;
-        }
-
-        const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "Zenatech Portal";
-
-        if (inAppAlerts) {
-          toast(
-            <div
-              className="cursor-pointer w-full flex flex-col gap-1"
-              onClick={() => newNotif.link_url && navigate(newNotif.link_url)}
-            >
-              <div className="font-medium">{capitalizedTitle}</div>
-              <div className="text-sm text-slate-500 dark:text-zinc-400 whitespace-pre-line">{newNotif.message}</div>
-            </div>,
-            {
-              position: "bottom-right",
-              duration: 5000,
-              closeButton: true,
-            }
-          );
-        }
-
-        if (windowsNotifications && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-          sendWindowsNotification(
-            capitalizedTitle,
-            newNotif.message || "New notification received",
-            newNotif.link_url,
-            (url) => navigate(url)
-          );
-        }
-      } catch (err) {
-        console.error("Failed to parse SSE notification:", err);
-      }
-    };
-
-    eventSource.onerror = (err) => {
-      console.error("EventSource failed:", err);
-      // Browser handles reconnection automatically for SSE
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, [inAppAlerts, windowsNotifications, navigate, queryClient]);
+  useNotificationStream({ onNotification: handleNotification });
 
 
 

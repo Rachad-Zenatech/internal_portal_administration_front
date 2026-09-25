@@ -159,6 +159,16 @@ export type PurchaseRequest = {
   review_status?: "WAITING_FOR_REVIEW" | "REVIEWED" | null;
   current_approval_level?: number | null;
   requires_second_level?: boolean | null;
+  second_level_requested?: boolean | null;
+  second_level_reason?: string | null;
+  level_1_approver_id?: string | null;
+  level_1_approver_name?: string | null;
+  level_1_approved_at?: string | null;
+  level_1_comment?: string | null;
+  level_2_approver_id?: string | null;
+  level_2_approver_name?: string | null;
+  level_2_approved_at?: string | null;
+  level_2_comment?: string | null;
   due_date?: string | null;
   recurring_schedule?: RecurringSchedule | null;
   created_at: string;

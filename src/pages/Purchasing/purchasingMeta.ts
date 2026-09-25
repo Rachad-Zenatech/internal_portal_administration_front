@@ -135,7 +135,7 @@ export const ACTION_META: Record<WorkflowAction, { label: string; form?: "po" | 
   SUBMIT_REQUEST: { label: "Submit Request", variant: "default" },
   DELETE_REQUEST: { label: "Delete Request", variant: "destructive" },
   START_REVIEW: { label: "Start Review", variant: "default" },
-  CREATE_PO: { label: "Quote / PO #", form: "po", variant: "default" },
+  CREATE_PO: { label: "Review Purchase", form: "po", variant: "default" },
   APPROVE: { label: "Approve", form: "approval", variant: "default" },
   REJECT: { label: "Reject", form: "approval", variant: "destructive" },
   MARK_PURCHASED: { label: "Mark Purchased", variant: "default" },
