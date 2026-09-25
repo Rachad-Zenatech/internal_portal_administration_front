@@ -26,11 +26,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient, BASE_URL } from "@/services/apiClient";
+import { apiClient } from "@/services/apiClient";
 import ThemeSwitch from "./ThemeSwitch";
 import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
-import { useUnreadNotificationCount } from "@/hooks/useNotifications";
+import { useUnreadNotificationCount, useNotificationStream } from "@/hooks/useNotifications";
 import { NotificationDropdownContent } from "./NotificationDropdown";
 import FloatingChat from "./FloatingChat";
 
@@ -215,130 +215,67 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
 
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    // Real-time notifications run over WebSocket rather than SSE: CloudFront
-    // caps the total duration of a streaming HTTP response at ~60s, which
-    // severed the SSE stream every minute and produced a permanent reconnect
-    // loop (ERR_HTTP2_PROTOCOL_ERROR alongside a 200).
-    let socket: WebSocket | null = null;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    let isMounted = true;
+  // Subscribes to the shared notification socket owned by useNotificationStream,
+  // rather than opening a second connection of its own.
+  const handleNotification = (newNotif: any) => {
+    // Invalidate queries so that the notification list and count fetch the latest state
+    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+    queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+    queryClient.invalidateQueries({ queryKey: ["purchasing-summary"] });
+    queryClient.invalidateQueries({ queryKey: ["my-approvals-list"] });
+    queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+    queryClient.invalidateQueries({ queryKey: ["recurring-requests-notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    queryClient.invalidateQueries({ queryKey: ["invoices"] });
 
-    const toWebSocketScheme = (url: string) => url.replace(/^http/i, "ws");
+    // Skip toast and system popups for internal workflow sync broadcasts
+    if (newNotif.type === "WORKFLOW_SYNC") {
+      return;
+    }
 
-    const handleNotification = (newNotif: any) => {
-        // Invalidate queries so that the notification list and count fetch the latest state
-        queryClient.invalidateQueries({ queryKey: ["notifications"] });
-        queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
-        queryClient.invalidateQueries({ queryKey: ["purchasing"] });
-        queryClient.invalidateQueries({ queryKey: ["purchasing-summary"] });
-        queryClient.invalidateQueries({ queryKey: ["my-approvals-list"] });
-        queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
-        queryClient.invalidateQueries({ queryKey: ["recurring-requests-notifications"] });
-        queryClient.invalidateQueries({ queryKey: ["tasks"] });
-        queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    // Only display toast/desktop alerts if this notification is targeted to the logged-in user
+    const currentUserId = user?.id || (user as any)?.sub;
+    const isTargetUser =
+      !newNotif.user_id ||
+      newNotif.user_id === "*" ||
+      (currentUserId && String(newNotif.user_id).toLowerCase() === String(currentUserId).toLowerCase()) ||
+      (user?.email && String(newNotif.user_id).toLowerCase() === String(user.email).toLowerCase());
 
-        // Skip toast and system popups for internal workflow sync broadcasts
-        if (newNotif.type === "WORKFLOW_SYNC") {
-          return;
+    if (!isTargetUser) {
+      return;
+    }
+
+    const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "Zenatech Portal";
+
+    if (inAppAlerts) {
+      toast(
+        <div
+          className="cursor-pointer w-full flex flex-col gap-1"
+          onClick={() => newNotif.link_url && navigate(newNotif.link_url)}
+        >
+          <div className="font-medium">{capitalizedTitle}</div>
+          <div className="text-sm text-slate-500 dark:text-zinc-400 whitespace-pre-line">{newNotif.message}</div>
+        </div>,
+        {
+          position: "bottom-right",
+          duration: 5000,
+          closeButton: true,
         }
+      );
+    }
 
-        // Only display toast/desktop alerts if this notification is targeted to the logged-in user
-        const currentUserId = user?.id || (user as any)?.sub;
-        const isTargetUser =
-          !newNotif.user_id ||
-          newNotif.user_id === "*" ||
-          (currentUserId && String(newNotif.user_id).toLowerCase() === String(currentUserId).toLowerCase()) ||
-          (user?.email && String(newNotif.user_id).toLowerCase() === String(user.email).toLowerCase());
+    if (windowsNotifications && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      sendWindowsNotification(
+        capitalizedTitle,
+        newNotif.message || "New notification received",
+        newNotif.link_url,
+        (url) => navigate(url)
+      );
+    }
+  };
 
-        if (!isTargetUser) {
-          return;
-        }
-
-        const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "Zenatech Portal";
-
-        if (inAppAlerts) {
-          toast(
-            <div
-              className="cursor-pointer w-full flex flex-col gap-1"
-              onClick={() => newNotif.link_url && navigate(newNotif.link_url)}
-            >
-              <div className="font-medium">{capitalizedTitle}</div>
-              <div className="text-sm text-slate-500 dark:text-zinc-400 whitespace-pre-line">{newNotif.message}</div>
-            </div>,
-            {
-              position: "bottom-right",
-              duration: 5000,
-              closeButton: true,
-            }
-          );
-        }
-
-        if (windowsNotifications && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-          sendWindowsNotification(
-            capitalizedTitle,
-            newNotif.message || "New notification received",
-            newNotif.link_url,
-            (url) => navigate(url)
-          );
-        }
-    };
-
-    const connect = () => {
-      if (!isMounted) return;
-      try {
-        const rawBase = BASE_URL || "";
-        const base = /^https?:\/\//i.test(rawBase)
-          ? toWebSocketScheme(rawBase)
-          : `${toWebSocketScheme(window.location.origin)}${rawBase}`;
-        const token = sessionStorage.getItem("token") || "";
-        const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
-
-        socket = new WebSocket(`${base}/ws/notifications${tokenParam}`);
-
-        socket.onmessage = (event) => {
-          try {
-            const payload = JSON.parse(event.data);
-            // Keep-alive frames carry no notification payload.
-            if (!payload || payload.type === "ping") return;
-            handleNotification(payload);
-          } catch (err) {
-            console.error("Failed to parse notification frame:", err);
-          }
-        };
-
-        socket.onclose = () => {
-          socket = null;
-          // Unlike EventSource, WebSocket does not reconnect on its own.
-          if (isMounted) {
-            reconnectTimeout = setTimeout(connect, 5000);
-          }
-        };
-
-        socket.onerror = () => {
-          // onclose always follows and owns the reconnect.
-          socket?.close();
-        };
-      } catch {
-        if (isMounted) {
-          reconnectTimeout = setTimeout(connect, 5000);
-        }
-      }
-    };
-
-    connect();
-
-    return () => {
-      isMounted = false;
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      if (socket) {
-        // Detach before closing so unmount does not schedule a reconnect and
-        // leave an extra socket behind.
-        socket.onclose = null;
-        socket.close();
-      }
-    };
-  }, [inAppAlerts, windowsNotifications, navigate, queryClient]);
+  useNotificationStream({ onNotification: handleNotification });
 
 
 
