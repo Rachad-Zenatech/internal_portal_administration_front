@@ -1081,7 +1081,7 @@ export default function RequestDetail() {
           {/* Workflow Transition Action Buttons */}
           {available_actions.filter(a => {
             if (a === "DELETE_REQUEST") return false;
-            if ((isRecurring || isAPRequest) && a === "CREATE_PO") return false;
+            if (a === "CREATE_PO" && (isRecurring || isAPRequest || Boolean(purchase_order) || request.status !== "UNDER_REVIEW")) return false;
             return true;
           }).length > 0 && (
             <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -1101,7 +1101,7 @@ export default function RequestDetail() {
               {available_actions
                 .filter(a => {
                   if (a === "DELETE_REQUEST") return false;
-                  if ((isRecurring || isAPRequest) && a === "CREATE_PO") return false;
+                  if (a === "CREATE_PO" && (isRecurring || isAPRequest || Boolean(purchase_order) || request.status !== "UNDER_REVIEW")) return false;
                   return true;
                 })
                 .map((action) => {
@@ -1144,7 +1144,7 @@ export default function RequestDetail() {
             </div>
           )}
 
-          {isSelfApprovalBlocked && available_actions.filter(a => a !== "DELETE_REQUEST" && !((isRecurring || isAPRequest) && a === "CREATE_PO")).length === 0 && (
+          {isSelfApprovalBlocked && available_actions.filter(a => a !== "DELETE_REQUEST" && !(a === "CREATE_PO" && (isRecurring || isAPRequest || Boolean(purchase_order) || request.status !== "UNDER_REVIEW"))).length === 0 && (
             <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900/60 px-2.5 py-1 rounded-md shrink-0">
               <ShieldAlert className="h-3.5 w-3.5 text-amber-600 shrink-0" />
               <span>Awaiting review by another approver (self-approval prohibited)</span>
