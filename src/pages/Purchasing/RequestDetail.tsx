@@ -110,6 +110,7 @@ import type {
   HoldInput,
   TransitionInput,
   WorkflowAction,
+  PaymentMethod,
 } from "@/types/purchasing";
 
 
@@ -2575,15 +2576,6 @@ export default function RequestDetail() {
             {activeForm?.kind === "po" && (
               <>
                 <TwoUp>
-                  <FieldInput
-                    label={
-                      <span>
-                        Quote / PO # <span className="text-slate-400 text-xs font-normal">(Optional)</span>
-                      </span>
-                    }
-                    value={po.quote_number ?? ""}
-                    onChange={(v) => setPo({ ...po, quote_number: v })}
-                  />
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
                       Vendor <span className="text-red-500">*</span>
@@ -2594,8 +2586,15 @@ export default function RequestDetail() {
                       placeholder="Search or enter vendor name..."
                     />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Payment Format <span className="text-red-500">*</span></label>
+                    <PaymentMethodSelect
+                      value={po.payment_method}
+                      onChange={(v) => setPo({ ...po, payment_method: v })}
+                    />
+                  </div>
                 </TwoUp>
-                <TwoUp>
+                <div className="space-y-2">
                   <FieldInput
                     label={
                       <span>
@@ -2606,14 +2605,7 @@ export default function RequestDetail() {
                     onChange={(v) => setPo({ ...po, item: v })}
                     placeholder={isMulti ? "Multiple Parts / Items" : "Product or Item name"}
                   />
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Payment Format <span className="text-red-500">*</span></label>
-                    <PaymentMethodSelect
-                      value={po.payment_method}
-                      onChange={(v) => setPo({ ...po, payment_method: v })}
-                    />
-                  </div>
-                </TwoUp>
+                </div>
 
                 {!isMulti ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
