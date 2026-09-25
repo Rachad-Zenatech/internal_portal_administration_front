@@ -226,7 +226,7 @@ export default function QuickBooksPage() {
       const yearParam = (!isDateActive && selectedYear !== "ALL") ? parseInt(selectedYear, 10) : null;
       const monthParam = (!isDateActive && selectedMonth !== "ALL") ? parseInt(selectedMonth, 10) : null;
       const data = await getQuickBooksPreview({
-        status: "COMPLETED",
+        status: "ORDERED / PURCHASED",
         start_date: startDate ? startDate : null,
         end_date: endDate ? endDate : null,
         year: yearParam,
@@ -430,7 +430,7 @@ export default function QuickBooksPage() {
     const nowIso = new Date().toISOString();
     try {
       let idsParam: string[] | undefined;
-      let statusParam: string | undefined = "COMPLETED";
+      let statusParam: string | undefined = "ORDERED / PURCHASED";
       let yearParam: number | null = null;
       let monthParam: number | null = null;
       let startDt: string | null = null;
@@ -579,7 +579,7 @@ export default function QuickBooksPage() {
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Staged Ledger Value</p>
               <h3 className="text-2xl font-bold text-foreground mt-1">{totalAmountStr}</h3>
               <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                <span className="font-semibold text-foreground">{totalStaged}</span> completed items ready
+                <span className="font-semibold text-foreground">{totalStaged}</span> staged items ready
               </p>
             </div>
             <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20 shadow-2xs">
@@ -845,7 +845,7 @@ export default function QuickBooksPage() {
                   </div>
                   <h4 className="text-sm font-semibold text-foreground">No matching staged items found</h4>
                   <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                    Transactions must have status "COMPLETED" to be staged for QuickBooks Online export and synchronization.
+                    Transactions must have status "Ordered / Purchased" and after to be staged for QuickBooks Online export and synchronization.
                   </p>
                 </div>
               ) : (

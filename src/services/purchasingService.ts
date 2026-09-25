@@ -195,7 +195,7 @@ export function exportQuickBooksCsv(
   const nameParts = ["QuickBooks_Export"];
   if (year) nameParts.push(String(year));
   if (month) nameParts.push(String(month).padStart(2, "0"));
-  if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
+  if (status && status !== "ALL" && status !== "COMPLETED" && status !== "ORDERED / PURCHASED") nameParts.push(status);
   const filename = `${nameParts.join("_")}.csv`;
 
   return apiClient.downloadFile(`${BASE}/export/quickbooks/csv${qs}`, filename);
@@ -237,7 +237,7 @@ export function exportQuickBooksXlsx(
   const nameParts = ["QuickBooks_Export"];
   if (year) nameParts.push(String(year));
   if (month) nameParts.push(String(month).padStart(2, "0"));
-  if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
+  if (status && status !== "ALL" && status !== "COMPLETED" && status !== "ORDERED / PURCHASED") nameParts.push(status);
   const filename = `${nameParts.join("_")}.xlsx`;
 
   return apiClient.downloadFile(`${BASE}/export/quickbooks/xlsx${qs}`, filename);
@@ -275,7 +275,7 @@ export function exportQuickBooksBundle(
   const nameParts = ["QuickBooks_Export_Bundle"];
   if (year) nameParts.push(String(year));
   if (month) nameParts.push(String(month).padStart(2, "0"));
-  if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
+  if (status && status !== "ALL" && status !== "COMPLETED" && status !== "ORDERED / PURCHASED") nameParts.push(status);
   const filename = `${nameParts.join("_")}.zip`;
 
   return apiClient.downloadFile(`${BASE}/export/quickbooks/bundle${qs}`, filename);
@@ -313,7 +313,7 @@ export function exportQuickBooksDocuments(
   const nameParts = ["QuickBooks_Documents"];
   if (year) nameParts.push(String(year));
   if (month) nameParts.push(String(month).padStart(2, "0"));
-  if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
+  if (status && status !== "ALL" && status !== "COMPLETED" && status !== "ORDERED / PURCHASED") nameParts.push(status);
   const filename = `${nameParts.join("_")}.zip`;
 
   return apiClient.downloadFile(`${BASE}/export/quickbooks/documents${qs}`, filename);
@@ -351,7 +351,7 @@ export function exportQuickBooksReconciliation(
   const nameParts = ["QuickBooks_Reconciliation"];
   if (year) nameParts.push(String(year));
   if (month) nameParts.push(String(month).padStart(2, "0"));
-  if (status && status !== "ALL" && status !== "COMPLETED") nameParts.push(status);
+  if (status && status !== "ALL" && status !== "COMPLETED" && status !== "ORDERED / PURCHASED") nameParts.push(status);
   const filename = `${nameParts.join("_")}.csv`;
 
   return apiClient.downloadFile(`${BASE}/export/quickbooks/reconciliation${qs}`, filename);
@@ -450,6 +450,8 @@ export interface QuickBooksPreviewItem {
   class?: string;
   location: string;
   from_location?: string;
+  status?: string;
+  request_status?: string;
   ref_no: string;
   doc_number: string;
   memo: string;
