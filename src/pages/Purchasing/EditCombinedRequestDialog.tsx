@@ -750,8 +750,15 @@ export function EditCombinedRequestDialog({
     }
 
     if (hasPo) {
-      if (!poQuoteNumber.trim()) {
-        toast.error("Quote / PO # is required in Purchase Order");
+      const isPurchasedOrLater =
+        request?.status === RequestStatus.Purchased ||
+        request?.status === RequestStatus.Shipped ||
+        request?.status === RequestStatus.GoodsReceived ||
+        request?.status === RequestStatus.InvoiceReceived ||
+        request?.status === RequestStatus.Completed;
+
+      if (isPurchasedOrLater && !poQuoteNumber.trim()) {
+        toast.error("Quote / PO # is required for Purchased / Ordered requests");
         setActiveTab("po");
         return;
       }
@@ -1645,7 +1652,7 @@ export function EditCombinedRequestDialog({
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                      Quote / PO # <span className="text-rose-500">*</span>
+                      Quote / PO #
                     </label>
                     <Input
                       value={poQuoteNumber}
