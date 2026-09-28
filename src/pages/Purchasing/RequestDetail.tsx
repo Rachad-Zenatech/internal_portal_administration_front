@@ -1666,18 +1666,26 @@ export default function RequestDetail() {
                             <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
                               {request.recurring_schedule?.total_installments 
                                 ? `${request.recurring_schedule?.completed_installments || 0} / ${request.recurring_schedule?.total_installments} Cycles` 
-                                : `${request.recurring_schedule?.completed_installments || 0} Cycles Settled (Ongoing)`}
+                                : `${request.recurring_schedule?.completed_installments || 0} Cycles Settled`}
                             </div>
-                            <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                              <div
-                                className="bg-indigo-600 h-full rounded-full transition-all"
-                                style={{
-                                  width: request.recurring_schedule?.total_installments 
-                                    ? `${Math.min(100, Math.round(((request.recurring_schedule?.completed_installments || 0) / request.recurring_schedule?.total_installments) * 100))}%`
-                                    : ((request.recurring_schedule?.completed_installments || 0) > 0 ? "100%" : "0%")
-                                }}
-                              />
-                            </div>
+                            {request.recurring_schedule?.total_installments ? (
+                              <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                                <div
+                                  className="bg-indigo-600 h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${Math.min(100, Math.round(((request.recurring_schedule?.completed_installments || 0) / request.recurring_schedule?.total_installments) * 100))}%`
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                </span>
+                                <span>Ongoing Cadence • Cycle {(request.recurring_schedule?.completed_installments || 0) + 1} Active</span>
+                              </div>
+                            )}
                           </div>
 
                           <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
@@ -2507,16 +2515,28 @@ export default function RequestDetail() {
                           {isScheduledPayment ? "Milestones Settled" : "Cycle Progress"}
                         </div>
                         <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                          {request.recurring_schedule?.completed_installments || 0} / {request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 24} {isScheduledPayment ? "Milestones" : "Cycles"}
+                          {request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length
+                            ? `${request.recurring_schedule?.completed_installments || 0} / ${request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length} ${isScheduledPayment ? "Milestones" : "Cycles"}`
+                            : `${request.recurring_schedule?.completed_installments || 0} Cycles Settled`}
                         </div>
-                        <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                          <div
-                            className="bg-indigo-600 h-full rounded-full transition-all"
-                            style={{
-                              width: `${Math.min(100, Math.round(((request.recurring_schedule?.completed_installments || 0) / (request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 24)) * 100))}%`
-                            }}
-                          />
-                        </div>
+                        {request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length ? (
+                          <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                            <div
+                              className="bg-indigo-600 h-full rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(100, Math.round(((request.recurring_schedule?.completed_installments || 0) / (request.recurring_schedule?.total_installments || request.recurring_schedule?.schedule_dates?.length || 1)) * 100))}%`
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                            </span>
+                            <span>Ongoing Cadence • Cycle {(request.recurring_schedule?.completed_installments || 0) + 1} Active</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">

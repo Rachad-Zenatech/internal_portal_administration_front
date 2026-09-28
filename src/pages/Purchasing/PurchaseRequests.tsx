@@ -87,7 +87,6 @@ import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
 import { WireBankingFields } from "./WireBankingFields";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
-  PRIORITY_BADGE,
   STATUS_FILTER_OPTIONS,
   getStatusBadge,
   getStatusLabel,
@@ -99,6 +98,7 @@ import { useAuth, type Role } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { QuickBooksExportDialog } from "./QuickBooksExportDialog";
+import PrioritySelector from "./PrioritySelector";
 import { uploadAttachments, extractProductInfoFromUrl } from "@/services/purchasingService";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 
@@ -972,10 +972,12 @@ export function PurchaseRequests() {
                   <TableCell className="font-semibold text-slate-900 dark:text-zinc-100 whitespace-nowrap">
                     {formatMoney(r.amount)}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <Badge variant="outline" className={PRIORITY_BADGE[r.priority]}>
-                      {r.priority}
-                    </Badge>
+                  <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <PrioritySelector
+                      requestId={r.id}
+                      priority={r.priority}
+                      size="xs"
+                    />
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <Badge variant="outline" className={getStatusBadge(r.status)}>

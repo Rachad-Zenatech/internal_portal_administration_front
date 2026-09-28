@@ -548,25 +548,25 @@ export default function SystemLogsPage() {
       {/* ── Main Audit Logs Table ── */}
       <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xs overflow-hidden flex flex-col flex-1 min-h-[400px]">
         <div className="overflow-x-auto flex-1">
-          <Table>
+          <Table className="min-w-[1080px] w-full">
             <TableHeader className="bg-slate-50/70 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-zinc-800">
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[180px] font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider py-3.5">
+                <TableHead className="w-[180px] min-w-[180px] font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider py-3.5 pl-4">
                   Timestamp
                 </TableHead>
-                <TableHead className="w-[240px] font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider">
+                <TableHead className="w-[220px] min-w-[200px] font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider">
                   Actor / User
                 </TableHead>
-                <TableHead className="w-[190px] font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider">
+                <TableHead className="w-[160px] min-w-[150px] font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider">
                   Action
                 </TableHead>
-                <TableHead className="w-[280px] font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider">
+                <TableHead className="w-[300px] min-w-[240px] max-w-[340px] font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider">
                   Target Entity
                 </TableHead>
-                <TableHead className="font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider">
+                <TableHead className="min-w-[220px] font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider">
                   Summary & Context
                 </TableHead>
-                <TableHead className="w-[100px] text-right font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider pr-4">
+                <TableHead className="w-[100px] min-w-[90px] text-right font-semibold text-slate-700 dark:text-zinc-300 text-xs uppercase tracking-wider pr-4">
                   Actions
                 </TableHead>
               </TableRow>
@@ -619,18 +619,18 @@ export default function SystemLogsPage() {
                     <TableRow
                       key={log.id}
                       onClick={() => handleOpenInspector(log)}
-                      className="cursor-pointer hover:bg-slate-50/80 dark:hover:bg-zinc-900/60 transition-colors group"
+                      className="cursor-pointer hover:bg-slate-50/80 dark:hover:bg-zinc-900/60 transition-colors group border-b border-slate-100 dark:border-zinc-800/60"
                     >
                       {/* 1. Timestamp */}
-                      <TableCell className="py-3 font-medium">
-                        <div className="space-y-0.5">
-                          <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
-                            <Clock className="h-3 w-3 text-muted-foreground" />
+                      <TableCell className="py-3 pl-4 font-medium whitespace-nowrap w-[180px] min-w-[180px]">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5 whitespace-nowrap">
+                            <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
                             <span>{dateInfo.time}</span>
                           </div>
-                          <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                          <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 whitespace-nowrap">
                             <span>{dateInfo.date}</span>
-                            <span className="text-[10px] px-1 py-0 rounded bg-slate-100 dark:bg-zinc-800 text-slate-500 font-mono">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-500 font-mono font-medium">
                               {dateInfo.relative}
                             </span>
                           </div>
@@ -638,16 +638,16 @@ export default function SystemLogsPage() {
                       </TableCell>
 
                       {/* 2. Actor / User */}
-                      <TableCell className="py-3">
-                        <div className="flex items-center gap-2.5">
+                      <TableCell className="py-3 w-[220px] min-w-[200px] max-w-[240px]">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-indigo-500 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs ring-1 ring-white dark:ring-zinc-900">
                             {getInitials(log.actor_name)}
                           </div>
-                          <div className="min-w-0 flex flex-col">
-                            <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
+                          <div className="min-w-0 flex flex-col flex-1">
+                            <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate" title={log.actor_name || "System Automation"}>
                               {log.actor_name || "System Automation"}
                             </div>
-                            <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
+                            <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1" title={log.actor_email || log.actor_department || ""}>
                               {log.actor_email ? (
                                 <span>{log.actor_email}</span>
                               ) : log.actor_department ? (
@@ -663,18 +663,18 @@ export default function SystemLogsPage() {
                       </TableCell>
 
                       {/* 3. Action */}
-                      <TableCell className="py-3">
+                      <TableCell className="py-3 whitespace-nowrap w-[160px] min-w-[150px]">
                         <Badge
                           variant="outline"
-                          className={`text-xs font-semibold px-2.5 py-1 gap-1.5 inline-flex items-center rounded-lg ${actionMeta.color}`}
+                          className={`text-xs font-semibold px-2.5 py-1 gap-1.5 inline-flex items-center rounded-lg shadow-2xs ${actionMeta.color}`}
                         >
-                          <ActionIcon className={`h-3.5 w-3.5 ${actionMeta.iconColor}`} />
+                          <ActionIcon className={`h-3.5 w-3.5 shrink-0 ${actionMeta.iconColor}`} />
                           <span>{actionMeta.label}</span>
                         </Badge>
                       </TableCell>
 
                       {/* 4. Target Entity */}
-                      <TableCell className="py-3">
+                      <TableCell className="py-3 w-[300px] min-w-[240px] max-w-[340px]">
                         <div className="flex items-center gap-2 min-w-0">
                           {isPurchaseRequest ? (
                             <div
@@ -682,18 +682,18 @@ export default function SystemLogsPage() {
                                 e.stopPropagation();
                                 navigate(`/purchasing/requests/${log.entity_id}`);
                               }}
-                              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline flex items-center gap-1.5 truncate group/link"
-                              title={`Open Purchase Request #${log.entity_id}`}
+                              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline flex items-center gap-2 group/link cursor-pointer min-w-0 overflow-hidden"
+                              title={log.entity_title ? `#${log.entity_id} ${log.entity_title}` : `Request #${log.entity_id}`}
                             >
-                              <span className="p-1 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-mono text-[10px] font-bold border border-indigo-100 dark:border-indigo-900">
+                              <span className="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-mono text-[10px] font-bold border border-indigo-100 dark:border-indigo-900 shrink-0">
                                 #{log.entity_id}
                               </span>
                               <span className="truncate">{log.entity_title || `Request #${log.entity_id}`}</span>
-                              <ExternalLink className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity shrink-0" />
+                              <ExternalLink className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity shrink-0 text-indigo-500" />
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1.5 text-xs truncate">
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
+                            <div className="flex items-center gap-1.5 text-xs truncate min-w-0" title={entityLabel}>
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 font-mono shrink-0">
                                 {log.entity_type}
                               </Badge>
                               <span className="font-medium text-slate-800 dark:text-zinc-200 truncate">
@@ -705,14 +705,14 @@ export default function SystemLogsPage() {
                       </TableCell>
 
                       {/* 5. Summary & Context */}
-                      <TableCell className="py-3">
-                        <div className="text-xs text-slate-600 dark:text-zinc-400 font-normal truncate max-w-md">
+                      <TableCell className="py-3 min-w-[220px] max-w-[380px]">
+                        <div className="text-xs text-slate-600 dark:text-zinc-400 font-normal truncate" title={generateChangeSummary(log)}>
                           {generateChangeSummary(log)}
                         </div>
                       </TableCell>
 
                       {/* 6. Action Button */}
-                      <TableCell className="py-3 text-right pr-4">
+                      <TableCell className="py-3 text-right pr-4 whitespace-nowrap w-[100px] min-w-[90px]">
                         <Button
                           type="button"
                           variant="ghost"

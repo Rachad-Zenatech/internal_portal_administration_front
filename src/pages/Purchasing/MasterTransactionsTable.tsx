@@ -4,6 +4,7 @@ import {
   formatDate,
   formatMoney,
 } from "./purchasingMeta";
+import PrioritySelector from "./PrioritySelector";
 import {
   generatePaymentSchedule,
   type ProjectedInstallment,
@@ -58,6 +59,7 @@ export interface MasterTransactionItem {
   department: string;
   vendor: string;
   category: string;
+  priority: string;
   project?: string;
   dueDate: string;
   amount: number;
@@ -140,6 +142,7 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
           department: req.department,
           vendor: (req as any).vendor || (req as any).company_name || "",
           category: (req as any).category || "",
+          priority: req.priority || "MEDIUM",
           project: (req as any).project || (req as any).project_name || "",
           dueDate: inst.dueDate,
           amount: inst.amount,
@@ -641,6 +644,10 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
                   Requester / Dept
                 </TableHead>
 
+                <TableHead className="font-semibold text-slate-700 dark:text-zinc-200">
+                  Priority
+                </TableHead>
+
                 <TableHead
                   className="text-right cursor-pointer select-none font-semibold text-slate-700 dark:text-zinc-200"
                   onClick={() => toggleSort("amount")}
@@ -671,7 +678,7 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-36 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="h-36 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                       <span className="text-xs">Generating master schedule transactions...</span>
@@ -680,7 +687,7 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
                 </TableRow>
               ) : filteredTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-36 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="h-36 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center gap-1.5">
                       <CalendarClock className="h-7 w-7 text-muted-foreground opacity-40 mb-1" />
                       <p className="text-sm font-medium">No transactions found</p>
@@ -763,6 +770,15 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
                             {t.department || "—"}
                           </span>
                         </div>
+                      </TableCell>
+
+                      {/* 4b. Priority */}
+                      <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <PrioritySelector
+                          requestId={t.id}
+                          priority={t.priority}
+                          size="xs"
+                        />
                       </TableCell>
 
                       {/* 5. Amount & Cumulative Progress */}

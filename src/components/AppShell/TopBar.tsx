@@ -2,7 +2,7 @@ import { ConnectionStatusLight } from "./ConnectionStatusLight";
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Bell, Menu, ShieldCheck, LogOut, User, Mail, BellRing, Settings2, Laptop } from "lucide-react";
+import { Bell, Menu, ShieldCheck, LogOut, User, Mail, BellRing, Settings, Settings2, Laptop } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -33,6 +33,7 @@ import { resolveUserDepartment } from "@/lib/userDepartment";
 import { useUnreadNotificationCount, useNotificationStream } from "@/hooks/useNotifications";
 import { NotificationDropdownContent } from "./NotificationDropdown";
 import FloatingChat from "./FloatingChat";
+import GlobalSettingsDialog from "./GlobalSettingsDialog";
 
 
 function TopBarClock() {
@@ -121,6 +122,7 @@ function sendWindowsNotification(
 
 export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [inAppAlerts, setInAppAlerts] = useState(() => localStorage.getItem("inAppAlerts") !== "false");
@@ -324,6 +326,25 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
           </DropdownMenu>
 
           <FloatingChat />
+
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-full h-8.5 w-8.5 outline-none focus-visible:ring-0 cursor-pointer"
+                  title="System & Notification Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>System & Notification Settings</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -360,6 +381,10 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               <User className="mr-2 h-3.5 w-3.5" />
               <span>Profile</span>
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="cursor-pointer text-xs">
+              <Settings className="mr-2 h-3.5 w-3.5" />
+              <span>Settings</span>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => setIsLogoutOpen(true)}
@@ -371,6 +396,16 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <GlobalSettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        inAppAlerts={inAppAlerts}
+        setInAppAlerts={setInAppAlerts}
+        windowsNotifications={windowsNotifications}
+        onToggleWindowsNotifications={handleToggleWindowsNotifications}
+        onTestWindowsNotification={handleTestWindowsNotification}
+      />
 
       <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
         <DialogContent aria-describedby={undefined} className="w-[95vw] sm:max-w-[600px] p-0 overflow-hidden border-border/50 shadow-2xl rounded-2xl flex flex-col">

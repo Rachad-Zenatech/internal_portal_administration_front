@@ -30,6 +30,8 @@ import {
   ArrowUpDown,
   Trash2,
   Eye,
+  PauseCircle,
+  PlayCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -46,6 +48,7 @@ import {
   type FrequencyType,
   type WireTransferInput,
   type AttachmentInfo,
+  type Priority,
 } from "@/types/purchasing";
 import { FilePreviewModal, type PreviewFileTarget } from "./FilePreviewModal";
 import { WireTransferDialog } from "./WireTransferDialog";
@@ -66,12 +69,20 @@ import {
 } from "./recurringScheduleUtils";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
+import PrioritySelector from "./PrioritySelector";
 import { Button } from "@/components/ui/button";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -119,6 +130,8 @@ export default function PurchaseRequestDetail() {
   const [expandedInstallments, setExpandedInstallments] = useState<Record<number, boolean>>({});
   const [expandedInvoices, setExpandedInvoices] = useState<Record<string | number, boolean>>({});
   const [invoiceSortOrder, setInvoiceSortOrder] = useState<"desc" | "asc">("desc");
+  const [isHoldDialogOpen, setIsHoldDialogOpen] = useState(false);
+  const [holdReason, setHoldReason] = useState("");
 
   const updateWireTransfer = useUpdateWireTransfer(id ?? "");
 
@@ -591,25 +604,34 @@ export default function PurchaseRequestDetail() {
         ? Number(sched.amount_per_cycle)
         : (request.amount || 0));
 
-  const durationInfo = formatRemainingDuration(sched.end_date, sched.start_date);
-  const isOngoing = !sched.total_installments && !sched.end_date;
-  const totalCommitment = sched.total_amount != null 
-    ? sched.total_amount 
+  const durationInfo = isCustomMilestones
+    ? { text: `${sched.schedule_dates?.length || 0} Custom Milestone Dates`, isExpired: false, isNearEnd: false, totalDays: 0 }
+    : formatRemainingDuration(sched.end_date, sched.start_date);
+  const isOngoing = !sched.total_installments && !sched.end_date && !isCustomMilestones;
+  const totalCommitment = sched.total_amount != null
+    ? sched.total_amount
     : (sched.schedule_dates && sched.schedule_dates.length > 0
         ? sched.schedule_dates.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
-        : (sched.total_installments ? sched.total_installments * currentCycleAmount : null));
+        : (sched.total_installments
+            ? sched.total_installments * currentCycleAmount
+            : (sched.end_date && !isCustomMilestones
+                ? calculateInstallmentsCount(sched.start_date, sched.end_date, sched.frequency) * currentCycleAmount
+                : null)));
+  const effectiveTotalCycles = sched.total_installments
+    || (sched.end_date && !isCustomMilestones ? calculateInstallmentsCount(sched.start_date, sched.end_date, sched.frequency) : null)
+    || (isCustomMilestones ? sched.schedule_dates?.length : null);
   const paidToDate = (sched.schedule_dates && sched.schedule_dates.length > 0)
     ? sched.schedule_dates.slice(0, effectiveCompletedInstallments).reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
     : effectiveCompletedInstallments * currentCycleAmount;
 
   const currentCycle = effectiveCompletedInstallments + 1;
-  const totalCycles = sched.total_installments;
+  const totalCycles = effectiveTotalCycles;
   const allCyclesCompleted = Boolean(
     totalCycles && effectiveCompletedInstallments >= totalCycles
   );
   const cycleBracket = parsedStatus === RequestStatus.Completed
-    ? (totalCycles ? ` (${totalCycles}/${totalCycles} Cycles)` : "")
-    : (totalCycles ? ` (Cycle ${Math.min(currentCycle, totalCycles)}/${totalCycles})` : ` (Cycle ${currentCycle})`);
+    ? (totalCycles ? ` (${totalCycles}/${totalCycles} Cycles)` : ` (${effectiveCompletedInstallments} Cycles Completed)`)
+    : (totalCycles ? ` (Cycle ${Math.min(currentCycle, totalCycles)}/${totalCycles})` : ` (Cycle ${currentCycle} - Ongoing)`);
 
   // Generate the full payment installments schedule
   const allInstallments: ProjectedInstallment[] = generatePaymentSchedule(
@@ -647,6 +669,14 @@ export default function PurchaseRequestDetail() {
     setIsRecordInvoiceOpen(true);
   };
 
+  const isOnHold = parsedStatus === RequestStatus.OnHold;
+  const canPutOnHold = parsedStatus !== RequestStatus.Initial &&
+                       parsedStatus !== RequestStatus.New &&
+                       parsedStatus !== RequestStatus.UnderReview &&
+                       parsedStatus !== RequestStatus.Completed &&
+                       parsedStatus !== RequestStatus.Rejected &&
+                       !isOnHold;
+
   // Workflow steps for Recurring Requests
   const workflowSteps = [
     { key: RequestStatus.UnderReview, label: "Under Review" },
@@ -672,6 +702,33 @@ export default function PurchaseRequestDetail() {
         </Button>
 
         <div className="flex items-center gap-2">
+          {isOnHold ? (
+            <Button
+              size="sm"
+              onClick={() =>
+                transitionMutation.mutate({
+                  action: "RESUME_WORKFLOW",
+                  comment: "Resumed workflow from On Hold",
+                })
+              }
+              disabled={transitionMutation.isPending}
+              className="bg-rose-600 hover:bg-rose-700 text-white text-xs gap-1.5 shadow-xs font-semibold"
+            >
+              <PlayCircle className="h-3.5 w-3.5" />
+              Resume Workflow
+            </Button>
+          ) : canPutOnHold ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsHoldDialogOpen(true)}
+              className="text-rose-700 border-rose-300 hover:bg-rose-50 dark:border-rose-900/60 dark:text-rose-300 text-xs gap-1.5 shadow-xs font-medium"
+            >
+              <PauseCircle className="h-3.5 w-3.5 text-rose-600" />
+              Put on Hold
+            </Button>
+          ) : null}
+
           <Button
             size="sm"
             variant="outline"
@@ -709,6 +766,13 @@ export default function PurchaseRequestDetail() {
               >
                 {getStatusLabel(request.status)}{cycleBracket}
               </Badge>
+
+              {/* Priority Selector (1-click inline update) */}
+              <PrioritySelector
+                requestId={request.id}
+                priority={request.priority}
+                size="sm"
+              />
 
               {/* Review status badge with inline toggle action */}
               <button
@@ -768,6 +832,43 @@ export default function PurchaseRequestDetail() {
           </div>
         </div>
 
+        {/* ── On Hold Banner ── */}
+        {isOnHold && (
+          <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0">
+                <PauseCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-rose-900 dark:text-rose-200 flex items-center gap-2">
+                  <span>Recurring Payment is Currently On Hold</span>
+                  <Badge variant="outline" className="bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900/60 dark:text-rose-300 text-[10px] py-0">
+                    Workflow Paused
+                  </Badge>
+                </h4>
+                <p className="text-xs text-rose-700 dark:text-rose-400 mt-0.5">
+                  {request.hold_reason ? `Reason: ${request.hold_reason}` : "Payment workflow is temporarily suspended."}
+                  {request.hold_date ? ` (Since ${formatDate(request.hold_date)})` : ""}
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() =>
+                transitionMutation.mutate({
+                  action: "RESUME_WORKFLOW",
+                  comment: "Resumed workflow from On Hold",
+                })
+              }
+              disabled={transitionMutation.isPending}
+              className="bg-rose-600 hover:bg-rose-700 text-white text-xs gap-1.5 h-8 font-semibold shadow-2xs"
+            >
+              <PlayCircle className="h-3.5 w-3.5" />
+              {transitionMutation.isPending ? "Resuming..." : "Resume Workflow"}
+            </Button>
+          </div>
+        )}
+
         {/* ── Workflow Action Bar / Stepper ── */}
         <div className="pt-4 border-t border-slate-100 dark:border-zinc-800/80 space-y-3">
           <div className="flex items-center justify-between gap-2">
@@ -775,7 +876,11 @@ export default function PurchaseRequestDetail() {
               Workflow Status
             </span>
             <span className="text-xs text-slate-500 dark:text-zinc-400">
-              {isReviewed ? (
+              {isOnHold ? (
+                <span className="text-rose-600 dark:text-rose-400 font-medium">
+                  ⏸ Request is On Hold (Workflow Paused)
+                </span>
+              ) : isReviewed ? (
                 <span className="text-emerald-600 dark:text-emerald-400 font-medium">
                   ✓ Request Reviewed & Verified
                 </span>
@@ -798,7 +903,9 @@ export default function PurchaseRequestDetail() {
                   key={step.key}
                   className={`p-2.5 rounded-xl border flex items-center gap-2.5 text-xs transition-all ${
                     isCurrent
-                      ? "bg-indigo-50/80 border-indigo-300 dark:bg-indigo-950/50 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 font-bold shadow-2xs"
+                      ? isOnHold
+                        ? "bg-rose-50/80 border-rose-300 dark:bg-rose-950/50 dark:border-rose-800 text-rose-950 dark:text-rose-200 font-bold shadow-2xs"
+                        : "bg-indigo-50/80 border-indigo-300 dark:bg-indigo-950/50 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 font-bold shadow-2xs"
                       : isCompleted
                       ? "bg-slate-50 border-slate-200 dark:bg-zinc-800/40 dark:border-zinc-800 text-slate-600 dark:text-zinc-400"
                       : "bg-white dark:bg-zinc-950 border-dashed border-slate-200 dark:border-zinc-800 text-slate-400"
@@ -807,7 +914,9 @@ export default function PurchaseRequestDetail() {
                   <div
                     className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                       isCurrent
-                        ? "bg-indigo-600 text-white"
+                        ? isOnHold
+                          ? "bg-rose-600 text-white"
+                          : "bg-indigo-600 text-white"
                         : isCompleted
                         ? "bg-emerald-600 text-white"
                         : "bg-slate-200 dark:bg-zinc-800 text-slate-500"
@@ -825,7 +934,9 @@ export default function PurchaseRequestDetail() {
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/60 flex items-center justify-between flex-wrap gap-3">
             <div className="text-xs text-slate-700 dark:text-zinc-300 flex items-center gap-2">
               <span className="font-bold text-indigo-600 dark:text-indigo-400">Action Required:</span>
-              {!isReviewed ? (
+              {isOnHold ? (
+                <span>Payment workflow is currently <strong>ON HOLD</strong>. Click 'Resume Workflow' to reactivate schedule processing.</span>
+              ) : !isReviewed ? (
                 <span>Review pending. Click <strong>'Mark as Reviewed'</strong> to enable invoice records and milestone settlements.</span>
               ) : parsedStatus === RequestStatus.InvoiceReceived ? (
                 <span>
@@ -845,7 +956,22 @@ export default function PurchaseRequestDetail() {
             </div>
 
             <div className="flex items-center gap-2">
-              {!isReviewed ? (
+              {isOnHold ? (
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    transitionMutation.mutate({
+                      action: "RESUME_WORKFLOW",
+                      comment: "Resumed workflow from On Hold",
+                    })
+                  }
+                  disabled={transitionMutation.isPending}
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs gap-1.5 h-8 font-semibold shadow-2xs"
+                >
+                  <PlayCircle className="h-3.5 w-3.5" />
+                  {transitionMutation.isPending ? "Resuming..." : "Resume Workflow"}
+                </Button>
+              ) : !isReviewed ? (
                 <Button
                   size="sm"
                   onClick={() => reviewMutation.mutate("REVIEWED")}
@@ -892,6 +1018,18 @@ export default function PurchaseRequestDetail() {
                       Mark Completed
                     </Button>
                   )}
+                  {canPutOnHold && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsHoldDialogOpen(true)}
+                      disabled={transitionMutation.isPending}
+                      className="text-xs h-8 text-rose-700 border-rose-300 hover:bg-rose-50 dark:border-rose-900/60 dark:text-rose-300 font-medium"
+                    >
+                      <PauseCircle className="h-3.5 w-3.5 mr-1 text-rose-600" />
+                      Put on Hold
+                    </Button>
+                  )}
                 </>
               )}
             </div>
@@ -912,9 +1050,9 @@ export default function PurchaseRequestDetail() {
             </p>
           </div>
           <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 border-indigo-200">
-            {isOngoing 
-              ? `${allInstallments.length} Active Cycle (Ongoing)` 
-              : `${allInstallments.length} Total ${allInstallments.length === 1 ? 'Payment' : 'Payments'}`}
+            {isOngoing
+              ? `Ongoing Schedule · Cycle ${currentCycle} Active`
+              : `${totalCycles || allInstallments.length} Total ${(totalCycles || allInstallments.length) === 1 ? 'Payment' : 'Payments'}`}
           </Badge>
         </CardHeader>
 
@@ -1099,12 +1237,20 @@ export default function PurchaseRequestDetail() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+              <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
                 <div className="p-3.5 flex justify-between gap-2">
                   <span className="text-muted-foreground font-medium">Type</span>
                   <Badge variant="outline" className="text-[11px] bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold py-0">
                     Recurring
                   </Badge>
+                </div>
+                <div className="p-3.5 flex justify-between items-center gap-2">
+                  <span className="text-muted-foreground font-medium">Priority</span>
+                  <PrioritySelector
+                    requestId={request.id}
+                    priority={request.priority}
+                    size="xs"
+                  />
                 </div>
                 <div className="p-3.5 flex justify-between gap-2">
                   <span className="text-muted-foreground font-medium">Payment Method</span>
@@ -1171,9 +1317,11 @@ export default function PurchaseRequestDetail() {
                   </span>
                 </div>
                 <div className="p-3.5 flex justify-between gap-2 bg-slate-50/50 dark:bg-zinc-900/30">
-                  <span className="text-muted-foreground font-medium">Total Commitment</span>
+                  <span className="text-muted-foreground font-medium">
+                    {totalCommitment != null ? "Total Commitment" : "Cycle Commitment"}
+                  </span>
                   <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300 text-right">
-                    {formatMoney(totalCommitment ?? currentCycleAmount)} USD
+                    {totalCommitment != null ? `${formatMoney(totalCommitment)} USD` : `${formatMoney(currentCycleAmount)} / cycle (Ongoing)`}
                   </span>
                 </div>
               </div>
@@ -1474,9 +1622,8 @@ export default function PurchaseRequestDetail() {
               {/* Summary KPI Roll-Up Banner for Multiple Records */}
               {allInvoices.length > 0 && (() => {
                 const totalInvoiced = allInvoices.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0);
-                const schedTotal = Number(sched?.total_amount) || (allInstallments.length > 0 ? allInstallments.reduce((sum, i) => sum + (Number(i.amount) || 0), 0) : 0);
-                const totalCycles = allInstallments.length || (sched?.total_installments ? Number(sched.total_installments) : 0);
-                const progressPct = schedTotal > 0 ? Math.min(100, Math.round((totalInvoiced / schedTotal) * 100)) : null;
+                const schedTotal = totalCommitment;
+                const progressPct = schedTotal && schedTotal > 0 ? Math.min(100, Math.round((totalInvoiced / schedTotal) * 100)) : null;
 
                 return (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
@@ -1486,7 +1633,7 @@ export default function PurchaseRequestDetail() {
                         <span className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400">
                           {formatMoney(totalInvoiced)}
                         </span>
-                        {schedTotal > 0 && (
+                        {schedTotal != null && schedTotal > 0 && (
                           <span className="text-[11px] font-mono text-muted-foreground">
                             / {formatMoney(schedTotal)}
                           </span>
@@ -1498,7 +1645,9 @@ export default function PurchaseRequestDetail() {
                       <div className="text-[11px] font-medium text-muted-foreground">Settled Cycles</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                          {allInvoices.length} {totalCycles > 0 ? `of ${totalCycles} Cycles` : (allInvoices.length === 1 ? 'Record' : 'Records')}
+                          {totalCycles
+                            ? `${allInvoices.length} of ${totalCycles} Cycles`
+                            : `${allInvoices.length} ${allInvoices.length === 1 ? 'Cycle Settled (Ongoing)' : 'Cycles Settled (Ongoing)'}`}
                         </span>
                         {progressPct !== null && (
                           <Badge variant="secondary" className="text-[10px] font-mono py-0 px-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
@@ -1728,25 +1877,38 @@ export default function PurchaseRequestDetail() {
                   <span className="text-slate-600 dark:text-zinc-400">Cycle Progress</span>
                   <span className="text-slate-900 dark:text-zinc-100">
                     {sched.total_installments 
-                      ? `${sched.completed_installments || 0} / ${sched.total_installments} Cycles` 
-                      : `${sched.completed_installments || 0} Cycles Settled (Ongoing)`}
+                      ? `${sched.completed_installments || 0} / ${sched.total_installments} Cycles (${Math.min(100, Math.round(((sched.completed_installments || 0) / sched.total_installments) * 100))}%)`
+                      : `${sched.completed_installments || 0} Cycles Settled`}
                   </span>
                 </div>
-                <div className="w-full bg-slate-200 dark:bg-zinc-800 rounded-full h-2.5 overflow-hidden">
-                  <div
-                    className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
-                    style={{
-                      width: sched.total_installments 
-                        ? `${Math.min(
-                            100,
-                            Math.round(
-                              ((sched.completed_installments || 0) / sched.total_installments) * 100
-                            )
-                          )}%`
-                        : ((sched.completed_installments || 0) > 0 ? "100%" : "0%"),
-                    }}
-                  />
-                </div>
+                {sched.total_installments ? (
+                  <div className="w-full bg-slate-200 dark:bg-zinc-800 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.round(
+                            ((sched.completed_installments || 0) / sched.total_installments) * 100
+                          )
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 text-xs">
+                    <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-semibold">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      <span>Ongoing Subscription</span>
+                    </div>
+                    <Badge variant="outline" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-[10px] text-indigo-700 dark:text-indigo-300 font-bold">
+                      Cycle {(sched.completed_installments || 0) + 1} Active
+                    </Badge>
+                  </div>
+                )}
               </div>
 
               {/* Total Commitment Summary Box */}
@@ -2168,7 +2330,7 @@ export default function PurchaseRequestDetail() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Requester</label>
                       <Input
@@ -2187,6 +2349,24 @@ export default function PurchaseRequestDetail() {
                         className="h-10 text-sm"
                         required
                       />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Priority</label>
+                      <Select
+                        value={editForm.priority}
+                        onValueChange={(val) => setEditForm({ ...editForm, priority: val as Priority })}
+                      >
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="Priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="LOW">Low</SelectItem>
+                          <SelectItem value="MEDIUM">Medium</SelectItem>
+                          <SelectItem value="HIGH">High</SelectItem>
+                          <SelectItem value="URGENT">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -2539,6 +2719,70 @@ export default function PurchaseRequestDetail() {
           }}
         />
       )}
+
+      {/* ── Put On Hold Dialog ── */}
+      <Dialog open={isHoldDialogOpen} onOpenChange={setIsHoldDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5 text-rose-600">
+              <PauseCircle className="h-5 w-5" />
+              <DialogTitle className="text-lg font-bold">Put Recurring Payment On Hold</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Temporarily pause processing and cycle advancement for this recurring payment.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                Reason for Hold <span className="text-muted-foreground font-normal">(Optional)</span>
+              </label>
+              <textarea
+                className="w-full text-sm rounded-lg border border-input bg-background px-3 py-2 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                placeholder="e.g. Contract renegotiation, vendor billing verification, budget freeze..."
+                value={holdReason}
+                onChange={(e) => setHoldReason(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsHoldDialogOpen(false);
+                setHoldReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={transitionMutation.isPending}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-medium"
+              onClick={() => {
+                transitionMutation.mutate(
+                  {
+                    action: "PUT_ON_HOLD",
+                    comment: holdReason.trim() || "Put on hold",
+                    hold: { reason: holdReason.trim() || "No reason provided" },
+                  },
+                  {
+                    onSuccess: () => {
+                      setIsHoldDialogOpen(false);
+                      setHoldReason("");
+                    },
+                  }
+                );
+              }}
+            >
+              {transitionMutation.isPending ? "Putting on Hold..." : "Confirm Hold"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Delete Confirmation Dialog ── */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

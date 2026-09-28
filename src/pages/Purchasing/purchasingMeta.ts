@@ -19,7 +19,7 @@ export const STATUS_LABEL: Record<RequestStatus, string> = {
   [RequestStatus.InvoiceReceived]: "Invoice Received",
   [RequestStatus.Completed]: "Completed",
   [RequestStatus.Rejected]: "Rejected",
-  [RequestStatus.OnHold]: "On Hold / Exception",
+  [RequestStatus.OnHold]: "On Hold",
 };
 
 export const STATUS_BADGE: Record<RequestStatus, string> = {

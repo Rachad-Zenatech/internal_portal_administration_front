@@ -457,15 +457,23 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
           )}
 
           {/* Periodic summary info banner */}
-          {!isCustom && startDate && endDate && (
+          {!isCustom && startDate && (
             <div className="p-2.5 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between text-xs text-indigo-950 dark:text-indigo-200 mt-auto">
               <span className="font-medium flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                {formatRemainingDuration(endDate, startDate).text}
+                {endDate ? formatRemainingDuration(endDate, startDate).text : "Ongoing / Indefinite"}
               </span>
               <span>
-                <strong>{calculateInstallmentsCount(startDate, endDate, frequency)}</strong> cycles ·{" "}
-                <strong className="text-indigo-700 dark:text-indigo-300">{formatMoney(calculateInstallmentsCount(startDate, endDate, frequency) * (baseAmount || 0))}</strong>
+                {endDate ? (
+                  <>
+                    <strong>{calculateInstallmentsCount(startDate, endDate, frequency)}</strong> cycles ·{" "}
+                    <strong className="text-indigo-700 dark:text-indigo-300">{formatMoney(calculateInstallmentsCount(startDate, endDate, frequency) * (baseAmount || 0))}</strong>
+                  </>
+                ) : (
+                  <strong className="text-indigo-700 dark:text-indigo-300">
+                    {formatMoney(baseAmount || 0)} / {frequency === "MONTHLY" ? "month" : frequency === "WEEKLY" ? "week" : frequency === "BI_WEEKLY" ? "2 weeks" : frequency === "QUARTERLY" ? "quarter" : frequency === "SEMI_ANNUALLY" ? "6 months" : frequency === "ANNUALLY" ? "year" : "day"} (Ongoing)
+                  </strong>
+                )}
               </span>
             </div>
           )}

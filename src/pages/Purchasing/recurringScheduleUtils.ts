@@ -314,22 +314,27 @@ export function generatePaymentSchedule(
   const startDateStr = startRaw.split("T")[0];
   const frequency = schedule?.frequency || "MONTHLY";
 
-  let totalLimit = schedule?.total_installments;
+  let countLimit: number = schedule?.total_installments || 0;
 
-  if (!totalLimit && schedule?.end_date) {
-    totalLimit = calculateInstallmentsCount(startDateStr, schedule.end_date.split("T")[0], frequency);
+  if (!countLimit && schedule?.end_date) {
+    countLimit = calculateInstallmentsCount(startDateStr, schedule.end_date.split("T")[0], frequency);
   }
-  if (!totalLimit || totalLimit <= 0) {
-    totalLimit = 1; // Default to 1 current active cycle for ongoing recurring
+
+  const isOngoing = !countLimit || countLimit <= 0;
+  if (isOngoing) {
+    // For ongoing / indefinite periodic schedules:
+    // Generate all completed installments, plus the active current installment, plus 12 upcoming projected cycles.
+    countLimit = Math.max(completed + 12, 12);
   }
-  if (totalLimit > 600) {
-    totalLimit = 600; // Hard clamp for UI performance
+
+  if (countLimit > 600) {
+    countLimit = 600; // Hard clamp for UI performance
   }
 
   const installments: ProjectedInstallment[] = [];
   let cumulative = 0;
 
-  for (let i = 1; i <= totalLimit; i++) {
+  for (let i = 1; i <= countLimit; i++) {
     cumulative += amountPerCycle;
     const cycleDate = getCycleDate(startDateStr, frequency, i - 1);
     const dateStr = formatDateToIso(cycleDate);
@@ -405,8 +410,12 @@ export function getRecurringAmounts(
 
       if (schedule.total_amount != null && schedule.total_amount > 0) {
         totalAmt = schedule.total_amount;
-      } else {
+      } else if (schedule.total_installments && schedule.total_installments > 0) {
+        totalAmt = cycleAmt * schedule.total_installments;
+      } else if (schedule.end_date && schedule.start_date) {
         totalAmt = installments.reduce((sum, inst) => sum + (Number(inst.amount) || 0), 0);
+      } else {
+        totalAmt = null;
       }
     } else if (schedule.total_amount != null && schedule.total_amount > 0) {
       totalAmt = schedule.total_amount;

@@ -1,19 +1,20 @@
 import { PageConnectionBanner } from "@/components/ui/PageConnectionBanner";
 import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
-import { Checkbox } from "@/components/ui/checkbox";
+import PrioritySelector from "./PrioritySelector";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
 import { RequestStatus, type PurchaseRequest,
-  type RecurringNotificationSettings, type RequestDetail, type CustomScheduleDate } from "@/types/purchasing";
+  type RequestDetail, type CustomScheduleDate, type Priority } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   formatDate,
   formatMoney,
   getStatusBadge,
   getStatusLabel,
+  PRIORITY_BADGE,
 } from "./purchasingMeta";
 import { useAuth } from "@/lib/AuthContext";
 import { useUsersList, useRolesList } from "@/hooks/usePurchasing";
@@ -64,8 +65,6 @@ import {
   Table as TableIcon,
   Plus,
   AlertTriangle,
-  Settings,
-  Send,
   Search,
   CheckCircle2,
   Clock,
@@ -77,6 +76,7 @@ import {
   Trash2,
   XCircle,
   Layers,
+  PauseCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { deletePurchaseRequest } from "@/services/purchasingService";
@@ -266,6 +266,8 @@ export default function RecurringPayments() {
 
   const [viewMode, setViewMode] = useState<"table" | "calendar" | "master">("table");
   const [searchTerm, setSearchTerm] = useState("");
+  const [dueFilter, setDueFilter] = useState<string>("ALL");
+  const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
   const [reviewFilter, setReviewFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchParams, setSearchParams] = useSearchParams();
@@ -288,7 +290,6 @@ export default function RecurringPayments() {
   };
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [scheduleModalRequest, setScheduleModalRequest] = useState<PurchaseRequest | null>(null);
   const [selectedCalendarInstallment, setSelectedCalendarInstallment] = useState<{
     installmentNumber?: number;
@@ -299,70 +300,6 @@ export default function RecurringPayments() {
     isPaid?: boolean;
   } | null>(null);
 
-
-
-  // Recurring notification settings query
-  const { data: notifSettings, refetch: refetchSettings } = useQuery<RecurringNotificationSettings>({
-    queryKey: ["recurring-notification-settings"],
-    queryFn: async () => {
-      return await apiClient.get<RecurringNotificationSettings>(
-        "/api/purchasing/recurring/notification-settings"
-      );
-    },
-  });
-
-  const [settingsForm, setSettingsForm] = useState<RecurringNotificationSettings>({
-    enabled: true,
-    days_ahead: 7,
-    sender_email: "",
-    reminder_time: "08:30",
-    timezone: "America/New_York",
-    include_requester: true,
-    include_ap: true,
-    include_treasury: true,
-    custom_emails: [],
-  });
-
-  useEffect(() => {
-    if (notifSettings) {
-      setSettingsForm({
-        ...notifSettings,
-        sender_email: notifSettings.sender_email || "",
-      });
-    }
-  }, [notifSettings]);
-
-  const saveSettingsMutation = useMutation({
-    mutationFn: async (payload: RecurringNotificationSettings) => {
-      return await apiClient.put<RecurringNotificationSettings>(
-        "/api/purchasing/recurring/notification-settings",
-        payload
-      );
-    },
-    onSuccess: () => {
-      toast.success("Notification settings saved");
-      setIsSettingsOpen(false);
-      refetchSettings();
-    },
-    onError: (err: any) => {
-      toast.error(err?.message || "Failed to save settings");
-    },
-  });
-
-  const testReminderMutation = useMutation({
-    mutationFn: async () => {
-      return await apiClient.post<any>(
-        `/api/purchasing/recurring/send-due-reminders?force=true&days_ahead=${settingsForm.days_ahead}${settingsForm.sender_email ? `&sender_email=${encodeURIComponent(settingsForm.sender_email)}` : ""}`,
-        {}
-      );
-    },
-    onSuccess: (res: any) => {
-      toast.success(`Dispatched reminders for ${res.count || 0} item(s)`);
-    },
-    onError: (err: any) => {
-      toast.error(err?.message || "Failed to trigger reminder test");
-    },
-  });
   const [editingRequest, setEditingRequest] = useState<PurchaseRequest | null>(null);
   const [selectedCalendarItem, setSelectedCalendarItem] =
     useState<PurchaseRequest | null>(null);
@@ -382,6 +319,8 @@ export default function RecurringPayments() {
       subTitle = "Waiting for Review";
     } else if (cardFilter === "REVIEWED") {
       subTitle = "Reviewed (AP)";
+    } else if (cardFilter === "ON_HOLD") {
+      subTitle = "On Hold";
     } else if (cardFilter === "COMPLETED") {
       subTitle = "Completed";
     } else if (cardFilter === "REJECTED") {
@@ -1059,6 +998,8 @@ export default function RecurringPayments() {
       } else if (cardFilter === "REVIEWED") {
         if (isRejected) return false;
         if (r.review_status !== "REVIEWED") return false;
+      } else if (cardFilter === "ON_HOLD") {
+        if (parsedStatus !== RequestStatus.OnHold && r.status !== "ON_HOLD") return false;
       } else if (cardFilter === "COMPLETED") {
         const isComp = parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID";
         if (!isComp) return false;
@@ -1066,6 +1007,32 @@ export default function RecurringPayments() {
         if (!isRejected) return false;
       } else if (cardFilter === "ALL") {
         if (isRejected) return false;
+      }
+      if (dueFilter !== "ALL") {
+        const isCompOrRej =
+          parsedStatus === RequestStatus.Completed ||
+          parsedStatus === RequestStatus.Rejected ||
+          r.status === "COMPLETED" ||
+          r.status === "REJECTED" ||
+          (r.status as string) === "PAID";
+        if (isCompOrRej) return false;
+
+        const dateStr = r.due_date || r.request_date;
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return false;
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        d.setHours(0, 0, 0, 0);
+        const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (dueFilter === "DUE_TODAY" && diffDays !== 0) return false;
+        if (dueFilter === "DUE_7_DAYS" && (diffDays < 0 || diffDays > 7)) return false;
+        if (dueFilter === "OVERDUE" && diffDays >= 0) return false;
+      }
+      if (priorityFilter !== "ALL") {
+        const p = (r.priority || "MEDIUM").toUpperCase();
+        if (p !== priorityFilter.toUpperCase()) return false;
       }
       if (reviewFilter !== "ALL") {
         const rev = r.review_status || "WAITING_FOR_REVIEW";
@@ -1080,7 +1047,7 @@ export default function RecurringPayments() {
       }
       return true;
     });
-  }, [requests, searchTerm, cardFilter, reviewFilter, statusFilter]);
+  }, [requests, searchTerm, cardFilter, dueFilter, priorityFilter, reviewFilter, statusFilter]);
 
   // Summary statistics
   const stats = useMemo(() => {
@@ -1094,12 +1061,15 @@ export default function RecurringPayments() {
     const reviewed = activeSubs.filter(
       (r) => r.review_status === "REVIEWED"
     ).length;
+    const onHold = requests.filter(
+      (r) => parseRequestStatus(r.status) === RequestStatus.OnHold || r.status === "ON_HOLD"
+    ).length;
     const completed = requests.filter(
       (r) => parseRequestStatus(r.status) === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID"
     ).length;
     const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length;
     const totalAmount = activeSubs.reduce((sum, r) => sum + (r.amount || 0), 0);
-    return { total, maScheduled, dueSoon, waitingReview, reviewed, completed, rejected, totalAmount };
+    return { total, maScheduled, dueSoon, waitingReview, reviewed, onHold, completed, rejected, totalAmount };
   }, [requests]);
 
   if (!canAccess) {
@@ -1219,19 +1189,6 @@ export default function RecurringPayments() {
           </div>
 
           <div className="flex items-center gap-2">
-            
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsSettingsOpen(true)}
-              className="h-9 gap-1.5 border-slate-300 dark:border-zinc-700 font-medium"
-              title="Notification Settings"
-            >
-              <Settings size={15} />
-              <span>Settings</span>
-            </Button>
-
             <Button
               size="sm"
               onClick={handleOpenCreate}
@@ -1281,6 +1238,13 @@ export default function RecurringPayments() {
             count: stats.reviewed,
             icon: CheckCircle2,
             color: "sky",
+          },
+          {
+            key: "ON_HOLD",
+            label: "On Hold",
+            count: stats.onHold,
+            icon: PauseCircle,
+            color: "rose",
           },
           {
             key: "COMPLETED",
@@ -1489,9 +1453,34 @@ export default function RecurringPayments() {
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <Select value={dueFilter} onValueChange={setDueFilter}>
+            <SelectTrigger className="w-[150px] h-9 text-xs">
+              <SelectValue placeholder="Due Date" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Due Dates</SelectItem>
+              <SelectItem value="DUE_TODAY">Due Today</SelectItem>
+              <SelectItem value="DUE_7_DAYS">Due in 7 Days</SelectItem>
+              <SelectItem value="OVERDUE">Overdue</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="w-[140px] h-9 text-xs">
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Priorities</SelectItem>
+              <SelectItem value="URGENT">Urgent</SelectItem>
+              <SelectItem value="HIGH">High</SelectItem>
+              <SelectItem value="MEDIUM">Medium</SelectItem>
+              <SelectItem value="LOW">Low</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Select value={reviewFilter} onValueChange={setReviewFilter}>
-            <SelectTrigger className="w-[180px] h-9 text-xs">
+            <SelectTrigger className="w-[160px] h-9 text-xs">
               <SelectValue placeholder="Review Status" />
             </SelectTrigger>
             <SelectContent>
@@ -1502,7 +1491,7 @@ export default function RecurringPayments() {
           </Select>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px] h-9 text-xs">
+            <SelectTrigger className="w-[160px] h-9 text-xs">
               <SelectValue placeholder="Workflow Status" />
             </SelectTrigger>
             <SelectContent>
@@ -1510,6 +1499,7 @@ export default function RecurringPayments() {
               <SelectItem value="INITIAL">Draft</SelectItem>
               <SelectItem value="WAITING_PAYMENT">Waiting Payment</SelectItem>
               <SelectItem value="INVOICE_RECEIVED">Invoice Received</SelectItem>
+              <SelectItem value="ON_HOLD">On Hold</SelectItem>
               <SelectItem value="COMPLETED">Completed</SelectItem>
               <SelectItem value="REJECTED">Rejected</SelectItem>
             </SelectContent>
@@ -1545,6 +1535,7 @@ export default function RecurringPayments() {
                 <TableHead>Title / Description</TableHead>
                 <TableHead>Requester</TableHead>
                 <TableHead>Department</TableHead>
+                <TableHead className="w-[95px]">Priority</TableHead>
                 <TableHead>Next Due Date</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Workflow Status</TableHead>
@@ -1555,13 +1546,13 @@ export default function RecurringPayments() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                     Loading recurring payments...
                   </TableCell>
                 </TableRow>
               ) : filteredRequests.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                     No recurring payments found matching the current filters.
                   </TableCell>
                 </TableRow>
@@ -1598,6 +1589,13 @@ export default function RecurringPayments() {
                       <TableCell className="text-sm font-medium">{req.requester}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {req.department}
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <PrioritySelector
+                          requestId={req.id}
+                          priority={req.priority}
+                          size="xs"
+                        />
                       </TableCell>
                       <TableCell className="text-sm font-medium">
                         <div className="flex flex-col gap-1 items-start">
@@ -1846,16 +1844,17 @@ export default function RecurringPayments() {
                   );
                   const match = installments.find((inst) => inst.dueDate === cell.dateStr);
                   if (match) {
-                    const totalInst = sched?.total_installments || installments.length;
+                    const isOngoing = !sched?.total_installments && !sched?.end_date && sched?.frequency !== "CUSTOM" && !(sched?.schedule_dates?.length);
+                    const totalInst = sched?.total_installments || (sched?.end_date ? installments.length : null);
                     cellItems.push({
                       id: `${req.id}-inst-${match.installmentNumber}`,
                       request: req,
                       installmentNumber: match.installmentNumber,
-                      totalInstallments: totalInst,
+                      totalInstallments: totalInst || installments.length,
                       isProjected: match.status === "PROJECTED",
                       isPaid: match.status === "PAID",
                       amount: match.amount,
-                      displayTitle: `${req.title} (#${match.installmentNumber}/${totalInst})`,
+                      displayTitle: isOngoing ? `${req.title} (Cycle #${match.installmentNumber})` : `${req.title} (#${match.installmentNumber}/${totalInst || installments.length})`,
                       isReviewed: req.review_status === "REVIEWED",
                     });
                   } else if (!installments || installments.length === 0) {
@@ -1930,9 +1929,14 @@ export default function RecurringPayments() {
                               <span className="truncate font-medium text-slate-800 dark:text-zinc-200">
                                 {item.displayTitle}
                               </span>
-                              <span className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-1 rounded border border-indigo-200 dark:border-indigo-800 shrink-0">
-                                Proj
-                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <span className={`text-[8px] font-bold px-1 py-0.2 rounded border ${PRIORITY_BADGE[(item.request.priority as Priority) || "MEDIUM"]}`}>
+                                  {item.request.priority || "MEDIUM"}
+                                </span>
+                                <span className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-1 rounded border border-indigo-200 dark:border-indigo-800 shrink-0">
+                                  Proj
+                                </span>
+                              </div>
                             </div>
                             <div className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 mt-0.5">
                               {formatMoney(item.amount)}
@@ -1962,7 +1966,12 @@ export default function RecurringPayments() {
                               <span className="truncate font-semibold text-emerald-950 dark:text-emerald-100">
                                 {item.displayTitle}
                               </span>
-                              <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                              <div className="flex items-center gap-1 shrink-0">
+                                <span className={`text-[8px] font-bold px-1 py-0.2 rounded border ${PRIORITY_BADGE[(item.request.priority as Priority) || "MEDIUM"]}`}>
+                                  {item.request.priority || "MEDIUM"}
+                                </span>
+                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                              </div>
                             </div>
                             <div className="text-[10px] font-bold opacity-85 mt-0.5">
                               {formatMoney(item.amount)}
@@ -1995,11 +2004,16 @@ export default function RecurringPayments() {
                             <span className="truncate font-semibold text-slate-900 dark:text-zinc-100">
                               {item.displayTitle}
                             </span>
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                isItemReviewed ? "bg-sky-500" : "bg-amber-500"
-                              }`}
-                            />
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className={`text-[8px] font-bold px-1 py-0.2 rounded border ${PRIORITY_BADGE[(item.request.priority as Priority) || "MEDIUM"]}`}>
+                                {item.request.priority || "MEDIUM"}
+                              </span>
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                  isItemReviewed ? "bg-sky-500" : "bg-amber-500"
+                                }`}
+                              />
+                            </div>
                           </div>
                           <div className="text-[10px] font-bold opacity-85 mt-0.5">
                             {formatMoney(item.amount)}
@@ -2027,19 +2041,26 @@ export default function RecurringPayments() {
                 <span className="font-mono text-xs font-bold text-muted-foreground">
                   #{selectedCalendarItem.id}
                 </span>
-                <Badge
-                  variant="outline"
-                  className={getStatusBadge(selectedCalendarItem.status)}
-                >
-                  {getStatusLabel(selectedCalendarItem.status)}
-                  {selectedCalendarItem.recurring_schedule ? (
-                    parseRequestStatus(selectedCalendarItem.status) === RequestStatus.Completed
-                      ? (selectedCalendarItem.recurring_schedule.total_installments ? ` (${selectedCalendarItem.recurring_schedule.total_installments}/${selectedCalendarItem.recurring_schedule.total_installments} Cycles)` : "")
-                      : (selectedCalendarItem.recurring_schedule.total_installments
-                        ? ` (Cycle ${Math.min((selectedCalendarItem.recurring_schedule.completed_installments || 0) + 1, selectedCalendarItem.recurring_schedule.total_installments)}/${selectedCalendarItem.recurring_schedule.total_installments})`
-                        : ` (Cycle ${(selectedCalendarItem.recurring_schedule.completed_installments || 0) + 1})`)
-                  ) : ""}
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <PrioritySelector
+                    requestId={selectedCalendarItem.id}
+                    priority={selectedCalendarItem.priority}
+                    size="xs"
+                  />
+                  <Badge
+                    variant="outline"
+                    className={getStatusBadge(selectedCalendarItem.status)}
+                  >
+                    {getStatusLabel(selectedCalendarItem.status)}
+                    {selectedCalendarItem.recurring_schedule ? (
+                      parseRequestStatus(selectedCalendarItem.status) === RequestStatus.Completed
+                        ? (selectedCalendarItem.recurring_schedule.total_installments ? ` (${selectedCalendarItem.recurring_schedule.total_installments}/${selectedCalendarItem.recurring_schedule.total_installments} Cycles)` : "")
+                        : (selectedCalendarItem.recurring_schedule.total_installments
+                          ? ` (Cycle ${Math.min((selectedCalendarItem.recurring_schedule.completed_installments || 0) + 1, selectedCalendarItem.recurring_schedule.total_installments)}/${selectedCalendarItem.recurring_schedule.total_installments})`
+                          : ` (Cycle ${(selectedCalendarItem.recurring_schedule.completed_installments || 0) + 1})`)
+                    ) : ""}
+                  </Badge>
+                </div>
               </div>
               <DialogTitle className="text-lg font-bold mt-1">
                 {selectedCalendarItem.title}
@@ -2251,7 +2272,7 @@ export default function RecurringPayments() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <RequesterAutocomplete
                     required
                     value={newForm.requester}
@@ -2287,6 +2308,28 @@ export default function RecurringPayments() {
                       className="h-10 text-sm"
                       required
                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Priority <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={newForm.priority}
+                      onValueChange={(val) =>
+                        setNewForm({ ...newForm, priority: val })
+                      }
+                    >
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="LOW">Low</SelectItem>
+                        <SelectItem value="MEDIUM">Medium</SelectItem>
+                        <SelectItem value="HIGH">High</SelectItem>
+                        <SelectItem value="URGENT">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -2436,7 +2479,7 @@ export default function RecurringPayments() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                     <RequesterAutocomplete
                       required
                       value={editForm.requester}
@@ -2472,6 +2515,28 @@ export default function RecurringPayments() {
                         className="h-10 text-sm"
                         required
                       />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Priority <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                        value={editForm.priority}
+                        onValueChange={(val) =>
+                          setEditForm({ ...editForm, priority: val })
+                        }
+                      >
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="Priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="LOW">Low</SelectItem>
+                          <SelectItem value="MEDIUM">Medium</SelectItem>
+                          <SelectItem value="HIGH">High</SelectItem>
+                          <SelectItem value="URGENT">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -2522,125 +2587,6 @@ export default function RecurringPayments() {
           </DialogContent>
         </Dialog>
       )}
-      {/* Recurring Notification Settings Modal */}
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <Settings className="w-5 h-5 text-sky-600" />
-              Recurring Due Date Notification Settings
-            </DialogTitle>
-            <DialogDescription>
-              Configure automated email reminders sent prior to upcoming recurring payment due dates.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              saveSettingsMutation.mutate(settingsForm);
-            }}
-            className="space-y-4 py-2"
-          >
-            {/* Enable toggle */}
-            <div className="flex items-center justify-between p-3.5 border rounded-lg bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800">
-              <div>
-                <span className="font-semibold text-sm text-slate-900 dark:text-zinc-100">
-                  Enable Scheduled Email Reminders
-                </span>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Automatically emails notice before recurring items reach their due date.
-                </p>
-              </div>
-              <Checkbox
-                checked={settingsForm.enabled}
-                onCheckedChange={(checked) =>
-                  setSettingsForm({ ...settingsForm, enabled: !!checked })
-                }
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-muted-foreground">
-                  Days Notice Ahead
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={90}
-                  value={settingsForm.days_ahead}
-                  onChange={(e) =>
-                    setSettingsForm({
-                      ...settingsForm,
-                      days_ahead: parseInt(e.target.value) || 7,
-                    })
-                  }
-                  required
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  e.g. 7 days (1 week ahead notice)
-                </p>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-muted-foreground">
-                  Daily Check Time
-                </label>
-                <Input
-                  type="time"
-                  value={settingsForm.reminder_time}
-                  onChange={(e) =>
-                    setSettingsForm({
-                      ...settingsForm,
-                      reminder_time: e.target.value,
-                    })
-                  }
-                  required
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Automated background trigger time
-                </p>
-              </div>
-            </div>
-
-            
-
-            {/* Test Trigger Button */}
-            <div className="pt-2 border-t flex items-center justify-between">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs gap-1.5 text-sky-700 dark:text-sky-400 border-sky-300 dark:border-sky-800 hover:bg-sky-50 dark:hover:bg-sky-950/50"
-                onClick={() => testReminderMutation.mutate()}
-                disabled={testReminderMutation.isPending}
-              >
-                <Send size={13} />
-                {testReminderMutation.isPending ? "Sending Test..." : "Test Reminders Now"}
-              </Button>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsSettingsOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={saveSettingsMutation.isPending}
-                >
-                  {saveSettingsMutation.isPending ? "Saving..." : "Save Settings"}
-                </Button>
-              </div>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!requestToDelete} onOpenChange={(open) => !open && setRequestToDelete(null)}>

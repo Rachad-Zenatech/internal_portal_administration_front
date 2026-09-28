@@ -303,6 +303,7 @@ export type PurchasingSummary = {
   recurring_due_soon_amount?: number;
   recurring_waiting_review?: number;
   recurring_reviewed?: number;
+  recurring_on_hold_count?: number;
   recurring_completed_count?: number;
   recurring_rejected?: number;
   my_approvals_count?: number;
@@ -605,6 +606,17 @@ export type RecurringNotificationSettings = {
   include_treasury: boolean;
   recipient_user_ids?: string[] | null;
   recipient_emails?: string[] | null;
+  custom_emails?: string[] | null;
+};
+
+export type OnHoldReminderSettings = {
+  enabled: boolean;
+  days_threshold: number;
+  reminder_time: string;
+  timezone: string;
+  notify_ap: boolean;
+  notify_treasury: boolean;
+  notify_requester: boolean;
   custom_emails?: string[] | null;
 };
 
