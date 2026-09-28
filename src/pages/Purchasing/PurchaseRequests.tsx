@@ -935,6 +935,11 @@ export function PurchaseRequests() {
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span>{r.title}</span>
+                        {(r.source_portal === "m7a" || r.source_portal === "m&a" || r.source_portal === "m_and_a" || r.is_ma) && (
+                          <Badge className="text-[10px] px-1.5 py-0 h-4 bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-700 font-bold shrink-0">
+                            M&amp;A
+                          </Badge>
+                        )}
                         {r.project_name && (
                           <Badge
                             variant="outline"

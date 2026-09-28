@@ -171,6 +171,9 @@ export type PurchaseRequest = {
   level_2_comment?: string | null;
   due_date?: string | null;
   recurring_schedule?: RecurringSchedule | null;
+  source_portal?: string | null;
+  is_ma?: boolean;
+  type?: string;
   created_at: string;
   updated_at: string;
 };

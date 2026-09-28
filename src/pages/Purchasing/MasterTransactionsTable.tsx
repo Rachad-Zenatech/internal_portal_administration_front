@@ -719,13 +719,18 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
                       {/* 2. Contract Title + ID + Vendor */}
                       <TableCell className="max-w-[280px]">
                         <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-mono text-[11px] font-semibold text-slate-500 dark:text-zinc-400">
                               #{t.requestId}
                             </span>
                             <span className="font-semibold text-slate-900 group-hover:text-blue-600 dark:text-zinc-100 dark:group-hover:text-blue-400 text-xs transition-colors truncate">
                               {t.requestTitle}
                             </span>
+                            {(t.rawRequest.source_portal === "m7a" || t.rawRequest.source_portal === "m&a" || t.rawRequest.source_portal === "m_and_a" || t.rawRequest.is_ma) && (
+                              <Badge className="text-[9.5px] px-1.5 py-0 h-4 bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-700 font-bold shrink-0">
+                                M&amp;A
+                              </Badge>
+                            )}
                           </div>
                           {t.customLabel ? (
                             <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium truncate">

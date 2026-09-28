@@ -40,6 +40,8 @@ import { downloadAttachment, getAttachmentBlob, deletePurchaseRequest } from "@/
 import { useRequestDetail, useTransitionRequest, useUploadAttachments, useDeleteAttachment, useGLCodes, useUpdateWireTransfer } from "@/hooks/usePurchasing";
 import { BankAccountAutocomplete } from "./BankAccountAutocomplete";
 import { CategoryAutocomplete } from "./CategoryAutocomplete";
+import { ClassAutocomplete } from "./ClassAutocomplete";
+import LocationAutocomplete from "./LocationAutocomplete";
 import { renderBankAccountBadge, renderCategoryBadge } from "@/utils/glAccountUtils";
 import {
   RequestStatus,
@@ -140,11 +142,13 @@ export default function PurchaseRequestDetail() {
     title: "",
     requester: "",
     department: "",
+    class: "",
+    location: "",
     amount: "",
     due_date: "",
     description: "",
     gl_code: "",
-    priority: "MEDIUM",
+    priority: "MEDIUM" as Priority,
     is_scheduled: true,
     frequency: "CUSTOM" as FrequencyType,
     start_date: "",
@@ -226,10 +230,15 @@ export default function PurchaseRequestDetail() {
       ];
     }
 
+    const reqLoc = (request as any).location || (request as any).from_location || request.quote_data?.location || request.quote_data?.shipped_to_location || "";
+    const reqClass = (request as any).class || request.quote_data?.class || "";
+
     setEditForm({
       title: request.title || "",
       requester: request.requester || "",
       department: request.department || "",
+      class: reqClass,
+      location: reqLoc,
       amount: request.amount ? request.amount.toString() : "",
       due_date: request.due_date ? request.due_date.split("T")[0] : "",
       description: request.description || "",
@@ -436,7 +445,9 @@ export default function PurchaseRequestDetail() {
         updateMutation.mutate({
           title: editForm.title,
           requester: editForm.requester,
-          department: editForm.department,
+          department: editForm.class || editForm.department,
+          class: editForm.class || null,
+          location: editForm.location || null,
           request_type: (isSched || request?.request_type === "SCHEDULED_PAYMENT") ? "SCHEDULED_PAYMENT" : (request?.request_type || "RECURRING"),
           priority: editForm.priority,
           amount: cycleAmt,
@@ -445,6 +456,12 @@ export default function PurchaseRequestDetail() {
           description: editForm.description,
           gl_code: request?.gl_code || editForm.gl_code || null,
           due_date: effectiveDueDate || null,
+          quote_data: {
+            ...(request?.quote_data || {}),
+            location: editForm.location || "",
+            class: editForm.class || "",
+            department: editForm.department || "",
+          },
           recurring_schedule: {
             is_scheduled: true,
             frequency: editForm.frequency,
@@ -472,7 +489,9 @@ export default function PurchaseRequestDetail() {
     updateMutation.mutate({
       title: editForm.title,
       requester: editForm.requester,
-      department: editForm.department,
+      department: editForm.class || editForm.department,
+      class: editForm.class || null,
+      location: editForm.location || null,
       request_type: (isSched || request?.request_type === "SCHEDULED_PAYMENT") ? "SCHEDULED_PAYMENT" : (request?.request_type || "RECURRING"),
       priority: editForm.priority,
       amount: amt,
@@ -481,6 +500,12 @@ export default function PurchaseRequestDetail() {
       description: editForm.description,
       gl_code: request?.gl_code || editForm.gl_code || null,
       due_date: effectiveDueDate || null,
+      quote_data: {
+        ...(request?.quote_data || {}),
+        location: editForm.location || "",
+        class: editForm.class || "",
+        department: editForm.department || "",
+      },
       recurring_schedule: isSched
         ? {
             is_scheduled: true,
@@ -647,14 +672,9 @@ export default function PurchaseRequestDetail() {
     const instAmt = inst?.amount != null && inst.amount > 0 ? inst.amount : (request?.amount || 0);
     const instDate = inst?.dueDate || (request?.due_date ? String(request.due_date).split("T")[0] : new Date().toISOString().split("T")[0]);
     const instNum = inst?.installmentNumber || currentCycle;
-    const isSchedOrRec = Boolean(
-      request?.request_type === "SCHEDULED_PAYMENT" ||
-      request?.request_type === "RECURRING" ||
-      request?.recurring_schedule
-    );
 
     setInvoiceForm({
-      vendor: isSchedOrRec ? "" : (request?.title || ""),
+      vendor: invoice?.vendor || request?.title || "",
       amount: instAmt.toString(),
       invoice_date: instDate,
       due_date: instDate,
@@ -806,6 +826,16 @@ export default function PurchaseRequestDetail() {
             <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-2 flex-wrap">
               <span>· Recurring</span>
               <span>· Requested by <strong className="text-slate-800 dark:text-zinc-200">{request.requester}</strong> ({request.department})</span>
+              {((request as any).class || request.quote_data?.class) && (
+                <span className="inline-flex items-center gap-1">
+                  · Class: <strong className="text-slate-800 dark:text-zinc-200">{(request as any).class || request.quote_data?.class}</strong>
+                </span>
+              )}
+              {((request as any).location || request.quote_data?.location) && (
+                <span className="inline-flex items-center gap-1">
+                  · Location: <strong className="text-slate-800 dark:text-zinc-200">{(request as any).location || request.quote_data?.location}</strong>
+                </span>
+              )}
               <span>· {formatDate(request.request_date || request.created_at)}</span>
             </p>
           </div>
@@ -2283,11 +2313,15 @@ export default function PurchaseRequestDetail() {
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                           Amount (USD) <span className="text-red-500">*</span>
                         </label>
-                        {editForm.is_scheduled && (
+                        {editForm.is_scheduled && editForm.frequency === "CUSTOM" ? (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
                             (Managed by Schedule)
                           </span>
-                        )}
+                        ) : editForm.is_scheduled ? (
+                          <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                            (Amount per cycle)
+                          </span>
+                        ) : null}
                       </div>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
@@ -2300,9 +2334,9 @@ export default function PurchaseRequestDetail() {
                               : editForm.amount
                           }
                           onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-                          disabled={editForm.is_scheduled}
+                          disabled={editForm.is_scheduled && editForm.frequency === "CUSTOM"}
                           className="h-10 text-sm font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
-                          required={!editForm.is_scheduled}
+                          required={!(editForm.is_scheduled && editForm.frequency === "CUSTOM")}
                         />
                       </div>
                     </div>
@@ -2310,7 +2344,7 @@ export default function PurchaseRequestDetail() {
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
-                        {editForm.is_scheduled && (
+                        {editForm.is_scheduled && editForm.frequency === "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
                             (Managed by Schedule)
                           </span>
@@ -2324,7 +2358,7 @@ export default function PurchaseRequestDetail() {
                             : editForm.due_date
                         }
                         onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })}
-                        disabled={editForm.is_scheduled}
+                        disabled={editForm.is_scheduled && editForm.frequency === "CUSTOM"}
                         className="h-10 text-sm disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                       />
                     </div>
@@ -2368,6 +2402,21 @@ export default function PurchaseRequestDetail() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <ClassAutocomplete
+                      value={editForm.class}
+                      onChange={(val) => setEditForm((prev) => ({ ...prev, class: val }))}
+                      placeholder="Search or enter class..."
+                      label="Class"
+                    />
+                    <LocationAutocomplete
+                      value={editForm.location}
+                      onChange={(val) => setEditForm((prev) => ({ ...prev, location: val }))}
+                      placeholder="Search or enter location..."
+                      label="Location"
+                    />
                   </div>
 
 

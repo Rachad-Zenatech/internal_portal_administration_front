@@ -34,6 +34,8 @@ import {
   Tag,
   ShieldCheck,
   Split,
+  MapPin,
+  Clock,
 } from "lucide-react";
 import type { QuickBooksPreviewItem, QuickBooksPreviewPart } from "@/services/purchasingService";
 
@@ -63,6 +65,9 @@ export function QuickBooksItemDetailsDialog({
 
   if (!item) return null;
 
+  const isMa = Boolean(item.is_ma || item.type === "m&a" || item.source_portal === "m7a" || item.source_portal === "m&a");
+  const isBill = item.transaction_category === "BILL" || (!isMa && Boolean(item.is_recurring));
+
   const isReady = item.readiness === "READY" || item.readiness === "READY_WITH_NOTES";
   const isSynced = item.readiness === "ALREADY_SYNCED" || item.is_already_synced;
   const isError = item.readiness === "ERROR" || (item.validation_errors && item.validation_errors.length > 0);
@@ -72,14 +77,19 @@ export function QuickBooksItemDetailsDialog({
     maximumFractionDigits: 2,
   }) || "0.00";
 
+  // Active JSON payload (bill or expense)
+  const activePayload = isBill
+    ? (item.projected_bill_payload || item.projected_payload)
+    : (item.projected_expense_payload || item.projected_payload);
+
   // Derive split lines / parts
   const displayLines: QuickBooksPreviewPart[] = (item.parts && item.parts.length > 0)
     ? item.parts
-    : (item.projected_payload?.Line && Array.isArray(item.projected_payload.Line) && item.projected_payload.Line.length > 0)
-      ? item.projected_payload.Line.map((l: any, idx: number) => ({
+    : (activePayload?.Line && Array.isArray(activePayload.Line) && activePayload.Line.length > 0)
+      ? activePayload.Line.map((l: any, idx: number) => ({
           line_num: idx + 1,
           description: l.Description || item.product_name,
-          amount: Number(l.Amount) || (item.amount / item.projected_payload.Line.length),
+          amount: Number(l.Amount) || (item.amount / activePayload.Line.length),
           formatted_amount: `$${(Number(l.Amount) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           category: l.AccountBasedExpenseLineDetail?.AccountRef?.name || item.expense_account_resolution?.name || item.category || "Expense",
           account_name: l.AccountBasedExpenseLineDetail?.AccountRef?.name || item.expense_account_resolution?.name,
@@ -101,8 +111,8 @@ export function QuickBooksItemDetailsDialog({
   const isMultiPart = displayLines.length > 1;
 
   const handleCopyJson = () => {
-    if (!item.projected_payload) return;
-    navigator.clipboard.writeText(JSON.stringify(item.projected_payload, null, 2));
+    if (!activePayload) return;
+    navigator.clipboard.writeText(JSON.stringify(activePayload, null, 2));
     setCopied(true);
     toast.success("QuickBooks JSON payload copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
@@ -115,7 +125,7 @@ export function QuickBooksItemDetailsDialog({
         className="w-[98vw] max-w-[1520px] sm:max-w-[98vw] md:max-w-[98vw] lg:max-w-[1520px] h-[95vh] max-h-[96vh] flex flex-col p-0 gap-0 overflow-hidden bg-[#f4f5f8] dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 border border-slate-300 dark:border-zinc-800 shadow-2xl rounded-lg font-sans z-50 text-xs"
       >
         <DialogDescription className="sr-only">
-          QuickBooks Online Expense Form and Synchronization Details for Purchase Request #{item.request_id}
+          QuickBooks Online {isBill ? "Bill" : "Expense"} Form and Synchronization Details for Purchase Request #{item.request_id}
         </DialogDescription>
 
         {/* ========================================================================= */}
@@ -130,12 +140,28 @@ export function QuickBooksItemDetailsDialog({
             >
               <History className="h-4 w-4" />
             </button>
-            <DialogTitle className="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2 m-0 p-0">
-              <span>Expense</span>
+            <DialogTitle className="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2 m-0 p-0 flex-wrap">
+              <span>{isBill ? "QuickBooks Bill" : "QuickBooks Expense"}</span>
+
+              {/* M&A Badge Tag */}
+              {isMa && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-700 flex items-center gap-1 shadow-2xs">
+                  <span className="h-1.5 w-1.5 rounded-full bg-purple-600 dark:bg-purple-400" />
+                  <span>M&amp;A Scheduled</span>
+                </span>
+              )}
+
+              {/* Recurring Badge Tag (for non-M&A Bills) */}
+              {!isMa && item.is_recurring && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center gap-1">
+                  <span>Recurring Bill</span>
+                </span>
+              )}
+
               {isSynced ? (
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
                   <Database className="h-3 w-3" />
-                  <span>QBO #{item.existing_purchase_id || item.doc_number}</span>
+                  <span>QBO #{isBill ? (item.existing_bill_id || item.doc_number) : (item.existing_purchase_id || item.doc_number)}</span>
                 </span>
               ) : isError ? (
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700 flex items-center gap-1">
@@ -145,7 +171,7 @@ export function QuickBooksItemDetailsDialog({
               ) : isReady ? (
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                  <span>Staged for QBO</span>
+                  <span>Staged for QBO {isBill ? "Bills" : "Expenses"}</span>
                 </span>
               ) : (
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center gap-1">
@@ -153,6 +179,7 @@ export function QuickBooksItemDetailsDialog({
                   <span>Requires Mapping</span>
                 </span>
               )}
+
               {isMultiPart && (
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1">
                   <Split className="h-3 w-3 text-indigo-500" />
@@ -203,7 +230,7 @@ export function QuickBooksItemDetailsDialog({
               </button>
             </div>
 
-            {/* Quick action tools */}
+            {/* Close button */}
             <div className="flex items-center gap-1.5 text-slate-500 dark:text-zinc-400">
               <button
                 type="button"
@@ -221,92 +248,169 @@ export function QuickBooksItemDetailsDialog({
         {/* Scrollable Body */}
         {/* ========================================================================= */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* TAB 1: FORM VIEW (BILL OR EXPENSE) */}
           {viewMode === "form" && (
             <div className="space-y-4 max-w-[1460px] mx-auto">
               {/* TOP HERO & FORM FIELDS (White Card) */}
               <div className="bg-white dark:bg-zinc-900 rounded-md p-4 border border-slate-200 dark:border-zinc-800 shadow-2xs space-y-3">
-                {/* Row 1: Payee + Payment Account + AMOUNT */}
-                <div className="flex flex-wrap lg:flex-nowrap items-start justify-between gap-4">
-                  {/* Left inputs */}
-                  <div className="flex flex-wrap items-start gap-4 flex-1 min-w-0">
-                    {/* Payee */}
-                    <div className="w-full sm:w-[260px] space-y-1">
-                      <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
-                        Payee
-                      </label>
-                      <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-[#2ca01c] dark:border-emerald-600 text-xs font-medium text-slate-900 dark:text-white shadow-2xs h-8">
-                        <span className="truncate">
-                          {item.vendor_resolution?.name || item.raw_payee || "Who did you pay?"}
-                        </span>
-                        <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1.5" />
-                      </div>
-                      {item.vendor_resolution?.id && (
-                        <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono truncate">
-                          QBO Vendor ID: {item.vendor_resolution.id} {item.vendor_resolution.status ? `(${item.vendor_resolution.status})` : ""}
+                {isBill ? (
+                  /* BILL FORM HEADER */
+                  <div className="flex flex-wrap lg:flex-nowrap items-start justify-between gap-4">
+                    {/* Left inputs */}
+                    <div className="flex flex-wrap items-start gap-4 flex-1 min-w-0">
+                      {/* Vendor */}
+                      <div className="w-full sm:w-[260px] space-y-1">
+                        <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                          Vendor
+                        </label>
+                        <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-[#2ca01c] dark:border-emerald-600 text-xs font-medium text-slate-900 dark:text-white shadow-2xs h-8">
+                          <span className="truncate">
+                            {item.vendor_resolution?.name || item.raw_payee || "Choose a vendor"}
+                          </span>
+                          <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1.5" />
                         </div>
-                      )}
+                        {item.vendor_resolution?.id && (
+                          <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono truncate">
+                            QBO Vendor ID: {item.vendor_resolution.id} {item.vendor_resolution.status ? `(${item.vendor_resolution.status})` : ""}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Terms */}
+                      <div className="w-full sm:w-[160px] space-y-1">
+                        <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                          Terms
+                        </label>
+                        <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs font-medium text-slate-900 dark:text-white shadow-2xs h-8">
+                          <span className="truncate">Net 30</span>
+                          <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1.5" />
+                        </div>
+                        <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">
+                          Default Terms
+                        </div>
+                      </div>
+
+                      {/* Bill Date */}
+                      <div className="w-full sm:w-[160px] space-y-1">
+                        <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                          Bill Date
+                        </label>
+                        <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white shadow-2xs h-8">
+                          <span>{item.payment_date || item.txn_date_api || "09/18/2026"}</span>
+                          <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
+                        </div>
+                      </div>
+
+                      {/* Due Date */}
+                      <div className="w-full sm:w-[160px] space-y-1">
+                        <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                          Due Date
+                        </label>
+                        <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white shadow-2xs h-8">
+                          <span>{item.due_date || item.payment_date || item.txn_date_api || "10/18/2026"}</span>
+                          <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Payment account */}
-                    <div className="w-full sm:w-[260px] space-y-1">
-                      <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
-                        Payment account
-                      </label>
-                      <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs font-medium text-slate-900 dark:text-white shadow-2xs h-8">
-                        <span className="truncate">
-                          {item.payment_account_resolution?.name || "Business Credit Card"}
-                        </span>
-                        <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1.5" />
+                    {/* Amount / Balance Due on Right */}
+                    <div className="text-right shrink-0 min-w-[160px]">
+                      <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-zinc-400">
+                        BALANCE DUE
                       </div>
-                      <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">
-                        Balance <strong className="text-slate-800 dark:text-zinc-200">${formattedAmountNumber}</strong>
+                      <div className="text-3xl font-extrabold text-slate-900 dark:text-white font-sans tracking-tight pt-0.5">
+                        ${formattedAmountNumber}
                       </div>
                     </div>
                   </div>
+                ) : (
+                  /* EXPENSE FORM HEADER */
+                  <div className="flex flex-wrap lg:flex-nowrap items-start justify-between gap-4">
+                    {/* Left inputs */}
+                    <div className="flex flex-wrap items-start gap-4 flex-1 min-w-0">
+                      {/* Payee */}
+                      <div className="w-full sm:w-[260px] space-y-1">
+                        <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                          Payee
+                        </label>
+                        <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-[#2ca01c] dark:border-emerald-600 text-xs font-medium text-slate-900 dark:text-white shadow-2xs h-8">
+                          <span className="truncate">
+                            {item.vendor_resolution?.name || item.raw_payee || "Who did you pay?"}
+                          </span>
+                          <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1.5" />
+                        </div>
+                        {item.vendor_resolution?.id && (
+                          <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono truncate">
+                            QBO Vendor ID: {item.vendor_resolution.id} {item.vendor_resolution.status ? `(${item.vendor_resolution.status})` : ""}
+                          </div>
+                        )}
+                      </div>
 
-                  {/* Amount on Right */}
-                  <div className="text-right shrink-0 min-w-[160px]">
-                    <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-zinc-400">
-                      AMOUNT
+                      {/* Payment account */}
+                      <div className="w-full sm:w-[260px] space-y-1">
+                        <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                          Payment account
+                        </label>
+                        <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs font-medium text-slate-900 dark:text-white shadow-2xs h-8">
+                          <span className="truncate">
+                            {item.payment_account_resolution?.name || "Business Credit Card"}
+                          </span>
+                          <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1.5" />
+                        </div>
+                        <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">
+                          Balance <strong className="text-slate-800 dark:text-zinc-200">${formattedAmountNumber}</strong>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-3xl font-extrabold text-slate-900 dark:text-white font-sans tracking-tight pt-0.5">
-                      ${formattedAmountNumber}
+
+                    {/* Amount on Right */}
+                    <div className="text-right shrink-0 min-w-[160px]">
+                      <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-zinc-400">
+                        AMOUNT
+                      </div>
+                      <div className="text-3xl font-extrabold text-slate-900 dark:text-white font-sans tracking-tight pt-0.5">
+                        ${formattedAmountNumber}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Row 2: Secondary Fields */}
                 {!topFieldsCollapsed && (
                   <div className="flex flex-wrap items-start gap-4 pt-2 border-t border-slate-100 dark:border-zinc-800/80">
-                    {/* Payment Date */}
-                    <div className="w-full sm:w-[160px] space-y-1">
-                      <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
-                        Payment Date
-                      </label>
-                      <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white shadow-2xs h-8">
-                        <span>{item.payment_date || item.txn_date_api || "09/18/2026"}</span>
-                        <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
-                      </div>
-                    </div>
+                    {!isBill && (
+                      <>
+                        {/* Payment Date */}
+                        <div className="w-full sm:w-[160px] space-y-1">
+                          <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                            Payment Date
+                          </label>
+                          <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white shadow-2xs h-8">
+                            <span>{item.payment_date || item.txn_date_api || "09/18/2026"}</span>
+                            <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
+                          </div>
+                        </div>
 
-                    {/* Payment Method */}
-                    <div className="w-full sm:w-[160px] space-y-1">
-                      <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
-                        Payment Method
-                      </label>
-                      <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white shadow-2xs h-8">
-                        <span>{item.payment_method || "Credit Card"}</span>
-                        <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
-                      </div>
-                    </div>
+                        {/* Payment Method */}
+                        <div className="w-full sm:w-[160px] space-y-1">
+                          <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
+                            Payment Method
+                          </label>
+                          <div className="flex items-center justify-between px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white shadow-2xs h-8">
+                            <span>{item.payment_method || "Credit Card"}</span>
+                            <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
+                          </div>
+                        </div>
+                      </>
+                    )}
 
-                    {/* Ref no. */}
+                    {/* Bill no. / Ref no. */}
                     <div className="w-full sm:w-[150px] space-y-1">
                       <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
-                        Ref no.
+                        {isBill ? "Bill no." : "Ref no."}
                       </label>
                       <div className="px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white font-mono shadow-2xs h-8 flex items-center">
-                        {item.doc_number || item.ref_no || `REQ-${item.request_id}`}
+                        {item.doc_number || item.ref_no || (isBill ? `REC-${item.request_id}` : `REQ-${item.request_id}`)}
                       </div>
                     </div>
 
@@ -320,13 +424,13 @@ export function QuickBooksItemDetailsDialog({
                       </div>
                     </div>
 
-                    {/* From Location */}
+                    {/* Location */}
                     <div className="w-full sm:w-[180px] space-y-1">
                       <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400 block">
-                        From Location
+                        Location
                       </label>
                       <div className="px-2.5 py-1.5 bg-white dark:bg-zinc-900 rounded border border-slate-300 dark:border-zinc-700 text-xs text-slate-900 dark:text-white truncate shadow-2xs h-8 flex items-center font-medium">
-                        <span className="truncate">{item.from_location || item.location || "Vancouver, BC"}</span>
+                        <span className="truncate">{item.location || item.from_location || "HQ"}</span>
                       </div>
                     </div>
                   </div>
@@ -559,50 +663,17 @@ export function QuickBooksItemDetailsDialog({
           )}
 
           {/* ========================================================================= */}
-          {/* TAB 2: LIVE REST JSON PAYLOAD */}
-          {/* ========================================================================= */}
-          {viewMode === "json" && (
-            <div className="space-y-3 max-w-[1460px] mx-auto">
-              <div className="flex items-center justify-between bg-white dark:bg-zinc-900 p-3 rounded border border-slate-200 dark:border-zinc-800 shadow-2xs">
-                <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
-                    <Code2 className="h-3.5 w-3.5 text-purple-600" />
-                    <span>QuickBooks Online REST API Purchase Payload</span>
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                    Payload sent directly to <code className="font-mono text-purple-600 dark:text-purple-400 font-semibold">POST /v3/company/purchase</code>.
-                  </p>
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyJson}
-                  className="h-7 text-xs gap-1.5 font-semibold"
-                >
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                  <span>{copied ? "Copied!" : "Copy JSON"}</span>
-                </Button>
-              </div>
-
-              <div className="rounded border border-zinc-800 bg-zinc-950 p-3 font-mono text-[11px] text-zinc-200 overflow-x-auto max-h-[580px] shadow-inner leading-relaxed">
-                <pre>{JSON.stringify(item.projected_payload, null, 2)}</pre>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* TAB 3: GL ACCOUNT MAPPING & AUDIT BREAKDOWN */}
+          {/* TAB 2: GL ACCOUNT MAPPING & AUDIT BREAKDOWN */}
           {/* ========================================================================= */}
           {viewMode === "mapping" && (
             <div className="space-y-3 max-w-[1460px] mx-auto">
               <div className="rounded border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 space-y-0.5 shadow-2xs">
                 <h4 className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
                   <Layers className="h-3.5 w-3.5 text-blue-600" />
-                  <span>Local Portal to QuickBooks Online Data Pipeline</span>
+                  <span>Local Portal to QuickBooks Online {isBill ? "Bill" : "Expense"} Data Pipeline</span>
                 </h4>
                 <p className="text-slate-500 dark:text-zinc-400 text-[11px] leading-relaxed">
-                  Every field from purchase request #{item.request_id} is dynamically matched against live QuickBooks Chart of Accounts, active Vendors, and Bank/Credit Card payment methods.
+                  Every field from purchase request #{item.request_id} is dynamically matched against live QuickBooks Chart of Accounts, active Vendors, Locations, and {isBill ? "Accounts Payable (A/P)" : "Bank/Credit Card payment methods"}.
                 </p>
               </div>
 
@@ -695,21 +766,62 @@ export function QuickBooksItemDetailsDialog({
                   </div>
                 )}
 
-                {/* Payment Account */}
+                {/* Settlement / AP Account */}
+                {isBill ? (
+                  <div className="p-2.5 grid grid-cols-12 items-center gap-3">
+                    <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <CreditCard className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                      <span>Accounts Payable (A/P)</span>
+                    </div>
+                    <div className="col-span-4 text-slate-600 dark:text-zinc-300">
+                      Standard Vendor Credit Terms
+                    </div>
+                    <div className="col-span-5 flex items-center gap-2">
+                      <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
+                      <div className="truncate">
+                        <span className="font-semibold text-slate-900 dark:text-white">Accounts Payable (A/P)</span>
+                        <span className="text-[10px] text-slate-500 dark:text-zinc-400 block font-mono">
+                          QBO Entity: Bill (AP Ledger)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-2.5 grid grid-cols-12 items-center gap-3">
+                    <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <CreditCard className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                      <span>Payment Settlement</span>
+                    </div>
+                    <div className="col-span-4 text-slate-600 dark:text-zinc-300 truncate" title={item.payment_method}>
+                      {item.payment_method}
+                    </div>
+                    <div className="col-span-5 flex items-center gap-2">
+                      <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
+                      <div className="truncate">
+                        <span className="font-semibold text-slate-900 dark:text-white">{item.payment_account_resolution?.name || "Business Checking"}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-zinc-400 block font-mono">
+                          QBO Account ID: {item.payment_account_resolution?.id || "Auto"} ({item.payment_account_resolution?.payment_type})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Location (DepartmentRef) */}
                 <div className="p-2.5 grid grid-cols-12 items-center gap-3">
                   <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <CreditCard className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                    <span>Payment Settlement</span>
+                    <MapPin className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                    <span>Location (Department)</span>
                   </div>
-                  <div className="col-span-4 text-slate-600 dark:text-zinc-300 truncate" title={item.payment_method}>
-                    {item.payment_method}
+                  <div className="col-span-4 text-slate-600 dark:text-zinc-300 truncate" title={item.location || item.from_location}>
+                    {item.location || item.from_location || "HQ"}
                   </div>
                   <div className="col-span-5 flex items-center gap-2">
                     <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
                     <div className="truncate">
-                      <span className="font-semibold text-slate-900 dark:text-white">{item.payment_account_resolution?.name || "Business Checking"}</span>
+                      <span className="font-semibold text-slate-900 dark:text-white">{item.location || item.from_location || "Default Location"}</span>
                       <span className="text-[10px] text-slate-500 dark:text-zinc-400 block font-mono">
-                        QBO Account ID: {item.payment_account_resolution?.id || "Auto"} ({item.payment_account_resolution?.payment_type})
+                        QBO DepartmentRef: {item.location_id || item.location_resolution?.id || "Auto-Matched"}
                       </span>
                     </div>
                   </div>
@@ -719,7 +831,7 @@ export function QuickBooksItemDetailsDialog({
                 <div className="p-2.5 grid grid-cols-12 items-center gap-3">
                   <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                    <span>Txn Date</span>
+                    <span>{isBill ? "Bill Date (TxnDate)" : "Payment Date (TxnDate)"}</span>
                   </div>
                   <div className="col-span-4 text-slate-600 dark:text-zinc-300">
                     {item.payment_date}
@@ -730,6 +842,23 @@ export function QuickBooksItemDetailsDialog({
                   </div>
                 </div>
 
+                {/* Due Date (If Bill) */}
+                {isBill && (
+                  <div className="p-2.5 grid grid-cols-12 items-center gap-3">
+                    <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                      <span>Due Date</span>
+                    </div>
+                    <div className="col-span-4 text-slate-600 dark:text-zinc-300">
+                      {item.due_date || item.payment_date}
+                    </div>
+                    <div className="col-span-5 flex items-center gap-2">
+                      <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
+                      <span className="font-mono font-semibold text-slate-900 dark:text-white">{item.due_date || item.txn_date_api}</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* DocNumber */}
                 <div className="p-2.5 grid grid-cols-12 items-center gap-3">
                   <div className="col-span-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
@@ -737,13 +866,46 @@ export function QuickBooksItemDetailsDialog({
                     <span>DocNumber / Ref</span>
                   </div>
                   <div className="col-span-4 text-slate-600 dark:text-zinc-300">
-                    {item.ref_no || `REQ-${item.request_id}`}
+                    {item.ref_no || (isBill ? `REC-${item.request_id}` : `REQ-${item.request_id}`)}
                   </div>
                   <div className="col-span-5 flex items-center gap-2">
                     <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
                     <span className="font-mono font-semibold text-slate-900 dark:text-white">{item.doc_number}</span>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB 3: LIVE REST JSON PAYLOAD */}
+          {/* ========================================================================= */}
+          {viewMode === "json" && (
+            <div className="space-y-3 max-w-[1460px] mx-auto">
+              <div className="flex items-center justify-between bg-white dark:bg-zinc-900 p-3 rounded border border-slate-200 dark:border-zinc-800 shadow-2xs">
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
+                    <Code2 className="h-3.5 w-3.5 text-purple-600" />
+                    <span>QuickBooks Online REST API {isBill ? "Bill" : "Purchase"} Payload</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Payload sent directly to <code className="font-mono text-purple-600 dark:text-purple-400 font-semibold">POST /v3/company/{isBill ? "bill" : "purchase"}</code>.
+                  </p>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyJson}
+                  className="h-7 text-xs gap-1.5 font-semibold"
+                >
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  <span>{copied ? "Copied!" : "Copy JSON"}</span>
+                </Button>
+              </div>
+
+              <div className="rounded border border-zinc-800 bg-zinc-950 p-3 font-mono text-[11px] text-zinc-200 overflow-x-auto max-h-[580px] shadow-inner leading-relaxed">
+                <pre>{JSON.stringify(activePayload, null, 2)}</pre>
               </div>
             </div>
           )}
@@ -793,7 +955,7 @@ export function QuickBooksItemDetailsDialog({
                 ) : (
                   <Zap className="h-3.5 w-3.5" />
                 )}
-                <span>{isSynced ? "Re-Sync to QuickBooks" : "Save & Sync to QuickBooks"}</span>
+                <span>{isSynced ? `Re-Sync to QuickBooks ${isBill ? "Bills" : "Expenses"}` : `Save & Sync to QuickBooks ${isBill ? "Bills" : "Expenses"}`}</span>
               </button>
             )}
           </div>

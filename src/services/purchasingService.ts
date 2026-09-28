@@ -447,7 +447,9 @@ export interface QuickBooksPreviewItem {
   amount: number;
   formatted_amount: string;
   payment_date: string;
+  due_date?: string;
   txn_date_api: string;
+  due_date_api?: string;
   payment_method: string;
   category: string;
   department: string;
@@ -459,6 +461,18 @@ export interface QuickBooksPreviewItem {
   ref_no: string;
   doc_number: string;
   memo: string;
+  type?: "m&a" | "recurring" | "purchase" | string;
+  is_ma?: boolean;
+  is_recurring?: boolean;
+  transaction_category?: "EXPENSE" | "BILL" | string;
+  source_portal?: string | null;
+  project_name?: string | null;
+  location_id?: string | null;
+  location_resolution?: {
+    id?: string | null;
+    name?: string;
+    status?: string;
+  };
   vendor_resolution: {
     id?: string | null;
     name: string;
@@ -485,6 +499,7 @@ export interface QuickBooksPreviewItem {
   };
   is_already_synced: boolean;
   existing_purchase_id?: string | null;
+  existing_bill_id?: string | null;
   readiness: 'READY' | 'READY_WITH_NOTES' | 'ALREADY_SYNCED' | 'ERROR';
   quote_number?: string;
   attachments?: Array<{
@@ -492,6 +507,7 @@ export interface QuickBooksPreviewItem {
     filename: string;
     content_type: string;
     size_bytes?: number;
+    synced_to_qbo?: boolean;
   }>;
   parts_count?: number;
   parts?: QuickBooksPreviewPart[];
@@ -499,6 +515,8 @@ export interface QuickBooksPreviewItem {
   validation_notes: string[];
   validation_errors: string[];
   projected_payload: any;
+  projected_expense_payload?: any;
+  projected_bill_payload?: any;
 }
 
 export interface QuickBooksPreviewResponse {
@@ -517,6 +535,9 @@ export interface QuickBooksPreviewResponse {
     ready_count: number;
     already_synced_count: number;
     error_count: number;
+    expenses_count?: number;
+    bills_count?: number;
+    ma_count?: number;
     company_name?: string;
     realm_id?: string;
     environment?: string;
@@ -530,6 +551,19 @@ export function getQuickBooksPreview(params?: { request_ids?: number[]; status?:
 
 export function syncQuickBooksBatch(requestIds: number[]) {
   return apiClient.post<{ status: string; total: number; synced: number; failed: number; results: any[] }>('/api/quickbooks/expenses/sync-batch', { request_ids: requestIds });
+}
+
+export function syncQuickBooksBillsBatch(requestIds: number[]) {
+  return apiClient.post<{ status: string; total: number; synced: number; failed: number; results: any[] }>('/api/quickbooks/bills/sync-batch', { request_ids: requestIds });
+}
+
+export function syncQuickBooksBill(requestId: number | string) {
+  return apiClient.post<any>(`/api/quickbooks/bills/${requestId}`, {});
+}
+
+export function deleteQuickBooksBill(requestId: number | string, billId?: string) {
+  const url = billId ? `/api/quickbooks/bills/${requestId}?bill_id=${encodeURIComponent(billId)}` : `/api/quickbooks/bills/${requestId}`;
+  return apiClient.delete<any>(url);
 }
 
 export function getQuickBooksStatus() {

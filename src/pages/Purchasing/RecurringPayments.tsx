@@ -2,6 +2,8 @@ import { PageConnectionBanner } from "@/components/ui/PageConnectionBanner";
 import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import PrioritySelector from "./PrioritySelector";
+import { ClassAutocomplete } from "./ClassAutocomplete";
+import LocationAutocomplete from "./LocationAutocomplete";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
@@ -415,6 +417,8 @@ export default function RecurringPayments() {
     title: "",
     requester: "",
     department: "",
+    class: "",
+    location: "",
     amount: "",
     due_date: initialSchedule.start_date,
     description: "",
@@ -433,6 +437,8 @@ export default function RecurringPayments() {
     title: "",
     requester: "",
     department: "",
+    class: "",
+    location: "",
     amount: "",
     due_date: "",
     description: "",
@@ -463,6 +469,8 @@ export default function RecurringPayments() {
       title: "",
       requester: displayName,
       department: defaultDept,
+      class: "",
+      location: "",
       amount: "",
       due_date: todayIso,
       description: "",
@@ -494,6 +502,8 @@ export default function RecurringPayments() {
         title: "",
         requester: "",
         department: "",
+        class: "",
+        location: "",
         amount: "",
         due_date: todayIso,
         description: "",
@@ -595,11 +605,15 @@ export default function RecurringPayments() {
         { date: nextMonthIso, amount: req.amount || undefined, note: "Installment #2" },
       ];
     }
+    const reqLoc = (req as any).location || (req as any).from_location || req.quote_data?.location || req.quote_data?.shipped_to_location || "";
+    const reqClass = (req as any).class || req.quote_data?.class || "";
     setEditForm({
       id: req.id,
       title: req.title || "",
       requester: req.requester || "",
       department: dept,
+      class: reqClass,
+      location: reqLoc,
       amount: req.amount ? req.amount.toString() : "",
       due_date: req.due_date ? req.due_date.split("T")[0] : "",
       description: req.description || "",
@@ -699,7 +713,7 @@ export default function RecurringPayments() {
         createMutation.mutate({
           title: newForm.title,
           requester: newForm.requester,
-          department: newForm.department,
+          department: newForm.class || newForm.department,
           request_type: "SCHEDULED_PAYMENT",
           priority: newForm.priority,
           amount: cycleAmt,
@@ -708,6 +722,11 @@ export default function RecurringPayments() {
           description: newForm.description,
           gl_code: null,
           due_date: effectiveDueDate || null,
+          quote_data: {
+            location: newForm.location || "",
+            class: newForm.class || "",
+            department: newForm.department || "",
+          },
           recurring_schedule: {
             is_scheduled: true,
             frequency: newForm.frequency,
@@ -735,7 +754,7 @@ export default function RecurringPayments() {
     createMutation.mutate({
       title: newForm.title,
       requester: newForm.requester,
-      department: newForm.department,
+      department: newForm.class || newForm.department,
       request_type: isSched ? "SCHEDULED_PAYMENT" : "RECURRING",
       priority: newForm.priority,
       amount: amt,
@@ -744,6 +763,11 @@ export default function RecurringPayments() {
       description: newForm.description,
       gl_code: null,
       due_date: effectiveDueDate || null,
+      quote_data: {
+        location: newForm.location || "",
+        class: newForm.class || "",
+        department: newForm.department || "",
+      },
       recurring_schedule: isSched
         ? {
             is_scheduled: true,
@@ -839,7 +863,7 @@ export default function RecurringPayments() {
           payload: {
             title: editForm.title,
             requester: editForm.requester,
-            department: editForm.department,
+            department: editForm.class || editForm.department,
             priority: editForm.priority,
             amount: cycleAmt,
             unit_price: cycleAmt,
@@ -847,6 +871,12 @@ export default function RecurringPayments() {
             description: editForm.description,
             gl_code: editingRequest?.gl_code || editForm.gl_code || null,
             due_date: effectiveDueDate || null,
+            quote_data: {
+              ...(editingRequest?.quote_data || {}),
+              location: editForm.location || "",
+              class: editForm.class || "",
+              department: editForm.department || "",
+            },
             recurring_schedule: {
               is_scheduled: true,
               frequency: editForm.frequency,
@@ -877,7 +907,7 @@ export default function RecurringPayments() {
       payload: {
         title: editForm.title,
         requester: editForm.requester,
-        department: editForm.department,
+        department: editForm.class || editForm.department,
         priority: editForm.priority,
         amount: amt,
         unit_price: amt,
@@ -885,6 +915,12 @@ export default function RecurringPayments() {
         description: editForm.description,
         gl_code: editingRequest?.gl_code || editForm.gl_code || null,
         due_date: effectiveDueDate || null,
+        quote_data: {
+          ...(editingRequest?.quote_data || {}),
+          location: editForm.location || "",
+          class: editForm.class || "",
+          department: editForm.department || "",
+        },
         recurring_schedule: isSched
           ? {
               is_scheduled: true,
@@ -912,18 +948,17 @@ export default function RecurringPayments() {
     });
   };
 
-  // Helper to check if a recurring request is an M&A scheduled payment
-  const isScheduledPayment = (r: PurchaseRequest) => {
+  // Helper to check if a recurring request is strictly synced from M&A
+  const isMaTransaction = (r: PurchaseRequest | any) => {
+    if (!r) return false;
+    const src = (r.source_portal || "").toString().toLowerCase().trim();
     return Boolean(
-      r.request_type === "SCHEDULED_PAYMENT" ||
-      r.recurring_schedule?.is_scheduled ||
-      r.recurring_schedule?.frequency === "CUSTOM" ||
-      (r.department && (
-        r.department.toLowerCase().includes("m&a") ||
-        r.department.toLowerCase().includes("merger") ||
-        r.department.toLowerCase().includes("acquisition") ||
-        r.department.toLowerCase().includes("deal")
-      ))
+      r.is_ma === true ||
+      r.type === "m&a" ||
+      src === "m7a" ||
+      src === "m&a" ||
+      src === "m_and_a" ||
+      src === "ma"
     );
   };
 
@@ -988,7 +1023,7 @@ export default function RecurringPayments() {
       }
       if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
         if (isRejected) return false;
-        if (!isScheduledPayment(r)) return false;
+        if (!isMaTransaction(r)) return false;
       } else if (cardFilter === "DUE_SOON") {
         if (!isDueSoon(r)) return false;
       } else if (cardFilter === "WAITING_REVIEW") {
@@ -1053,7 +1088,7 @@ export default function RecurringPayments() {
   const stats = useMemo(() => {
     const activeSubs = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
     const total = activeSubs.length;
-    const maScheduled = activeSubs.filter(isScheduledPayment).length;
+    const maScheduled = activeSubs.filter(isMaTransaction).length;
     const dueSoon = requests.filter(isDueSoon).length;
     const waitingReview = activeSubs.filter(
       (r) => (r.review_status || "WAITING_FOR_REVIEW") === "WAITING_FOR_REVIEW"
@@ -1577,8 +1612,17 @@ export default function RecurringPayments() {
                         #{req.id}
                       </TableCell>
                       <TableCell>
-                        <div className="font-semibold text-slate-900 group-hover:text-blue-600 dark:text-zinc-100 dark:group-hover:text-blue-400 text-sm transition-colors">
-                          {req.title}
+                        <div className="font-semibold text-slate-900 group-hover:text-blue-600 dark:text-zinc-100 dark:group-hover:text-blue-400 text-sm transition-colors flex items-center gap-1.5 flex-wrap">
+                          <span>{req.title}</span>
+                          {isMaTransaction(req) ? (
+                            <Badge className="text-[10px] px-1.5 py-0 h-4 bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-700 font-bold shrink-0">
+                              M&amp;A
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-300 font-medium shrink-0">
+                              Recurring
+                            </Badge>
+                          )}
                         </div>
                         {req.description && (
                           <div className="text-xs text-muted-foreground truncate max-w-xs">
@@ -2220,9 +2264,14 @@ export default function RecurringPayments() {
                       <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                         Amount (USD) <span className="text-red-500">*</span>
                       </label>
-                      {newForm.is_scheduled && (
+                      {newForm.is_scheduled && newForm.frequency === "CUSTOM" && (
                         <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                          (Managed by Schedule)
+                          (Managed by Installments)
+                        </span>
+                      )}
+                      {newForm.is_scheduled && newForm.frequency !== "CUSTOM" && (
+                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                          (Amount per cycle)
                         </span>
                       )}
                     </div>
@@ -2240,9 +2289,9 @@ export default function RecurringPayments() {
                         onChange={(e) =>
                           setNewForm({ ...newForm, amount: e.target.value })
                         }
-                        disabled={newForm.is_scheduled}
+                        disabled={newForm.is_scheduled && newForm.frequency === "CUSTOM"}
                         className="h-10 text-sm font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
-                        required={!newForm.is_scheduled}
+                        required={!(newForm.is_scheduled && newForm.frequency === "CUSTOM")}
                       />
                     </div>
                   </div>
@@ -2250,7 +2299,7 @@ export default function RecurringPayments() {
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
-                      {newForm.is_scheduled && (
+                      {newForm.is_scheduled && newForm.frequency === "CUSTOM" && (
                         <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
                           (Managed by Schedule)
                         </span>
@@ -2261,12 +2310,12 @@ export default function RecurringPayments() {
                       value={
                         newForm.is_scheduled && newForm.frequency === "CUSTOM" && newForm.schedule_dates.length > 0
                           ? (newForm.schedule_dates[0]?.date || newForm.due_date)
-                          : newForm.due_date
+                          : (newForm.due_date || newForm.start_date)
                       }
                       onChange={(e) =>
                         setNewForm({ ...newForm, due_date: e.target.value })
                       }
-                      disabled={newForm.is_scheduled}
+                      disabled={newForm.is_scheduled && newForm.frequency === "CUSTOM"}
                       className="h-10 text-sm disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                     />
                   </div>
@@ -2331,6 +2380,21 @@ export default function RecurringPayments() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <ClassAutocomplete
+                    value={newForm.class}
+                    onChange={(val) => setNewForm((prev) => ({ ...prev, class: val }))}
+                    placeholder="Search or enter class..."
+                    label="Class"
+                  />
+                  <LocationAutocomplete
+                    value={newForm.location}
+                    onChange={(val) => setNewForm((prev) => ({ ...prev, location: val }))}
+                    placeholder="Search or enter location..."
+                    label="Location"
+                  />
                 </div>
 
                 <div className="space-y-1.5 flex-1 flex flex-col">
@@ -2428,9 +2492,14 @@ export default function RecurringPayments() {
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                           Amount (USD) <span className="text-red-500">*</span>
                         </label>
-                        {editForm.is_scheduled && (
+                        {editForm.is_scheduled && editForm.frequency === "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Managed by Schedule)
+                            (Managed by Installments)
+                          </span>
+                        )}
+                        {editForm.is_scheduled && editForm.frequency !== "CUSTOM" && (
+                          <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                            (Amount per cycle)
                           </span>
                         )}
                       </div>
@@ -2439,6 +2508,7 @@ export default function RecurringPayments() {
                         <Input
                           type="number"
                           step="0.01"
+                          placeholder="0.00"
                           value={
                             editForm.is_scheduled && editForm.frequency === "CUSTOM" && editForm.schedule_dates.length > 0
                               ? (editForm.schedule_dates.reduce((acc, itm) => acc + (itm.amount != null ? itm.amount : 0), 0) || "").toString()
@@ -2447,9 +2517,9 @@ export default function RecurringPayments() {
                           onChange={(e) =>
                             setEditForm({ ...editForm, amount: e.target.value })
                           }
-                          disabled={editForm.is_scheduled}
+                          disabled={editForm.is_scheduled && editForm.frequency === "CUSTOM"}
                           className="h-10 text-sm font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
-                          required={!editForm.is_scheduled}
+                          required={!(editForm.is_scheduled && editForm.frequency === "CUSTOM")}
                         />
                       </div>
                     </div>
@@ -2457,7 +2527,7 @@ export default function RecurringPayments() {
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
-                        {editForm.is_scheduled && (
+                        {editForm.is_scheduled && editForm.frequency === "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
                             (Managed by Schedule)
                           </span>
@@ -2468,12 +2538,12 @@ export default function RecurringPayments() {
                         value={
                           editForm.is_scheduled && editForm.frequency === "CUSTOM" && editForm.schedule_dates.length > 0
                             ? (editForm.schedule_dates[0]?.date || editForm.due_date)
-                            : editForm.due_date
+                            : (editForm.due_date || editForm.start_date)
                         }
                         onChange={(e) =>
                           setEditForm({ ...editForm, due_date: e.target.value })
                         }
-                        disabled={editForm.is_scheduled}
+                        disabled={editForm.is_scheduled && editForm.frequency === "CUSTOM"}
                         className="h-10 text-sm disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                       />
                     </div>
@@ -2538,6 +2608,21 @@ export default function RecurringPayments() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <ClassAutocomplete
+                      value={editForm.class}
+                      onChange={(val) => setEditForm((prev) => ({ ...prev, class: val }))}
+                      placeholder="Search or enter class..."
+                      label="Class"
+                    />
+                    <LocationAutocomplete
+                      value={editForm.location}
+                      onChange={(val) => setEditForm((prev) => ({ ...prev, location: val }))}
+                      placeholder="Search or enter location..."
+                      label="Location"
+                    />
                   </div>
 
                   <div className="space-y-1.5 flex-1 flex flex-col">

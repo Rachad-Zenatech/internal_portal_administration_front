@@ -545,6 +545,15 @@ export default function RequestDetail() {
         ? cycleAmount
         : (purchase_order?.amount ?? request.amount ?? request.unit_price ?? 0);
 
+      const isMaTxn = Boolean(
+        (request as any)?.source_portal === "m7a" ||
+        (request as any)?.source_portal === "m&a" ||
+        (request as any)?.source_portal === "m_and_a" ||
+        (request as any)?.is_ma ||
+        request.department?.toLowerCase().includes("m&a")
+      );
+      const effectivePm = purchase_order?.payment_method || (request as any)?.payment_method || (isMaTxn ? "WIRE" : undefined);
+
       setInvoiceItems(prefilledItems);
       setInvoice({
         vendor: defaultVendor,
@@ -552,7 +561,7 @@ export default function RequestDetail() {
         invoice_date: new Date().toISOString().split("T")[0],
         due_date: "",
         gl_code: purchase_order?.gl_code || request.gl_code || "",
-        bank_account: mapPaymentMethodToBankAccount(purchase_order?.payment_method || (request as any)?.payment_method, glCodes) || "",
+        bank_account: mapPaymentMethodToBankAccount(effectivePm, glCodes) || "",
         asset_flag: isDefaultAsset,
         department: "",
         from_location: "",
@@ -623,6 +632,14 @@ export default function RequestDetail() {
         ? 0
         : (parsedPoItems[0]?.unit_price ? parsedPoItems[0].unit_price : (request.unit_price ?? 0));
 
+      const isMaTxn = Boolean(
+        (request as any)?.source_portal === "m7a" ||
+        (request as any)?.source_portal === "m&a" ||
+        (request as any)?.source_portal === "m_and_a" ||
+        (request as any)?.is_ma ||
+        request.department?.toLowerCase().includes("m&a")
+      );
+
       setPo({
         vendor: purchase_order?.vendor || quoteVendor || (info && isUsable(info.vendor) ? info.vendor : ""),
         item: isMultiReq ? (parsedPoItems.length ? `Multi Parts (${parsedPoItems.length} parts)` : (request.title || "Multi Parts")) : (request.title || (info && isUsable(info.name) ? info.name : "")),
@@ -632,7 +649,7 @@ export default function RequestDetail() {
         quote_number: purchase_order?.quote_number || quoteNum || "",
         description: (info && isUsable(info.description) ? info.description : (request.description || "")),
         currency: "USD",
-        payment_method: (purchase_order?.payment_method || (request as any)?.payment_method) as PaymentMethod | undefined,
+        payment_method: ((purchase_order?.payment_method || (request as any)?.payment_method) as PaymentMethod | undefined) || (isMaTxn ? "WIRE" : undefined),
         shipped_to_location: purchase_order?.shipped_to_location || (request as any)?.shipped_to_location || "",
         expected_delivery_date: purchase_order?.expected_delivery_date || "",
         item_url: purchase_order?.item_url || request.item_url || "",
@@ -687,6 +704,13 @@ export default function RequestDetail() {
 
       void (async () => {
         const cleanDueDate = invoice.due_date && invoice.due_date.trim() !== "" ? invoice.due_date : undefined;
+        const isMaTxn = Boolean(
+          (request as any)?.source_portal === "m7a" ||
+          (request as any)?.source_portal === "m&a" ||
+          (request as any)?.source_portal === "m_and_a" ||
+          (request as any)?.is_ma ||
+          request.department?.toLowerCase().includes("m&a")
+        );
         const currentPo = purchase_order || data?.purchase_order || po;
         const ok = await dispatch({
           action,
@@ -695,7 +719,7 @@ export default function RequestDetail() {
             vendor: currentPo?.vendor || invoice.vendor || "Vendor",
             item: currentPo?.item || request.title || "Item",
             amount: Number(currentPo?.amount || invoice.amount || 0),
-            payment_method: currentPo?.payment_method || "CC",
+            payment_method: currentPo?.payment_method || (isMaTxn ? "WIRE" : "CC"),
             shipped_to_location: currentPo?.shipped_to_location || "Headquarters",
             quote_number: invoicePoNumber.trim(),
           },
@@ -1032,11 +1056,16 @@ export default function RequestDetail() {
       <div className="w-full space-y-2.5">
         {/* Title with ID prefix and HelpIcon - Takes 100% full width */}
         <div className="flex items-start gap-2.5 w-full">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 leading-snug break-words flex-1 min-w-0">
-            <span className="text-blue-600 dark:text-blue-400 font-semibold mr-2 font-mono text-lg sm:text-xl">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 leading-snug break-words flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+            <span className="text-blue-600 dark:text-blue-400 font-semibold mr-1 font-mono text-lg sm:text-xl">
               #{request.id}
             </span>
-            {request.title}
+            <span>{request.title}</span>
+            {(request.source_portal === "m7a" || request.source_portal === "m&a" || request.source_portal === "m_and_a" || request.is_ma) && (
+              <Badge className="text-xs px-2 py-0.5 bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-700 font-bold shrink-0 shadow-2xs">
+                M&amp;A
+              </Badge>
+            )}
           </h1>
           <span className="mt-1 shrink-0 inline-flex">
             <HelpIcon text="Detailed view of a single purchase request, including purchase order, invoices, and workflow approval logs." />

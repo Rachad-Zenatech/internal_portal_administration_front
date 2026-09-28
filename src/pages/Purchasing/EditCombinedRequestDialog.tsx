@@ -412,10 +412,17 @@ export function EditCombinedRequestDialog({
 
       // Purchase Order Details
       if (purchaseOrder) {
+        const isMaTxn = Boolean(
+          (request as any)?.source_portal === "m7a" ||
+          (request as any)?.source_portal === "m&a" ||
+          (request as any)?.source_portal === "m_and_a" ||
+          (request as any)?.is_ma ||
+          request?.department?.toLowerCase().includes("m&a")
+        );
         setPoQuoteNumber(purchaseOrder.quote_number || "");
         setPoVendor(purchaseOrder.vendor || "");
         setPoItem(purchaseOrder.item || request?.title || "");
-        setPoPaymentMethod(purchaseOrder.payment_method || "CC");
+        setPoPaymentMethod(purchaseOrder.payment_method || (isMaTxn ? "WIRE" : "CC"));
         setPoShippedTo(purchaseOrder.shipped_to_location || "");
         setPoExpectedDeliveryDate(
           purchaseOrder.expected_delivery_date
