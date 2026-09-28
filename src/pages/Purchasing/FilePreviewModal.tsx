@@ -81,12 +81,12 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
-        className="w-[95vw] md:w-[88vw] max-w-6xl h-[90vh] max-h-[90vh] p-0 flex flex-col gap-0 overflow-hidden rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl bg-white dark:bg-zinc-950"
+        className="w-[98vw] max-w-[98vw] sm:w-[94vw] sm:max-w-[94vw] md:w-[90vw] md:max-w-[90vw] lg:w-[88vw] lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1440px] h-[95dvh] sm:h-[92dvh] md:h-[90vh] max-h-[96dvh] p-0 flex flex-col gap-0 overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl bg-white dark:bg-zinc-950"
       >
         {/* Header Bar */}
-        <DialogHeader className="px-5 py-3.5 border-b border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/80 dark:bg-zinc-900/60 flex flex-row items-center justify-between shrink-0 space-y-0">
-          <div className="flex items-center gap-3 min-w-0 pr-4">
-            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0 border border-indigo-100 dark:border-indigo-900/40">
+        <DialogHeader className="px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/80 dark:bg-zinc-900/60 flex flex-row items-center justify-between shrink-0 space-y-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 pr-2">
+            <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0 border border-indigo-100 dark:border-indigo-900/40">
               {isImage ? (
                 <ImageIcon className="h-4 w-4" />
               ) : isSpreadsheet ? (
@@ -97,14 +97,14 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
             </div>
 
             <div className="min-w-0">
-              <DialogTitle className="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate max-w-md md:max-w-xl">
+              <DialogTitle className="text-xs sm:text-sm md:text-base font-bold text-slate-900 dark:text-zinc-100 truncate max-w-[140px] xs:max-w-[200px] sm:max-w-xs md:max-w-md lg:max-w-xl xl:max-w-2xl">
                 {name}
               </DialogTitle>
-              <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
                 {ext ? (
                   <Badge
                     variant="outline"
-                    className="text-[10px] uppercase font-mono font-bold tracking-wider px-1.5 py-0 bg-white dark:bg-zinc-900"
+                    className="text-[9px] sm:text-[10px] uppercase font-mono font-bold tracking-wider px-1 sm:px-1.5 py-0 bg-white dark:bg-zinc-900"
                   >
                     {ext}
                   </Badge>
@@ -112,14 +112,14 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                 {formatSize(target.size) && (
                   <span>{formatSize(target.size)}</span>
                 )}
-                <span>• Preview Mode</span>
+                <span className="hidden sm:inline">• Preview Mode</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0 pr-8">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pr-7 sm:pr-8">
             {isImage && (
-              <div className="hidden sm:flex items-center gap-1 mr-2 px-2 py-1 rounded-lg bg-slate-200/60 dark:bg-zinc-800/60 text-xs">
+              <div className="hidden md:flex items-center gap-1 mr-1.5 px-2 py-0.5 rounded-lg bg-slate-200/60 dark:bg-zinc-800/60 text-xs">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -129,7 +129,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                 >
                   <ZoomOut className="h-3.5 w-3.5" />
                 </Button>
-                <span className="text-[10px] font-mono px-1 min-w-[3rem] text-center">
+                <span className="text-[10px] font-mono px-1 min-w-[2.8rem] text-center">
                   {Math.round(zoom * 100)}%
                 </span>
                 <Button
@@ -148,7 +148,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                   onClick={() => setZoom(1)}
                   title="Reset Zoom"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
+                  <RotateCcw className="h-3 w-3" />
                 </Button>
               </div>
             )}
@@ -157,7 +157,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
               variant="outline"
               size="sm"
               onClick={handleOpenExternal}
-              className="h-8 px-2.5 text-xs gap-1.5 border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
+              className="h-7 sm:h-8 px-2 sm:px-2.5 text-xs gap-1 sm:gap-1.5 border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
               title="Open full view in new tab"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -168,31 +168,32 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
               variant="default"
               size="sm"
               onClick={handleDownload}
-              className="h-8 px-3 text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer shadow-xs"
+              className="h-7 sm:h-8 px-2.5 sm:px-3 text-xs gap-1 sm:gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer shadow-xs"
+              title="Download File"
             >
               <Download className="h-3.5 w-3.5" />
-              <span>Download</span>
+              <span className="hidden xs:inline sm:inline">Download</span>
             </Button>
           </div>
         </DialogHeader>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-auto bg-slate-100/70 dark:bg-zinc-900/60 flex items-center justify-center p-4 min-h-0 relative">
+        <div className="flex-1 overflow-auto bg-slate-100/70 dark:bg-zinc-900/60 flex items-center justify-center p-2 sm:p-3 md:p-4 min-h-0 relative">
           {isPdf ? (
-            <div className="w-full h-full rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800 shadow-md bg-white dark:bg-zinc-950 flex flex-col">
+            <div className="w-full h-full rounded-lg sm:rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800 shadow-md bg-white dark:bg-zinc-950 flex flex-col">
               <iframe
                 src={target.url}
                 title={name}
-                className="w-full h-full border-0 rounded-xl"
+                className="w-full h-full border-0 rounded-lg sm:rounded-xl"
               />
             </div>
           ) : isImage ? (
-            <div className="w-full h-full flex items-center justify-center overflow-auto p-2">
+            <div className="w-full h-full flex items-center justify-center overflow-auto p-1 sm:p-2">
               <img
                 src={target.url}
                 alt={name}
                 style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
-                className="max-h-[75vh] max-w-full object-contain rounded-lg shadow-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 transition-transform duration-150 ease-out"
+                className="max-h-[80vh] max-w-full object-contain rounded-lg shadow-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 transition-transform duration-150 ease-out"
               />
             </div>
           ) : (
