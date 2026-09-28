@@ -29,8 +29,9 @@ import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
 import { WireBankingFields } from "./WireBankingFields";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { calculateInstallmentsCount } from "./recurringScheduleUtils";
-import { useUpdateRequest, useUsersList, useRolesList } from "@/hooks/usePurchasing";
+import { useUpdateRequest, useUsersList, useRolesList, useUploadAttachments, useDeleteAttachment } from "@/hooks/usePurchasing";
 import { resolveUserDepartment } from "@/lib/userDepartment";
+import * as purchasingService from "@/services/purchasingService";
 import { updateWireTransfer } from "@/services/purchasingService";
 import type {
   RequestDetail as RequestDetailType,
@@ -40,10 +41,12 @@ import type {
   WireTransferInput,
   FrequencyType,
   CustomScheduleDate,
+  AttachmentInfo,
 } from "@/types/purchasing";
 import { RequestStatus } from "@/types/purchasing";
 import { TAX_RATE, formatMoney } from "./purchasingMeta";
 import { Checkbox } from "@/components/ui/checkbox";
+import { FilePreviewModal, type PreviewFileTarget } from "./FilePreviewModal";
 import {
   Package,
   FileText,
@@ -64,6 +67,10 @@ import {
   Truck,
   CheckCircle2,
   FolderKanban,
+  Eye,
+  Download,
+  ReceiptText,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -213,6 +220,44 @@ export function EditCombinedRequestDialog({
   const [invGlCode, setInvGlCode] = useState("");
   const [invDescription, setInvDescription] = useState("");
   const [invItems, setInvItems] = useState<any[]>([]);
+
+  // --- Attachments & Receipt Preview States ---
+  const uploadAttachments = useUploadAttachments(request?.id || "");
+  const deleteAttachment = useDeleteAttachment(request?.id || "");
+  const [previewTarget, setPreviewTarget] = useState<PreviewFileTarget | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const invoiceReceiptInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePreviewAttachment = async (att: AttachmentInfo) => {
+    if (!request?.id) return;
+    setIsLoadingPreview(true);
+    try {
+      const blob = await purchasingService.getAttachmentBlob(request.id, att.id);
+      const contentType = blob.type || att.content_type || "";
+      const url = URL.createObjectURL(blob);
+      setPreviewTarget({
+        name: att.filename,
+        size: att.size,
+        url,
+        contentType,
+        onDownload: () => purchasingService.downloadAttachment(request.id, att.id, att.filename),
+      });
+      setIsPreviewOpen(true);
+    } catch (err: unknown) {
+      toast.error("Could not load file preview: " + ((err as Error)?.message || "Unknown error"));
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  const handleClosePreview = (open: boolean) => {
+    setIsPreviewOpen(open);
+    if (!open && previewTarget?.url) {
+      URL.revokeObjectURL(previewTarget.url);
+      setPreviewTarget(null);
+    }
+  };
 
   // Close user dropdown on outside click
   useEffect(() => {
@@ -2128,6 +2173,132 @@ export function EditCombinedRequestDialog({
                   className="text-xs resize-none bg-white dark:bg-zinc-900"
                 />
               </div>
+
+              {/* Card 4: Attached Receipts & Invoices */}
+              <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/30 p-5 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-zinc-800/80">
+                  <div className="flex items-center gap-2">
+                    <ReceiptText className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight uppercase text-[11px]">
+                      Attached Receipts &amp; Invoice Files
+                    </h3>
+                    {data?.attachments && data.attachments.length > 0 && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-300">
+                        {data.attachments.length} {data.attachments.length === 1 ? "file" : "files"}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div>
+                    <input
+                      type="file"
+                      ref={invoiceReceiptInputRef}
+                      className="hidden"
+                      multiple
+                      accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          uploadAttachments.mutate(Array.from(e.target.files), {
+                            onSuccess: () => {
+                              refetch?.();
+                            },
+                          });
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploadAttachments.isPending}
+                      onClick={() => invoiceReceiptInputRef.current?.click()}
+                      className="h-7 text-xs px-2.5 gap-1.5 border-dashed border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 cursor-pointer"
+                    >
+                      <Upload className="h-3 w-3" />
+                      <span>{uploadAttachments.isPending ? "Uploading..." : "Upload Receipt"}</span>
+                    </Button>
+                  </div>
+                </div>
+
+                {(!data?.attachments || data.attachments.length === 0) ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-4 text-center">
+                    <div className="inline-flex p-2 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 mb-1.5">
+                      <ReceiptText className="h-4 w-4" />
+                    </div>
+                    <p className="text-xs font-medium text-slate-600 dark:text-zinc-400">
+                      No receipts or invoice documents attached yet.
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Upload your paid receipt or vendor invoice to save it directly with this bill record.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {data.attachments.map((att) => (
+                      <div
+                        key={att.id}
+                        className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors gap-3"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 shrink-0 border border-emerald-100 dark:border-emerald-900/30">
+                            <ReceiptText className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate" title={att.filename}>
+                              {att.filename}
+                            </p>
+                            <div className="flex items-center gap-1.5 text-[10.5px] text-slate-400 dark:text-zinc-500 flex-wrap">
+                              {att.size ? <span>{(att.size / 1024).toFixed(1)} KB</span> : null}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 gap-1 cursor-pointer"
+                            onClick={() => handlePreviewAttachment(att)}
+                            disabled={isLoadingPreview}
+                            title="Preview Receipt"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Preview</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 cursor-pointer"
+                            onClick={() => purchasingService.downloadAttachment(request.id, att.id, att.filename)}
+                            title="Download Receipt"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer"
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to remove receipt "${att.filename}"?`)) {
+                                deleteAttachment.mutate(att.id, {
+                                  onSuccess: () => refetch?.(),
+                                });
+                              }
+                            }}
+                            title="Remove Receipt"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </TabsContent>
           )}
         </Tabs>
@@ -2166,6 +2337,12 @@ export function EditCombinedRequestDialog({
             </Button>
           </div>
         </div>
+
+        <FilePreviewModal
+          open={isPreviewOpen}
+          onOpenChange={handleClosePreview}
+          target={previewTarget}
+        />
       </DialogContent>
     </Dialog>
   );

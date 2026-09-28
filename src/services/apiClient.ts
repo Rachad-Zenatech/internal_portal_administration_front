@@ -644,5 +644,20 @@ export const apiClient = {
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
+  },
+
+  async getBlob(endpoint: string): Promise<Blob> {
+    const res = await monitoredFetch(endpoint, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        ...getAuthHeaders(),
+      } as HeadersInit
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error((err as { detail: string }).detail || "Request failed");
+    }
+    return res.blob();
   }
 };

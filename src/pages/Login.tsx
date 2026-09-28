@@ -46,16 +46,53 @@ export default function Login() {
           sessionStorage.removeItem("user");
           sessionStorage.removeItem("ms_id_token");
           const token = searchParams.get("token");
-          if (token) {
-            sessionStorage.setItem("token", token);
+          if (!token) {
+            toast.error("No authentication token provided");
+            navigate("/login", { replace: true });
+            return;
           }
-          await refreshPermissions();
+          sessionStorage.setItem("token", token);
+          
+          const perms = await refreshPermissions();
+          if (!perms?.user) {
+            sessionStorage.removeItem("token");
+            toast.error("Unable to authenticate your session. Please check your permissions or try again.");
+            navigate("/login", { replace: true });
+            return;
+          }
+
           toast.success("Successfully logged in");
           window.history.replaceState({}, document.title, window.location.pathname);
-          navigate("/dashboard");
+
+          // Check if user is pending
+          const isPending = !perms.user.is_super_admin && (
+            !perms.roles || 
+            perms.roles.length === 0 || 
+            perms.roles.every(r => r.code === "PENDING_USER")
+          );
+
+          if (isPending) {
+            navigate("/pending-access", { replace: true });
+            return;
+          }
+
+          // Role-based landing page routing:
+          // Super admins or users with DASHBOARD permissions go to /dashboard;
+          // requesters / non-dashboard users go directly to /purchasing/requests to avoid Access Denied.
+          const hasDashboardAccess = 
+            Boolean(perms.user.is_super_admin) || 
+            Boolean(perms.roles?.some(r => r.code === "SUPER_ADMIN")) ||
+            Boolean(perms.navigation_permissions?.DASHBOARD && (
+              perms.navigation_permissions.DASHBOARD.includes("READ") || 
+              perms.navigation_permissions.DASHBOARD.includes("VIEW")
+            ));
+
+          const targetPath = hasDashboardAccess ? "/dashboard" : "/purchasing/requests";
+          navigate(targetPath, { replace: true });
         } catch (error) {
           console.error("Failed to process SSO login", error);
           toast.error("Failed to process login");
+          navigate("/login", { replace: true });
         } finally {
           setIsLoading(false);
         }

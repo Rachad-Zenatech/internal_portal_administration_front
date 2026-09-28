@@ -38,6 +38,7 @@ coverage/
 
 # cache
 .cache/
+.data/
 .eslintcache
 
 # temporary files

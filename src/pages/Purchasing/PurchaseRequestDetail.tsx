@@ -29,12 +29,13 @@ import {
   ChevronRight,
   ArrowUpDown,
   Trash2,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiClient } from "@/services/apiClient";
-import { downloadAttachment, deletePurchaseRequest } from "@/services/purchasingService";
-import { useRequestDetail, useTransitionRequest, useUploadAttachments, useGLCodes, useUpdateWireTransfer } from "@/hooks/usePurchasing";
+import { downloadAttachment, getAttachmentBlob, deletePurchaseRequest } from "@/services/purchasingService";
+import { useRequestDetail, useTransitionRequest, useUploadAttachments, useDeleteAttachment, useGLCodes, useUpdateWireTransfer } from "@/hooks/usePurchasing";
 import { BankAccountAutocomplete } from "./BankAccountAutocomplete";
 import { CategoryAutocomplete } from "./CategoryAutocomplete";
 import { renderBankAccountBadge, renderCategoryBadge } from "@/utils/glAccountUtils";
@@ -44,7 +45,9 @@ import {
   type CustomScheduleDate,
   type FrequencyType,
   type WireTransferInput,
+  type AttachmentInfo,
 } from "@/types/purchasing";
+import { FilePreviewModal, type PreviewFileTarget } from "./FilePreviewModal";
 import { WireTransferDialog } from "./WireTransferDialog";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
@@ -307,6 +310,60 @@ export default function PurchaseRequestDetail() {
 
   const transitionMutation = useTransitionRequest(id || "");
   const uploadMutation = useUploadAttachments(id || "");
+  const deleteAttachmentMutation = useDeleteAttachment(id || "");
+
+  const [previewTarget, setPreviewTarget] = useState<PreviewFileTarget | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  const handlePreviewAttachment = async (att: AttachmentInfo) => {
+    if (!id) return;
+    setIsLoadingPreview(true);
+    try {
+      const blob = await getAttachmentBlob(id, att.id);
+      const contentType = blob.type || att.content_type || "";
+      const url = URL.createObjectURL(blob);
+      setPreviewTarget({
+        name: att.filename,
+        size: att.size,
+        url,
+        contentType,
+        onDownload: () => downloadAttachment(id, att.id, att.filename),
+      });
+      setIsPreviewOpen(true);
+    } catch (err: unknown) {
+      toast.error("Could not load file preview: " + ((err as Error)?.message || "Unknown error"));
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  const handlePreviewFile = (file: File) => {
+    const url = URL.createObjectURL(file);
+    setPreviewTarget({
+      name: file.name,
+      size: file.size,
+      url,
+      contentType: file.type,
+      onDownload: () => {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      },
+    });
+    setIsPreviewOpen(true);
+  };
+
+  const handleClosePreview = (open: boolean) => {
+    setIsPreviewOpen(open);
+    if (!open && previewTarget?.url) {
+      URL.revokeObjectURL(previewTarget.url);
+      setPreviewTarget(null);
+    }
+  };
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1942,21 +1999,48 @@ export default function PurchaseRequestDetail() {
                             </span>
                           </div>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 shrink-0 gap-1"
-                          onClick={() => {
-                            if (id) {
-                              downloadAttachment(id, att.id, att.filename).catch((err) => {
-                                toast.error(err?.message || "Failed to download attachment");
-                              });
-                            }
-                          }}
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          <span className="text-[11px]">Download</span>
-                        </Button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 gap-1 cursor-pointer"
+                            onClick={() => handlePreviewAttachment(att)}
+                            disabled={isLoadingPreview}
+                            title="Preview file"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span className="text-[11px]">Preview</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 cursor-pointer"
+                            onClick={() => {
+                              if (id) {
+                                downloadAttachment(id, att.id, att.filename).catch((err) => {
+                                  toast.error(err?.message || "Failed to download attachment");
+                                });
+                              }
+                            }}
+                            title="Download file"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            <span className="text-[11px]">Download</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer"
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to remove attachment "${att.filename}"?`)) {
+                                deleteAttachmentMutation.mutate(att.id);
+                              }
+                            }}
+                            title="Remove attachment"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -2237,11 +2321,11 @@ export default function PurchaseRequestDetail() {
                 />
               </div>
 
-              {/* PDF Attachment Dropzone */}
-              <div className="space-y-1.5 pt-1">
+              {/* Receipt & Invoice Attachment Dropzone */}
+              <div className="space-y-2 pt-1">
                 <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
-                  <span>Attach Invoice (.PDF)</span>
-                  <span className="text-[11px] text-muted-foreground font-normal">Accepted: .pdf</span>
+                  <span>Attach Invoice / Receipt (.PDF, .PNG, .JPG)</span>
+                  <span className="text-[11px] text-muted-foreground font-normal">Accepted: .pdf, images</span>
                 </label>
 
                 <div
@@ -2256,11 +2340,16 @@ export default function PurchaseRequestDetail() {
                   onDrop={(e) => {
                     e.preventDefault();
                     setIsDraggingPdf(false);
-                    const droppedFiles = Array.from(e.dataTransfer.files).filter(
-                      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
-                    );
+                    const droppedFiles = Array.from(e.dataTransfer.files).filter((f) => {
+                      const ext = f.name.split(".").pop()?.toLowerCase() || "";
+                      return (
+                        ["pdf", "png", "jpg", "jpeg", "webp"].includes(ext) ||
+                        f.type.startsWith("image/") ||
+                        f.type === "application/pdf"
+                      );
+                    });
                     if (droppedFiles.length === 0) {
-                      toast.error("Only PDF (.pdf) files are accepted");
+                      toast.error("Please upload PDF or image (.png, .jpg, .jpeg) receipt files");
                       return;
                     }
                     setInvoiceFiles((prev) => [...prev, ...droppedFiles]);
@@ -2275,16 +2364,21 @@ export default function PurchaseRequestDetail() {
                   <input
                     id="invoice-pdf-upload-input"
                     type="file"
-                    accept=".pdf,application/pdf"
+                    accept=".pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
                     multiple
                     className="hidden"
                     onChange={(e) => {
                       if (e.target.files) {
-                        const selectedFiles = Array.from(e.target.files).filter(
-                          (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
-                        );
+                        const selectedFiles = Array.from(e.target.files).filter((f) => {
+                          const ext = f.name.split(".").pop()?.toLowerCase() || "";
+                          return (
+                            ["pdf", "png", "jpg", "jpeg", "webp"].includes(ext) ||
+                            f.type.startsWith("image/") ||
+                            f.type === "application/pdf"
+                          );
+                        });
                         if (selectedFiles.length === 0) {
-                          toast.error("Only PDF (.pdf) files are accepted");
+                          toast.error("Please upload PDF or image (.png, .jpg, .jpeg) receipt files");
                           return;
                         }
                         setInvoiceFiles((prev) => [...prev, ...selectedFiles]);
@@ -2302,8 +2396,13 @@ export default function PurchaseRequestDetail() {
                   </div>
                 </div>
 
+                {/* Staged files for current record */}
                 {invoiceFiles.length > 0 && (
                   <div className="space-y-1.5 pt-1">
+                    <div className="text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider flex items-center justify-between">
+                      <span>Selected Receipts to Upload ({invoiceFiles.length})</span>
+                      <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-normal">Will save with this bill</span>
+                    </div>
                     {invoiceFiles.map((file, idx) => (
                       <div
                         key={idx}
@@ -2316,18 +2415,80 @@ export default function PurchaseRequestDetail() {
                             ({(file.size / (1024 * 1024)).toFixed(2)} MB)
                           </span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setInvoiceFiles((prev) => prev.filter((_, i) => i !== idx));
-                          }}
-                          className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 gap-1 cursor-pointer"
+                            onClick={() => handlePreviewFile(file)}
+                          >
+                            <Eye className="h-3 w-3" />
+                            <span>Preview</span>
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInvoiceFiles((prev) => prev.filter((_, i) => i !== idx));
+                            }}
+                            className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer"
+                            title="Remove file"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Previously saved attachments on this recurring request */}
+                {attachments && attachments.length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                    <div className="text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider flex items-center justify-between">
+                      <span>Saved Receipts &amp; Documents ({attachments.length})</span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal">Saved in this spot</span>
+                    </div>
+                    <ul className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                      {attachments.map((att) => (
+                        <li
+                          key={att.id}
+                          className="flex items-center justify-between gap-2 text-xs bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg px-3 py-1.5 border border-emerald-100 dark:border-emerald-900/30"
+                        >
+                          <span className="flex items-center gap-2 min-w-0">
+                            <Receipt className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <span className="truncate text-slate-800 dark:text-zinc-200" title={att.filename}>{att.filename}</span>
+                            {att.size ? <span className="text-[10px] text-slate-400 shrink-0">({(att.size / 1024).toFixed(1)} KB)</span> : null}
+                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-[11px] text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 gap-1 cursor-pointer"
+                              onClick={() => handlePreviewAttachment(att)}
+                              disabled={isLoadingPreview}
+                            >
+                              <Eye className="h-3 w-3" />
+                              <span>Preview</span>
+                            </Button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to remove receipt "${att.filename}"?`)) {
+                                  deleteAttachmentMutation.mutate(att.id);
+                                }
+                              }}
+                              className="p-1 text-slate-400 hover:text-red-500 rounded cursor-pointer transition-colors"
+                              title="Remove saved attachment"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>
@@ -2400,6 +2561,12 @@ export default function PurchaseRequestDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <FilePreviewModal
+        open={isPreviewOpen}
+        onOpenChange={handleClosePreview}
+        target={previewTarget}
+      />
     </div>
   );
 }

@@ -148,6 +148,10 @@ export function downloadAttachment(requestId: string, fileId: string, filename: 
   return apiClient.downloadFile(`${BASE}/requests/${requestId}/attachments/${fileId}/download`, filename);
 }
 
+export function getAttachmentBlob(requestId: string, fileId: string): Promise<Blob> {
+  return apiClient.getBlob(`${BASE}/requests/${requestId}/attachments/${fileId}/download`);
+}
+
 export function updateRequest(id: string, payload: any) {
   return apiClient.put<RequestDetail>(`${BASE}/requests/${id}`, payload);
 }
