@@ -1608,7 +1608,7 @@ export default function QuickBooksPage() {
                   )}
 
                   <Button
-                    onClick={handleExport}
+                    onClick={() => handleExport()}
                     disabled={isExporting}
                     className="w-full text-xs font-semibold gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs mt-2"
                   >
