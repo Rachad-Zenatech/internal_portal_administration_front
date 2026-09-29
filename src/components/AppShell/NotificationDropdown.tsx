@@ -541,10 +541,12 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
       linkUrl: string;
     }> = [];
 
-    // 1. Live recurring payments from DB
+    // 1. Live recurring payments from DB that have updates/notifications
     for (const req of recurringRequests) {
       const idStr = String(req.id);
       const reqNotifs = notifsByReqId.get(idStr) || [];
+      if (reqNotifs.length === 0) continue; // Only show recurring requests that have actual updates/notifications
+
       const dueInfo = calculateDueInfo(req);
       const unreadCount = reqNotifs.filter((n) => !n.is_read).length;
       const reviewStatus = (req.review_status || "WAITING_FOR_REVIEW").toUpperCase();
@@ -626,11 +628,9 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
     });
   }, [recurringRequests, recurringNotifications]);
 
-  // Calculate badge counter for recurring tab: Due soon + Waiting for review + Unread
+  // Calculate badge counter for recurring tab: Unread recurring updates count
   const recurringAlertsCount = useMemo(() => {
-    return recurringItems.filter(
-      (item) => item.dueInfo.isDueSoon || item.reviewStatus === "WAITING_FOR_REVIEW" || item.hasUnread
-    ).length;
+    return recurringItems.reduce((acc, item) => acc + item.unreadCount, 0);
   }, [recurringItems]);
 
   // Group purchase request notifications by Request ID
@@ -776,17 +776,6 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
 
           <div className="flex items-center gap-1.5">
             <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEmailTesterOpen(true)}
-              className="h-7.5 px-2.5 text-xs font-semibold gap-1.5 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
-              title="Test SendGrid Email Notifications"
-            >
-              <Mail className="h-3.5 w-3.5" />
-              <span>Test Email</span>
-            </Button>
-
-            <Button
               variant="ghost"
               size="icon"
               onClick={onClose}
@@ -911,9 +900,9 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
                 <div className="h-12 w-12 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-100 dark:border-purple-900/50 mb-3">
                   <RefreshCw className="h-6 w-6 stroke-1.5" />
                 </div>
-                <p className="text-sm font-semibold text-slate-800 dark:text-zinc-200">No recurring payments found</p>
+                <p className="text-sm font-semibold text-slate-800 dark:text-zinc-200">No recurring updates</p>
                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 max-w-[300px]">
-                  Upcoming installment due dates, review status updates, and recurring assignments will appear here live.
+                  Updates, invoices recorded, and alerts for recurring payments will appear here.
                 </p>
                 <Button
                   variant="outline"
