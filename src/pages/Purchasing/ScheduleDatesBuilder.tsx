@@ -331,67 +331,136 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                   scheduleDates.map((item, idx) => (
                     <div
                       key={idx}
-                      className="grid grid-cols-12 items-center gap-2 p-1.5 rounded-lg bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 shadow-2xs hover:border-indigo-400 dark:hover:border-indigo-700 transition-colors"
+                      className="p-2.5 rounded-lg bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 shadow-2xs hover:border-indigo-400 dark:hover:border-indigo-700 transition-colors space-y-2"
                     >
-                      {/* Index Badge */}
-                      <div className="col-span-1 flex items-center justify-center">
-                        <span className="h-6 w-6 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center border border-indigo-100 dark:border-indigo-800">
-                          {idx + 1}
-                        </span>
+                      {/* Top Row: Index, Due Date, Amount, Note, Delete button */}
+                      <div className="grid grid-cols-12 items-center gap-2">
+                        {/* Index Badge */}
+                        <div className="col-span-1 flex items-center justify-center">
+                          <span className="h-6 w-6 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center border border-indigo-100 dark:border-indigo-800">
+                            {idx + 1}
+                          </span>
+                        </div>
+
+                        {/* Date picker */}
+                        <div className="col-span-4">
+                          <Input
+                            type="date"
+                            value={item.date}
+                            onChange={(e) => handleUpdateDate(idx, "date", e.target.value)}
+                            className="h-8 text-xs font-medium px-2 w-full bg-slate-50/50 dark:bg-zinc-900/50"
+                            required
+                          />
+                        </div>
+
+                        {/* Custom Amount */}
+                        <div className="col-span-3 relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder={baseAmount ? baseAmount.toFixed(2) : "0.00"}
+                            value={item.amount != null ? item.amount : ""}
+                            onChange={(e) =>
+                              handleUpdateDate(
+                                idx,
+                                "amount",
+                                e.target.value ? parseFloat(e.target.value) : undefined
+                              )
+                            }
+                            className="h-8 text-xs pl-5 pr-1 font-medium text-right w-full bg-slate-50/50 dark:bg-zinc-900/50 font-mono"
+                          />
+                        </div>
+
+                        {/* Optional Note / Label */}
+                        <div className="col-span-3">
+                          <Input
+                            placeholder="Note"
+                            value={item.note || ""}
+                            onChange={(e) => handleUpdateDate(idx, "note", e.target.value)}
+                            className="h-8 text-xs px-2 w-full bg-slate-50/50 dark:bg-zinc-900/50"
+                          />
+                        </div>
+
+                        {/* Delete button */}
+                        <div className="col-span-1 flex items-center justify-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                            onClick={() => handleRemoveDate(idx)}
+                            title="Remove date"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
 
-                      {/* Date picker */}
-                      <div className="col-span-4">
-                        <Input
-                          type="date"
-                          value={item.date}
-                          onChange={(e) => handleUpdateDate(idx, "date", e.target.value)}
-                          className="h-8 text-xs font-medium px-2 w-full bg-slate-50/50 dark:bg-zinc-900/50"
-                          required
-                        />
-                      </div>
+                      {/* Financial Breakdown Row: Interest, Principal Paid, Remaining Balance */}
+                      <div className="grid grid-cols-3 gap-2.5 pt-1.5 border-t border-slate-100 dark:border-zinc-800/60 pl-8 pr-8">
+                        <div className="space-y-0.5">
+                          <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Interest</label>
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">$</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="—"
+                              value={item.interest != null ? item.interest : ""}
+                              onChange={(e) =>
+                                handleUpdateDate(
+                                  idx,
+                                  "interest",
+                                  e.target.value !== "" ? parseFloat(e.target.value) : null
+                                )
+                              }
+                              className="h-7 text-xs pl-5 pr-1 text-right font-mono bg-slate-50/40 dark:bg-zinc-900/40"
+                            />
+                          </div>
+                        </div>
 
-                      {/* Custom Amount */}
-                      <div className="col-span-3 relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">$</span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder={baseAmount ? baseAmount.toFixed(2) : "0.00"}
-                          value={item.amount != null ? item.amount : ""}
-                          onChange={(e) =>
-                            handleUpdateDate(
-                              idx,
-                              "amount",
-                              e.target.value ? parseFloat(e.target.value) : undefined
-                            )
-                          }
-                          className="h-8 text-xs pl-5 pr-1 font-medium text-right w-full bg-slate-50/50 dark:bg-zinc-900/50 font-mono"
-                        />
-                      </div>
+                        <div className="space-y-0.5">
+                          <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Principal Paid</label>
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">$</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="—"
+                              value={item.principal_paid != null ? item.principal_paid : ""}
+                              onChange={(e) =>
+                                handleUpdateDate(
+                                  idx,
+                                  "principal_paid",
+                                  e.target.value !== "" ? parseFloat(e.target.value) : null
+                                )
+                              }
+                              className="h-7 text-xs pl-5 pr-1 text-right font-mono bg-slate-50/40 dark:bg-zinc-900/40"
+                            />
+                          </div>
+                        </div>
 
-                      {/* Optional Note / Label */}
-                      <div className="col-span-3">
-                        <Input
-                          placeholder="Note"
-                          value={item.note || ""}
-                          onChange={(e) => handleUpdateDate(idx, "note", e.target.value)}
-                          className="h-8 text-xs px-2 w-full bg-slate-50/50 dark:bg-zinc-900/50"
-                        />
-                      </div>
-
-                      {/* Delete button */}
-                      <div className="col-span-1 flex items-center justify-center">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                          onClick={() => handleRemoveDate(idx)}
-                          title="Remove date"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="space-y-0.5">
+                          <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Remaining Balance</label>
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">$</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="—"
+                              value={item.balance != null ? item.balance : ""}
+                              onChange={(e) =>
+                                handleUpdateDate(
+                                  idx,
+                                  "balance",
+                                  e.target.value !== "" ? parseFloat(e.target.value) : null
+                                )
+                              }
+                              className="h-7 text-xs pl-5 pr-1 text-right font-mono bg-slate-50/40 dark:bg-zinc-900/40"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))

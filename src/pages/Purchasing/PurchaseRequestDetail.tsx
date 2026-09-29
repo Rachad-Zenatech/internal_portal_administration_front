@@ -40,7 +40,6 @@ import { downloadAttachment, getAttachmentBlob, deletePurchaseRequest } from "@/
 import { useRequestDetail, useTransitionRequest, useUploadAttachments, useDeleteAttachment, useGLCodes, useUpdateWireTransfer } from "@/hooks/usePurchasing";
 import { BankAccountAutocomplete } from "./BankAccountAutocomplete";
 import { CategoryAutocomplete } from "./CategoryAutocomplete";
-import { ClassAutocomplete } from "./ClassAutocomplete";
 import LocationAutocomplete from "./LocationAutocomplete";
 import { renderBankAccountBadge, renderCategoryBadge } from "@/utils/glAccountUtils";
 import {
@@ -169,6 +168,9 @@ export default function PurchaseRequestDetail() {
     from_location: "USA",
     asset_flag: false,
     description: "",
+    interest: "",
+    principal_paid: "",
+    balance: "",
   });
 
   const isScheduledPayment =
@@ -435,6 +437,9 @@ export default function PurchaseRequestDetail() {
         const sanitizedDates = customDates.map((d, i) => ({
           date: d.date,
           amount: d.amount != null && d.amount > 0 ? d.amount : cycleAmt,
+          interest: d.interest != null ? d.interest : null,
+          principal_paid: d.principal_paid != null ? d.principal_paid : null,
+          balance: d.balance != null ? d.balance : null,
           note: d.note || `Installment #${i + 1}`,
         }));
 
@@ -559,6 +564,9 @@ export default function PurchaseRequestDetail() {
         from_location: invoiceForm.from_location || "USA",
         asset_flag: invoiceForm.asset_flag,
         description: invoiceForm.description || null,
+        interest: invoiceForm.interest && invoiceForm.interest.trim() !== "" ? parseFloat(invoiceForm.interest.replace("$", "").replace(",", "")) : null,
+        principal_paid: invoiceForm.principal_paid && invoiceForm.principal_paid.trim() !== "" ? parseFloat(invoiceForm.principal_paid.replace("$", "").replace(",", "")) : null,
+        balance: invoiceForm.balance && invoiceForm.balance.trim() !== "" ? parseFloat(invoiceForm.balance.replace("$", "").replace(",", "")) : null,
       },
       {
         onSuccess: () => {
@@ -673,6 +681,10 @@ export default function PurchaseRequestDetail() {
     const instDate = inst?.dueDate || (request?.due_date ? String(request.due_date).split("T")[0] : new Date().toISOString().split("T")[0]);
     const instNum = inst?.installmentNumber || currentCycle;
 
+    const rawInterest = inst?.interest != null ? String(inst.interest) : ((request?.quote_data as any)?.interest != null ? String((request?.quote_data as any).interest) : "");
+    const rawPrincipal = inst?.principal_paid != null ? String(inst.principal_paid) : ((request?.quote_data as any)?.principal_paid != null ? String((request?.quote_data as any).principal_paid) : "");
+    const rawBalance = inst?.balance != null ? String(inst.balance) : ((request?.quote_data as any)?.balance != null ? String((request?.quote_data as any).balance) : ((request?.quote_data as any)?.remaining_balance != null ? String((request?.quote_data as any).remaining_balance) : ""));
+
     setInvoiceForm({
       vendor: invoice?.vendor || request?.title || "",
       amount: instAmt.toString(),
@@ -684,6 +696,9 @@ export default function PurchaseRequestDetail() {
       from_location: (request as any)?.from_location || "USA",
       asset_flag: Boolean(request?.request_type === "SCHEDULED_PAYMENT" || request?.request_type === "RECURRING" || invoice?.asset_flag),
       description: `Payment for Installment #${instNum} (${formatDate(instDate)}) - ${request?.title || ""}`,
+      interest: rawInterest,
+      principal_paid: rawPrincipal,
+      balance: rawBalance,
     });
     setInvoiceFiles([]);
     setIsRecordInvoiceOpen(true);
@@ -1825,6 +1840,29 @@ export default function PurchaseRequestDetail() {
                                       </div>
                                     </div>
 
+                                    {(inv.interest != null || inv.principal_paid != null || inv.balance != null) && (
+                                      <div className="grid grid-cols-3 gap-3 text-xs">
+                                        <div className="p-2.5 rounded-md bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-zinc-800">
+                                          <div className="text-muted-foreground font-medium mb-1">Interest</div>
+                                          <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100">
+                                            {inv.interest != null ? formatMoney(inv.interest) : "—"}
+                                          </span>
+                                        </div>
+                                        <div className="p-2.5 rounded-md bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-zinc-800">
+                                          <div className="text-muted-foreground font-medium mb-1">Principal Paid</div>
+                                          <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100">
+                                            {inv.principal_paid != null ? formatMoney(inv.principal_paid) : "—"}
+                                          </span>
+                                        </div>
+                                        <div className="p-2.5 rounded-md bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-zinc-800">
+                                          <div className="text-muted-foreground font-medium mb-1">Remaining Balance</div>
+                                          <span className="font-semibold font-mono text-slate-900 dark:text-zinc-100">
+                                            {inv.balance != null ? formatMoney(inv.balance) : "—"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
+
                                     {inv.description && (
                                       <div className="p-2.5 rounded-md bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-zinc-800 text-xs">
                                         <span className="text-muted-foreground font-medium block mb-0.5">Description / Memo</span>
@@ -2404,13 +2442,7 @@ export default function PurchaseRequestDetail() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <ClassAutocomplete
-                      value={editForm.class}
-                      onChange={(val) => setEditForm((prev) => ({ ...prev, class: val }))}
-                      placeholder="Search or enter class..."
-                      label="Class"
-                    />
+                  <div>
                     <LocationAutocomplete
                       value={editForm.location}
                       onChange={(val) => setEditForm((prev) => ({ ...prev, location: val }))}
@@ -2539,6 +2571,59 @@ export default function PurchaseRequestDetail() {
                   onChange={(val) => setInvoiceForm({ ...invoiceForm, gl_code: val })}
                   placeholder="Select Category *"
                 />
+              </div>
+
+              {/* Financial Breakdown (Interest, Principal Paid, Remaining Balance) */}
+              <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 space-y-2">
+                <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Financial Breakdown (Schedule Details)
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400">Interest</label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="—"
+                        value={invoiceForm.interest}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, interest: e.target.value })}
+                        className="pl-6 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400">Principal Paid</label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="—"
+                        value={invoiceForm.principal_paid}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, principal_paid: e.target.value })}
+                        className="pl-6 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400">Remaining Balance</label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="—"
+                        value={invoiceForm.balance}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, balance: e.target.value })}
+                        className="pl-6 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1.5">

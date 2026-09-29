@@ -134,6 +134,16 @@ function formatDisplayDateTime(dateStrOrObj: string | Date | null): string {
   }
 }
 
+function isMaItem(item: QuickBooksPreviewItem | null | undefined): boolean {
+  if (!item) return false;
+  return Boolean(
+    item.transaction_type === "MA_TRANSACTION" ||
+    item.is_ma === true ||
+    item.type === "m&a" ||
+    ["m7a", "m&a", "ma"].includes(String(item.source_portal || "").toLowerCase().trim())
+  );
+}
+
 export default function QuickBooksPage() {
   const [searchParams] = useSearchParams();
   const now = new Date();
@@ -297,16 +307,16 @@ export default function QuickBooksPage() {
   const allExpenses = useMemo(() => {
     if (!previewData?.items) return [];
     return previewData.items.filter((item) => {
-      const isMa = Boolean(item.is_ma || item.type === "m&a" || item.source_portal === "m7a" || item.source_portal === "m&a" || item.source_portal === "m_and_a");
-      return isMa || item.transaction_category === "EXPENSE" || !item.is_recurring;
+      if (isMaItem(item)) return true;
+      return item.transaction_category === "EXPENSE" || !item.is_recurring;
     });
   }, [previewData]);
 
   const allBills = useMemo(() => {
     if (!previewData?.items) return [];
     return previewData.items.filter((item) => {
-      const isMa = Boolean(item.is_ma || item.type === "m&a" || item.source_portal === "m7a" || item.source_portal === "m&a" || item.source_portal === "m_and_a");
-      return !isMa && Boolean(item.is_recurring || item.transaction_category === "BILL");
+      if (isMaItem(item)) return false;
+      return item.transaction_category === "BILL" || Boolean(item.is_recurring);
     });
   }, [previewData]);
 
@@ -407,8 +417,8 @@ export default function QuickBooksPage() {
   // Handle Single Sync (Routes dynamically for Expenses vs Bills)
   const handleSingleSync = async (item: QuickBooksPreviewItem) => {
     setSyncingSingleId(item.request_id);
-    const isMa = Boolean(item.is_ma || item.type === "m&a" || item.source_portal === "m7a" || item.source_portal === "m&a");
-    const isBill = item.transaction_category === "BILL" || (!isMa && Boolean(item.is_recurring));
+    const isMa = isMaItem(item);
+    const isBill = !isMa && (item.transaction_category === "BILL" || Boolean(item.is_recurring));
 
     try {
       if (isBill) {
@@ -1043,12 +1053,12 @@ export default function QuickBooksPage() {
                       const isReady = item.readiness === "READY" || item.readiness === "READY_WITH_NOTES";
                       const isSynced = item.readiness === "ALREADY_SYNCED" || item.is_already_synced;
                       const isCurrentlySyncing = syncingSingleId === item.request_id;
-                      const isMa = Boolean(item.is_ma || item.type === "m&a" || item.source_portal === "m7a" || item.source_portal === "m&a");
-                      const isBillRow = item.transaction_category === "BILL" || (!isMa && Boolean(item.is_recurring));
+                      const isMa = isMaItem(item);
+                      const isBillRow = !isMa && (item.transaction_category === "BILL" || Boolean(item.is_recurring));
 
                       return (
                         <TableRow
-                          key={item.request_id}
+                          key={`${item.request_id}-${item.payment_date || item.doc_number || "row"}`}
                           onClick={() => {
                             setInspectorItem(item);
                             setIsInspectorOpen(true);
@@ -1193,8 +1203,8 @@ export default function QuickBooksPage() {
                                 ) : null}
                               </div>
                               <div className="flex flex-wrap gap-x-2 text-[10px] text-muted-foreground">
-                                {item.department && (
-                                  <span>Class: <strong className="font-medium text-slate-700 dark:text-zinc-300">{item.department}</strong></span>
+                                {item.class && (
+                                  <span>Class: <strong className="font-medium text-slate-700 dark:text-zinc-300">{item.class}</strong></span>
                                 )}
                                 {(item.location || item.from_location) && (
                                   <span>From: <strong className="font-medium text-slate-700 dark:text-zinc-300">{item.location || item.from_location}</strong></span>

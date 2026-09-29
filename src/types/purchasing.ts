@@ -237,6 +237,9 @@ export type Invoice = {
   from_location?: string | null;
   invoice_type?: string | null;
   description?: string | null;
+  interest?: number | null;
+  principal_paid?: number | null;
+  balance?: number | null;
   created_at: string;
   items?: InvoiceItemDetail[];
 };
@@ -381,6 +384,10 @@ export type InvoiceInput = {
   from_location?: string | null;
   invoice_type?: string | null;
   description?: string | null;
+  interest?: number | string | null;
+  principal_paid?: number | string | null;
+  balance?: number | string | null;
+  remaining_balance?: number | string | null;
   items?: InvoiceItemInput[];
 };
 

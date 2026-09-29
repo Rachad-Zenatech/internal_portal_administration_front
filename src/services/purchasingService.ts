@@ -437,6 +437,7 @@ export interface QuickBooksPreviewPart {
   account_id?: string | null;
   account_name?: string | null;
   acct_num?: string | null;
+  class?: string | null;
   customer?: string | null;
 }
 
@@ -463,6 +464,7 @@ export interface QuickBooksPreviewItem {
   memo: string;
   type?: "m&a" | "recurring" | "purchase" | string;
   is_ma?: boolean;
+  transaction_type?: string;
   is_recurring?: boolean;
   transaction_category?: "EXPENSE" | "BILL" | string;
   source_portal?: string | null;
