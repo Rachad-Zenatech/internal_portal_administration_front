@@ -220,7 +220,7 @@ export default function QuickBooksPage() {
 
   // Export Tab State
   const [exportMode, setExportMode] = useState<string>("BUNDLE");
-  const [filterType, setFilterType] = useState<"TODAY" | "DATETIME_RANGE" | "MONTH_YEAR">("TODAY");
+  const [filterType, setFilterType] = useState<"SELECTED" | "TODAY" | "DATETIME_RANGE" | "MONTH_YEAR">("SELECTED");
   const [startDateTime, setStartDateTime] = useState<string>("");
   const [endDateTime, setEndDateTime] = useState<string>("");
   const [lastExportedAt, setLastExportedAt] = useState<string | null>(null);
@@ -357,21 +357,33 @@ export default function QuickBooksPage() {
     });
   }, [currentTabRawItems, statusFilter, searchQuery]);
 
-  // Selected IDs in current tab
+  // Distinct valid IDs in current filtered items
+  const currentTabItemIds = useMemo(() => {
+    return Array.from(new Set(filteredItems.map((i) => i.request_id)));
+  }, [filteredItems]);
+
+  // Selected distinct IDs in current tab
   const currentTabSelectedIds = useMemo(() => {
-    const validIds = new Set(filteredItems.map((i) => i.request_id));
-    return selectedRequestIds.filter((id) => validIds.has(id));
-  }, [selectedRequestIds, filteredItems]);
+    const validIdsSet = new Set(currentTabItemIds);
+    return selectedRequestIds.filter((id) => validIdsSet.has(id));
+  }, [selectedRequestIds, currentTabItemIds]);
+
+  const isAllSelected = currentTabItemIds.length > 0 && currentTabSelectedIds.length === currentTabItemIds.length;
+  const isSomeSelected = currentTabSelectedIds.length > 0 && !isAllSelected;
 
   // Handle Multi-Selection
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      const currentIds = filteredItems.map((i) => i.request_id);
-      setSelectedRequestIds((prev) => Array.from(new Set([...prev, ...currentIds])));
-    } else {
-      const currentIdsSet = new Set(filteredItems.map((i) => i.request_id));
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      const currentIdsSet = new Set(currentTabItemIds);
       setSelectedRequestIds((prev) => prev.filter((id) => !currentIdsSet.has(id)));
+    } else {
+      setSelectedRequestIds((prev) => Array.from(new Set([...prev, ...currentTabItemIds])));
     }
+  };
+
+  const handleClearSelection = () => {
+    const currentIdsSet = new Set(currentTabItemIds);
+    setSelectedRequestIds((prev) => prev.filter((id) => !currentIdsSet.has(id)));
   };
 
   const handleToggleSelect = (id: number) => {
@@ -498,9 +510,10 @@ export default function QuickBooksPage() {
   };
 
   // Export File Package
-  const handleExport = async () => {
+  const handleExport = async (explicitIds?: number[], customMode?: string) => {
     setIsExporting(true);
     const nowIso = new Date().toISOString();
+    const mode = customMode || exportMode;
     try {
       let idsParam: string[] | undefined;
       let statusParam: string | undefined = "ORDERED / PURCHASED";
@@ -509,27 +522,32 @@ export default function QuickBooksPage() {
       let startDt: string | null = null;
       let endDt: string | null = null;
 
-      if (filterType === "TODAY") {
+      const targetIds = explicitIds || (filterType === "SELECTED" && selectedRequestIds.length > 0 ? selectedRequestIds : undefined);
+
+      if (targetIds && targetIds.length > 0) {
+        idsParam = targetIds.map(String);
+        statusParam = undefined;
+      } else if (filterType === "TODAY") {
         const todayStr = new Date().toISOString().split("T")[0];
         startDt = `${todayStr} 00:00:00`;
         endDt = `${todayStr} 23:59:59`;
       } else if (filterType === "DATETIME_RANGE") {
         startDt = startDateTime ? startDateTime.replace("T", " ") : null;
         endDt = endDateTime ? endDateTime.replace("T", " ") : null;
-      } else {
+      } else if (filterType === "MONTH_YEAR") {
         yearParam = selectedYear !== "ALL" ? parseInt(selectedYear, 10) : null;
         monthParam = selectedMonth !== "ALL" ? parseInt(selectedMonth, 10) : null;
       }
 
-      if (exportMode === "BUNDLE") {
+      if (mode === "BUNDLE") {
         await exportQuickBooksBundle(idsParam, statusParam, yearParam, monthParam, startDt, endDt);
-      } else if (exportMode === "XLSX") {
+      } else if (mode === "XLSX") {
         await exportQuickBooksXlsx(idsParam, statusParam, yearParam, monthParam, startDt, endDt);
-      } else if (exportMode === "CSV") {
+      } else if (mode === "CSV") {
         await exportQuickBooksCsv(idsParam, statusParam, yearParam, monthParam, startDt, endDt);
-      } else if (exportMode === "DOCUMENTS") {
+      } else if (mode === "DOCUMENTS") {
         await exportQuickBooksDocuments(idsParam, statusParam, yearParam, monthParam, startDt, endDt);
-      } else if (exportMode === "RECONCILIATION") {
+      } else if (mode === "RECONCILIATION") {
         await exportQuickBooksReconciliation(idsParam, statusParam, yearParam, monthParam, startDt, endDt);
       }
 
@@ -959,11 +977,46 @@ export default function QuickBooksPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleSelectAll(false)}
+                  onClick={handleClearSelection}
                   className="h-7.5 px-2.5 text-xs text-zinc-300 hover:text-white hover:bg-white/10"
                 >
                   Clear Selection
                 </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isExporting}
+                      className="h-7.5 text-xs font-semibold gap-1.5 bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-xs"
+                    >
+                      {isExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                      <span>Export Selected ({currentTabSelectedIds.length})</span>
+                      <ChevronDown className="h-3 w-3 opacity-70" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52 text-xs">
+                    <DropdownMenuLabel>Export Selected Package</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleExport(currentTabSelectedIds, "XLSX")}>
+                      <FileSpreadsheet className="h-3.5 w-3.5 mr-2 text-emerald-600" />
+                      <span>Download Excel (.xlsx)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport(currentTabSelectedIds, "CSV")}>
+                      <FileText className="h-3.5 w-3.5 mr-2 text-blue-600" />
+                      <span>Download CSV (.csv)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport(currentTabSelectedIds, "BUNDLE")}>
+                      <FolderArchive className="h-3.5 w-3.5 mr-2 text-purple-600" />
+                      <span>Download Bundle (.zip)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport(currentTabSelectedIds, "DOCUMENTS")}>
+                      <Download className="h-3.5 w-3.5 mr-2 text-amber-600" />
+                      <span>Documents Only (.zip)</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 <Button
                   size="sm"
@@ -1017,10 +1070,17 @@ export default function QuickBooksPage() {
                 <Table className="text-xs">
                   <TableHeader className="bg-muted/50 border-b border-border/80">
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="w-10 px-3">
+                      <TableHead
+                        className="w-10 px-3 cursor-pointer select-none"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectAll();
+                        }}
+                      >
                         <Checkbox
-                          checked={currentTabSelectedIds.length === filteredItems.length && filteredItems.length > 0}
+                          checked={isAllSelected ? true : isSomeSelected ? "indeterminate" : false}
                           onCheckedChange={handleSelectAll}
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </TableHead>
                       <TableHead className="w-28 font-bold text-foreground">
@@ -1070,10 +1130,17 @@ export default function QuickBooksPage() {
                               : "hover:bg-muted/60"
                             }`}
                         >
-                          <TableCell className="px-3" onClick={(e) => e.stopPropagation()}>
+                          <TableCell
+                            className="px-3 cursor-pointer select-none"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleSelect(item.request_id);
+                            }}
+                          >
                             <Checkbox
                               checked={isSelected}
                               onCheckedChange={() => handleToggleSelect(item.request_id)}
+                              onClick={(e) => e.stopPropagation()}
                             />
                           </TableCell>
 
@@ -1430,8 +1497,9 @@ export default function QuickBooksPage() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs font-semibold">Filter Mode</Label>
-                    <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/60 rounded-lg border border-border/70">
+                    <div className="grid grid-cols-4 gap-1.5 p-1 bg-muted/60 rounded-lg border border-border/70">
                       {[
+                        { id: "SELECTED", label: `Selected (${selectedRequestIds.length})` },
                         { id: "TODAY", label: "Today" },
                         { id: "DATETIME_RANGE", label: "Range" },
                         { id: "MONTH_YEAR", label: "Month" },
@@ -1450,6 +1518,26 @@ export default function QuickBooksPage() {
                       ))}
                     </div>
                   </div>
+
+                  {filterType === "SELECTED" && (
+                    <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-50/20 dark:bg-emerald-950/10 text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-emerald-900 dark:text-emerald-200 block">
+                          Selected Transactions ({selectedRequestIds.length})
+                        </span>
+                        {selectedRequestIds.length > 0 && (
+                          <Badge variant="outline" className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border-emerald-300">
+                            {selectedRequestIds.length} Requests
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-muted-foreground text-[11px]">
+                        {selectedRequestIds.length > 0
+                          ? `Exports only the ${selectedRequestIds.length} purchase/bill transaction(s) you checked in the staging table.`
+                          : "No transactions currently selected. Check items in the Staging table or select a time horizon above."}
+                      </p>
+                    </div>
+                  )}
 
                   {filterType === "TODAY" && (
                     <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-50/20 dark:bg-emerald-950/10 text-xs space-y-1.5">
