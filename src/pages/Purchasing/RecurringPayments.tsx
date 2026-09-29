@@ -2,7 +2,6 @@ import { PageConnectionBanner } from "@/components/ui/PageConnectionBanner";
 import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import PrioritySelector from "./PrioritySelector";
-import { ClassAutocomplete } from "./ClassAutocomplete";
 import LocationAutocomplete from "./LocationAutocomplete";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
