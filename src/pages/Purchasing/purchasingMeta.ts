@@ -340,6 +340,11 @@ export const REQUEST_TYPE_LABEL: Record<string, string> = {
   SCHEDULED_PAYMENT: "Scheduled Payment",
   "SCHEDULED PAYMENT": "Scheduled Payment",
   ALL: "All Types",
+  INITIAL_SALE: "Initial Sale",
+  ADD_ON: "Add-On / Upgrade",
+  MONTHLY_SUBSCRIPTION: "Monthly Subscription",
+  RENEWAL: "Contract Renewal",
+  CASH: "Cash Reconciliation",
 };
 
 export function formatRequestType(type: string | null | undefined): string {

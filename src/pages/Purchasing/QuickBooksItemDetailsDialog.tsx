@@ -65,8 +65,9 @@ export function QuickBooksItemDetailsDialog({
 
   if (!item) return null;
 
-  const isMa = Boolean(item.is_ma || item.type === "m&a" || item.source_portal === "m7a" || item.source_portal === "m&a");
-  const isBill = item.transaction_category === "BILL" || (!isMa && Boolean(item.is_recurring));
+  const isAr = Boolean(item.is_ar || item.type === "ar_invoice");
+  const isMa = !isAr && Boolean(item.is_ma || item.type === "m&a" || item.source_portal === "m7a" || item.source_portal === "m&a");
+  const isBill = !isAr && (item.transaction_category === "BILL" || (!isMa && Boolean(item.is_recurring)));
 
   const isReady = item.readiness === "READY" || item.readiness === "READY_WITH_NOTES";
   const isSynced = item.readiness === "ALREADY_SYNCED" || item.is_already_synced;
@@ -77,8 +78,10 @@ export function QuickBooksItemDetailsDialog({
     maximumFractionDigits: 2,
   }) || "0.00";
 
-  // Active JSON payload (bill or expense)
-  const activePayload = isBill
+  // Active JSON payload (bill or expense or ar invoice)
+  const activePayload = isAr
+    ? (item.projected_invoice_payload || item.projected_payload)
+    : isBill
     ? (item.projected_bill_payload || item.projected_payload)
     : (item.projected_expense_payload || item.projected_payload);
 
@@ -91,23 +94,23 @@ export function QuickBooksItemDetailsDialog({
           description: l.Description || item.product_name,
           amount: Number(l.Amount) || (item.amount / activePayload.Line.length),
           formatted_amount: `$${(Number(l.Amount) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          category: l.AccountBasedExpenseLineDetail?.AccountRef?.name || item.expense_account_resolution?.name || item.category || "Expense",
+          category: l.AccountBasedExpenseLineDetail?.AccountRef?.name || item.expense_account_resolution?.name || item.category || (isAr ? "Accounts Receivable" : "Expense"),
           account_name: l.AccountBasedExpenseLineDetail?.AccountRef?.name || item.expense_account_resolution?.name,
           account_id: l.AccountBasedExpenseLineDetail?.AccountRef?.value,
           acct_num: item.expense_account_resolution?.acct_num,
           class: l.AccountBasedExpenseLineDetail?.ClassRef?.name || item.class || "",
-          customer: item.department || "Internal",
+          customer: item.department || (isAr ? item.raw_payee : "Internal"),
         }))
       : [{
           line_num: 1,
           description: item.product_name || item.raw_payee,
           amount: item.amount,
           formatted_amount: formattedAmountNumber,
-          category: item.expense_account_resolution?.name || item.category || "Expense",
+          category: item.expense_account_resolution?.name || item.category || (isAr ? "Accounts Receivable" : "Expense"),
           account_name: item.expense_account_resolution?.name,
           acct_num: item.expense_account_resolution?.acct_num,
           class: item.class || "",
-          customer: item.department || "Internal",
+          customer: item.department || (isAr ? item.raw_payee : "Internal"),
         }];
 
   const isMultiPart = displayLines.length > 1;
@@ -127,7 +130,7 @@ export function QuickBooksItemDetailsDialog({
         className="w-[98vw] max-w-[1520px] sm:max-w-[98vw] md:max-w-[98vw] lg:max-w-[1520px] h-[95vh] max-h-[96vh] flex flex-col p-0 gap-0 overflow-hidden bg-[#f4f5f8] dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 border border-slate-300 dark:border-zinc-800 shadow-2xl rounded-lg font-sans z-50 text-xs"
       >
         <DialogDescription className="sr-only">
-          QuickBooks Online {isBill ? "Bill" : "Expense"} Form and Synchronization Details for Purchase Request #{item.request_id}
+          QuickBooks Online {isAr ? "A/R Invoice" : isBill ? "Bill" : "Expense"} Form and Synchronization Details for {isAr ? `A/R #${item.ref_no || item.request_id}` : `Request #${item.request_id}`}
         </DialogDescription>
 
         {/* ========================================================================= */}
@@ -143,7 +146,15 @@ export function QuickBooksItemDetailsDialog({
               <History className="h-4 w-4" />
             </button>
             <DialogTitle className="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2 m-0 p-0 flex-wrap">
-              <span>{isBill ? "QuickBooks Bill" : "QuickBooks Expense"}</span>
+              <span>{isAr ? "QuickBooks A/R Invoice & Deposit" : isBill ? "QuickBooks Bill" : "QuickBooks Expense"}</span>
+
+              {/* A/R Badge Tag */}
+              {isAr && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-950/80 dark:text-teal-300 border border-teal-300 dark:border-teal-700 flex items-center gap-1 shadow-2xs">
+                  <span className="h-1.5 w-1.5 rounded-full bg-teal-600 dark:bg-teal-400" />
+                  <span>Reconciled Cash App</span>
+                </span>
+              )}
 
               {/* M&A Badge Tag */}
               {isMa && (
@@ -154,7 +165,7 @@ export function QuickBooksItemDetailsDialog({
               )}
 
               {/* Recurring Badge Tag (for non-M&A Bills) */}
-              {!isMa && item.is_recurring && (
+              {!isAr && !isMa && item.is_recurring && (
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center gap-1">
                   <span>Recurring Bill</span>
                 </span>

@@ -79,6 +79,21 @@ export const navigation = [
     navigationCode: "INVOICES",
   },
   {
+    label: "Account Receivable",
+    path: "/account-receivable",
+    icon: ReceiptText,
+    section: "PURCHASING & AP",
+    navigationCode: "ACCOUNT_RECEIVABLE",
+    subItems: [
+      { label: "All Workflows", path: "/account-receivable" },
+      { label: "Cash Reconciliation", path: "/account-receivable?type=CASH" },
+      { label: "Initial Sales", path: "/account-receivable?type=INITIAL_SALE" },
+      { label: "Add-Ons & Amendments", path: "/account-receivable?type=ADD_ON" },
+      { label: "Monthly Subscriptions", path: "/account-receivable?type=MONTHLY_SUBSCRIPTION" },
+      { label: "Renewals", path: "/account-receivable?type=RENEWAL" },
+    ],
+  },
+  {
     label: "QuickBooks Sync",
     path: "/purchasing/quickbooks",
     icon: Zap,

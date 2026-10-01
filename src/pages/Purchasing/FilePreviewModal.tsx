@@ -46,7 +46,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   const ext = name.includes(".") ? name.split(".").pop()?.toLowerCase() || "" : "";
   const mime = (target.contentType || "").toLowerCase();
 
-  const isPdf = mime.includes("pdf") || ext === "pdf";
+  const isPdf = mime.includes("pdf") || ext === "pdf" || mime.includes("html") || ext === "html";
   const isImage =
     mime.startsWith("image/") ||
     ["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp"].includes(ext);
@@ -81,7 +81,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
-        className="w-[98vw] max-w-[98vw] sm:w-[94vw] sm:max-w-[94vw] md:w-[90vw] md:max-w-[90vw] lg:w-[88vw] lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1440px] h-[95dvh] sm:h-[92dvh] md:h-[90vh] max-h-[96dvh] p-0 flex flex-col gap-0 overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl bg-white dark:bg-zinc-950"
+        className="w-[98vw] max-w-[98vw] sm:w-[96vw] sm:max-w-[96vw] md:w-[94vw] md:max-w-[94vw] lg:w-[92vw] lg:max-w-7xl xl:max-w-[1550px] 2xl:max-w-[1720px] h-[96dvh] sm:h-[94dvh] md:h-[92vh] max-h-[98dvh] p-0 flex flex-col gap-0 overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl bg-white dark:bg-zinc-950"
       >
         {/* Header Bar */}
         <DialogHeader className="px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/80 dark:bg-zinc-900/60 flex flex-row items-center justify-between shrink-0 space-y-0">

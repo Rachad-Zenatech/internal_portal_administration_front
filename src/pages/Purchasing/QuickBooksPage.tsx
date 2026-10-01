@@ -34,6 +34,7 @@ import {
   Receipt,
   MapPin,
   Sparkles,
+  Banknote,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -84,10 +85,14 @@ import {
   exportSingleRequestQuickBooksCsv,
   exportSingleRequestQuickBooksBundle,
   getQuickBooksPreview,
+  getQuickBooksARPreview,
   syncQuickBooksBatch,
   syncQuickBooksBillsBatch,
   syncQuickBooksBill,
   deleteQuickBooksBill,
+  syncQuickBooksARBatch,
+  syncQuickBooksARInvoice,
+  deleteQuickBooksARInvoice,
   type QuickBooksPreviewItem,
   type QuickBooksPreviewResponse,
 } from "@/services/purchasingService";
@@ -165,10 +170,42 @@ export default function QuickBooksPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>(String(currentMonth));
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [stagingTab, setStagingTab] = useState<"expenses" | "bills">("expenses");
+  const [requestTypeFilter, setRequestTypeFilter] = useState<string>("ALL");
+  const [stagingTab, setStagingTab] = useState<"expenses" | "bills" | "ar_invoices">("expenses");
   const [previewData, setPreviewData] = useState<QuickBooksPreviewResponse | null>(null);
+  const [arPreviewData, setArPreviewData] = useState<QuickBooksPreviewResponse | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [selectedRequestIds, setSelectedRequestIds] = useState<number[]>([]);
+
+  // Reset request type filter when changing main staging tab
+  useEffect(() => {
+    setRequestTypeFilter("ALL");
+  }, [stagingTab]);
+
+  // Dynamic request type filter options based on active main tab:
+  // - Expenses: All Types, Purchasing Requests, M&A Purchases
+  // - Bills: All Types, Recurring Payments
+  // - A/R Invoices: All Types, A/R Invoices
+  const requestTypeOptions = useMemo(() => {
+    if (stagingTab === "expenses") {
+      return [
+        { id: "ALL", label: "All Types" },
+        { id: "PURCHASE", label: "Purchasing Requests" },
+        { id: "MA", label: "M&A Purchases" },
+      ];
+    }
+    if (stagingTab === "bills") {
+      return [
+        { id: "ALL", label: "All Types" },
+        { id: "RECURRING", label: "Recurring Payments" },
+      ];
+    }
+    // ar_invoices
+    return [
+      { id: "ALL", label: "All Types" },
+      { id: "AR_CASH", label: "A/R Invoices" },
+    ];
+  }, [stagingTab]);
 
   const applyDatePreset = (preset: string) => {
     const today = new Date();
@@ -248,17 +285,22 @@ export default function QuickBooksPage() {
       // Year/month filtering should only apply if explicitly set in custom date or if not "ALL"
       const yearParam = (!isCustomDateActive && isPresetActive && selectedYear !== "ALL") ? parseInt(selectedYear, 10) : null;
       const monthParam = (!isCustomDateActive && isPresetActive && selectedMonth !== "ALL") ? parseInt(selectedMonth, 10) : null;
-      const data = await getQuickBooksPreview({
-        status: "ORDERED / PURCHASED",
-        start_date: startDate ? startDate : null,
-        end_date: endDate ? endDate : null,
-        year: yearParam,
-        month: monthParam,
-      });
+      const [data, arData] = await Promise.all([
+        getQuickBooksPreview({
+          status: "ORDERED / PURCHASED",
+          start_date: startDate ? startDate : null,
+          end_date: endDate ? endDate : null,
+          year: yearParam,
+          month: monthParam,
+        }),
+        getQuickBooksARPreview().catch(() => null),
+      ]);
       setPreviewData(data);
-      const readyIds = (data.items || [])
-        .filter((item) => item.readiness === "READY" || item.readiness === "READY_WITH_NOTES")
-        .map((item) => item.request_id);
+      if (arData) setArPreviewData(arData);
+      const readyIds = [
+        ...(data.items || []).filter((item) => item.readiness === "READY" || item.readiness === "READY_WITH_NOTES").map((item) => item.request_id),
+        ...((arData?.items || []).filter((item) => item.readiness === "READY" || item.readiness === "READY_WITH_NOTES").map((item) => item.request_id)),
+      ];
       setSelectedRequestIds(readyIds);
     } catch (err: any) {
       toast.error(err.message || "Failed to load QuickBooks preview staging");
@@ -303,7 +345,7 @@ export default function QuickBooksPage() {
     }
   }, []);
 
-  // Partition all staged items into Expenses (Standard + M&A) vs Bills (Other recurring)
+  // Partition all staged items into Expenses, Bills, and A/R Invoices
   const allExpenses = useMemo(() => {
     if (!previewData?.items) return [];
     return previewData.items.filter((item) => {
@@ -320,8 +362,16 @@ export default function QuickBooksPage() {
     });
   }, [previewData]);
 
-  // Filtered items based on active sub-tab (Expenses vs Bills)
-  const currentTabRawItems = stagingTab === "expenses" ? allExpenses : allBills;
+  const allARInvoices = useMemo(() => {
+    return arPreviewData?.items || [];
+  }, [arPreviewData]);
+
+  // Filtered items based on active sub-tab (Expenses vs Bills vs A/R Invoices)
+  const currentTabRawItems = stagingTab === "expenses"
+    ? allExpenses
+    : stagingTab === "bills"
+    ? allBills
+    : allARInvoices;
 
   const filteredItems = useMemo(() => {
     return currentTabRawItems.filter((item) => {
@@ -334,28 +384,48 @@ export default function QuickBooksPage() {
         if (item.readiness !== "ERROR" && (!item.validation_errors || item.validation_errors.length === 0)) return false;
       }
 
+      // Request Type Filter
+      if (requestTypeFilter !== "ALL") {
+        const isMa = isMaItem(item);
+        const isBill = !isMa && (item.transaction_category === "BILL" || Boolean(item.is_recurring));
+        const isAr = Boolean(item.is_ar || item.type === "ar_invoice");
+
+        if (requestTypeFilter === "PURCHASE") {
+          if (isMa || isBill || isAr) return false;
+        } else if (requestTypeFilter === "RECURRING") {
+          if (!isBill || isAr) return false;
+        } else if (requestTypeFilter === "MA") {
+          if (!isMa) return false;
+        } else if (requestTypeFilter === "AR_CASH") {
+          if (!isAr) return false;
+        }
+      }
+
       // Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        const cleanId = q.replace(/^(?:req-#|req-|rec-#|rec-|#)/i, "").trim();
+        const cleanId = q.replace(/^(?:req-#|req-|rec-#|rec-|ar-#|ar-|#)/i, "").trim();
         const reqStr = String(item.request_id || "");
+        const wfStr = String(item.workflow_id || item.id || "");
         const matchTitle = (item.product_name || "").toLowerCase().includes(q);
         const matchVendor = (item.raw_payee || "").toLowerCase().includes(q);
         const matchReq =
           `req-#${reqStr}`.toLowerCase().includes(q) ||
           `rec-#${reqStr}`.toLowerCase().includes(q) ||
+          `ar-#${reqStr}`.toLowerCase().includes(q) ||
           reqStr.includes(q) ||
-          (cleanId.length > 0 && reqStr.includes(cleanId));
+          wfStr.toLowerCase().includes(q) ||
+          (cleanId.length > 0 && (reqStr.includes(cleanId) || wfStr.toLowerCase().includes(cleanId)));
         const matchRef = (item.ref_no || "").toLowerCase().includes(q);
         const matchGl = (item.category || "").toLowerCase().includes(q);
-        const matchLoc = (item.location || item.from_location || "").toLowerCase().includes(q);
+        const matchLoc = (item.location || item.from_location || item.bank_name || "").toLowerCase().includes(q);
         const matchAmt = String(item.amount || "").includes(q);
         if (!matchTitle && !matchVendor && !matchReq && !matchRef && !matchGl && !matchLoc && !matchAmt) return false;
       }
 
       return true;
     });
-  }, [currentTabRawItems, statusFilter, searchQuery]);
+  }, [currentTabRawItems, statusFilter, requestTypeFilter, searchQuery]);
 
   // Distinct valid IDs in current filtered items
   const currentTabItemIds = useMemo(() => {
@@ -392,10 +462,11 @@ export default function QuickBooksPage() {
     );
   };
 
-  // Batch Sync (Routes dynamically for Expenses vs Bills)
+  // Batch Sync (Routes dynamically for Expenses vs Bills vs A/R Invoices)
   const handleBatchSync = async () => {
     if (currentTabSelectedIds.length === 0) {
-      toast.error(`Please select at least one ${stagingTab === "expenses" ? "expense" : "bill"} to sync`);
+      const tabName = stagingTab === "expenses" ? "expense" : stagingTab === "bills" ? "bill" : "A/R invoice";
+      toast.error(`Please select at least one ${tabName} to sync`);
       return;
     }
 
@@ -409,13 +480,25 @@ export default function QuickBooksPage() {
         if (res.failed > 0) {
           toast.error(`${res.failed} expense(s) failed to sync. Inspect payloads for details.`);
         }
-      } else {
+      } else if (stagingTab === "bills") {
         const res = await syncQuickBooksBillsBatch(currentTabSelectedIds);
         if (res.synced > 0) {
           toast.success(`Successfully synchronized ${res.synced} bill(s) to QuickBooks Online!`);
         }
         if (res.failed > 0) {
           toast.error(`${res.failed} bill(s) failed to sync. Inspect payloads for details.`);
+        }
+      } else {
+        const selectedWfIds = filteredItems
+          .filter((i) => currentTabSelectedIds.includes(i.request_id))
+          .map((i) => i.workflow_id || i.id)
+          .filter(Boolean) as string[];
+        const res = await syncQuickBooksARBatch(selectedWfIds);
+        if (res.synced > 0) {
+          toast.success(`Successfully synchronized ${res.synced} A/R cash application(s) to QuickBooks Online!`);
+        }
+        if (res.failed > 0) {
+          toast.error(`${res.failed} A/R record(s) failed to sync. Inspect payloads for details.`);
         }
       }
       await fetchPreview();
@@ -426,14 +509,19 @@ export default function QuickBooksPage() {
     }
   };
 
-  // Handle Single Sync (Routes dynamically for Expenses vs Bills)
+  // Handle Single Sync (Routes dynamically for Expenses vs Bills vs A/R Invoices)
   const handleSingleSync = async (item: QuickBooksPreviewItem) => {
     setSyncingSingleId(item.request_id);
-    const isMa = isMaItem(item);
-    const isBill = !isMa && (item.transaction_category === "BILL" || Boolean(item.is_recurring));
+    const isAr = Boolean(item.is_ar || item.type === "ar_invoice" || stagingTab === "ar_invoices");
+    const isMa = !isAr && isMaItem(item);
+    const isBill = !isAr && !isMa && (item.transaction_category === "BILL" || Boolean(item.is_recurring));
 
     try {
-      if (isBill) {
+      if (isAr) {
+        const wfId = item.workflow_id || item.id || String(item.request_id);
+        const res = await syncQuickBooksARInvoice(wfId);
+        toast.success(`Synced A/R Cash Application #${item.ref_no || wfId.slice(0, 8)} to QuickBooks as Payment #${res.quickbooks_payment_id || "Created"}`);
+      } else if (isBill) {
         const res = await syncQuickBooksBill(item.request_id);
         toast.success(`Synced recurring payment #${item.request_id} to QuickBooks as Bill #${res.quickbooks_bill_id || "Created"}`);
       } else {
@@ -451,11 +539,16 @@ export default function QuickBooksPage() {
   // Handle Remove from QuickBooks
   const handleDeleteFromQuickBooks = async (item: QuickBooksPreviewItem) => {
     setDeletingId(item.request_id);
-    const isMa = Boolean(item.is_ma || item.type === "m&a" || item.source_portal === "m7a" || item.source_portal === "m&a");
-    const isBill = item.transaction_category === "BILL" || (!isMa && Boolean(item.is_recurring));
+    const isAr = Boolean(item.is_ar || item.type === "ar_invoice" || stagingTab === "ar_invoices");
+    const isMa = !isAr && isMaItem(item);
+    const isBill = !isAr && (item.transaction_category === "BILL" || (!isMa && Boolean(item.is_recurring)));
 
     try {
-      if (isBill) {
+      if (isAr) {
+        const wfId = item.workflow_id || item.id || String(item.request_id);
+        await deleteQuickBooksARInvoice(wfId);
+        toast.success(`Cleared QuickBooks sync for A/R cash application #${item.ref_no || wfId.slice(0, 8)}!`);
+      } else if (isBill) {
         await deleteQuickBooksBill(item.request_id, item.existing_bill_id || undefined);
         toast.success(`Removed Bill for REC-#${item.request_id} from QuickBooks Online!`);
       } else {
@@ -564,8 +657,8 @@ export default function QuickBooksPage() {
   const isConnected = previewData?.connection?.is_connected ?? false;
   const companyName = previewData?.connection?.company_name || "QuickBooks Online Company";
   const realmId = previewData?.connection?.realm_id || "Not Connected";
-  const totalStaged = previewData?.items?.length || 0;
-  const readyCount = previewData?.summary?.ready_count || 0;
+  const totalStaged = (previewData?.items?.length || 0) + (arPreviewData?.items?.length || 0);
+  const readyCount = (previewData?.summary?.ready_count || 0) + (arPreviewData?.summary?.ready_count || 0);
 
   // Tab calculations
   const expensesCount = allExpenses.length;
@@ -575,6 +668,10 @@ export default function QuickBooksPage() {
   const billsCount = allBills.length;
   const billsAmount = allBills.reduce((sum, item) => sum + (item.amount || 0), 0);
   const formattedBillsAmount = `$${billsAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const arCount = allARInvoices.length;
+  const arAmount = allARInvoices.reduce((sum, item) => sum + (item.amount || 0), 0);
+  const formattedARAmount = `$${arAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const maCount = (previewData?.items || []).filter((i) => Boolean(i.is_ma || i.type === "m&a" || i.source_portal === "m7a" || i.source_portal === "m&a")).length;
 
@@ -609,7 +706,7 @@ export default function QuickBooksPage() {
                 </Badge>
               </h1>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Pre-flight staging ledger, automated matching, direct Expenses &amp; Bills REST sync, and complete transaction packages.
+                Pre-flight staging ledger, automated matching, direct Expenses, Bills &amp; A/R Invoices REST sync, and complete transaction packages.
               </p>
             </div>
           </div>
@@ -670,7 +767,7 @@ export default function QuickBooksPage() {
       </div>
 
       {/* Top Summary Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* Expenses Card */}
         <Card
           onClick={() => setStagingTab("expenses")}
@@ -691,7 +788,7 @@ export default function QuickBooksPage() {
               </div>
               <h3 className="text-2xl font-bold text-foreground mt-1">{formattedExpensesAmount}</h3>
               <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                <span className="font-semibold text-foreground">{expensesCount}</span> purchases &amp; M&amp;A payments
+                <span className="font-semibold text-foreground">{expensesCount}</span> purchases &amp; M&amp;A
               </p>
             </div>
             <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20 shadow-2xs">
@@ -722,6 +819,28 @@ export default function QuickBooksPage() {
           </CardContent>
         </Card>
 
+        {/* A/R Invoices Card */}
+        <Card
+          onClick={() => setStagingTab("ar_invoices")}
+          className={`border-border/70 shadow-2xs bg-card/60 backdrop-blur-xs relative overflow-hidden group hover:border-teal-500/50 transition-all cursor-pointer ${
+            stagingTab === "ar_invoices" ? "ring-2 ring-teal-500/40 border-teal-500/60 bg-teal-50/10" : ""
+          }`}
+        >
+          <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform" />
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">A/R Invoices</p>
+              <h3 className="text-2xl font-bold text-teal-600 dark:text-teal-400 mt-1">{formattedARAmount}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                <span className="font-semibold text-foreground">{arCount}</span> reconciled cash apps
+              </p>
+            </div>
+            <div className="h-11 w-11 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center border border-teal-500/20 shadow-2xs">
+              <Banknote className="h-5 w-5" />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Pre-Flight Validated */}
         <Card className="border-border/70 shadow-2xs bg-card/60 backdrop-blur-xs relative overflow-hidden group hover:border-indigo-500/50 transition-all">
           <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform" />
@@ -732,7 +851,7 @@ export default function QuickBooksPage() {
                 {readyCount} / {totalStaged}
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {totalStaged > 0 ? `${Math.round((readyCount / totalStaged) * 100)}% Auto-matched & Clean` : "No items"}
+                {totalStaged > 0 ? `${Math.round((readyCount / totalStaged) * 100)}% Auto-matched` : "No items"}
               </p>
             </div>
             <div className="h-11 w-11 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/20 shadow-2xs">
@@ -750,7 +869,9 @@ export default function QuickBooksPage() {
               <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
                 {currentTabSelectedTotalAmount}
               </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">{currentTabSelectedIds.length} item(s) selected in {stagingTab === "expenses" ? "Expenses" : "Bills"}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {currentTabSelectedIds.length} item(s) in {stagingTab === "expenses" ? "Expenses" : stagingTab === "bills" ? "Bills" : "A/R Invoices"}
+              </p>
             </div>
             <div className="h-11 w-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20 shadow-2xs">
               <Layers className="h-5 w-5" />
@@ -790,11 +911,11 @@ export default function QuickBooksPage() {
           </div>
         </div>
 
-        {/* TAB 1: LIVE STAGING & DIRECT SYNC (EXPENSES & BILLS) */}
+        {/* TAB 1: LIVE STAGING & DIRECT SYNC (EXPENSES, BILLS & AR INVOICES) */}
         <TabsContent value="staging" className="space-y-4 m-0">
-          {/* Sub-Tab Navigation for Expenses vs Bills */}
+          {/* Sub-Tab Navigation for Expenses vs Bills vs A/R Invoices */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/40 p-1.5 rounded-xl border border-border/70">
-            <div className="flex items-center gap-1.5 bg-background/90 p-1 rounded-lg border border-border/60 shadow-2xs">
+            <div className="flex items-center gap-1.5 bg-background/90 p-1 rounded-lg border border-border/60 shadow-2xs flex-wrap">
               <button
                 type="button"
                 onClick={() => setStagingTab("expenses")}
@@ -830,10 +951,34 @@ export default function QuickBooksPage() {
                   {billsCount}
                 </span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setStagingTab("ar_invoices")}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
+                  stagingTab === "ar_invoices"
+                    ? "bg-teal-600 text-white shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                <Banknote className="h-3.5 w-3.5" />
+                <span>A/R Invoices (Reconciled Cash Apps)</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  stagingTab === "ar_invoices" ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                }`}>
+                  {arCount}
+                </span>
+              </button>
             </div>
 
             <div className="text-xs text-muted-foreground px-2">
-              Sync Target: <strong className="text-foreground">{stagingTab === "expenses" ? "QuickBooks Online > Expenses (Purchase)" : "QuickBooks Online > Bills (Bill)"}</strong>
+              Sync Target: <strong className="text-foreground">
+                {stagingTab === "expenses"
+                  ? "QuickBooks Online > Expenses (Purchase)"
+                  : stagingTab === "bills"
+                  ? "QuickBooks Online > Bills (Bill)"
+                  : "QuickBooks Online > Invoices & Payments (Cash Application)"}
+              </strong>
             </div>
           </div>
 
@@ -842,20 +987,38 @@ export default function QuickBooksPage() {
             <CardContent className="p-3.5 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
                 {/* Search Bar */}
-                <div className="relative min-w-[220px] max-w-sm flex-1">
+                <div className="relative min-w-[200px] max-w-xs flex-1">
                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder={`Search ${stagingTab === "expenses" ? "expenses, M&A" : "recurring bills"}, vendor, account...`}
+                    placeholder={`Search ${stagingTab === "expenses" ? "expenses, M&A" : stagingTab === "bills" ? "recurring bills" : "A/R cash apps"}, customer, vendor, account...`}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="h-8.5 text-xs pl-8 bg-background/80"
                   />
                 </div>
 
+                {/* Request Type Scope Filter (Dynamically based on active main tab) */}
+                <div className="flex items-center rounded-lg border border-border/80 bg-muted/40 p-0.5">
+                  {requestTypeOptions.map((rt) => (
+                    <button
+                      key={rt.id}
+                      type="button"
+                      onClick={() => setRequestTypeFilter(rt.id)}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                        requestTypeFilter === rt.id
+                          ? "bg-background text-foreground font-semibold shadow-2xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {rt.label}
+                    </button>
+                  ))}
+                </div>
+
                 {/* Status Filter */}
                 <div className="flex items-center rounded-lg border border-border/80 bg-muted/40 p-0.5">
                   {[
-                    { id: "ALL", label: "All" },
+                    { id: "ALL", label: "All Status" },
                     { id: "READY", label: "Ready to Sync" },
                     { id: "SYNCED", label: "In QuickBooks" },
                     { id: "ERROR", label: "Issues" },
@@ -864,10 +1027,11 @@ export default function QuickBooksPage() {
                       key={st.id}
                       type="button"
                       onClick={() => setStatusFilter(st.id)}
-                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${statusFilter === st.id
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                        statusFilter === st.id
                           ? "bg-background text-foreground font-semibold shadow-2xs"
                           : "text-muted-foreground hover:text-foreground"
-                        }`}
+                      }`}
                     >
                       {st.label}
                     </button>
@@ -945,7 +1109,10 @@ export default function QuickBooksPage() {
 
               {/* Staging Summary */}
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span>Showing <strong className="text-foreground">{filteredItems.length}</strong> {stagingTab === "expenses" ? "expenses" : "bills"}</span>
+                <span>
+                  Showing <strong className="text-foreground">{filteredItems.length}</strong>{" "}
+                  {stagingTab === "expenses" ? "expenses" : stagingTab === "bills" ? "bills" : "A/R invoices"}
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -955,19 +1122,26 @@ export default function QuickBooksPage() {
             <div className={`flex items-center justify-between gap-4 p-3 rounded-xl text-white shadow-md border animate-in slide-in-from-top duration-200 ${
               stagingTab === "expenses"
                 ? "bg-gradient-to-r from-emerald-900/90 to-slate-900 border-emerald-500/30"
-                : "bg-gradient-to-r from-blue-900/90 to-slate-900 border-blue-500/30"
+                : stagingTab === "bills"
+                ? "bg-gradient-to-r from-blue-900/90 to-slate-900 border-blue-500/30"
+                : "bg-gradient-to-r from-teal-900/90 to-slate-900 border-teal-500/30"
             }`}>
               <div className="flex items-center gap-3">
                 <div className={`h-7 w-7 rounded-lg flex items-center justify-center font-bold text-xs border ${
                   stagingTab === "expenses"
                     ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                    : "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                    : stagingTab === "bills"
+                    ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                    : "bg-teal-500/20 text-teal-400 border-teal-500/30"
                 }`}>
                   {currentTabSelectedIds.length}
                 </div>
                 <div className="text-xs">
-                  <span className="font-bold">{currentTabSelectedIds.length} {stagingTab === "expenses" ? "expense(s)" : "bill(s)"} selected</span>
-                  <span className={`${stagingTab === "expenses" ? "text-emerald-300" : "text-blue-300"} ml-2 font-mono font-semibold`}>
+                  <span className="font-bold">
+                    {currentTabSelectedIds.length}{" "}
+                    {stagingTab === "expenses" ? "expense(s)" : stagingTab === "bills" ? "bill(s)" : "A/R invoice(s)"} selected
+                  </span>
+                  <span className={`${stagingTab === "expenses" ? "text-emerald-300" : stagingTab === "bills" ? "text-blue-300" : "text-teal-300"} ml-2 font-mono font-semibold`}>
                     Total: {currentTabSelectedTotalAmount}
                   </span>
                 </div>
@@ -1025,18 +1199,26 @@ export default function QuickBooksPage() {
                   className={`h-7.5 text-xs font-semibold gap-1.5 text-white shadow-xs ${
                     stagingTab === "expenses"
                       ? "bg-emerald-600 hover:bg-emerald-500"
-                      : "bg-blue-600 hover:bg-blue-500"
+                      : stagingTab === "bills"
+                      ? "bg-blue-600 hover:bg-blue-500"
+                      : "bg-teal-600 hover:bg-teal-500"
                   }`}
                 >
                   {isSyncing ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>Syncing to QuickBooks {stagingTab === "expenses" ? "Expenses" : "Bills"}...</span>
+                      <span>
+                        Syncing to QuickBooks{" "}
+                        {stagingTab === "expenses" ? "Expenses" : stagingTab === "bills" ? "Bills" : "A/R Invoices"}...
+                      </span>
                     </>
                   ) : (
                     <>
                       <Zap className="h-3.5 w-3.5" />
-                      <span>Sync Selected ({currentTabSelectedIds.length}) to QuickBooks {stagingTab === "expenses" ? "Expenses" : "Bills"}</span>
+                      <span>
+                        Sync Selected ({currentTabSelectedIds.length}) to QuickBooks{" "}
+                        {stagingTab === "expenses" ? "Expenses" : stagingTab === "bills" ? "Bills" : "A/R Invoices"}
+                      </span>
                     </>
                   )}
                 </Button>
@@ -1058,12 +1240,14 @@ export default function QuickBooksPage() {
                     <CheckCircle2 className="h-6 w-6 opacity-60" />
                   </div>
                   <h4 className="text-sm font-semibold text-foreground">
-                    No matching staged {stagingTab === "expenses" ? "expenses" : "bills"} found
+                    No matching staged {stagingTab === "expenses" ? "expenses" : stagingTab === "bills" ? "bills" : "A/R invoices"} found
                   </h4>
                   <p className="text-xs text-muted-foreground max-w-md mx-auto">
                     {stagingTab === "expenses"
                       ? "Standard purchases and M&A scheduled payments with status 'Ordered / Purchased' are staged here for QuickBooks Expenses."
-                      : "Recurring vendor payments with status 'Ordered / Purchased' are staged here for QuickBooks Bills."}
+                      : stagingTab === "bills"
+                      ? "Recurring vendor payments with status 'Ordered / Purchased' are staged here for QuickBooks Bills."
+                      : "Reconciled A/R cash applications are staged here for QuickBooks Invoices & Payments."}
                   </p>
                 </div>
               ) : (
@@ -1084,23 +1268,29 @@ export default function QuickBooksPage() {
                         />
                       </TableHead>
                       <TableHead className="w-28 font-bold text-foreground">
-                        {stagingTab === "expenses" ? "Request #" : "Bill / Rec #"}
+                        {stagingTab === "expenses" ? "Request #" : stagingTab === "bills" ? "Bill / Rec #" : "AR Ref #"}
                       </TableHead>
                       <TableHead className="w-24 font-bold text-foreground">
-                        {stagingTab === "expenses" ? "Date" : "Bill Date"}
+                        {stagingTab === "expenses" ? "Date" : stagingTab === "bills" ? "Bill Date" : "Deposit Date"}
                       </TableHead>
                       {stagingTab === "bills" && (
                         <TableHead className="w-24 font-bold text-foreground">Due Date</TableHead>
                       )}
-                      <TableHead className="w-48 font-bold text-foreground">QuickBooks Vendor</TableHead>
-                      <TableHead className="w-52 font-bold text-foreground">Expense Account (GL)</TableHead>
+                      <TableHead className="w-48 font-bold text-foreground">
+                        {stagingTab === "ar_invoices" ? "QuickBooks Customer" : "QuickBooks Vendor"}
+                      </TableHead>
+                      <TableHead className="w-52 font-bold text-foreground">
+                        {stagingTab === "ar_invoices" ? "A/R GL Account" : "Expense Account (GL)"}
+                      </TableHead>
                       {stagingTab === "expenses" ? (
                         <TableHead className="w-40 font-bold text-foreground">Payment Account</TableHead>
-                      ) : (
+                      ) : stagingTab === "bills" ? (
                         <TableHead className="w-36 font-bold text-foreground">Location</TableHead>
+                      ) : (
+                        <TableHead className="w-40 font-bold text-foreground">Bank Account / Method</TableHead>
                       )}
                       <TableHead className="min-w-[200px] font-bold text-foreground">
-                        {stagingTab === "expenses" ? "Line Item / Product" : "Line Item / Description"}
+                        {stagingTab === "expenses" ? "Line Item / Product" : stagingTab === "bills" ? "Line Item / Description" : "Matched Invoices & Bank Ref"}
                       </TableHead>
                       <TableHead className="w-28 text-right font-bold text-foreground">Amount (USD)</TableHead>
                       <TableHead className="w-36 font-bold text-foreground">Pre-Flight Status</TableHead>
@@ -1113,12 +1303,13 @@ export default function QuickBooksPage() {
                       const isReady = item.readiness === "READY" || item.readiness === "READY_WITH_NOTES";
                       const isSynced = item.readiness === "ALREADY_SYNCED" || item.is_already_synced;
                       const isCurrentlySyncing = syncingSingleId === item.request_id;
-                      const isMa = isMaItem(item);
-                      const isBillRow = !isMa && (item.transaction_category === "BILL" || Boolean(item.is_recurring));
+                      const isAr = Boolean(item.is_ar || item.type === "ar_invoice" || stagingTab === "ar_invoices");
+                      const isMa = !isAr && isMaItem(item);
+                      const isBillRow = !isAr && !isMa && (item.transaction_category === "BILL" || Boolean(item.is_recurring));
 
                       return (
                         <TableRow
-                          key={`${item.request_id}-${item.payment_date || item.doc_number || "row"}`}
+                          key={`${item.request_id}-${item.payment_date || item.doc_number || item.workflow_id || "row"}`}
                           onClick={() => {
                             setInspectorItem(item);
                             setIsInspectorOpen(true);
@@ -1126,7 +1317,9 @@ export default function QuickBooksPage() {
                           className={`transition-colors border-b border-border/50 cursor-pointer ${isSelected
                               ? stagingTab === "expenses"
                                 ? "bg-emerald-50/40 dark:bg-emerald-950/15"
-                                : "bg-blue-50/40 dark:bg-blue-950/15"
+                                : stagingTab === "bills"
+                                ? "bg-blue-50/40 dark:bg-blue-950/15"
+                                : "bg-teal-50/40 dark:bg-teal-950/15"
                               : "hover:bg-muted/60"
                             }`}
                         >
@@ -1147,16 +1340,31 @@ export default function QuickBooksPage() {
                           {/* Request ID + Tags */}
                           <TableCell className="font-semibold" onClick={(e) => e.stopPropagation()}>
                             <div className="space-y-1">
-                              <Link
-                                to={`/purchasing/requests/${item.request_id}`}
-                                className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline"
-                              >
-                                <span>{isBillRow ? `REC-#${item.request_id}` : `REQ-#${item.request_id}`}</span>
-                                <ExternalLink className="h-3 w-3 opacity-60" />
-                              </Link>
+                              {isAr ? (
+                                <Link
+                                  to={`/account-receivable`}
+                                  className="inline-flex items-center gap-1 font-mono text-xs text-teal-600 dark:text-teal-400 hover:underline"
+                                >
+                                  <span>{item.ref_no ? `AR-#${item.ref_no}` : `AR-#${String(item.workflow_id || item.id || item.request_id).slice(0, 8)}`}</span>
+                                  <ExternalLink className="h-3 w-3 opacity-60" />
+                                </Link>
+                              ) : (
+                                <Link
+                                  to={`/purchasing/requests/${item.request_id}`}
+                                  className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline"
+                                >
+                                  <span>{isBillRow ? `REC-#${item.request_id}` : `REQ-#${item.request_id}`}</span>
+                                  <ExternalLink className="h-3 w-3 opacity-60" />
+                                </Link>
+                              )}
 
-                              {/* M&A Badge Tag */}
-                              {isMa ? (
+                              {/* Type Badges */}
+                              {isAr ? (
+                                <Badge className="text-[10px] px-1.5 py-0 h-4 bg-teal-100 text-teal-800 dark:bg-teal-950/90 dark:text-teal-300 border border-teal-300 dark:border-teal-700 flex items-center gap-1 font-bold">
+                                  <Banknote className="h-2.5 w-2.5 text-teal-600 dark:text-teal-400" />
+                                  <span>Reconciled</span>
+                                </Badge>
+                              ) : isMa ? (
                                 <Badge className="text-[10px] px-1.5 py-0 h-4 bg-purple-100 text-purple-800 dark:bg-purple-950/90 dark:text-purple-300 border border-purple-300 dark:border-purple-700 flex items-center gap-1 font-bold">
                                   <Sparkles className="h-2.5 w-2.5 text-purple-600 dark:text-purple-400" />
                                   <span>M&amp;A</span>
@@ -1169,9 +1377,9 @@ export default function QuickBooksPage() {
                             </div>
                           </TableCell>
 
-                          {/* Txn / Bill Date */}
+                          {/* Txn / Bill / Deposit Date */}
                           <TableCell className="text-muted-foreground whitespace-nowrap">
-                            {item.payment_date}
+                            {item.payment_date || item.doc_number}
                           </TableCell>
 
                           {/* Due Date (for Bills) */}
@@ -1181,7 +1389,7 @@ export default function QuickBooksPage() {
                             </TableCell>
                           )}
 
-                          {/* Vendor */}
+                          {/* Vendor or Customer */}
                           <TableCell>
                             <div className="space-y-1">
                               <div className="font-semibold text-foreground flex items-center gap-1.5 truncate max-w-[180px]">
@@ -1200,26 +1408,34 @@ export default function QuickBooksPage() {
                             </div>
                           </TableCell>
 
-                          {/* Expense Account */}
+                          {/* Expense / A/R GL Account */}
                           <TableCell>
                             <div className="space-y-1">
                               <div className="font-medium text-foreground truncate max-w-[200px] flex items-center gap-1.5">
                                 <Tag className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                                <span className="truncate">{item.expense_account_resolution?.name || item.category}</span>
+                                <span className="truncate">
+                                  {isAr
+                                    ? (item.expense_account_resolution?.name || item.account_number || "1100 - Accounts Receivable")
+                                    : (item.expense_account_resolution?.name || item.category || "Expense")}
+                                </span>
                               </div>
-                              {item.expense_account_resolution?.acct_num ? (
+                              {isAr ? (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
+                                  GL: {item.expense_account_resolution?.acct_num || (item.account_number ? item.account_number.split(" - ")[0] : "1100")}
+                                </Badge>
+                              ) : item.expense_account_resolution?.acct_num ? (
                                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
                                   GL: {item.expense_account_resolution.acct_num}
                                 </Badge>
                               ) : (
                                 <span className="text-[10px] text-muted-foreground font-mono truncate block">
-                                  {item.category?.split(":")[0]}
+                                  {item.category?.split(":")[0] || ""}
                                 </span>
                               )}
                             </div>
                           </TableCell>
 
-                          {/* Payment Account (Expenses) or Location (Bills) */}
+                          {/* Payment Account (Expenses) or Location (Bills) or Bank Account (A/R) */}
                           {stagingTab === "expenses" ? (
                             <TableCell>
                               <div className="space-y-1">
@@ -1232,7 +1448,7 @@ export default function QuickBooksPage() {
                                 </Badge>
                               </div>
                             </TableCell>
-                          ) : (
+                          ) : stagingTab === "bills" ? (
                             <TableCell>
                               <div className="space-y-1">
                                 <div className="text-foreground truncate max-w-[140px] flex items-center gap-1.5 font-medium">
@@ -1244,24 +1460,40 @@ export default function QuickBooksPage() {
                                 </span>
                               </div>
                             </TableCell>
+                          ) : (
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="text-foreground truncate max-w-[160px] flex items-center gap-1.5 font-medium">
+                                  <Banknote className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                  <span className="truncate">{item.payment_account_resolution?.name || item.bank_name || "Operating Checking"}</span>
+                                </div>
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
+                                  {item.payment_method || "ACH / Wire"}
+                                </Badge>
+                              </div>
+                            </TableCell>
                           )}
 
-                          {/* Product Description */}
+                          {/* Product / Invoices Description */}
                           <TableCell>
                             <div className="max-w-[260px] space-y-1">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="font-semibold text-foreground line-clamp-1">{item.product_name || "Transaction Item"}</span>
-                                {isMa && (
+                                {isAr ? (
+                                  <Badge className="text-[9.5px] px-1.5 py-0 h-4 bg-teal-100 text-teal-800 dark:bg-teal-950/90 dark:text-teal-300 border border-teal-300 dark:border-teal-700 flex items-center gap-1 font-bold shrink-0 shadow-2xs">
+                                    <Banknote className="h-2.5 w-2.5 text-teal-600 dark:text-teal-400" />
+                                    <span>Cash App</span>
+                                  </Badge>
+                                ) : isMa ? (
                                   <Badge className="text-[9.5px] px-1.5 py-0 h-4 bg-purple-100 text-purple-800 dark:bg-purple-950/90 dark:text-purple-300 border border-purple-300 dark:border-purple-700 flex items-center gap-1 font-bold shrink-0 shadow-2xs">
                                     <Sparkles className="h-2.5 w-2.5 text-purple-600 dark:text-purple-400" />
                                     <span>M&amp;A</span>
                                   </Badge>
-                                )}
-                                {!isMa && isBillRow && (
+                                ) : isBillRow ? (
                                   <Badge variant="outline" className="text-[9.5px] px-1.5 py-0 h-4 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-300 shrink-0 font-medium">
                                     <span>Recurring</span>
                                   </Badge>
-                                )}
+                                ) : null}
                                 {item.attachments_count && item.attachments_count > 0 ? (
                                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-mono gap-0.5 shrink-0 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800" title={`${item.attachments_count} attachment(s) will sync to QuickBooks`}>
                                     <Paperclip className="h-2.5 w-2.5" />
@@ -1329,7 +1561,11 @@ export default function QuickBooksPage() {
                                 onClick={() => handleSingleSync(item)}
                                 className={`h-7 px-2.5 text-xs font-semibold gap-1 ${
                                   !isSynced
-                                    ? isBillRow ? "bg-blue-600 hover:bg-blue-500 text-white shadow-2xs" : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs"
+                                    ? isAr
+                                      ? "bg-teal-600 hover:bg-teal-500 text-white shadow-2xs"
+                                      : isBillRow
+                                      ? "bg-blue-600 hover:bg-blue-500 text-white shadow-2xs"
+                                      : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs"
                                     : ""
                                 }`}
                               >

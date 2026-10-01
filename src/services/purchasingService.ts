@@ -572,6 +572,22 @@ export function getQuickBooksStatus() {
   return apiClient.get<any>('/api/quickbooks/status');
 }
 
+export function getQuickBooksARPreview() {
+  return apiClient.get<QuickBooksPreviewResponse>('/api/quickbooks/ar-invoices/preview');
+}
+
+export function syncQuickBooksARInvoice(workflowId: string) {
+  return apiClient.post<any>(`/api/quickbooks/ar-invoices/${workflowId}`, {});
+}
+
+export function syncQuickBooksARBatch(workflowIds: string[]) {
+  return apiClient.post<{ status: string; total: number; synced: number; failed: number; results: any[] }>('/api/quickbooks/ar-invoices/sync-batch', { workflow_ids: workflowIds });
+}
+
+export function deleteQuickBooksARInvoice(workflowId: string) {
+  return apiClient.delete<any>(`/api/quickbooks/ar-invoices/${workflowId}`);
+}
+
 export function extractProductInfoFromUrl(url: string) {
   return apiClient.post<{
     name: string;

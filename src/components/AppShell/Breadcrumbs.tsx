@@ -50,6 +50,10 @@ export default function Breadcrumbs() {
       "role-group-permissions": "Role Group Permissions",
       "role-api-permissions": "Role API Permissions",
       "role-mcp-tool-permissions": "Role MCP Tool Permissions",
+      "account-receivable": "Account Receivable",
+      "accounts-receivable": "Account Receivable",
+      receivables: "Account Receivable",
+      receivable: "Account Receivable",
       "workflow-assignments": "Workflow Assignments",
       "chart-of-accounts": "Chart of Accounts",
       "upload-files": "Upload Files",
@@ -62,6 +66,10 @@ export default function Breadcrumbs() {
     const key = name.toLowerCase();
     if (specialNames[key]) {
       return specialNames[key];
+    }
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(name);
+    if (isUuid) {
+      return `#${name.slice(0, 8)}`;
     }
     return name
       .replace(/-/g, " ")

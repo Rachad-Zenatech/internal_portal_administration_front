@@ -30,6 +30,8 @@ const Invoices = lazy(() => import("./pages/Purchasing/Invoices"));
 const QuickBooksPage = lazy(() => import("./pages/Purchasing/QuickBooksPage"));
 const RecurringPayments = lazy(() => import("./pages/Purchasing/RecurringPayments"));
 const MyApprovals = lazy(() => import("./pages/Purchasing/MyApprovals"));
+const AccountReceivable = lazy(() => import("./pages/AccountReceivable/AccountReceivablePage"));
+const WorkflowDetailPage = lazy(() => import("./pages/AccountReceivable/WorkflowDetailPage"));
 const Login = lazy(() => import("./pages/Login"));
 const PendingAccess = lazy(() => import("./pages/PendingAccess"));
 
@@ -82,6 +84,13 @@ function App() {
               <Route path="/purchasing/quickbooks" element={<ProtectedRoute><QuickBooksPage /></ProtectedRoute>} />
               <Route path="/purchasing/quickbooks-export" element={<Navigate to="/purchasing/quickbooks" replace />} />
               <Route path="/quickbooks" element={<Navigate to="/purchasing/quickbooks" replace />} />
+
+              {/* Account Receivable (AR) */}
+              <Route path="/account-receivable" element={<ProtectedRoute><AccountReceivable /></ProtectedRoute>} />
+              <Route path="/account-receivable/:id" element={<ProtectedRoute><WorkflowDetailPage /></ProtectedRoute>} />
+              <Route path="/ar" element={<Navigate to="/account-receivable" replace />} />
+              <Route path="/ar/:id" element={<ProtectedRoute><WorkflowDetailPage /></ProtectedRoute>} />
+              <Route path="/purchasing/ar" element={<Navigate to="/account-receivable" replace />} />
 
               {/* Configuration Routes (Supports both singular /configuration and plural /configurations) */}
               <Route path="/configuration" element={<Navigate to="/configurations/users" replace />} />

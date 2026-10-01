@@ -15,7 +15,7 @@ import {
   Edit2, X, Search, ChevronDown, ChevronRight, Check,
   Building2, UserCheck, Users, User, RefreshCw, CheckCircle2, AlertCircle,
   ChevronsUpDown, ShoppingCart, CreditCard, Landmark, SlidersHorizontal, CheckSquare,
-  Plus, FolderPlus, GripVertical, Trash2, Folder, Layers, ShieldCheck
+  Plus, FolderPlus, GripVertical, Trash2, Folder, Layers, ShieldCheck, ReceiptText
 } from "lucide-react";
 
 type Assignment = {
@@ -65,8 +65,9 @@ const ROLE_STATES_MAP: Record<string, string[]> = {
   "DIRECTOR": ["Waiting Approval"],
   "VP": ["Waiting Approval"],
   "AP": ["Goods Received (Debit / Wire)", "Waiting Payment (Debit Card / Invoices)", "Waiting Payment (Wire Transfer)"],
+  "ACCOUNT_RECEIVABLE": ["Clerk Review"],
   "RECEIVING": ["Shipped", "Goods Received"],
-  "TREASURY": ["Waiting Payment (Wire Transfer)", "Completed"],
+  "TREASURY": ["Draft", "Pending Review", "Deposited", "Matched", "Reconciled", "Completed", "Waiting Payment (Wire Transfer)"],
 };
 
 const PRIMARY_ROLE_TABS = [
@@ -110,14 +111,24 @@ const PRIMARY_ROLE_TABS = [
     states: ["Goods Received (Debit / Wire)", "Waiting Payment (Debit Card / Invoices)", "Waiting Payment (Wire Transfer)"]
   },
   {
+    key: "ACCOUNT_RECEIVABLE",
+    label: "Account Receivable (AR)",
+    shortLabel: "Account Receivable",
+    icon: ReceiptText,
+    color: "text-blue-600 dark:text-blue-400",
+    roleCode: "ACCOUNT_RECEIVABLE",
+    desc: "Payment shortfall review, customer deduction dispute resolution, and AR clerk discrepancy investigation.",
+    states: ["Clerk Review"]
+  },
+  {
     key: "TREASURY",
     label: "Treasury",
     shortLabel: "Treasury",
     icon: Landmark,
     color: "text-sky-600 dark:text-sky-400",
     roleCode: "TREASURY",
-    desc: "Bank disbursement, wire authorization, high-value release, and final settlement.",
-    states: ["Waiting Payment (Wire Transfer)", "Completed"]
+    desc: "Inbound cash reconciliation, deposit matching, wire settlement, bank disbursement, and high-value release.",
+    states: ["Draft", "Pending Review", "Deposited", "Matched", "Reconciled", "Completed", "Waiting Payment (Wire Transfer)"]
   },
   {
     key: "all_roles",
@@ -132,6 +143,7 @@ const SUGGESTED_ROLES = [
   { code: "COMPANY_LEVEL_2_APPROVER", label: "Level 2 Approver", desc: "Company Level 2 executive approval (≥ $10k)" },
   { code: "PURCHASING", label: "Purchasing", desc: "Purchasing and procurement processing" },
   { code: "AP", label: "Accounts Payable", desc: "Invoice payment and debit/wire handling" },
+  { code: "ACCOUNT_RECEIVABLE", label: "Account Receivable", desc: "Clerk review, invoice matching, and receivables processing" },
   { code: "TREASURY", label: "Treasury", desc: "Treasury and high-value payment approval" },
   { code: "ADMIN", label: "Administrator", desc: "Workflow and system administration" },
 ];
@@ -2323,22 +2335,39 @@ export default function WorkflowAssignments() {
             </div>
 
             <div className="grid gap-2">
-              <label className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">Request Type Scope</label>
+              <label className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+                {form.role === "ACCOUNT_RECEIVABLE" ? "Workflow Type Scope" : "Request Type Scope"}
+              </label>
               <div className="flex flex-wrap gap-2">
-                {["ALL", "SPEND", "ADMIN", "RECURRING"].map((type) => {
-                  const isSelected = (form.request_type || "ALL") === type;
+                {(form.role === "ACCOUNT_RECEIVABLE"
+                  ? [
+                      { code: "ALL", label: "ALL" },
+                      { code: "CASH", label: "CASH RECONCILIATION" },
+                      { code: "INITIAL_SALE", label: "INITIAL SALE" },
+                      { code: "ADD_ON", label: "ADD-ON / UPGRADE" },
+                      { code: "MONTHLY_SUBSCRIPTION", label: "MONTHLY SUBSCRIPTION" },
+                      { code: "RENEWAL", label: "CONTRACT RENEWAL" },
+                    ]
+                  : [
+                      { code: "ALL", label: "ALL" },
+                      { code: "SPEND", label: "SPEND" },
+                      { code: "ADMIN", label: "ADMIN" },
+                      { code: "RECURRING", label: "RECURRING" },
+                    ]
+                ).map((item) => {
+                  const isSelected = (form.request_type || "ALL") === item.code;
                   return (
                     <button
-                      key={type}
+                      key={item.code}
                       type="button"
-                      onClick={() => setForm({ ...form, request_type: type === "ALL" ? null : type })}
+                      onClick={() => setForm({ ...form, request_type: item.code === "ALL" ? null : item.code })}
                       className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors border ${
                         isSelected
                           ? "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
                           : "bg-transparent border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                       }`}
                     >
-                      {type === "ALL" ? "ALL" : type}
+                      {item.label}
                     </button>
                   );
                 })}
