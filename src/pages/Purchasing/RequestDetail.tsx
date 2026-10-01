@@ -2738,7 +2738,11 @@ export default function RequestDetail() {
                           </div>
                           <div className="min-w-0">
                             <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
-                              {request.level_1_approver_name || request.assigned_user || "Department Level 1 Approver"}
+                              {request.level_1_approver_name && request.level_1_approver_name !== "Unassigned"
+                                ? request.level_1_approver_name
+                                : request.assigned_user && request.assigned_user !== "Unassigned"
+                                ? request.assigned_user
+                                : "Department Level 1 Approver"}
                             </div>
                             <div className="text-[10.5px] text-slate-500 dark:text-zinc-400 truncate">
                               Level 1 • Department / Manager Approver
@@ -2775,7 +2779,9 @@ export default function RequestDetail() {
                             </div>
                             <div className="min-w-0">
                               <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
-                                {request.level_2_approver_name || "Shaun Passley (CEO)"}
+                                {request.level_2_approver_name && request.level_2_approver_name !== "Unassigned"
+                                  ? request.level_2_approver_name
+                                  : "Shaun Passley (CEO)"}
                               </div>
                               <div className="text-[10.5px] text-purple-600 dark:text-purple-400 truncate flex items-center gap-1">
                                 <span>Level 2 • Company Approver</span>
