@@ -518,7 +518,7 @@ export default function QuickBooksPage() {
 
     try {
       if (isAr) {
-        const wfId = item.workflow_id || item.id || String(item.request_id);
+        const wfId = String(item.workflow_id || item.id || item.request_id);
         const res = await syncQuickBooksARInvoice(wfId);
         toast.success(`Synced A/R Cash Application #${item.ref_no || wfId.slice(0, 8)} to QuickBooks as Payment #${res.quickbooks_payment_id || "Created"}`);
       } else if (isBill) {
@@ -545,7 +545,7 @@ export default function QuickBooksPage() {
 
     try {
       if (isAr) {
-        const wfId = item.workflow_id || item.id || String(item.request_id);
+        const wfId = String(item.workflow_id || item.id || item.request_id);
         await deleteQuickBooksARInvoice(wfId);
         toast.success(`Cleared QuickBooks sync for A/R cash application #${item.ref_no || wfId.slice(0, 8)}!`);
       } else if (isBill) {

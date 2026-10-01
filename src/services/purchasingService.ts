@@ -443,6 +443,11 @@ export interface QuickBooksPreviewPart {
 
 export interface QuickBooksPreviewItem {
   request_id: number;
+  id?: string | number;
+  workflow_id?: string;
+  is_ar?: boolean;
+  bank_name?: string;
+  account_number?: string;
   product_name: string;
   raw_payee: string;
   amount: number;
@@ -519,6 +524,7 @@ export interface QuickBooksPreviewItem {
   projected_payload: any;
   projected_expense_payload?: any;
   projected_bill_payload?: any;
+  projected_invoice_payload?: any;
 }
 
 export interface QuickBooksPreviewResponse {

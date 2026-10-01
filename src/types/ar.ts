@@ -120,6 +120,7 @@ export interface ARCreateWorkflowPayload {
   customer_details?: Record<string, any>;
   banking_details?: Record<string, any>;
   // Cash Workflow (Treasury Confirmation, Multi-Invoice Matching, Attachments, AR Clerk)
+  account_number?: string;
   bank_name?: string;
   bank_txn_id?: string;
   matched_invoice_id?: string;

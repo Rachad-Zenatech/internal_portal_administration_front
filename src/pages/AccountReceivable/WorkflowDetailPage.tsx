@@ -33,7 +33,6 @@ import {
   AlignLeft,
   SquarePen,
   ShieldCheck,
-  Tag,
 } from "lucide-react";
 import NewWorkflowModal from "./NewWorkflowModal";
 import { arService } from "../../services/arService";
