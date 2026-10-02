@@ -102,14 +102,12 @@ export function EditCombinedRequestDialog({
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
 
-  // General Overview & Ownership is fixed/disabled once under review or any later lifecycle stage
-  const isOverviewLocked = Boolean(
-    request?.status &&
-    request.status !== RequestStatus.Initial &&
-    request.status !== RequestStatus.New &&
-    String(request.status).toUpperCase() !== "INITIAL" &&
-    String(request.status).toUpperCase() !== "NEW"
-  );
+  const isCompleted =
+    request?.status === RequestStatus.Completed ||
+    String(request?.status || "").toUpperCase() === "COMPLETED";
+
+  // General Overview & Ownership is editable so admins and reviewers can modify fields and convert request types
+  const isOverviewLocked = isCompleted;
 
   // Active Tab state
   const [activeTab, setActiveTab] = useState<"request" | "po" | "invoice">("request");
@@ -778,9 +776,6 @@ export function EditCombinedRequestDialog({
     toast.success("Synchronized all prices, quantities, currency, and GL code from Request Details!");
   };
 
-  const isCompleted =
-    request?.status === RequestStatus.Completed ||
-    String(request?.status || "").toUpperCase() === "COMPLETED";
 
   // Submit Handler: Saves Request Details, PO (if exists), Invoice (if exists), and Wire Transfer (if AP)
   const handleSave = async () => {
@@ -1163,7 +1158,7 @@ export function EditCombinedRequestDialog({
                   </h3>
                   {isOverviewLocked && (
                     <Badge variant="secondary" className="text-[10px] font-normal gap-1 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
-                      <Lock className="h-2.5 w-2.5" /> Fixed (Under Review / Approved)
+                      <Lock className="h-2.5 w-2.5" /> Locked (Completed)
                     </Badge>
                   )}
                 </div>
