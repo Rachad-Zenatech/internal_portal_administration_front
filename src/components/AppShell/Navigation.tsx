@@ -19,6 +19,13 @@ export const navigation = [
     navigationCode: "DASHBOARD",
   },
   {
+    label: "My Approvals",
+    path: "/purchasing/my-approvals",
+    icon: UserCheck,
+    section: "MAIN",
+    navigationCode: "MY_APPROVALS",
+  },
+  {
     label: "Upload Files",
     path: "/upload-files",
     icon: Upload,
@@ -29,7 +36,7 @@ export const navigation = [
     label: "Purchase Requests",
     path: "/purchasing/requests",
     icon: ShoppingCart,
-    section: "PURCHASING & AP",
+    section: "MAIN",
     navigationCode: "PURCHASING",
     subItems: [
       { label: "All Requests", path: "/purchasing/requests" },
@@ -48,17 +55,10 @@ export const navigation = [
     ],
   },
   {
-    label: "My Approvals",
-    path: "/purchasing/my-approvals",
-    icon: UserCheck,
-    section: "PURCHASING & AP",
-    navigationCode: "MY_APPROVALS",
-  },
-  {
     label: "Recurring Payments",
     path: "/purchasing/recurring",
     icon: CalendarCheck,
-    section: "PURCHASING & AP",
+    section: "MAIN",
     navigationCode: "RECURRING_PAYMENTS",
     subItems: [
       { label: "All Subscriptions", path: "/purchasing/recurring" },
@@ -75,14 +75,14 @@ export const navigation = [
     label: "Accounts Payable",
     path: "/purchasing/invoices",
     icon: ReceiptText,
-    section: "PURCHASING & AP",
+    section: "MAIN",
     navigationCode: "INVOICES",
   },
   {
     label: "Account Receivable",
     path: "/account-receivable",
     icon: ReceiptText,
-    section: "PURCHASING & AP",
+    section: "MAIN",
     navigationCode: "ACCOUNT_RECEIVABLE",
     subItems: [
       { label: "Overview & Invoices", path: "/account-receivable" },
@@ -93,7 +93,7 @@ export const navigation = [
     label: "QuickBooks Sync",
     path: "/purchasing/quickbooks",
     icon: Zap,
-    section: "PURCHASING & AP",
+    section: "MAIN",
     navigationCode: "PURCHASING",
   },
 
