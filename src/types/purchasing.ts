@@ -313,6 +313,14 @@ export type PurchasingSummary = {
   recurring_completed_count?: number;
   recurring_rejected?: number;
   my_approvals_count?: number;
+  /**
+   * Whether the caller is an assigned approver, independent of how many items are queued.
+   * Gate approver-only UI on these rather than on my_approvals_count, which drops to zero
+   * whenever the queue happens to be empty.
+   */
+  is_dept_approver?: boolean;
+  is_company_approver?: boolean;
+  is_level_approver?: boolean;
   user_action_counts?: Record<string, number>;
   user_unread_notif_counts?: Record<string, number>;
   has_user_notifications?: Record<string, boolean>;
