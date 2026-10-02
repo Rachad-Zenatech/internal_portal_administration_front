@@ -32,6 +32,7 @@ const RecurringPayments = lazy(() => import("./pages/Purchasing/RecurringPayment
 const MyApprovals = lazy(() => import("./pages/Purchasing/MyApprovals"));
 const AccountReceivable = lazy(() => import("./pages/AccountReceivable/AccountReceivablePage"));
 const GenerateInvoicePage = lazy(() => import("./pages/AccountReceivable/GenerateInvoicePage"));
+const GenerateQuotePage = lazy(() => import("./pages/AccountReceivable/GenerateQuotePage"));
 const WorkflowDetailPage = lazy(() => import("./pages/AccountReceivable/WorkflowDetailPage"));
 const Login = lazy(() => import("./pages/Login"));
 const PendingAccess = lazy(() => import("./pages/PendingAccess"));
@@ -89,9 +90,11 @@ function App() {
               {/* Account Receivable (AR) */}
               <Route path="/account-receivable" element={<ProtectedRoute><AccountReceivable /></ProtectedRoute>} />
               <Route path="/account-receivable/generate" element={<ProtectedRoute><GenerateInvoicePage /></ProtectedRoute>} />
+              <Route path="/account-receivable/generate-quote" element={<ProtectedRoute><GenerateQuotePage /></ProtectedRoute>} />
               <Route path="/account-receivable/:id" element={<ProtectedRoute><WorkflowDetailPage /></ProtectedRoute>} />
               <Route path="/ar" element={<Navigate to="/account-receivable" replace />} />
               <Route path="/ar/generate" element={<ProtectedRoute><GenerateInvoicePage /></ProtectedRoute>} />
+              <Route path="/ar/generate-quote" element={<ProtectedRoute><GenerateQuotePage /></ProtectedRoute>} />
               <Route path="/ar/:id" element={<ProtectedRoute><WorkflowDetailPage /></ProtectedRoute>} />
               <Route path="/purchasing/ar" element={<Navigate to="/account-receivable" replace />} />
 

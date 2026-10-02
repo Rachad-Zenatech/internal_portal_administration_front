@@ -86,6 +86,7 @@ export const navigation = [
     navigationCode: "ACCOUNT_RECEIVABLE",
     subItems: [
       { label: "Overview & Invoices", path: "/account-receivable" },
+      { label: "Generate Quote", path: "/account-receivable/generate-quote" },
       { label: "Generate Invoice", path: "/account-receivable/generate" },
     ],
   },

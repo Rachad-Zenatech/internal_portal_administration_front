@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   Receipt,
   Eye,
-  ArrowUpRight,
   TrendingUp,
   RefreshCw,
   Mail,
@@ -22,12 +21,19 @@ import {
   Layers,
   Send,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Badge } from "../../components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -146,7 +152,7 @@ export default function AccountReceivablePage() {
 
   return (
     <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="w-full space-y-6">
         {/* Email Success Notification */}
         {emailSuccessMsg && (
           <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
@@ -167,7 +173,7 @@ export default function AccountReceivablePage() {
                   Account Receivable
                 </h1>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                  Manage recurring customer invoice templates, auto-formatting, and generated billing statements.
+                  Manage customer quote estimates, invoice templates, auto-formatting, and generated billing statements.
                 </p>
               </div>
             </div>
@@ -188,13 +194,51 @@ export default function AccountReceivablePage() {
               />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <Button
-              onClick={() => navigate("/account-receivable/generate")}
-              className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-md shadow-blue-500/20 font-medium px-5 py-2.5 rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99]"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Generate Invoice</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-md shadow-blue-500/20 font-medium px-5 py-2.5 rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Generate</span>
+                  <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xl">
+                <DropdownMenuItem
+                  onClick={() => navigate("/account-receivable/generate-quote")}
+                  className="flex items-start gap-2.5 p-2.5 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800 focus:bg-slate-50 dark:focus:bg-zinc-800"
+                >
+                  <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                      Generate Quote
+                    </div>
+                    <div className="text-[10.5px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                      Create customer estimate &amp; quote
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => navigate("/account-receivable/generate")}
+                  className="flex items-start gap-2.5 p-2.5 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800 focus:bg-slate-50 dark:focus:bg-zinc-800"
+                >
+                  <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0">
+                    <Receipt className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                      Generate Invoice
+                    </div>
+                    <div className="text-[10.5px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                      Create billing invoice statement
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -556,21 +600,46 @@ export default function AccountReceivablePage() {
                       </div>
                     </div>
 
-                    <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-700/60">
-                      <Button
-                        onClick={() =>
-                          navigate(
-                            `/account-receivable/generate?customerId=${encodeURIComponent(
-                              cust.id
-                            )}`
-                          )
-                        }
-                        className="w-full gap-2 bg-slate-900 dark:bg-blue-600 hover:bg-blue-700 text-white text-xs h-9 rounded-xl shadow-xs transition-all cursor-pointer"
-                      >
-                        <Receipt className="w-3.5 h-3.5" />
-                        <span>Generate Invoice</span>
-                        <ArrowUpRight className="w-3.5 h-3.5 ml-auto" />
-                      </Button>
+                    <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex items-center gap-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            className="w-full gap-2 bg-slate-900 dark:bg-blue-600 hover:bg-blue-700 text-white text-xs h-9 rounded-xl shadow-xs transition-all cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Generate</span>
+                            <ChevronDown className="w-3.5 h-3.5 opacity-70 ml-auto" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52 p-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xl">
+                          <DropdownMenuItem
+                            onClick={() =>
+                              navigate(
+                                `/account-receivable/generate-quote?customerId=${encodeURIComponent(
+                                  cust.id
+                                )}`
+                              )
+                            }
+                            className="flex items-center gap-2 p-2 text-xs rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800 focus:bg-slate-50 dark:focus:bg-zinc-800"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Generate Quote</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              navigate(
+                                `/account-receivable/generate?customerId=${encodeURIComponent(
+                                  cust.id
+                                )}`
+                              )
+                            }
+                            className="flex items-center gap-2 p-2 text-xs rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800 focus:bg-slate-50 dark:focus:bg-zinc-800"
+                          >
+                            <Receipt className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Generate Invoice</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 );
