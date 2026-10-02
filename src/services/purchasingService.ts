@@ -61,6 +61,47 @@ export function getRequest(id: string) {
   return apiClient.get<RequestDetail>(`${BASE}/requests/${id}`);
 }
 
+export interface ApproverCandidateUser {
+  id: string;
+  full_name: string;
+  email: string;
+  department?: string;
+  job_title?: string;
+  departments?: string[];
+  is_request_department?: boolean;
+  is_department_approver: boolean;
+  is_current_approver: boolean;
+  is_requester: boolean;
+}
+
+export interface DepartmentApproverGroup {
+  department: string;
+  group_name: string;
+  is_request_department: boolean;
+  approvers: ApproverCandidateUser[];
+}
+
+export interface Level1CandidatesResponse {
+  current_approver_id?: string;
+  current_approver_name?: string;
+  department?: string;
+  department_approver_ids: string[];
+  approvers?: ApproverCandidateUser[];
+  department_groups: DepartmentApproverGroup[];
+  candidates: ApproverCandidateUser[];
+}
+
+export function getLevel1Candidates(requestId: string) {
+  return apiClient.get<Level1CandidatesResponse>(`${BASE}/requests/${requestId}/level-1-candidates`);
+}
+
+export function reassignLevel1Approver(requestId: string, approverId: string, reason?: string) {
+  return apiClient.post<RequestDetail>(`${BASE}/requests/${requestId}/reassign-level1-approver`, {
+    approver_id: approverId,
+    reason,
+  });
+}
+
 export async function extractQuote(file: File) {
   const optimizedFile = await compressAttachmentBeforeUpload(file);
   const formData = new FormData();

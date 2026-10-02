@@ -54,6 +54,8 @@ export default function Breadcrumbs() {
       "accounts-receivable": "Account Receivable",
       receivables: "Account Receivable",
       receivable: "Account Receivable",
+      generate: "Invoice Generator",
+      "generate-invoice": "Invoice Generator",
       "workflow-assignments": "Workflow Assignments",
       "chart-of-accounts": "Chart of Accounts",
       "upload-files": "Upload Files",

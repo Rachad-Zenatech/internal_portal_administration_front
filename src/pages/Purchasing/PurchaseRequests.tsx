@@ -33,7 +33,15 @@ import {
   Landmark,
   Eye,
   Receipt,
+  ChevronDown,
+  CalendarCheck,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { FilePreviewModal, type PreviewFileTarget } from "./FilePreviewModal";
 
 import { Button } from "@/components/ui/button";
@@ -169,7 +177,7 @@ function RequesterAutocomplete({
             {filteredUsers.map((u) => {
               const displayName = u.full_name || u.email || "Unknown User";
               const email = u.email;
-              const dept = resolveUserDepartment(u, roles);
+              const dept = (u.department && u.department.trim() && u.department.toUpperCase() !== "REQUESTER") ? u.department.trim() : resolveUserDepartment(u, roles);
 
               return (
                 <div
@@ -745,10 +753,31 @@ export function PurchaseRequests() {
             <span>QuickBooks Sync & Exports</span>
           </Button>
           {canCreate && (
-            <Button onClick={openCreate} className="w-full sm:w-auto gap-2 font-medium shadow-sm">
-              <Plus className="h-4 w-4" />
-              <span>New Request</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="w-full sm:w-auto gap-2 font-medium shadow-sm bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 cursor-pointer">
+                  <Plus className="h-4 w-4" />
+                  <span>New Request</span>
+                  <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60 p-1.5 shadow-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <DropdownMenuItem
+                  onClick={openCreate}
+                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium cursor-pointer rounded-md text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                >
+                  <ShoppingCart className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <span>Create Purchase Request</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => navigate("/purchasing/recurring?create=true")}
+                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium cursor-pointer rounded-md text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                >
+                  <CalendarCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>Create Recurring Payments</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
@@ -1606,11 +1635,15 @@ export function PurchaseRequests() {
                         (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
                         (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
                     );
-                    const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
+                    const dept = (matched?.department && matched.department.trim() && matched.department.toUpperCase() !== "REQUESTER")
+                      ? matched.department.trim()
+                      : (matched ? resolveUserDepartment(matched, rolesList) : "");
                     setForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
                   }}
                   onSelectUser={(selectedUser) => {
-                    const dept = resolveUserDepartment(selectedUser, rolesList);
+                    const dept = (selectedUser?.department && selectedUser.department.trim() && selectedUser.department.toUpperCase() !== "REQUESTER")
+                      ? selectedUser.department.trim()
+                      : resolveUserDepartment(selectedUser, rolesList);
                     if (dept) {
                       setForm((prev) => ({ ...prev, department: dept }));
                     }

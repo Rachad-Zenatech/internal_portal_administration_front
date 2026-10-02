@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
@@ -28,19 +28,25 @@ export default function AppShell({ children }: Props) {
   }, []);
 
   return (
-    <div className="flex h-screen w-full min-w-0 overflow-hidden bg-background text-foreground">
-      <Sidebar
-        isOpen={isSidebarOpen}
-        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-      />
+    <div className="flex h-screen w-full min-w-0 overflow-hidden bg-background text-foreground print:h-auto print:overflow-visible print:bg-white print:block">
+      <div className="print:hidden">
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
+      </div>
 
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
-        <TopBar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative print:h-auto print:overflow-visible print:block print:w-full">
+        <div className="print:hidden">
+          <TopBar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+        </div>
         <main
-          className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3.5 md:p-4 bg-background"
+          className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3.5 md:p-4 bg-background print:overflow-visible print:p-0 print:m-0 print:bg-white print:block print:w-full"
         >
-          <Breadcrumbs />
-          <div className="w-full pb-8">
+          <div className="print:hidden">
+            <Breadcrumbs />
+          </div>
+          <div className="w-full pb-8 print:pb-0 print:w-full">
             {children}
           </div>
         </main>

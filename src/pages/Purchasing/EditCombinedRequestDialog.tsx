@@ -21,6 +21,7 @@ import {
 import { VendorAutocomplete } from "./VendorAutocomplete";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import DepartmentAutocomplete from "./DepartmentAutocomplete";
+import { ClassAutocomplete } from "./ClassAutocomplete";
 import LocationAutocomplete from "./LocationAutocomplete";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { PaymentMethodSelect } from "./PaymentMethodSelect";
@@ -309,7 +310,20 @@ export function EditCombinedRequestDialog({
 
       setTitle(request?.title || (request as any)?.product_name || "");
       setRequester(request?.requester || "");
-      setDepartment(request?.department || "");
+      let initialDept = request?.department || "";
+      if (!initialDept || initialDept.toUpperCase() === "GENERAL") {
+        const matched = usersList.find(
+          (u: any) =>
+            (request?.requester_id && u.id === request.requester_id) ||
+            (request?.requester && (u.full_name?.toLowerCase() === request.requester.toLowerCase() || u.email?.toLowerCase() === request.requester.toLowerCase()))
+        );
+        if (matched) {
+          initialDept = (matched.department && matched.department.trim() && matched.department.toUpperCase() !== "REQUESTER")
+            ? matched.department.trim()
+            : resolveUserDepartment(matched, rolesList);
+        }
+      }
+      setDepartment(initialDept);
       setPriority(request?.priority || "MEDIUM");
       setProjectName(request?.project_name || "");
       setDueDate(request?.due_date ? String(request.due_date).split("T")[0] : "");
@@ -1264,7 +1278,9 @@ export function EditCombinedRequestDialog({
                   {!isOverviewLocked && isUserDropdownOpen && filteredUsers.length > 0 && (
                     <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800/60">
                       {filteredUsers.map((u: any) => {
-                        const userDept = resolveUserDepartment(u, rolesList);
+                        const userDept = (u.department && u.department.trim() && u.department.toUpperCase() !== "REQUESTER")
+                          ? u.department.trim()
+                          : resolveUserDepartment(u, rolesList);
                         return (
                           <button
                             key={u.id}
@@ -1298,7 +1314,9 @@ export function EditCombinedRequestDialog({
                     value={department}
                     disabled={isOverviewLocked}
                     onChange={setDepartment}
-                    placeholder="Search or enter department..."
+                    requesterName={requester}
+                    usersList={usersList}
+                    placeholder="Search or select department..."
                   />
                 </div>
 
@@ -2095,10 +2113,10 @@ export function EditCombinedRequestDialog({
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                       Class <span className="text-rose-500">*</span>
                     </label>
-                    <DepartmentAutocomplete
+                    <ClassAutocomplete
                       value={invDepartment}
                       onChange={setInvDepartment}
-                      placeholder="Department / class *"
+                      placeholder="Class *"
                       required
                     />
                   </div>

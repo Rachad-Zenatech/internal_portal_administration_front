@@ -33,12 +33,13 @@ import {
   AlignLeft,
   SquarePen,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import NewWorkflowModal from "./NewWorkflowModal";
 import { arService } from "../../services/arService";
 import { apiClient } from "../../services/apiClient";
 import { financeService } from "../../services/financeService";
-import { DEFAULT_AR_CUSTOMERS } from "./ARCustomerAutocomplete";
+import { UserAutocomplete } from "./UserAutocomplete";
 import { FilePreviewModal, type PreviewFileTarget } from "../Purchasing/FilePreviewModal";
 import { Badge } from "../../components/ui/badge";
 import {
@@ -212,9 +213,20 @@ export default function WorkflowDetailPage() {
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
   const [isAssignClerkDialogOpen, setIsAssignClerkDialogOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [clerkEmail, setClerkEmail] = useState("");
   const [clerkRemarks, setClerkRemarks] = useState("");
   const [activeTab, setActiveTab] = useState<"overview" | "timeline" | "attachments">("overview");
+
+  const deleteMutation = useMutation({
+    mutationFn: () => arService.deleteWorkflow(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ar-workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-metrics"] });
+      setIsDeleteDialogOpen(false);
+      navigate("/account-receivable");
+    },
+  });
 
   const {
     data: workflow,
@@ -744,43 +756,14 @@ export default function WorkflowDetailPage() {
       };
     }
 
-    // 2. Search in DEFAULT_AR_CUSTOMERS
-    const foundDefault = DEFAULT_AR_CUSTOMERS.find((d) => {
-      const dId = d.id.toLowerCase();
-      const dDisp = d.display_name.toLowerCase();
-      const dFull = (d.full_name || "").toLowerCase();
-      return (
-        (custId && (dId === custId || dId.includes(custId) || custId.includes(dId))) ||
-        (custName &&
-          (dDisp.includes(custName) ||
-            custName.includes(dDisp) ||
-            dFull.includes(custName) ||
-            custName.includes(dFull)))
-      );
-    });
-
-    if (foundDefault) {
-      return {
-        contact_person: foundDefault.full_name || foundDefault.display_name,
-        name: foundDefault.display_name,
-        email: foundDefault.email,
-        phone: foundDefault.phone,
-        billing_address: foundDefault.bill_address,
-        tax_id: foundDefault.banking_details?.tax_id,
-        banking_details: foundDefault.banking_details,
-      };
-    }
-
-    // 3. Fallback for sample/test customer to ensure no blank/N/A fields
-    const defaultSample = DEFAULT_AR_CUSTOMERS[0];
     return {
-      contact_person: workflow.customer_name || defaultSample.display_name,
-      name: workflow.customer_name || defaultSample.display_name,
-      email: defaultSample.email,
-      phone: defaultSample.phone,
-      billing_address: defaultSample.bill_address,
-      tax_id: defaultSample.banking_details?.tax_id,
-      banking_details: defaultSample.banking_details,
+      contact_person: workflow.customer_name || "",
+      name: workflow.customer_name || "",
+      email: "",
+      phone: "",
+      billing_address: "",
+      tax_id: null,
+      banking_details: null,
     };
   }, [workflow, contactsData]);
 
@@ -959,6 +942,22 @@ export default function WorkflowDetailPage() {
       if (st === "CLERK_REVIEW") return "Clerk Review";
       if (st === "RECONCILED") return "Reconciled & Marked";
       if (st === "COMPLETED") return "Settled & Posted";
+    } else if (type === "INITIAL_SALE") {
+      if (st === "DRAFT") return "Customer & Product Setup";
+      if (st === "PENDING_REVIEW") return "PO Review & Invoicing";
+      if (st === "INVOICE_SENT") return "Invoice Dispatched";
+      if (st === "AWAITING_PAYMENT") return "Await Payment";
+      if (st === "DUNNING_REMINDER") return "Overdue Follow-up";
+      if (st === "RECONCILED") return "Apply Cash [Paid]";
+      if (st === "COMPLETED") return "Paid – AR Updated";
+    } else if (type === "ADD_ON") {
+      if (st === "DRAFT") return "Validate Contract & Product";
+      if (st === "PENDING_REVIEW") return "Determine Prorated Amount";
+      if (st === "INVOICE_SENT") return "Issue & Send Invoice";
+      if (st === "AWAITING_PAYMENT") return "Await Payment";
+      if (st === "DUNNING_REMINDER") return "Overdue Follow-up";
+      if (st === "RECONCILED") return "Apply Cash [Paid]";
+      if (st === "COMPLETED") return "Consolidate Renewal Total";
     }
     return STATE_CONFIG[st]?.label || st;
   };
@@ -1027,6 +1026,18 @@ export default function WorkflowDetailPage() {
           >
             <SquarePen className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
             <span>Edit Workflow</span>
+          </Button>
+
+          {/* Delete Workflow Action */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 text-xs gap-1.5 shadow-2xs font-medium"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+            <span>Delete Workflow</span>
           </Button>
 
           {/* Cancel Workflow Action */}
@@ -1177,7 +1188,11 @@ export default function WorkflowDetailPage() {
               <span className="font-bold text-indigo-600 dark:text-indigo-400">Action Required:</span>
               {currentState === "COMPLETED" ? (
                 <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  Workflow lifecycle finalized and posted to the general ledger.
+                  {currentType === "INITIAL_SALE"
+                    ? "Paid – AR general ledger updated and sales order fulfilled."
+                    : currentType === "ADD_ON"
+                    ? "Paid – Upgrades provisioned and consolidated into next renewal total."
+                    : "Workflow lifecycle finalized and posted to the general ledger."}
                 </span>
               ) : currentState === "CANCELLED" ? (
                 <span className="text-zinc-500 font-medium">Workflow has been cancelled.</span>
@@ -1191,10 +1206,48 @@ export default function WorkflowDetailPage() {
                 )
               ) : currentType === "CASH" && currentState === "CLERK_REVIEW" ? (
                 <span className="text-amber-700 dark:text-amber-400 font-medium">
-                  Shortfall / discrepancy assigned to AR Clerk ({workflow.metadata?.ar_clerk_assigned_to || clerksList[0]?.email || "sarah.jenkins@zenatech.com"}). Resolve customer deductions to finalize.
+                  Shortfall / discrepancy assigned to Account Receivable user ({workflow.metadata?.ar_clerk_assigned_to || clerksList[0]?.email || "sarah.jenkins@zenatech.com"}). Resolve customer deductions to finalize.
                 </span>
               ) : currentType === "CASH" && currentState === "RECONCILED" ? (
                 <span>Reconciliation marked. Finalize workflow and post audit records to the general ledger.</span>
+              ) : currentType === "INITIAL_SALE" && currentState === "DRAFT" ? (
+                <span>Quote / contract accepted by Sales ({workflow.metadata?.sales_rep || "Sales Representative"}). Account Receivable assigned user must set up customer, products, and check PO requirements.</span>
+              ) : currentType === "INITIAL_SALE" && currentState === "PENDING_REVIEW" ? (
+                workflow.metadata?.po_required && !workflow.metadata?.po_number ? (
+                  <span className="text-amber-700 dark:text-amber-400 font-medium">
+                    PO Gateway: Customer requires Purchase Order. Collect PO # / reference before generating invoice.
+                  </span>
+                ) : (
+                  <span>Customer & products verified (GL 1100). Generate invoice with PO reference and dispatch [Invoiced].</span>
+                )
+              ) : currentType === "INITIAL_SALE" && currentState === "INVOICE_SENT" ? (
+                <span>Invoice sent to customer. Awaiting payment or follow-up timer.</span>
+              ) : currentType === "INITIAL_SALE" && currentState === "DUNNING_REMINDER" ? (
+                <span className="text-rose-700 dark:text-rose-400 font-medium">
+                  Invoice overdue. Account Receivable assigned user ({workflow.metadata?.ar_clerk_assigned_to || "AR Clerk"}) is conducting follow-up and reminder dispatches.
+                </span>
+              ) : currentType === "INITIAL_SALE" && currentState === "AWAITING_PAYMENT" ? (
+                <span>Payment inbound via check, transfer, or card. Treasury assigned user ready to apply cash [Paid].</span>
+              ) : currentType === "INITIAL_SALE" && currentState === "RECONCILED" ? (
+                <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                  Cash applied [Paid]. Finalize to update AR ledger and fulfill order.
+                </span>
+              ) : currentType === "ADD_ON" && currentState === "DRAFT" ? (
+                <span>Customer requested extra quantity via Sales ({workflow.metadata?.sales_rep || "Sales Representative"}). Account Receivable assigned user must validate contract & determine prorated amount.</span>
+              ) : currentType === "ADD_ON" && currentState === "PENDING_REVIEW" ? (
+                <span>Contract validated. Prorated amount calculated to existing renewal date. Issue add-on invoice [Invoiced].</span>
+              ) : currentType === "ADD_ON" && currentState === "INVOICE_SENT" ? (
+                <span>Add-on invoice sent. Awaiting payment or follow-up timer.</span>
+              ) : currentType === "ADD_ON" && currentState === "DUNNING_REMINDER" ? (
+                <span className="text-rose-700 dark:text-rose-400 font-medium">
+                  Add-on invoice overdue. Account Receivable assigned user ({workflow.metadata?.ar_clerk_assigned_to || "AR Clerk"}) is conducting follow-up.
+                </span>
+              ) : currentType === "ADD_ON" && currentState === "AWAITING_PAYMENT" ? (
+                <span>Awaiting settlement. Treasury assigned user ready to apply cash [Paid].</span>
+              ) : currentType === "ADD_ON" && currentState === "RECONCILED" ? (
+                <span className="text-indigo-700 dark:text-indigo-300 font-medium">
+                  Cash applied [Paid]. Finalize to consolidate into next renewal total and provision upgrades.
+                </span>
               ) : (
                 <span>{stateConfig.desc} Advance workflow to the next lifecycle stage.</span>
               )}
@@ -1324,6 +1377,24 @@ export default function WorkflowDetailPage() {
                   .filter((st) => st !== "CANCELLED")
                   .map((targetSt) => {
                     const conf = STATE_CONFIG[targetSt];
+                    // Custom label computation based on BPMN
+                    let btnLabel = `Advance to ${conf.label}`;
+                    if (currentType === "INITIAL_SALE") {
+                      if (targetSt === "PENDING_REVIEW") btnLabel = "Set Up Customer & PO Check";
+                      else if (targetSt === "INVOICE_SENT") btnLabel = "Generate & Send Invoice [Invoiced]";
+                      else if (targetSt === "AWAITING_PAYMENT") btnLabel = "Await Payment [Payment Received]";
+                      else if (targetSt === "DUNNING_REMINDER") btnLabel = "Follow-up Overdue";
+                      else if (targetSt === "RECONCILED") btnLabel = "Apply Cash [Paid]";
+                      else if (targetSt === "COMPLETED") btnLabel = "Paid – Update AR Ledger & Fulfill";
+                    } else if (currentType === "ADD_ON") {
+                      if (targetSt === "PENDING_REVIEW") btnLabel = "Validate Contract & Prorate";
+                      else if (targetSt === "INVOICE_SENT") btnLabel = "Issue & Send Add-On Invoice [Invoiced]";
+                      else if (targetSt === "AWAITING_PAYMENT") btnLabel = "Await Payment [Payment Received]";
+                      else if (targetSt === "DUNNING_REMINDER") btnLabel = "Follow-up Overdue";
+                      else if (targetSt === "RECONCILED") btnLabel = "Apply Cash [Paid]";
+                      else if (targetSt === "COMPLETED") btnLabel = "Consolidate into Renewal & Complete";
+                    }
+
                     return (
                       <Button
                         key={targetSt}
@@ -1337,7 +1408,7 @@ export default function WorkflowDetailPage() {
                         disabled={transitionMutation.isPending}
                         className="h-8 px-3 text-xs font-semibold shadow-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 cursor-pointer"
                       >
-                        <span>Advance to {conf.label}</span>
+                        <span>{btnLabel}</span>
                         <ArrowRight className="w-3.5 h-3.5 ml-1" />
                       </Button>
                     );
@@ -1465,6 +1536,149 @@ export default function WorkflowDetailPage() {
                 </div>
               </div>
 
+              {/* Initial Sale Specific Metadata (BPMN) */}
+              {currentType === "INITIAL_SALE" && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                    <div className="p-3.5 flex justify-between gap-2">
+                      <span className="text-muted-foreground font-medium">Sales Originator</span>
+                      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                        {workflow.metadata?.sales_rep || "Steve (Sales Rep)"}
+                      </span>
+                    </div>
+                    <div className="p-3.5 flex justify-between gap-2 bg-slate-50/50 dark:bg-zinc-900/30">
+                      <span className="text-muted-foreground font-medium">Quote / Contract Accepted</span>
+                      <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-right">
+                        {workflow.metadata?.quote_number || workflow.reference_id || "QT-ACCEPTED"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                    <div className="p-3.5 flex justify-between gap-2">
+                      <span className="text-muted-foreground font-medium">PO Gateway Decision</span>
+                      <span className="font-semibold text-right">
+                        {workflow.metadata?.po_required ? (
+                          <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300">
+                            PO Required (Yes)
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                            Direct Invoicing (No PO)
+                          </Badge>
+                        )}
+                      </span>
+                    </div>
+                    <div className="p-3.5 flex justify-between gap-2 bg-slate-50/50 dark:bg-zinc-900/30">
+                      <span className="text-muted-foreground font-medium">Customer PO Reference #</span>
+                      <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                        {workflow.metadata?.po_number || (workflow.metadata?.po_required ? "Pending Collection" : "Not Required")}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                    <div className="p-3.5 flex justify-between gap-2">
+                      <span className="text-muted-foreground font-medium">Billing Terms</span>
+                      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                        {workflow.metadata?.payment_terms || "Net 30 Days"}
+                      </span>
+                    </div>
+                    <div className="p-3.5 flex justify-between gap-2 bg-slate-50/50 dark:bg-zinc-900/30">
+                      <span className="text-muted-foreground font-medium">Order Fulfillment Status</span>
+                      <span className="font-semibold text-right">
+                        {workflow.metadata?.order_fulfilled ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">Fulfilled & AR Updated</span>
+                        ) : (
+                          <span className="text-slate-500 font-medium">Pending Settlement</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Add-On Specific Metadata (BPMN) */}
+              {currentType === "ADD_ON" && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                    <div className="p-3.5 flex justify-between gap-2">
+                      <span className="text-muted-foreground font-medium">Sales Originator</span>
+                      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                        {workflow.metadata?.sales_rep || "Steve (Sales Rep)"}
+                      </span>
+                    </div>
+                    <div className="p-3.5 flex justify-between gap-2 bg-slate-50/50 dark:bg-zinc-900/30">
+                      <span className="text-muted-foreground font-medium">Parent Contract Reference</span>
+                      <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-right">
+                        {workflow.metadata?.parent_contract_id || "CTR-PARENT-ACTIVE"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                    <div className="p-3.5 flex justify-between gap-2">
+                      <span className="text-muted-foreground font-medium">Contract Renewal Date</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-zinc-100 text-right">
+                        {workflow.metadata?.renewal_date || "End of Year"}
+                      </span>
+                    </div>
+                    <div className="p-3.5 flex justify-between gap-2 bg-slate-50/50 dark:bg-zinc-900/30">
+                      <span className="text-muted-foreground font-medium">Add-On Effective Date</span>
+                      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                        {workflow.metadata?.effective_date || "Immediate"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                    <div className="p-3.5 flex justify-between gap-2">
+                      <span className="text-muted-foreground font-medium">Extra Quantity Requested</span>
+                      <span className="font-bold text-slate-900 dark:text-zinc-100 text-right">
+                        +{workflow.metadata?.extra_quantity_requested || 1} Units / Licenses
+                      </span>
+                    </div>
+                    <div className="p-3.5 flex justify-between gap-2 bg-slate-50/50 dark:bg-zinc-900/30">
+                      <span className="text-muted-foreground font-medium">Prorated Charge (to Renewal)</span>
+                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-right">
+                        ${Number(workflow.metadata?.pro_rated_amount || workflow.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                    <div className="p-3.5 flex justify-between gap-2">
+                      <span className="text-muted-foreground font-medium">Next Renewal Consolidated Total</span>
+                      <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300 text-right">
+                        ${Number(workflow.metadata?.consolidated_renewal_amount || (Number(workflow.amount || 0) * 1.5)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="p-3.5 flex justify-between gap-2 bg-slate-50/50 dark:bg-zinc-900/30">
+                      <span className="text-muted-foreground font-medium">Renewal Consolidation Status</span>
+                      <span className="font-semibold text-right">
+                        {workflow.metadata?.renewal_consolidated ? (
+                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300">
+                            Consolidated into Next Renewal
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
+                            Pending Final Payment Settlement
+                          </Badge>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* SVG Callout Banner */}
+                  <div className="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/40 text-xs text-indigo-900 dark:text-indigo-200 border-t border-indigo-100 dark:border-indigo-900/50 flex items-center gap-2">
+                    <Repeat className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span>
+                      <strong>BPMN Workflow Note:</strong> Add-ons are prorated to align with the existing renewal date; totals consolidate at the next renewal.
+                    </span>
+                  </div>
+                </>
+              )}
+
               {workflow.metadata?.deposit_date && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
                   <div className="p-3.5 flex justify-between gap-2">
@@ -1484,7 +1698,7 @@ export default function WorkflowDetailPage() {
                 </div>
               )}
 
-              {workflow.metadata?.ar_clerk_assigned_to && (
+              {workflow.metadata?.ar_clerk_assigned_to && currentType === "CASH" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
                   <div className="p-3.5 flex justify-between gap-2">
                     <span className="text-muted-foreground font-medium">Assigned AR Clerk</span>
@@ -2123,131 +2337,276 @@ export default function WorkflowDetailPage() {
         {/* ── Sidebar (Right 4 cols) ── */}
         <div className="lg:col-span-4 xl:col-span-4 space-y-6">
           {/* Card 1: Who This Is Assigned */}
-          <Card className="shadow-xs border-slate-200 dark:border-zinc-800">
-            <CardHeader className="bg-slate-50/50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-800 px-5 py-3 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
-                  Who This Is Assigned
-                </CardTitle>
-              </div>
-              <Badge
-                variant="outline"
-                className={`text-[10px] font-semibold ${
-                  currentState === "CLERK_REVIEW"
-                    ? "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800"
-                    : "text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-800"
-                }`}
-              >
-                {currentState === "CLERK_REVIEW" ? "AR Clerk Review" : "AR Flow • Treasury"}
+          {(() => {
+            // Determine active assignee & swimlane config
+            let badgeText = "AR Flow • Treasury";
+            let badgeStyle = "text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-800";
+            let avatarLetters = "TR";
+            let avatarBg = "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300";
+            let assigneeTitle = "Assigned Treasury Specialist";
+            let assigneeName = activeTreasuryAssignee;
+            let assigneeRole = "Treasury Team • Inbound Cash & Settlement";
+            let statusBadge = (
+              <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800 text-[10px] font-medium gap-1">
+                <ShieldCheck className="h-3 w-3" /> Active Handling
               </Badge>
-            </CardHeader>
+            );
+            let descText = workflow.metadata?.notes || "Inbound payment processing, bank deposit matching, and cash reconciliation.";
 
-            <CardContent className="p-4 space-y-4">
-              {currentState === "CLERK_REVIEW" ? (
-                /* Assigned AR Clerk View (during discrepancy review) */
-                <div className="space-y-3">
-                  <div className="text-[10.5px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Assigned AR Clerk
-                  </div>
-                  <div className="p-2.5 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/30 dark:bg-amber-950/20 shadow-2xs flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="h-8 w-8 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 flex items-center justify-center text-xs font-bold shrink-0">
-                        {workflow.metadata?.ar_clerk_assigned_to
-                          ? workflow.metadata.ar_clerk_assigned_to.slice(0, 2).toUpperCase()
-                          : "CL"}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate" title={workflow.metadata?.ar_clerk_assigned_to || "Unassigned"}>
-                          {workflow.metadata?.ar_clerk_assigned_to || "Unassigned AR Clerk"}
-                        </div>
-                        <div className="text-[10.5px] text-amber-700 dark:text-amber-400 truncate font-medium">
-                          AR Clerk • Discrepancy & Shortfall Resolution
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 text-[10px] font-medium gap-1">
-                        <Clock className="h-3 w-3 animate-pulse" /> In Review
-                      </Badge>
-                    </div>
-                  </div>
+            if (currentType === "CASH") {
+              if (currentState === "CLERK_REVIEW") {
+                badgeText = "AR Review";
+                badgeStyle = "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800";
+                avatarLetters = workflow.metadata?.ar_clerk_assigned_to ? workflow.metadata.ar_clerk_assigned_to.slice(0, 2).toUpperCase() : "AR";
+                avatarBg = "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
+                assigneeTitle = "Account Receivable Assigned User";
+                assigneeName = workflow.metadata?.ar_clerk_assigned_to || "Account Receivable Assigned User";
+                assigneeRole = "Account Receivable • Discrepancy & Shortfall Resolution";
+                statusBadge = (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 text-[10px] font-medium gap-1">
+                    <Clock className="h-3 w-3 animate-pulse" /> In Review
+                  </Badge>
+                );
+                descText = clerkAssignmentDescription;
+              } else if (currentState === "RECONCILED" || currentState === "COMPLETED") {
+                statusBadge = (
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-[10px] font-medium gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Reconciled
+                  </Badge>
+                );
+              }
+            } else if (currentType === "INITIAL_SALE") {
+              if (currentState === "DRAFT") {
+                badgeText = "Sales Swimlane";
+                badgeStyle = "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800";
+                avatarLetters = workflow.metadata?.sales_rep ? workflow.metadata.sales_rep.slice(0, 2).toUpperCase() : "SR";
+                avatarBg = "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300";
+                assigneeTitle = "Originating Sales Representative";
+                assigneeName = workflow.metadata?.sales_rep || "Sales Representative";
+                assigneeRole = "Sales Representative • Quote / Contract Accepted";
+                statusBadge = (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 text-[10px] font-medium gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Quote Accepted
+                  </Badge>
+                );
+                descText = "Quote / contract accepted by Sales. Handed off to Account Receivable assigned user for customer & product setup.";
+              } else if (currentState === "PENDING_REVIEW" || currentState === "INVOICE_SENT" || currentState === "DUNNING_REMINDER") {
+                badgeText = "Account Receivable Swimlane";
+                badgeStyle = "text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800";
+                avatarLetters = workflow.metadata?.ar_clerk_assigned_to ? workflow.metadata.ar_clerk_assigned_to.slice(0, 2).toUpperCase() : "AR";
+                avatarBg = "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300";
+                assigneeTitle = "Account Receivable Assigned User";
+                assigneeName = workflow.metadata?.ar_clerk_assigned_to || "Account Receivable Assigned User";
+                assigneeRole = currentState === "PENDING_REVIEW"
+                  ? "Account Receivable • Customer Setup & PO Check"
+                  : currentState === "INVOICE_SENT"
+                  ? "Account Receivable • Issue & Send Invoice (GL 1100)"
+                  : "Account Receivable • Overdue Follow-up";
+                statusBadge = (
+                  <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300 text-[10px] font-medium gap-1">
+                    <Clock className="h-3 w-3 animate-pulse" /> {currentState === "INVOICE_SENT" ? "Invoiced" : currentState === "DUNNING_REMINDER" ? "Follow-up" : "Setup & Verify"}
+                  </Badge>
+                );
+                descText = currentState === "PENDING_REVIEW"
+                  ? (workflow.metadata?.po_required ? "Account Receivable assigned user is verifying customer & product records and validating PO # before invoicing." : "Account Receivable assigned user is setting up customer & product for direct invoicing.")
+                  : currentState === "INVOICE_SENT"
+                  ? "Invoice generated with PO reference (GL 1100) and dispatched. Awaiting payment."
+                  : "Invoice is overdue. Account Receivable assigned user is conducting customer follow-up actions.";
+              } else if (currentState === "AWAITING_PAYMENT") {
+                badgeText = "Payment Gateway";
+                badgeStyle = "text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800";
+                avatarLetters = "SY";
+                avatarBg = "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300";
+                assigneeTitle = "Payment Portal Gateway";
+                assigneeName = "Customer Self-Service / Bank Feed";
+                assigneeRole = "Automated Gateway • Inbound Payment (Check/Transfer/Card)";
+                statusBadge = (
+                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 text-[10px] font-medium gap-1">
+                    <Clock className="h-3 w-3" /> Awaiting Payment
+                  </Badge>
+                );
+                descText = "Invoice delivered. Awaiting payment receipt from customer via check, bank transfer, or card.";
+              } else if (currentState === "RECONCILED") {
+                badgeText = "Treasury Swimlane";
+                badgeStyle = "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800";
+                avatarLetters = workflow.metadata?.treasury_assigned_to ? workflow.metadata.treasury_assigned_to.slice(0, 2).toUpperCase() : "TR";
+                avatarBg = "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300";
+                assigneeTitle = "Treasury Assigned User";
+                assigneeName = workflow.metadata?.treasury_assigned_to || "Treasury Assigned User";
+                assigneeRole = "Treasury • Apply Cash [Paid]";
+                statusBadge = (
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px] font-medium gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Cash Applied
+                  </Badge>
+                );
+                descText = "Payment received. Treasury assigned user is matching and applying cash against customer invoice.";
+              } else if (currentState === "COMPLETED") {
+                badgeText = "System Fulfilled";
+                badgeStyle = "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800";
+                avatarLetters = "AR";
+                avatarBg = "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300";
+                assigneeTitle = "AR & Order Operations";
+                assigneeName = "AR Ledger & Fulfillment System";
+                assigneeRole = "System • Paid – AR Updated & Order Fulfilled";
+                statusBadge = (
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px] font-medium gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Paid & Fulfilled
+                  </Badge>
+                );
+                descText = "Workflow finalized. AR ledger updated and sales order fulfilled.";
+              }
+            } else if (currentType === "ADD_ON") {
+              if (currentState === "DRAFT") {
+                badgeText = "Sales Swimlane";
+                badgeStyle = "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800";
+                avatarLetters = workflow.metadata?.sales_rep ? workflow.metadata.sales_rep.slice(0, 2).toUpperCase() : "SR";
+                avatarBg = "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300";
+                assigneeTitle = "Originating Sales Representative";
+                assigneeName = workflow.metadata?.sales_rep || "Sales Representative";
+                assigneeRole = "Sales Representative • Customer Extra Qty Request";
+                statusBadge = (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 text-[10px] font-medium gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Request Active
+                  </Badge>
+                );
+                descText = "Customer requested extra quantity via Sales Representative. Handed off to Account Receivable assigned user for validation & proration.";
+              } else if (currentState === "PENDING_REVIEW" || currentState === "INVOICE_SENT" || currentState === "DUNNING_REMINDER") {
+                badgeText = "Account Receivable Swimlane";
+                badgeStyle = "text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800";
+                avatarLetters = workflow.metadata?.ar_clerk_assigned_to ? workflow.metadata.ar_clerk_assigned_to.slice(0, 2).toUpperCase() : "AR";
+                avatarBg = "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300";
+                assigneeTitle = "Account Receivable Assigned User";
+                assigneeName = workflow.metadata?.ar_clerk_assigned_to || "Account Receivable Assigned User";
+                assigneeRole = currentState === "PENDING_REVIEW"
+                  ? "Account Receivable • Validate Contract & Prorate to Renewal"
+                  : currentState === "INVOICE_SENT"
+                  ? "Account Receivable • Issue & Send Add-On Invoice"
+                  : "Account Receivable • Overdue Follow-up";
+                statusBadge = (
+                  <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300 text-[10px] font-medium gap-1">
+                    <Clock className="h-3 w-3 animate-pulse" /> {currentState === "INVOICE_SENT" ? "Add-On Invoiced" : currentState === "DUNNING_REMINDER" ? "Follow-up" : "Proration"}
+                  </Badge>
+                );
+                descText = currentState === "PENDING_REVIEW"
+                  ? "Account Receivable assigned user is validating contract and determining prorated amount to align with existing renewal date."
+                  : currentState === "INVOICE_SENT"
+                  ? "Add-on invoice issued and dispatched. Awaiting payment."
+                  : "Add-on invoice is overdue. Account Receivable assigned user is executing customer follow-up.";
+              } else if (currentState === "AWAITING_PAYMENT") {
+                badgeText = "System & Renewal";
+                badgeStyle = "text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800";
+                avatarLetters = "SY";
+                avatarBg = "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300";
+                assigneeTitle = "Renewal Engine & Portal";
+                assigneeName = "System / Customer Portal";
+                assigneeRole = "System • Await Payment & Prepare Renewal Total";
+                statusBadge = (
+                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 text-[10px] font-medium gap-1">
+                    <Clock className="h-3 w-3" /> Awaiting Settlement
+                  </Badge>
+                );
+                descText = "Add-on invoice delivered. Awaiting customer settlement before renewal consolidation.";
+              } else if (currentState === "RECONCILED") {
+                badgeText = "Treasury Swimlane";
+                badgeStyle = "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800";
+                avatarLetters = workflow.metadata?.treasury_assigned_to ? workflow.metadata.treasury_assigned_to.slice(0, 2).toUpperCase() : "TR";
+                avatarBg = "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300";
+                assigneeTitle = "Treasury Assigned User";
+                assigneeName = workflow.metadata?.treasury_assigned_to || "Treasury Assigned User";
+                assigneeRole = "Treasury • Apply Cash [Paid]";
+                statusBadge = (
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px] font-medium gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Cash Applied
+                  </Badge>
+                );
+                descText = "Payment received. Treasury assigned user is applying cash against add-on invoice.";
+              } else if (currentState === "COMPLETED") {
+                badgeText = "System Consolidated";
+                badgeStyle = "text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800";
+                avatarLetters = "RN";
+                avatarBg = "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300";
+                assigneeTitle = "Renewal & Contract Engine";
+                assigneeName = "Contract Consolidation Engine";
+                assigneeRole = "System • Consolidate into Next Renewal Total";
+                statusBadge = (
+                  <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300 text-[10px] font-medium gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Consolidated & Complete
+                  </Badge>
+                );
+                descText = "Payment complete. Extra quantities provisioned and consolidated into next renewal total.";
+              }
+            }
 
-                  {/* Description & Purpose directly below Clerk Profile */}
-                  <div className="space-y-1.5 pt-1">
-                    <div className="text-[10.5px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <AlignLeft className="h-3.5 w-3.5 text-slate-600 dark:text-zinc-400" />
-                      <span>Description & Purpose</span>
-                    </div>
-                    <div className="p-3 rounded-lg bg-slate-50/90 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800 text-xs leading-relaxed text-slate-700 dark:text-zinc-300">
-                      {clerkAssignmentDescription}
-                    </div>
+            return (
+              <Card className="shadow-xs border-slate-200 dark:border-zinc-800">
+                <CardHeader className="bg-slate-50/50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-800 px-5 py-3 flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
+                      Who This Is Assigned
+                    </CardTitle>
                   </div>
-                </div>
-              ) : (
-                /* Assigned Treasury Specialist View (Default for all other statuses) */
-                <div className="space-y-3">
-                  <div className="text-[10.5px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Assigned Treasury Specialist
-                  </div>
-                  <div className="p-2.5 rounded-lg border border-sky-200 dark:border-sky-900/50 bg-sky-50/30 dark:bg-sky-950/20 shadow-2xs flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="h-8 w-8 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 flex items-center justify-center text-xs font-bold shrink-0">
-                        TR
+                  <Badge variant="outline" className={`text-[10px] font-semibold ${badgeStyle}`}>
+                    {badgeText}
+                  </Badge>
+                </CardHeader>
+
+                <CardContent className="p-4 space-y-4">
+                  <div className="space-y-3">
+                    <div className="text-[10.5px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                      {assigneeTitle}
+                    </div>
+                    <div className="p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/40 shadow-2xs flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`h-8 w-8 rounded-full ${avatarBg} flex items-center justify-center text-xs font-bold shrink-0`}>
+                          {avatarLetters}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate" title={assigneeName}>
+                            {assigneeName}
+                          </div>
+                          <div className="text-[10.5px] text-muted-foreground truncate font-medium">
+                            {assigneeRole}
+                          </div>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate" title={activeTreasuryAssignee}>
-                          {activeTreasuryAssignee}
-                        </div>
-                        <div className="text-[10.5px] text-sky-700 dark:text-sky-400 truncate font-medium">
-                          Treasury Team • Inbound Cash & Settlement
-                        </div>
+                      <div>
+                        {statusBadge}
                       </div>
                     </div>
-                    <div>
-                      {currentState === "RECONCILED" || currentState === "COMPLETED" ? (
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-[10px] font-medium gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> Reconciled
+
+                    {/* Previous Clerk Resolution info if resolved on Cash workflow */}
+                    {currentType === "CASH" && workflow.metadata?.ar_clerk_assigned_to && currentState !== "CLERK_REVIEW" && (
+                      <div className="p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20 text-xs flex items-center justify-between">
+                        <div className="min-w-0">
+                          <span className="font-semibold text-emerald-900 dark:text-emerald-200 block truncate">
+                            Account Receivable Review Resolved
+                          </span>
+                          <span className="text-[11px] text-emerald-700 dark:text-emerald-300/80 truncate block">
+                            Discrepancy cleared by {workflow.metadata.ar_clerk_assigned_to}
+                          </span>
+                        </div>
+                        <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-200 text-[10px] font-medium shrink-0 ml-2">
+                          Resolved
                         </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800 text-[10px] font-medium gap-1">
-                          <ShieldCheck className="h-3 w-3" /> Active Handling
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Previous Clerk Resolution info if resolved */}
-                  {workflow.metadata?.ar_clerk_assigned_to && (
-                    <div className="p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20 text-xs flex items-center justify-between">
-                      <div className="min-w-0">
-                        <span className="font-semibold text-emerald-900 dark:text-emerald-200 block truncate">
-                          AR Clerk Review Resolved
-                        </span>
-                        <span className="text-[11px] text-emerald-700 dark:text-emerald-300/80 truncate block">
-                          Discrepancy cleared by {workflow.metadata.ar_clerk_assigned_to}
-                        </span>
                       </div>
-                      <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-200 text-[10px] font-medium shrink-0 ml-2">
-                        Resolved
-                      </Badge>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Description & Purpose */}
-                  <div className="space-y-1.5 pt-1">
-                    <div className="text-[10.5px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <AlignLeft className="h-3.5 w-3.5 text-slate-600 dark:text-zinc-400" />
-                      <span>Description & Purpose</span>
-                    </div>
-                    <div className="p-3 rounded-lg bg-slate-50/90 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800 text-xs leading-relaxed text-slate-700 dark:text-zinc-300">
-                      {workflow.metadata?.notes || "Inbound payment processing, bank deposit matching, and cash reconciliation."}
+                    {/* Description & Purpose */}
+                    <div className="space-y-1.5 pt-1">
+                      <div className="text-[10.5px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <AlignLeft className="h-3.5 w-3.5 text-slate-600 dark:text-zinc-400" />
+                        <span>Description & Purpose</span>
+                      </div>
+                      <div className="p-3 rounded-lg bg-slate-50/90 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800 text-xs leading-relaxed text-slate-700 dark:text-zinc-300">
+                        {descText}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </div>
       </div>
 
@@ -2257,10 +2616,10 @@ export default function WorkflowDetailPage() {
           <DialogHeader className="space-y-1.5 pb-3 border-b border-slate-100 dark:border-zinc-800">
             <DialogTitle className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-zinc-100">
               <UserCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              Assign to AR Clerk
+              Assign to Account Receivable User
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-              Route this workflow to an AR clerk to investigate payment shortfalls, customer deductions, or unapplied wire funds.
+              Route this workflow to an Account Receivable user to investigate payment shortfalls, customer deductions, or unapplied wire funds.
             </DialogDescription>
           </DialogHeader>
 
@@ -2268,27 +2627,13 @@ export default function WorkflowDetailPage() {
             {/* Clerk Select */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                Assigned AR Clerk <span className="text-red-500">*</span>
+                Assigned Account Receivable User <span className="text-red-500">*</span>
               </label>
-              <select
-                value={clerkEmail || (clerksList[0]?.email || "")}
-                onChange={(e) => setClerkEmail(e.target.value)}
-                className="w-full text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-slate-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20"
-              >
-                {clerksList.length > 0 ? (
-                  clerksList.map((c) => (
-                    <option key={c.id || c.email} value={c.email}>
-                      {c.name} {c.job_title ? `(${c.job_title})` : `(${c.email})`}
-                    </option>
-                  ))
-                ) : (
-                  <>
-                    <option value="sarah.jenkins@zenatech.com">Sarah Jenkins (Senior AR Specialist)</option>
-                    <option value="david.clerk@zenatech.com">David Wong (Billing & Operations Clerk)</option>
-                    <option value="accounting-team@zenatech.com">Account Receivable Queue</option>
-                  </>
-                )}
-              </select>
+              <UserAutocomplete
+                value={clerkEmail}
+                onChange={(val) => setClerkEmail(val)}
+                placeholder="Select Account Receivable assigned user..."
+              />
             </div>
 
             {/* Remarks */}
@@ -2358,6 +2703,70 @@ export default function WorkflowDetailPage() {
         onOpenChange={setIsEditModalOpen}
         workflowToEdit={workflow}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-background border border-border shadow-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-red-500/10 text-red-600 dark:text-red-400">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Delete Account Receivable Record
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Permanently remove this workflow and all associated records.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="p-3.5 rounded-lg bg-muted/40 border border-border/80 space-y-1.5 text-xs">
+            <div>
+              Reference ID:{" "}
+              <strong className="font-mono text-foreground">
+                {workflow?.reference_id || workflow?.id}
+              </strong>
+            </div>
+            <div>
+              Customer:{" "}
+              <strong className="text-foreground">
+                {workflow?.customer_name || workflow?.customer_id}
+              </strong>
+            </div>
+            <div>
+              Amount:{" "}
+              <strong className="font-mono text-foreground">
+                ${Number(workflow?.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}{" "}
+                {workflow?.currency}
+              </strong>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-3 border-t border-border flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+              className="text-xs gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{deleteMutation.isPending ? "Deleting..." : "Confirm Delete"}</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

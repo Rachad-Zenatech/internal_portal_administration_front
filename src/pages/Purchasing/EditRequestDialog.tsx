@@ -92,7 +92,7 @@ function RequesterAutocomplete({
             {filteredUsers.map((u) => {
               const displayName = u.full_name || u.email || "Unknown User";
               const email = u.email;
-              const dept = resolveUserDepartment(u, roles);
+              const dept = (u.department && u.department.trim() && u.department.toUpperCase() !== "REQUESTER") ? u.department.trim() : resolveUserDepartment(u, roles);
 
               return (
                 <div
@@ -258,15 +258,19 @@ export function EditRequestDialog({
       const initialMode: ItemMode = isMultiReq ? "MULTIPLE" : "SINGLE";
       setItemMode(initialMode);
 
-      let dept = request.department || "";
-      if (!dept || dept === "General") {
-        const targetRequester = request.requester || user?.full_name || user?.email || "";
-        const matched = usersList.find(
-          (u) =>
-            (u.full_name && u.full_name.toLowerCase() === targetRequester.toLowerCase().trim()) ||
-            (u.email && u.email.toLowerCase() === targetRequester.toLowerCase().trim()) ||
-            (user?.id && u.id === user.id)
-        );
+      let dept = "";
+      const targetRequester = request.requester || user?.full_name || user?.email || "";
+      const matched = usersList.find(
+        (u) =>
+          (u.full_name && u.full_name.toLowerCase() === targetRequester.toLowerCase().trim()) ||
+          (u.email && u.email.toLowerCase() === targetRequester.toLowerCase().trim()) ||
+          (user?.id && u.id === user.id)
+      );
+      if (matched?.department && matched.department.trim() && matched.department.toUpperCase() !== "REQUESTER") {
+        dept = matched.department.trim();
+      } else if (request.department && request.department.toUpperCase() !== "GENERAL" && request.department.toUpperCase() !== "REQUESTER") {
+        dept = request.department.trim();
+      } else {
         const effectiveRoles = rolesList.length > 0 ? rolesList : roles;
         const resolved = matched
           ? resolveUserDepartment(matched, effectiveRoles)
@@ -967,11 +971,15 @@ export function EditRequestDialog({
                         (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
                         (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
                     );
-                    const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
+                    const dept = (matched?.department && matched.department.trim() && matched.department.toUpperCase() !== "REQUESTER")
+                      ? matched.department.trim()
+                      : (matched ? resolveUserDepartment(matched, rolesList) : "");
                     setFormData((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
                   }}
                   onSelectUser={(selectedUser) => {
-                    const dept = resolveUserDepartment(selectedUser, rolesList);
+                    const dept = (selectedUser?.department && selectedUser.department.trim() && selectedUser.department.toUpperCase() !== "REQUESTER")
+                      ? selectedUser.department.trim()
+                      : resolveUserDepartment(selectedUser, rolesList);
                     if (dept) {
                       setFormData((prev) => ({ ...prev, department: dept }));
                     }

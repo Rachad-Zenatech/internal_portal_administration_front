@@ -5,7 +5,7 @@ import { apiClient } from "@/services/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, ShieldCheck, Search, CheckSquare, Square, CheckCheck } from "lucide-react";
+import { Loader2, ShieldCheck, Search, CheckSquare, Square, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import type { Role } from "@/lib/AuthContext";
@@ -73,6 +73,8 @@ export default function RoleGroupPermissions() {
     enabled: !!roleId,
   });
 
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
   useEffect(() => {
     if (assignedGroupIds) {
       setSelectedGroups(new Set(assignedGroupIds));
@@ -84,12 +86,28 @@ export default function RoleGroupPermissions() {
       apiClient.put(`/api/configuration/roles/${roleId}/permission-groups`, {
         permission_group_ids: groupIds,
       }),
+    onMutate: () => {
+      setSaveStatus("saving");
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["role-permission-groups", roleId] });
-      toast.success("Permissions updated successfully");
+      setSaveStatus("saved");
+      setTimeout(() => {
+        setSaveStatus((prev) => (prev === "saved" ? "idle" : prev));
+      }, 2500);
     },
-    onError: (err: unknown) => toast.error(getErrorMessage(err, "Failed to update permissions")),
+    onError: (err: unknown) => {
+      setSaveStatus("idle");
+      toast.error(getErrorMessage(err, "Failed to update permissions"));
+    },
   });
+
+  const savePermissions = (newSet: Set<number>) => {
+    setSelectedGroups(newSet);
+    if (roleId) {
+      updateMutation.mutate(Array.from(newSet));
+    }
+  };
 
   const handleToggleGroup = (groupId: number) => {
     const newSet = new Set(selectedGroups);
@@ -98,7 +116,7 @@ export default function RoleGroupPermissions() {
     } else {
       newSet.add(groupId);
     }
-    setSelectedGroups(newSet);
+    savePermissions(newSet);
   };
 
   const allAvailableGroupIds = useMemo(() => {
@@ -107,27 +125,23 @@ export default function RoleGroupPermissions() {
   }, [modules]);
 
   const handleSelectAllGlobal = () => {
-    setSelectedGroups(new Set(allAvailableGroupIds));
+    savePermissions(new Set(allAvailableGroupIds));
   };
 
   const handleDeselectAllGlobal = () => {
-    setSelectedGroups(new Set());
+    savePermissions(new Set());
   };
 
   const handleSelectAllModule = (moduleGroups: PermissionGroup[]) => {
     const newSet = new Set(selectedGroups);
     moduleGroups.forEach((g) => newSet.add(g.id));
-    setSelectedGroups(newSet);
+    savePermissions(newSet);
   };
 
   const handleDeselectAllModule = (moduleGroups: PermissionGroup[]) => {
     const newSet = new Set(selectedGroups);
     moduleGroups.forEach((g) => newSet.delete(g.id));
-    setSelectedGroups(newSet);
-  };
-
-  const handleSave = () => {
-    updateMutation.mutate(Array.from(selectedGroups));
+    savePermissions(newSet);
   };
 
   const handleRoleSelect = (id: string) => {
@@ -221,7 +235,7 @@ export default function RoleGroupPermissions() {
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-              <HelpIcon text="Manage permissions groups and actions associated with roles." />
+              <HelpIcon text="Manage permissions groups and actions associated with roles. Permissions auto-update instantly on change." />
               Simplified Permissions <ShieldCheck className="h-5 w-5 text-blue-500" />
             </h2>
             <p className="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
@@ -232,11 +246,31 @@ export default function RoleGroupPermissions() {
           </div>
           {roleId && hasPermission("CONFIG_ROLES_UPDATE") && (
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Auto-save Status Indicator */}
+              <div className="flex items-center gap-1.5 mr-2 text-xs">
+                {saveStatus === "saving" ? (
+                  <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium animate-pulse">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Auto-saving...
+                  </span>
+                ) : saveStatus === "saved" ? (
+                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                    <CheckCheck className="h-4 w-4" />
+                    Auto-saved
+                  </span>
+                ) : (
+                  <span className="text-slate-400 dark:text-zinc-500 text-[11px]">
+                    Auto-sync active
+                  </span>
+                )}
+              </div>
+
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleSelectAllGlobal}
-                className="text-xs h-9"
+                disabled={isLoadingAssigned}
+                className="text-xs h-9 cursor-pointer"
               >
                 <CheckCheck className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
                 Select All
@@ -245,22 +279,11 @@ export default function RoleGroupPermissions() {
                 variant="outline"
                 size="sm"
                 onClick={handleDeselectAllGlobal}
-                className="text-xs h-9"
+                disabled={isLoadingAssigned}
+                className="text-xs h-9 cursor-pointer"
               >
                 <Square className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
                 Clear All
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={updateMutation.isPending || isLoadingAssigned}
-                className="bg-blue-600 hover:bg-blue-700 text-white min-w-[120px] h-9"
-              >
-                {updateMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                Save Changes
               </Button>
             </div>
           )}
@@ -282,7 +305,7 @@ export default function RoleGroupPermissions() {
         {roleId ? (
           <div
             className={`flex-1 min-h-0 overflow-y-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-6 transition-opacity ${
-              isLoadingAssigned || updateMutation.isPending ? "opacity-50 pointer-events-none" : ""
+              isLoadingAssigned ? "opacity-50 pointer-events-none" : ""
             }`}
           >
             {isLoadingModules ? (

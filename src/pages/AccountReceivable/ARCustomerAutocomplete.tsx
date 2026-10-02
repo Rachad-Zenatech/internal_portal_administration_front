@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, type FormEvent } from "react";
+import { useState, useEffect, useMemo, useRef, type FormEvent, type KeyboardEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import {
 import { Check, ChevronsUpDown, Plus, X, Building2, User, Mail, Loader2 } from "lucide-react";
 import { financeService } from "@/services/financeService";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 export interface ARCustomerOption {
   id: string;
@@ -43,106 +42,6 @@ export interface ARCustomerOption {
   } | null;
 }
 
-// Default fallback AR customers with settlement banking details
-export const DEFAULT_AR_CUSTOMERS: ARCustomerOption[] = [
-  {
-    id: "CUST-10492",
-    display_name: "Acme Corp Infrastructure",
-    full_name: "Jonathan Vance",
-    email: "accounting@acme-corp.com",
-    phone: "+1 (555) 234-8901",
-    bill_address: "100 Innovation Way, Suite 400, New York, NY 10001",
-    account_number: "1100",
-    is_active: true,
-    banking_details: {
-      bank_country: "United States",
-      bank_name: "JPMorgan Chase",
-      bank_account_number: "482091840291",
-      routing_wire: "021000021",
-      routing_ach: "021000021",
-      swift_code: "CHASUS33",
-      tax_id: "EIN-12-9840192",
-      region: "New York",
-    },
-  },
-  {
-    id: "CUST-20815",
-    display_name: "Vertex GeoSpatial Solutions",
-    full_name: "Claire Dubois",
-    email: "ap@vertexgeospatial.com",
-    phone: "+1 (555) 456-7890",
-    bill_address: "750 West Hastings St, Vancouver, BC V6C 1E1",
-    account_number: "1100",
-    is_active: true,
-    banking_details: {
-      bank_country: "Canada",
-      bank_name: "RBC Royal Bank",
-      bank_account_number: "683290145",
-      transit_code_ca: "00002",
-      institution_code: "003",
-      swift_code: "ROYCCAT2",
-      region: "British Columbia",
-    },
-  },
-  {
-    id: "CUST-30941",
-    display_name: "Skyline Drone Logistics Ltd",
-    full_name: "Marcus Holloway",
-    email: "finance@skylinedrone.io",
-    phone: "+1 (555) 789-0123",
-    bill_address: "200 Bay Street, Toronto, ON M5J 2J2",
-    account_number: "1100",
-    is_active: true,
-    banking_details: {
-      bank_country: "Canada",
-      bank_name: "TD Canada Trust",
-      bank_account_number: "551982019",
-      transit_code_ca: "10232",
-      institution_code: "004",
-      swift_code: "TDOMCATT",
-      region: "Ontario",
-    },
-  },
-  {
-    id: "CUST-40122",
-    display_name: "AeroFleet Global Operations",
-    full_name: "Elena Rostova",
-    email: "invoices@aerofleet-global.com",
-    phone: "+1 (555) 901-2345",
-    bill_address: "1400 K Street NW, Washington, DC 20005",
-    account_number: "1100",
-    is_active: true,
-    banking_details: {
-      bank_country: "United States",
-      bank_name: "Silicon Valley Bank (SVB)",
-      bank_account_number: "91048201934",
-      routing_wire: "121140399",
-      routing_ach: "121140399",
-      swift_code: "SVBKUS6S",
-      region: "District of Columbia",
-    },
-  },
-  {
-    id: "CUST-50883",
-    display_name: "OmniTech Defense & Robotics",
-    full_name: "David Sterling",
-    email: "procurement@omnitech-defense.com",
-    phone: "+1 (555) 345-6789",
-    bill_address: "500 Oracle Parkway, Redwood City, CA 94065",
-    account_number: "1100",
-    is_active: true,
-    banking_details: {
-      bank_country: "United States",
-      bank_name: "Bank of America",
-      bank_account_number: "38190248102",
-      routing_wire: "026009593",
-      routing_ach: "121000358",
-      swift_code: "BOFAUS3N",
-      region: "California",
-    },
-  },
-];
-
 interface ARCustomerAutocompleteProps {
   customerId: string;
   customerName: string;
@@ -163,7 +62,7 @@ export function ARCustomerAutocomplete({
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(customerName || "");
-  const [customers, setCustomers] = useState<ARCustomerOption[]>(DEFAULT_AR_CUSTOMERS);
+  const [customers, setCustomers] = useState<ARCustomerOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
@@ -189,7 +88,7 @@ export function ARCustomerAutocomplete({
     setQuery(customerName || "");
   }, [customerName]);
 
-  // Load AR Customers from financeService / payable-contacts endpoint
+  // Load real AR Customers from financeService / payable-contacts endpoint
   useEffect(() => {
     setIsLoading(true);
     financeService
@@ -204,10 +103,11 @@ export function ARCustomerAutocomplete({
                 c.account_side === "ar" ||
                 c.account_number === "1100" ||
                 !c.account_number ||
-                String(c.account_number).startsWith("11")
+                String(c.account_number).startsWith("11") ||
+                (c.account_type && String(c.account_type).toLowerCase().includes("receivable"))
             )
             .map((c: any) => ({
-              id: `CUST-${c.id || Math.floor(Math.random() * 80000 + 10000)}`,
+              id: c.id ? (String(c.id).startsWith("CUST-") ? String(c.id) : `CUST-${c.id}`) : `CUST-${Date.now()}`,
               display_name: c.display_name,
               full_name: c.full_name || null,
               email: c.email || null,
@@ -218,20 +118,14 @@ export function ARCustomerAutocomplete({
               banking_details: c.banking_details || c.banking || null,
             }));
 
-          if (arContacts.length > 0) {
-            // Merge with default customers
-            const merged: ARCustomerOption[] = [...arContacts];
-            DEFAULT_AR_CUSTOMERS.forEach((def) => {
-              if (!merged.some((m) => m.display_name.toLowerCase() === def.display_name.toLowerCase())) {
-                merged.push(def);
-              }
-            });
-            setCustomers(merged);
-          }
+          setCustomers(arContacts);
+        } else {
+          setCustomers([]);
         }
       })
       .catch((err) => {
-        console.debug("Could not fetch contacts, using defaults:", err);
+        console.debug("Could not fetch contacts:", err);
+        setCustomers([]);
       })
       .finally(() => {
         setIsLoading(false);
@@ -331,7 +225,6 @@ export function ARCustomerAutocomplete({
       queryClient.invalidateQueries({ queryKey: ["businessContacts"] });
       queryClient.invalidateQueries({ queryKey: ["payable-contacts"] });
       setCreateModalOpen(false);
-      toast.success(`AR Customer "${custName}" created and selected.`);
     } catch (err: any) {
       console.error("Failed to create AR customer:", err);
       // Fallback: create local option if offline or server mock
@@ -349,13 +242,12 @@ export function ARCustomerAutocomplete({
       setCustomers((prev) => [fallbackCust, ...prev]);
       handleSelectCustomer(fallbackCust);
       setCreateModalOpen(false);
-      toast.success(`AR Customer "${custName}" added and selected.`);
     } finally {
       setIsCreating(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (!open) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();

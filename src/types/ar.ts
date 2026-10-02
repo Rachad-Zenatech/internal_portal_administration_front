@@ -23,11 +23,49 @@ export type ARTriggerType =
   | "EMAIL_RECEIPT";
 
 export interface ARLineItem {
+  id?: string;
+  account_id?: number | null;
+  account_number?: string;
+  account_name?: string;
+  account_label?: string;
+  item_description?: string;
   description: string;
+  default_quantity?: number;
   quantity: number;
   unit_price: number;
   tax_rate?: number;
   amount: number;
+}
+
+export interface CustomerSaleTemplate {
+  id: string;
+  customer_id: string;
+  payment_terms: string;
+  notes?: string;
+  currency?: string;
+  sales_rep?: string;
+  quote_number?: string;
+  po_required?: boolean;
+  lines: ARLineItem[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CustomerInitialSaleData {
+  customer: {
+    id: string;
+    name: string;
+    display_name: string;
+    full_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    bill_address?: string | null;
+    payment_terms?: string;
+    account_number?: string;
+    is_active?: boolean;
+  };
+  has_template: boolean;
+  template?: CustomerSaleTemplate | null;
 }
 
 export interface MatchedInvoiceItem {
@@ -130,13 +168,20 @@ export interface ARCreateWorkflowPayload {
   ar_clerk_assigned_to?: string;
   ar_clerk_notes?: string;
   attachments?: ARAttachment[];
-  // Initial Sale
+  // Initial Sale (Steve Sales -> Sandy AR Clerk -> Pat Cash Application)
+  sales_rep?: string;
+  quote_number?: string;
+  po_required?: boolean;
+  po_number?: string;
   payment_terms?: string;
   line_items?: ARLineItem[];
-  // Add On
+  // Add On (Steve Sales -> Sandy AR Clerk -> Pat/Anita Cash Application -> System Renewal Consolidation)
   parent_contract_id?: string;
+  renewal_date?: string;
   effective_date?: string;
+  extra_quantity_requested?: number;
   pro_rated_amount?: number;
+  consolidated_renewal_amount?: number;
   add_on_items?: ARLineItem[];
   // Monthly Subscription
   contract_id?: string;

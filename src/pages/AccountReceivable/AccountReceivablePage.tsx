@@ -1,552 +1,683 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Banknote,
-  ShoppingCart,
-  Layers,
-  Repeat,
-  RotateCw,
+  FileText,
   Plus,
   Search,
-  RefreshCw,
+  Building2,
   DollarSign,
-  Clock,
+  Calendar,
+  Trash2,
+  Users,
   CheckCircle2,
-  ArrowRight,
-  ExternalLink,
-  ChevronLeft,
-  ChevronRight,
-  Timer,
-  AlertTriangle,
-  ReceiptText,
+  Receipt,
+  Eye,
+  ArrowUpRight,
+  TrendingUp,
+  RefreshCw,
+  Mail,
+  Phone,
+  MapPin,
+  Layers,
+  Send,
+  Loader2,
 } from "lucide-react";
-import { arService } from "../../services/arService";
-import type {
-  ARWorkflowFilterParams,
-  ARWorkflowState,
-  ARWorkflowType,
-} from "../../types/ar";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import NewWorkflowModal from "./NewWorkflowModal";
-
-const TYPE_TABS: Array<{
-  type: ARWorkflowType | "";
-  label: string;
-  icon?: React.ComponentType<{ className?: string }>;
-}> = [
-  { type: "", label: "All Workflows" },
-  { type: "CASH", label: "Cash Reconciliation", icon: Banknote },
-  { type: "INITIAL_SALE", label: "Initial Sale", icon: ShoppingCart },
-  { type: "ADD_ON", label: "Add-On / Upgrade", icon: Layers },
-  { type: "MONTHLY_SUBSCRIPTION", label: "Monthly Subscription", icon: Repeat },
-  { type: "RENEWAL", label: "Contract Renewal", icon: RotateCw },
-];
-
-const STATE_BADGES: Record<ARWorkflowState, { label: string; bg: string; text: string; border: string }> = {
-  DRAFT: {
-    label: "Draft",
-    bg: "bg-slate-500/10",
-    text: "text-slate-600 dark:text-slate-400",
-    border: "border-slate-500/20",
-  },
-  PENDING_REVIEW: {
-    label: "Pending Review",
-    bg: "bg-amber-500/10",
-    text: "text-amber-600 dark:text-amber-400",
-    border: "border-amber-500/20",
-  },
-  CLERK_REVIEW: {
-    label: "Clerk Review",
-    bg: "bg-amber-500/15",
-    text: "text-amber-600 dark:text-amber-400",
-    border: "border-amber-500/30",
-  },
-  INVOICE_SENT: {
-    label: "Invoice Sent",
-    bg: "bg-blue-500/10",
-    text: "text-blue-600 dark:text-blue-400",
-    border: "border-blue-500/20",
-  },
-  AWAITING_PAYMENT: {
-    label: "Awaiting Payment",
-    bg: "bg-purple-500/10",
-    text: "text-purple-600 dark:text-purple-400",
-    border: "border-purple-500/20",
-  },
-  DUNNING_REMINDER: {
-    label: "Dunning / Overdue",
-    bg: "bg-rose-500/10",
-    text: "text-rose-600 dark:text-rose-400",
-    border: "border-rose-500/20",
-  },
-  RECONCILED: {
-    label: "Reconciled",
-    bg: "bg-emerald-500/10",
-    text: "text-emerald-600 dark:text-emerald-400",
-    border: "border-emerald-500/20",
-  },
-  COMPLETED: {
-    label: "Completed",
-    bg: "bg-emerald-500/15",
-    text: "text-emerald-600 dark:text-emerald-400",
-    border: "border-emerald-500/30",
-  },
-  CANCELLED: {
-    label: "Cancelled",
-    bg: "bg-zinc-500/10",
-    text: "text-zinc-500 dark:text-zinc-400",
-    border: "border-zinc-500/20",
-  },
-};
-
-const TYPE_BADGES: Record<ARWorkflowType, { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bg: string }> = {
-  CASH: { label: "Cash", icon: Banknote, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-  INITIAL_SALE: { label: "Initial Sale", icon: ShoppingCart, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
-  ADD_ON: { label: "Add-On", icon: Layers, color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
-  MONTHLY_SUBSCRIPTION: { label: "Subscription", icon: Repeat, color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
-  RENEWAL: { label: "Renewal", icon: RotateCw, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-};
+import { Label } from "../../components/ui/label";
+import { Textarea } from "../../components/ui/textarea";
+import { Badge } from "../../components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
+import {
+  arInvoiceService,
+} from "../../services/arInvoiceService";
+import type { GeneratedInvoiceSummary } from "../../services/arInvoiceService";
 
 export default function AccountReceivablePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [selectedType, setSelectedType] = useState<ARWorkflowType | "">("");
-  const [selectedState, setSelectedState] = useState<ARWorkflowState | "">("");
+
+  const [activeTab, setActiveTab] = useState<"invoices" | "customers">("invoices");
   const [searchTerm, setSearchTerm] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(15);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  // Send Email Dialog State
+  const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
+  const [selectedInvoiceForEmail, setSelectedInvoiceForEmail] = useState<GeneratedInvoiceSummary | null>(null);
+  const [emailSender, setEmailSender] = useState("test-invoices@zenatech.com");
+  const [emailRecipient, setEmailRecipient] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailCustomMessage, setEmailCustomMessage] = useState("");
+  const [emailSuccessMsg, setEmailSuccessMsg] = useState<string | null>(null);
 
-  // Fetch Metrics
-  const { data: metrics, refetch: refetchMetrics } = useQuery({
-    queryKey: ["ar-metrics"],
-    queryFn: () => arService.getMetrics(),
-    refetchInterval: 30000,
+  // Queries
+  const {
+    data: invoices = [],
+    isLoading: isInvoicesLoading,
+    refetch: refetchInvoices,
+    isRefetching: isRefetchingInvoices,
+  } = useQuery({
+    queryKey: ["ar-invoices"],
+    queryFn: () => arInvoiceService.listInvoices(),
   });
-
-  // Fetch Workflows
-  const filterParams: ARWorkflowFilterParams = {
-    type: selectedType || undefined,
-    state: selectedState || undefined,
-    search: searchTerm.trim() || undefined,
-    page,
-    page_size: pageSize,
-  };
 
   const {
-    data: workflowsData,
-    isLoading: isWorkflowsLoading,
-    isFetching,
-    refetch: refetchWorkflows,
+    data: customers = [],
   } = useQuery({
-    queryKey: ["ar-workflows", filterParams],
-    queryFn: () => arService.getWorkflows(filterParams),
-    refetchInterval: 15000,
+    queryKey: ["ar-customers"],
+    queryFn: () => arInvoiceService.getCustomers(),
   });
 
-  // Batch dunning mutation
-  const batchDunningMutation = useMutation({
-    mutationFn: () => arService.batchDunningTrigger(),
+  // Delete Mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => arInvoiceService.deleteInvoice(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ar-workflows"] });
-      queryClient.invalidateQueries({ queryKey: ["ar-metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
+      setDeleteConfirmId(null);
     },
   });
 
-  const handleOpenDetail = (id: string) => {
-    navigate(`/account-receivable/${id}`);
+  // Send Email Mutation
+  const sendEmailMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedInvoiceForEmail) throw new Error("No invoice selected");
+      return arInvoiceService.sendInvoiceEmail(selectedInvoiceForEmail.id, {
+        from_email: emailSender.trim() || "test-invoices@zenatech.com",
+        to_email: emailRecipient.trim(),
+        subject: emailSubject.trim(),
+        custom_message: emailCustomMessage.trim(),
+      });
+    },
+    onSuccess: (res) => {
+      setIsSendEmailModalOpen(false);
+      setEmailSuccessMsg(res.message);
+      setTimeout(() => setEmailSuccessMsg(null), 5000);
+    },
+  });
+
+  const handleOpenSendEmail = (inv: GeneratedInvoiceSummary) => {
+    setSelectedInvoiceForEmail(inv);
+    setEmailSender("test-invoices@zenatech.com");
+    const cust = customers.find((c) => c.id === inv.customer_id || c.id === `CUST-${inv.customer_id}`);
+    setEmailRecipient(cust?.email || "");
+    setEmailSubject(`Invoice ${inv.invoice_number} from ZenaTech Inc.`);
+    setEmailCustomMessage("");
+    setIsSendEmailModalOpen(true);
   };
 
-  const handleRefreshAll = () => {
-    refetchMetrics();
-    refetchWorkflows();
-  };
+  // Filter Invoices
+  const filteredInvoices = invoices.filter((inv) => {
+    const q = searchTerm.toLowerCase();
+    return (
+      inv.invoice_number.toLowerCase().includes(q) ||
+      inv.customer_name.toLowerCase().includes(q) ||
+      (inv.po_number && inv.po_number.toLowerCase().includes(q))
+    );
+  });
 
-  const totalOutstanding = metrics?.total_outstanding_balance ?? 0;
-  const awaitingAction = (metrics?.count_by_status?.["PENDING_REVIEW"] ?? 0) + (metrics?.count_by_status?.["INVOICE_SENT"] ?? 0) + (metrics?.count_by_status?.["AWAITING_PAYMENT"] ?? 0);
-  const overdueCount = metrics?.overdue_dunning_count ?? 0;
-  const completedCount = metrics?.completed_this_month ?? 0;
+  // Filter Customers
+  const filteredCustomers = customers.filter((cust) => {
+    const q = searchTerm.toLowerCase();
+    return (
+      cust.name.toLowerCase().includes(q) ||
+      cust.id.toLowerCase().includes(q) ||
+      (cust.email && cust.email.toLowerCase().includes(q)) ||
+      (cust.contact_person && cust.contact_person.toLowerCase().includes(q))
+    );
+  });
+
+  // Aggregate Metrics
+  const totalInvoicedAmount = invoices.reduce(
+    (sum, inv) => sum + (Number(inv.total_amount) || Number(inv.subtotal) || 0),
+    0
+  );
+  const totalInvoicesCount = invoices.length;
+  const customersWithTemplatesCount = customers.filter(
+    (c) => c.has_template || localStorage.getItem(`ar_template_${c.id}`)
+  ).length;
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-primary/10 text-primary">
-              <ReceiptText className="w-6 h-6" />
+    <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Email Success Notification */}
+        {emailSuccessMsg && (
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{emailSuccessMsg}</span>
+          </div>
+        )}
+
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-blue-50 dark:bg-blue-950/70 border border-blue-200/60 dark:border-blue-800/60 rounded-xl text-blue-600 dark:text-blue-400">
+                <Receipt className="w-6 h-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Account Receivable
+                </h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                  Manage recurring customer invoice templates, auto-formatting, and generated billing statements.
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Account Receivable (AR)
-              </h1>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                BPMN workflow orchestration for Cash, Initial Sales, Add-Ons, Subscriptions & Renewals
-              </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetchInvoices()}
+              disabled={isRefetchingInvoices}
+              className="gap-2 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              <RefreshCw
+                className={`w-4 h-4 text-slate-500 ${
+                  isRefetchingInvoices ? "animate-spin" : ""
+                }`}
+              />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            <Button
+              onClick={() => navigate("/account-receivable/generate")}
+              className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-md shadow-blue-500/20 font-medium px-5 py-2.5 rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99]"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Generate Invoice</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Metrics Overview Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Total Invoices
+              </span>
+              <div className="p-2 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 rounded-lg">
+                <FileText className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                {totalInvoicesCount}
+              </span>
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center">
+                <TrendingUp className="w-3 h-3 mr-0.5" /> Active
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Total Receivables
+              </span>
+              <div className="p-2 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-lg">
+                <DollarSign className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                $
+                {totalInvoicedAmount.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                A/R Customers
+              </span>
+              <div className="p-2 bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 rounded-lg">
+                <Users className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                {customers.length}
+              </span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Registered profiles
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Saved Templates
+              </span>
+              <div className="p-2 bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 rounded-lg">
+                <Layers className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                {customersWithTemplatesCount}
+              </span>
+              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                Auto-fill ready
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefreshAll}
-            disabled={isFetching}
-            className="text-xs gap-1.5 h-9"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
-            <span>Refresh</span>
-          </Button>
-
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => batchDunningMutation.mutate()}
-            disabled={batchDunningMutation.isPending}
-            className="text-xs gap-1.5 h-9 border border-border"
-          >
-            <Timer className="w-3.5 h-3.5 text-amber-500" />
-            <span>Run Dunning Check</span>
-          </Button>
-
-          <Button
-            onClick={() => setCreateModalOpen(true)}
-            className="text-xs gap-1.5 h-9 shadow-xs"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Workflow</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Metric Cards Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Outstanding */}
-        <div className="p-4 rounded-xl bg-card border border-border/70 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden group">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-muted-foreground">
-              Total Outstanding Balance
-            </span>
-            <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
-              <DollarSign className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold font-mono text-foreground">
-              ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </span>
-            <span className="text-xs font-medium text-muted-foreground">USD</span>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Across active invoices & awaiting payments
-          </p>
-        </div>
-
-        {/* Workflows Awaiting Action */}
-        <div className="p-4 rounded-xl bg-card border border-border/70 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden group">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-muted-foreground">
-              Awaiting Action / Review
-            </span>
-            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold font-mono text-foreground">
-              {awaitingAction}
-            </span>
-            <span className="text-xs text-muted-foreground">workflows</span>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Requires approval, invoice dispatch or capture
-          </p>
-        </div>
-
-        {/* Overdue / Dunning Reminders */}
-        <div className="p-4 rounded-xl bg-card border border-border/70 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden group">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-rose-500" />
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-muted-foreground">
-              Overdue Dunning Cycles
-            </span>
-            <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400">
-              {overdueCount}
-            </span>
-            <span className="text-xs text-muted-foreground">overdue</span>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            In active dunning timer retry loop
-          </p>
-        </div>
-
-        {/* Completed This Month */}
-        <div className="p-4 rounded-xl bg-card border border-border/70 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden group">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-muted-foreground">
-              Completed & Reconciled
-            </span>
-            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
-              {completedCount}
-            </span>
-            <span className="text-xs text-muted-foreground">this month</span>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Fully fulfilled, ledger posted & provisioned
-          </p>
-        </div>
-      </div>
-
-      {/* Filter Tabs Bar */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-border">
-          {TYPE_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isSelected = selectedType === tab.type;
-            return (
+        {/* Content Tabs & Controls */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+            {/* Tabs */}
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl max-w-fit">
               <button
-                key={tab.type}
-                onClick={() => {
-                  setSelectedType(tab.type);
-                  setPage(1);
-                }}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                  isSelected
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                onClick={() => setActiveTab("invoices")}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  activeTab === "invoices"
+                    ? "bg-white dark:bg-slate-750 text-blue-600 dark:text-blue-400 shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
-                {Icon && <Icon className="w-3.5 h-3.5" />}
-                <span>{tab.label}</span>
+                <FileText className="w-3.5 h-3.5" />
+                <span>Generated Invoices ({invoices.length})</span>
               </button>
-            );
-          })}
-        </div>
+              <button
+                onClick={() => setActiveTab("customers")}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  activeTab === "customers"
+                    ? "bg-white dark:bg-slate-750 text-blue-600 dark:text-blue-400 shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>A/R Customers & Templates ({customers.length})</span>
+              </button>
+            </div>
 
-        {/* Search and Secondary Filter Row */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            {/* Search Box */}
             <div className="relative w-full sm:w-80">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted-foreground" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
-                placeholder="Search reference #, customer name, ID..."
+                type="text"
+                placeholder={
+                  activeTab === "invoices"
+                    ? "Search invoice #, customer, P/O..."
+                    : "Search customer name, ID, contact..."
+                }
                 value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(1);
-                }}
-                className="h-8 pl-8 text-xs"
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 text-xs h-9 bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 rounded-xl"
+              />
+            </div>
+          </div>
+
+          {/* TAB 1: Generated Invoices Table */}
+          {activeTab === "invoices" && (
+            <div className="overflow-x-auto">
+              {isInvoicesLoading ? (
+                <div className="p-12 text-center text-sm text-slate-500 flex flex-col items-center justify-center gap-2">
+                  <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
+                  <span>Loading generated invoices...</span>
+                </div>
+              ) : filteredInvoices.length === 0 ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-3">
+                    <Receipt className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                    No Generated Invoices Found
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1 mb-5">
+                    {searchTerm
+                      ? "No invoices match your search filter."
+                      : "Create your first customer invoice using the custom template generator."}
+                  </p>
+                  <Button
+                    onClick={() => navigate("/account-receivable/generate")}
+                    className="gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Generate New Invoice</span>
+                  </Button>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <th className="py-3.5 px-4 sm:px-6">Invoice #</th>
+                      <th className="py-3.5 px-4">Customer</th>
+                      <th className="py-3.5 px-4">Issue Date</th>
+                      <th className="py-3.5 px-4">P/O No.</th>
+                      <th className="py-3.5 px-4 text-right">Amount</th>
+                      <th className="py-3.5 px-4 text-center">Status</th>
+                      <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+                    {filteredInvoices.map((inv) => (
+                      <tr
+                        key={inv.id}
+                        className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer"
+                        onClick={() =>
+                          navigate(
+                            `/account-receivable/generate?invoiceId=${encodeURIComponent(
+                              inv.id
+                            )}`
+                          )
+                        }
+                      >
+                        <td className="py-3.5 px-4 sm:px-6 font-semibold text-blue-600 dark:text-blue-400">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="group-hover:underline">{inv.invoice_number}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-medium text-slate-900 dark:text-white">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{inv.customer_name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{inv.invoice_date || "—"}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-300">
+                          {inv.po_number || "—"}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-bold text-slate-900 dark:text-white">
+                          $
+                          {(Number(inv.total_amount) || Number(inv.subtotal) || 0).toLocaleString(
+                            "en-US",
+                            {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <Badge
+                            variant="secondary"
+                            className="bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 text-[10px] font-semibold uppercase tracking-wider"
+                          >
+                            <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
+                            {inv.status || "Generated"}
+                          </Badge>
+                        </td>
+                        <td className="py-3.5 px-4 sm:px-6 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenSendEmail(inv)}
+                              className="h-8 px-2.5 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 border-indigo-200 dark:border-indigo-900 cursor-pointer"
+                              title="Send invoice statement via SendGrid email"
+                            >
+                              <Mail className="w-3.5 h-3.5 mr-1 text-indigo-600 dark:text-indigo-400" />
+                              <span>Send Email</span>
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                navigate(
+                                  `/account-receivable/generate?invoiceId=${encodeURIComponent(
+                                    inv.id
+                                  )}`
+                                )
+                              }
+                              className="h-8 px-2.5 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/60 border-blue-200 dark:border-blue-900 cursor-pointer"
+                              title="View / Edit this Generated Invoice"
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1" />
+                              <span>View / Edit</span>
+                            </Button>
+                            {deleteConfirmId === inv.id ? (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => deleteMutation.mutate(inv.id)}
+                                  disabled={deleteMutation.isPending}
+                                  className="h-7 px-2 text-[11px]"
+                                >
+                                  Confirm
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setDeleteConfirmId(null)}
+                                  className="h-7 px-2 text-[11px]"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDeleteConfirmId(inv.id)}
+                                className="h-8 w-8 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded-lg"
+                                title="Delete Invoice"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: A/R Customers & Quick Launch */}
+          {activeTab === "customers" && (
+            <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredCustomers.map((cust) => {
+                const hasSaved =
+                  cust.has_template || !!localStorage.getItem(`ar_template_${cust.id}`);
+                return (
+                  <div
+                    key={cust.id}
+                    className="p-5 bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700 flex flex-col justify-between hover:border-blue-300 dark:hover:border-blue-700 transition-all hover:shadow-sm group"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] font-mono text-slate-500 mb-1"
+                          >
+                            {cust.id}
+                          </Badge>
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">
+                            {cust.name}
+                          </h4>
+                        </div>
+                        {hasSaved ? (
+                          <Badge className="bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 text-[10px] whitespace-nowrap">
+                            <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
+                            Template Saved
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] text-slate-500 whitespace-nowrap"
+                          >
+                            Default
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                        {cust.contact_person && (
+                          <div className="flex items-center gap-2">
+                            <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{cust.contact_person}</span>
+                          </div>
+                        )}
+                        {cust.email && (
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{cust.email}</span>
+                          </div>
+                        )}
+                        {cust.phone && (
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{cust.phone}</span>
+                          </div>
+                        )}
+                        {cust.billing_address && (
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                            <span className="line-clamp-2">{cust.billing_address}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-700/60">
+                      <Button
+                        onClick={() =>
+                          navigate(
+                            `/account-receivable/generate?customerId=${encodeURIComponent(
+                              cust.id
+                            )}`
+                          )
+                        }
+                        className="w-full gap-2 bg-slate-900 dark:bg-blue-600 hover:bg-blue-700 text-white text-xs h-9 rounded-xl shadow-xs transition-all cursor-pointer"
+                      >
+                        <Receipt className="w-3.5 h-3.5" />
+                        <span>Generate Invoice</span>
+                        <ArrowUpRight className="w-3.5 h-3.5 ml-auto" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Send Invoice Statement Email Dialog ── */}
+      <Dialog open={isSendEmailModalOpen} onOpenChange={setIsSendEmailModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+              <Mail className="w-5 h-5 text-indigo-600" />
+              <span>Send Invoice Statement via SendGrid</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Send invoice {selectedInvoiceForEmail?.invoice_number} directly to the customer using role-based email.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                <span>Sender Role-Based Email <span className="text-red-500">*</span></span>
+                <span className="text-[10px] text-muted-foreground font-normal">Role Mailer Address</span>
+              </Label>
+              <Input
+                type="email"
+                value={emailSender}
+                onChange={(e) => setEmailSender(e.target.value)}
+                placeholder="test-invoices@zenatech.com"
+                className="text-xs font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Default: <code className="bg-muted px-1 py-0.5 rounded text-foreground">test-invoices@zenatech.com</code>
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">
+                Recipient Email (To) <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="email"
+                value={emailRecipient}
+                onChange={(e) => setEmailRecipient(e.target.value)}
+                placeholder="customer-billing@client.com"
+                className="text-xs"
               />
             </div>
 
-            <select
-              value={selectedState}
-              onChange={(e) => {
-                setSelectedState(e.target.value as ARWorkflowState | "");
-                setPage(1);
-              }}
-              className="h-8 rounded-md border border-input bg-background px-2.5 text-xs text-foreground focus:ring-1 focus:ring-primary"
-            >
-              <option value="">All States</option>
-              <option value="DRAFT">Draft</option>
-              <option value="PENDING_REVIEW">Pending Review</option>
-              <option value="INVOICE_SENT">Invoice Sent</option>
-              <option value="AWAITING_PAYMENT">Awaiting Payment</option>
-              <option value="DUNNING_REMINDER">Dunning / Overdue</option>
-              <option value="RECONCILED">Reconciled</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-          </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">
+                Subject Line
+              </Label>
+              <Input
+                type="text"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="Invoice Statement from ZenaTech Inc."
+                className="text-xs"
+              />
+            </div>
 
-          <div className="text-xs text-muted-foreground">
-            Showing{" "}
-            <strong className="text-foreground">
-              {workflowsData?.items.length || 0}
-            </strong>{" "}
-            of <strong className="text-foreground">{workflowsData?.total || 0}</strong>{" "}
-            workflows
-          </div>
-        </div>
-      </div>
-
-      {/* Main Workflow Data Table */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-2xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-muted/40 border-b border-border text-muted-foreground uppercase text-[10px] font-semibold tracking-wider">
-              <tr>
-                <th className="py-3 px-4">Reference ID</th>
-                <th className="py-3 px-4">Customer</th>
-                <th className="py-3 px-4">Workflow Type</th>
-                <th className="py-3 px-4">Current Stage</th>
-                <th className="py-3 px-4 text-right">Amount</th>
-                <th className="py-3 px-4">Created Date</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {isWorkflowsLoading ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-muted-foreground text-xs">
-                    <Clock className="w-4 h-4 animate-spin inline-block mr-2" />
-                    Loading workflow instances...
-                  </td>
-                </tr>
-              ) : workflowsData?.items && workflowsData.items.length > 0 ? (
-                workflowsData.items.map((wf) => {
-                  const typeBadge = TYPE_BADGES[wf.workflow_type] || TYPE_BADGES.CASH;
-                  const stateBadge = STATE_BADGES[wf.state] || STATE_BADGES.DRAFT;
-                  const TypeIcon = typeBadge.icon;
-
-                  return (
-                    <tr
-                      key={wf.id}
-                      onClick={() => handleOpenDetail(wf.id)}
-                      className="hover:bg-muted/30 cursor-pointer transition-colors group"
-                    >
-                      {/* Reference ID */}
-                      <td className="py-3.5 px-4 font-mono font-bold text-foreground">
-                        <span className="group-hover:text-primary transition-colors flex items-center gap-1.5">
-                          {wf.reference_id || wf.id.slice(0, 8)}
-                          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
-                        </span>
-                      </td>
-
-                      {/* Customer */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-foreground">
-                          {wf.customer_name || "Unnamed Customer"}
-                        </div>
-                        <div className="font-mono text-[10px] text-muted-foreground">
-                          {wf.customer_id}
-                        </div>
-                      </td>
-
-                      {/* Workflow Type */}
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-semibold ${typeBadge.bg} ${typeBadge.color}`}
-                        >
-                          <TypeIcon className="w-3 h-3 shrink-0" />
-                          {typeBadge.label}
-                        </span>
-                      </td>
-
-                      {/* Current Stage */}
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full border text-[10px] font-semibold ${stateBadge.bg} ${stateBadge.text} ${stateBadge.border}`}
-                        >
-                          {stateBadge.label}
-                        </span>
-                      </td>
-
-                      {/* Amount */}
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-foreground">
-                        ${wf.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}{" "}
-                        <span className="text-[10px] text-muted-foreground font-normal">
-                          {wf.currency}
-                        </span>
-                      </td>
-
-                      {/* Created Date */}
-                      <td className="py-3.5 px-4 text-muted-foreground text-[11px]">
-                        {new Date(wf.created_at).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </td>
-
-                      {/* Actions */}
-                      <td
-                        className="py-3.5 px-4 text-right"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenDetail(wf.id)}
-                          className="h-7 text-xs gap-1 group-hover:bg-primary/10 group-hover:text-primary"
-                        >
-                          <span>Manage</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-muted-foreground text-xs">
-                    No accounts receivable workflows found matching the current criteria.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Controls */}
-        {workflowsData && workflowsData.total_pages > 1 && (
-          <div className="p-3 border-t border-border bg-muted/20 flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">
-              Page {workflowsData.page} of {workflowsData.total_pages}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={workflowsData.page <= 1}
-                className="h-7 px-2.5 text-xs"
-              >
-                <ChevronLeft className="w-3.5 h-3.5 mr-1" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setPage((p) => Math.min(workflowsData.total_pages, p + 1))
-                }
-                disabled={workflowsData.page >= workflowsData.total_pages}
-                className="h-7 px-2.5 text-xs"
-              >
-                Next
-                <ChevronRight className="w-3.5 h-3.5 ml-1" />
-              </Button>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">
+                Optional Message / Notes
+              </Label>
+              <Textarea
+                rows={3}
+                value={emailCustomMessage}
+                onChange={(e) => setEmailCustomMessage(e.target.value)}
+                placeholder="Add a custom note or payment instructions to include in the email body..."
+                className="text-xs resize-none"
+              />
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Creation Modal */}
-      <NewWorkflowModal
-        open={createModalOpen}
-        onOpenChange={setCreateModalOpen}
-        onCreated={(newId) => {
-          navigate(`/account-receivable/${newId}`);
-        }}
-      />
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSendEmailModalOpen(false)}
+              className="text-xs cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => sendEmailMutation.mutate()}
+              disabled={sendEmailMutation.isPending || !emailRecipient.trim() || !emailSender.trim()}
+              className="text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold cursor-pointer"
+            >
+              {sendEmailMutation.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Send className="w-3.5 h-3.5" />
+              )}
+              <span>Send Email</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

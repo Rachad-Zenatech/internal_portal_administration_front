@@ -122,6 +122,28 @@ export const arService = {
     const qs = workflowType ? `?workflow_type=${encodeURIComponent(workflowType)}` : "";
     return apiClient.get<Array<{ id: string; name: string; email: string; job_title?: string; department?: string }>>(`/api/v1/ar/clerks${qs}`);
   },
+
+  async getCustomerInitialSaleTemplate(customerId: string): Promise<any> {
+    return apiClient.get<any>(`/api/customers/${encodeURIComponent(customerId)}/initial-sale`);
+  },
+
+  async generateInvoiceFromSale(payload: any): Promise<any> {
+    return apiClient.post<any>("/api/invoices/generate-from-sale", payload, {
+      actionLabel: "Generating Sale Invoice & Syncing Template",
+      actionSubtitle: "Creating invoice snapshot and updating customer sale template...",
+    });
+  },
+  async deleteWorkflow(id: string): Promise<{ success: boolean; id: string; message: string }> {
+    return apiClient.delete<{ success: boolean; id: string; message: string }>(
+      `/api/workflows/${encodeURIComponent(id)}`,
+      {
+        actionLabel: "Deleting Workflow",
+        actionSubtitle: "Removing AR workflow instance and records...",
+      }
+    );
+  },
+  async searchAccounts(search?: string): Promise<Array<{ id: number; account_number: string; account_name: string; account_type: string; label: string }>> {
+    const qs = search ? `?search=${encodeURIComponent(search)}` : "";
+    return apiClient.get<any[]>(`/api/accounts${qs}`);
+  },
 };
-
-

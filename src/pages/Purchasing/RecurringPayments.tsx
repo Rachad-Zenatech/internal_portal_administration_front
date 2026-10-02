@@ -7,8 +7,14 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
-import { RequestStatus, type PurchaseRequest,
-  type RequestDetail, type CustomScheduleDate, type Priority } from "@/types/purchasing";
+import {
+  RequestStatus,
+  type PurchaseRequest,
+  type RequestDetail,
+  type CustomScheduleDate,
+  type Priority,
+  type WireTransferInput,
+} from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   formatDate,
@@ -78,9 +84,10 @@ import {
   XCircle,
   Layers,
   PauseCircle,
+  Landmark,
 } from "lucide-react";
 import { toast } from "sonner";
-import { deletePurchaseRequest } from "@/services/purchasingService";
+import { deletePurchaseRequest, updateWireTransfer as updateWireTransferApi } from "@/services/purchasingService";
 import {
   formatRemainingDuration,
   calculateInstallmentsCount,
@@ -90,6 +97,7 @@ import {
   type FrequencyType,
 } from "./recurringScheduleUtils";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
+import { WireTransferDialog } from "./WireTransferDialog";
 import { MasterTransactionsTable } from "./MasterTransactionsTable";
 
 
@@ -167,7 +175,7 @@ function RequesterAutocomplete({
             {filteredUsers.map((u) => {
               const displayName = u.full_name || u.email || "Unknown User";
               const email = u.email;
-              const dept = resolveUserDepartment(u, roles);
+              const dept = (u.department && u.department.trim() && u.department.toUpperCase() !== "REQUESTER") ? u.department.trim() : resolveUserDepartment(u, roles);
 
               return (
                 <div
@@ -235,7 +243,7 @@ export default function RecurringPayments() {
   const navigate = useNavigate();
   const { id: routeRequestId } = useParams<{ id?: string }>();
   const queryClient = useQueryClient();
-  const { roles: userRoles, hasRole, hasPermission, user } = useAuth();
+  const { roles: userRoles, hasRole, hasPermission, canAccessNavigationItem, user } = useAuth();
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
 
@@ -262,7 +270,15 @@ export default function RecurringPayments() {
   const hasRecurringPermission =
     hasPermission("RECURRING_PAYMENTS_READ") ||
     hasPermission("RECURRING_PAYMENTS_VIEW") ||
-    hasPermission("RECURRING_PAYMENTS_UPDATE");
+    hasPermission("RECURRING_PAYMENTS_UPDATE") ||
+    hasPermission("SCHEDULED_PAYMENTS_READ") ||
+    hasPermission("SCHEDULED_PAYMENTS_VIEW") ||
+    hasPermission("SCHEDULED_PAYMENTS_UPDATE") ||
+    hasPermission("SCHEDULED_PAYMENTS_CREATE") ||
+    hasPermission("SCHEDULED_PAYMENTS_MANAGE") ||
+    hasPermission("SCHEDULED_PAYMENTS") ||
+    (canAccessNavigationItem ? canAccessNavigationItem("SCHEDULED_PAYMENTS") : false) ||
+    (canAccessNavigationItem ? canAccessNavigationItem("RECURRING_PAYMENTS") : false);
   const canAccess = isSuperAdmin || isAP || isTreasury || hasRecurringPermission;
 
   const [viewMode, setViewMode] = useState<"table" | "calendar" | "master">("table");
@@ -292,14 +308,34 @@ export default function RecurringPayments() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [scheduleModalRequest, setScheduleModalRequest] = useState<PurchaseRequest | null>(null);
+  const [wireModalRequest, setWireModalRequest] = useState<PurchaseRequest | null>(null);
+  const [isUpdatingWire, setIsUpdatingWire] = useState(false);
   const [selectedCalendarInstallment, setSelectedCalendarInstallment] = useState<{
     installmentNumber?: number;
     totalInstallments?: number;
     amount?: number;
+    currency?: string;
     dueDate?: string;
     isProjected?: boolean;
     isPaid?: boolean;
   } | null>(null);
+
+  const handleSaveWire = async (data: WireTransferInput) => {
+    if (!wireModalRequest) return;
+    try {
+      setIsUpdatingWire(true);
+      await updateWireTransferApi(wireModalRequest.id, data);
+      toast.success("Wire transfer details saved successfully");
+      setWireModalRequest(null);
+      queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+      refetchRequests();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update wire transfer details");
+    } finally {
+      setIsUpdatingWire(false);
+    }
+  };
 
   const [editingRequest, setEditingRequest] = useState<PurchaseRequest | null>(null);
   const [selectedCalendarItem, setSelectedCalendarItem] =
@@ -342,7 +378,7 @@ export default function RecurringPayments() {
   }, [cardFilter, viewMode]);
 
   // Fetch all RECURRING requests with live polling
-  const { data: requests = [], isLoading } = useQuery<PurchaseRequest[]>({
+  const { data: requests = [], isLoading, refetch: refetchRequests } = useQuery<PurchaseRequest[]>({
     queryKey: ["recurring-requests"],
     queryFn: async () => {
       return await apiClient.get<PurchaseRequest[]>(
@@ -458,9 +494,11 @@ export default function RecurringPayments() {
         (u.full_name && u.full_name.toLowerCase() === displayName.toLowerCase()) ||
         (u.email && u.email.toLowerCase() === displayName.toLowerCase())
     );
-    const defaultDept = matchedUser
-      ? resolveUserDepartment(matchedUser, rolesList)
-      : resolveUserDepartment(user, rolesList);
+    const defaultDept = (matchedUser?.department && matchedUser.department.trim() && matchedUser.department.toUpperCase() !== "REQUESTER")
+      ? matchedUser.department.trim()
+      : (matchedUser
+        ? resolveUserDepartment(matchedUser, rolesList)
+        : ((user?.department && user.department.trim() && user.department.toUpperCase() !== "REQUESTER") ? user.department.trim() : resolveUserDepartment(user, rolesList)));
 
     const todayIso = new Date().toISOString().split("T")[0];
     const sched = getInitialDefaultSchedule(todayIso);
@@ -484,6 +522,15 @@ export default function RecurringPayments() {
     setIsCreateOpen(true);
   };
 
+  useEffect(() => {
+    if (searchParams.get("create") === "true" || searchParams.get("new") === "true") {
+      handleOpenCreate();
+      const updatedParams = new URLSearchParams(searchParams);
+      updatedParams.delete("create");
+      updatedParams.delete("new");
+      setSearchParams(updatedParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const createMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -1786,6 +1833,18 @@ export default function RecurringPayments() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                            title="Edit Wire Info / Banking Details"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setWireModalRequest(req);
+                            }}
+                          >
+                            <Landmark size={14} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="h-8 w-8 p-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50"
                             title="Edit Recurring Request"
                             onClick={(e) => {
@@ -1899,6 +1958,7 @@ export default function RecurringPayments() {
                 isProjected: boolean;
                 isPaid: boolean;
                 amount: number;
+                currency?: string;
                 displayTitle: string;
                 isReviewed: boolean;
               }> = [];
@@ -1925,6 +1985,7 @@ export default function RecurringPayments() {
                       isProjected: match.status === "PROJECTED",
                       isPaid: match.status === "PAID",
                       amount: match.amount,
+                      currency: match.currency || req.currency || "USD",
                       displayTitle: isOngoing ? `${req.title} (Cycle #${match.installmentNumber})` : `${req.title} (#${match.installmentNumber}/${totalInst || installments.length})`,
                       isReviewed: req.review_status === "REVIEWED",
                     });
@@ -1937,6 +1998,7 @@ export default function RecurringPayments() {
                         isProjected: false,
                         isPaid: parseRequestStatus(req.status) === RequestStatus.Completed,
                         amount: req.amount,
+                        currency: req.currency || "USD",
                         displayTitle: req.title,
                         isReviewed: req.review_status === "REVIEWED",
                       });
@@ -1989,6 +2051,7 @@ export default function RecurringPayments() {
                                 installmentNumber: item.installmentNumber,
                                 totalInstallments: item.totalInstallments,
                                 amount: item.amount,
+                                currency: item.currency,
                                 dueDate: cell.dateStr,
                                 isProjected: true,
                                 isPaid: false,
@@ -2010,7 +2073,7 @@ export default function RecurringPayments() {
                               </div>
                             </div>
                             <div className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 mt-0.5">
-                              {formatMoney(item.amount)}
+                              {formatMoney(item.amount, item.currency)}
                             </div>
                           </button>
                         );
@@ -2026,6 +2089,7 @@ export default function RecurringPayments() {
                                 installmentNumber: item.installmentNumber,
                                 totalInstallments: item.totalInstallments,
                                 amount: item.amount,
+                                currency: item.currency,
                                 dueDate: cell.dateStr,
                                 isProjected: false,
                                 isPaid: true,
@@ -2045,7 +2109,7 @@ export default function RecurringPayments() {
                               </div>
                             </div>
                             <div className="text-[10px] font-bold opacity-85 mt-0.5">
-                              {formatMoney(item.amount)}
+                              {formatMoney(item.amount, item.currency)}
                             </div>
                           </button>
                         );
@@ -2060,6 +2124,7 @@ export default function RecurringPayments() {
                               installmentNumber: item.installmentNumber,
                               totalInstallments: item.totalInstallments,
                               amount: item.amount,
+                              currency: item.currency,
                               dueDate: cell.dateStr,
                               isProjected: false,
                               isPaid: false,
@@ -2087,7 +2152,7 @@ export default function RecurringPayments() {
                             </div>
                           </div>
                           <div className="text-[10px] font-bold opacity-85 mt-0.5">
-                            {formatMoney(item.amount)}
+                            {formatMoney(item.amount, item.currency)}
                           </div>
                         </button>
                       );
@@ -2145,7 +2210,10 @@ export default function RecurringPayments() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount:</span>
                 <span className="font-bold text-slate-900 dark:text-zinc-100">
-                  {formatMoney(selectedCalendarItem.amount)}
+                  {formatMoney(
+                    selectedCalendarInstallment?.amount ?? selectedCalendarItem.amount,
+                    selectedCalendarInstallment?.currency || selectedCalendarItem.currency || "USD"
+                  )}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -2358,11 +2426,15 @@ export default function RecurringPayments() {
                           (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
                           (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
                       );
-                      const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
+                      const dept = (matched?.department && matched.department.trim() && matched.department.toUpperCase() !== "REQUESTER")
+                        ? matched.department.trim()
+                        : (matched ? resolveUserDepartment(matched, rolesList) : "");
                       setNewForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
                     }}
                     onSelectUser={(selectedUser) => {
-                      const dept = resolveUserDepartment(selectedUser, rolesList);
+                      const dept = (selectedUser?.department && selectedUser.department.trim() && selectedUser.department.toUpperCase() !== "REQUESTER")
+                        ? selectedUser.department.trim()
+                        : resolveUserDepartment(selectedUser, rolesList);
                       if (dept) {
                         setNewForm((prev) => ({ ...prev, department: dept }));
                       }
@@ -2580,11 +2652,15 @@ export default function RecurringPayments() {
                             (u.full_name && u.full_name.toLowerCase() === val.toLowerCase().trim()) ||
                             (u.email && u.email.toLowerCase() === val.toLowerCase().trim())
                         );
-                        const dept = matched ? resolveUserDepartment(matched, rolesList) : "";
+                        const dept = (matched?.department && matched.department.trim() && matched.department.toUpperCase() !== "REQUESTER")
+                          ? matched.department.trim()
+                          : (matched ? resolveUserDepartment(matched, rolesList) : "");
                         setEditForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
                       }}
                       onSelectUser={(selectedUser) => {
-                        const dept = resolveUserDepartment(selectedUser, rolesList);
+                        const dept = (selectedUser?.department && selectedUser.department.trim() && selectedUser.department.toUpperCase() !== "REQUESTER")
+                          ? selectedUser.department.trim()
+                          : resolveUserDepartment(selectedUser, rolesList);
                         if (dept) {
                           setEditForm((prev) => ({ ...prev, department: dept }));
                         }
@@ -2723,7 +2799,24 @@ export default function RecurringPayments() {
           setScheduleModalRequest(null);
           handleOpenEdit(req);
         }}
+        onEditWireInfo={(req) => {
+          setScheduleModalRequest(null);
+          setWireModalRequest(req);
+        }}
       />
+
+      {/* Wire Transfer Dialog (Edit / Record Wire Info for Scheduled Payment) */}
+      {wireModalRequest && (
+        <WireTransferDialog
+          open={!!wireModalRequest}
+          onOpenChange={(open) => !open && setWireModalRequest(null)}
+          request={wireModalRequest}
+          initialData={(wireModalRequest as any)?.wire_transfer}
+          isEditMode={Boolean((wireModalRequest as any)?.wire_transfer)}
+          isSubmitting={isUpdatingWire}
+          onConfirm={handleSaveWire}
+        />
+      )}
     </div>
   );
 }

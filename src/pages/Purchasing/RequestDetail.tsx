@@ -10,7 +10,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BankAccountAutocomplete } from "./BankAccountAutocomplete";
 import { CategoryAutocomplete } from "./CategoryAutocomplete";
-import DepartmentAutocomplete from "./DepartmentAutocomplete";
+import { ClassAutocomplete } from "./ClassAutocomplete";
 import LocationAutocomplete from "./LocationAutocomplete";
 import { PaymentMethodSelect } from "./PaymentMethodSelect";
 import { ManualPriceDialog } from "./ManualPriceDialog";
@@ -51,6 +51,7 @@ import {
   ShieldCheck,
   DollarSign,
   Eye,
+  UserCheck,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -58,6 +59,7 @@ import { formatRemainingDuration, FREQUENCY_LABELS, type FrequencyType } from ".
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
 import PurchaseRequestDetail from "./PurchaseRequestDetail";
 import { FilePreviewModal, type PreviewFileTarget } from "./FilePreviewModal";
+import { ChangeLevel1ApproverModal } from "./ChangeLevel1ApproverModal";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -276,6 +278,7 @@ export default function RequestDetail() {
   const [approval, setApproval] = useState<ApprovalInput>({ approver: "", comment: "" });
   const [tracking, setTracking] = useState<TrackingInput>({ tracking_number: "" });
   const [hold, setHold] = useState<HoldInput>({ reason: "" });
+  const [isChangeApproverOpen, setIsChangeApproverOpen] = useState(false);
   const [completeData, setCompleteData] = useState<{
     selectionType: "PERIOD" | "DATE";
     period: "BI_WEEKLY" | "MONTHLY" | "ANNUALLY";
@@ -2257,6 +2260,8 @@ export default function RequestDetail() {
                     <div className="flex items-center gap-2.5">
                       {Boolean(
                         request.request_type === "ACCOUNTS_PAYABLE" ||
+                        request.request_type === "SCHEDULED_PAYMENT" ||
+                        request.request_type === "RECURRING" ||
                         request.status === RequestStatus.Purchased ||
                         (request.status as string) === "ORDERED" ||
                         request.status === RequestStatus.WaitingPayment ||
@@ -2731,66 +2736,27 @@ export default function RequestDetail() {
 
                     <div className="grid grid-cols-1 gap-2">
                       {/* Level 1 Approver Card */}
-                      <div className="p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="p-1.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 shrink-0">
-                            <Building2 className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
-                              {request.level_1_approver_name && request.level_1_approver_name !== "Unassigned"
-                                ? request.level_1_approver_name
-                                : request.assigned_user && request.assigned_user !== "Unassigned"
-                                ? request.assigned_user
-                                : "Department Level 1 Approver"}
-                            </div>
-                            <div className="text-[10.5px] text-slate-500 dark:text-zinc-400 truncate">
-                              Level 1 • Department / Manager Approver
-                            </div>
-                          </div>
-                        </div>
-                        <div>
-                          {request.level_1_approved_at || request.status === "APPROVED" || request.status === "PURCHASED" || request.status === "SHIPPED" || request.status === "GOODS_RECEIVED" || request.status === "INVOICE_RECEIVED" || request.status === "COMPLETED" ? (
-                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-[10px] font-medium gap-1">
-                              <CheckCircle2 className="h-3 w-3" /> Approved
-                            </Badge>
-                          ) : request.status === "REJECTED" ? (
-                            <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 text-[10px] font-medium">
-                              Rejected
-                            </Badge>
-                          ) : request.status === "WAITING_APPROVAL" && (request.current_approval_level || 1) === 1 ? (
-                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 text-[10px] font-medium gap-1">
-                              <Clock className="h-3 w-3 animate-pulse" /> Pending Review
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 text-[10px] font-normal">
-                              Scheduled
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Level 2 Approver Card */}
-                      {(request.requires_second_level || (request.amount && Number(request.amount) >= 10000) || request.level_2_approver_name || request.second_level_requested) && (
-                        <div className="p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="p-1.5 rounded-md bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 shrink-0">
-                              <ShieldCheck className="h-4 w-4" />
+                      <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs space-y-2.5">
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 shrink-0 mt-0.5">
+                              <Building2 className="h-4 w-4" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
-                                {request.level_2_approver_name && request.level_2_approver_name !== "Unassigned"
-                                  ? request.level_2_approver_name
-                                  : "Shaun Passley (CEO)"}
+                              <div className="text-xs font-bold text-slate-900 dark:text-zinc-100 leading-snug break-words">
+                                {request.level_1_approver_name && request.level_1_approver_name !== "Unassigned"
+                                  ? request.level_1_approver_name
+                                  : request.assigned_user && request.assigned_user !== "Unassigned"
+                                  ? request.assigned_user
+                                  : "Department Level 1 Approver"}
                               </div>
-                              <div className="text-[10.5px] text-purple-600 dark:text-purple-400 truncate flex items-center gap-1">
-                                <span>Level 2 • Company Approver</span>
-                                <span className="text-[9.5px] px-1 py-0.2 rounded bg-purple-100 dark:bg-purple-900/60 font-medium">≥ $10k</span>
+                              <div className="text-[10.5px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                                Level 1 • Department / Manager Approver
                               </div>
                             </div>
                           </div>
-                          <div>
-                            {request.level_2_approved_at || (request.status === "APPROVED" && (request.current_approval_level || 1) >= 2) || (request.status === "PURCHASED" && request.requires_second_level) ? (
+                          <div className="shrink-0 flex items-center">
+                            {request.level_1_approved_at || request.status === "APPROVED" || request.status === "PURCHASED" || request.status === "SHIPPED" || request.status === "GOODS_RECEIVED" || request.status === "INVOICE_RECEIVED" || request.status === "COMPLETED" ? (
                               <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-[10px] font-medium gap-1">
                                 <CheckCircle2 className="h-3 w-3" /> Approved
                               </Badge>
@@ -2798,19 +2764,79 @@ export default function RequestDetail() {
                               <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 text-[10px] font-medium">
                                 Rejected
                               </Badge>
-                            ) : request.status === "WAITING_APPROVAL" && request.current_approval_level === 2 ? (
-                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800 text-[10px] font-medium gap-1">
-                                <Clock className="h-3 w-3 animate-pulse" /> Pending L2 Review
-                              </Badge>
                             ) : request.status === "WAITING_APPROVAL" && (request.current_approval_level || 1) === 1 ? (
-                              <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 text-[10px] font-normal">
-                                Awaiting Level 1
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 text-[10px] font-medium gap-1">
+                                <Clock className="h-3 w-3 animate-pulse" /> Pending Review
                               </Badge>
                             ) : (
                               <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 text-[10px] font-normal">
                                 Scheduled
                               </Badge>
                             )}
+                          </div>
+                        </div>
+
+                        {isPrivilegedPurchasingRole && !request.level_1_approved_at && request.status !== "COMPLETED" && request.status !== "REJECTED" && (
+                          <div className="pt-2 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between gap-2">
+                            <span className="text-[10px] text-slate-400">Need to change routing?</span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsChangeApproverOpen(true)}
+                              className="h-6 px-2.5 text-[10.5px] font-semibold text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/50 dark:bg-indigo-950/40 hover:bg-indigo-100/70 dark:hover:bg-indigo-900/60 gap-1 rounded-md cursor-pointer"
+                              title="Change Level 1 Approver"
+                            >
+                              <UserCheck className="h-3 w-3" />
+                              <span>Change Approver</span>
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Level 2 Approver Card */}
+                      {(request.requires_second_level || (request.amount && Number(request.amount) >= 10000) || request.level_2_approver_name || request.second_level_requested) && (
+                        <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs space-y-2.5">
+                          <div className="flex items-start justify-between gap-2.5">
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 shrink-0 mt-0.5">
+                                <ShieldCheck className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-slate-900 dark:text-zinc-100 leading-snug break-words">
+                                  {request.level_2_approver_name && request.level_2_approver_name !== "Unassigned"
+                                    ? request.level_2_approver_name
+                                    : "Shaun Passley (CEO)"}
+                                </div>
+                                <div className="text-[10.5px] text-purple-600 dark:text-purple-400 mt-0.5 flex items-center gap-1">
+                                  <span>Level 2 • Company Approver</span>
+                                  <span className="text-[9.5px] px-1 py-0.2 rounded bg-purple-100 dark:bg-purple-900/60 font-medium">≥ $10k</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="shrink-0 flex items-center">
+                              {request.level_2_approved_at || (request.status === "APPROVED" && (request.current_approval_level || 1) >= 2) || (request.status === "PURCHASED" && request.requires_second_level) ? (
+                                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-[10px] font-medium gap-1">
+                                  <CheckCircle2 className="h-3 w-3" /> Approved
+                                </Badge>
+                              ) : request.status === "REJECTED" ? (
+                                <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 text-[10px] font-medium">
+                                  Rejected
+                                </Badge>
+                              ) : request.status === "WAITING_APPROVAL" && request.current_approval_level === 2 ? (
+                                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800 text-[10px] font-medium gap-1">
+                                  <Clock className="h-3 w-3 animate-pulse" /> Pending L2 Review
+                                </Badge>
+                              ) : request.status === "WAITING_APPROVAL" && (request.current_approval_level || 1) === 1 ? (
+                                <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 text-[10px] font-normal">
+                                  Awaiting Level 1
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 text-[10px] font-normal">
+                                  Scheduled
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -3425,10 +3451,10 @@ export default function RequestDetail() {
                     <label className="text-sm font-medium">
                       Class <span className="text-red-500">*</span>
                     </label>
-                    <DepartmentAutocomplete
+                    <ClassAutocomplete
                       value={invoice.department || ""}
                       onChange={(v) => setInvoice({ ...invoice, department: v })}
-                      placeholder="Select department / class *"
+                      placeholder="Select class *"
                       required
                     />
                   </div>
@@ -3864,6 +3890,16 @@ export default function RequestDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {data?.request && (
+        <ChangeLevel1ApproverModal
+          open={isChangeApproverOpen}
+          onOpenChange={setIsChangeApproverOpen}
+          request={data.request}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["purchaseRequest", id] });
+          }}
+        />
+      )}
       {id && data?.request && (
         <>
           <WireTransferDialog

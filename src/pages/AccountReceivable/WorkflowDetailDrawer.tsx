@@ -14,6 +14,7 @@ import {
   FileText,
   Activity,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import { arService } from "../../services/arService";
 import type {
@@ -122,7 +123,18 @@ export default function WorkflowDetailDrawer({
   const [transitionNote, setTransitionNote] = useState("");
   const [cancellationReason, setCancellationReason] = useState("");
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
+  const [showDeletePrompt, setShowDeletePrompt] = useState(false);
   const [activeTab, setActiveTab] = useState<"timeline" | "metadata" | "actions">("timeline");
+
+  const deleteMutation = useMutation({
+    mutationFn: () => arService.deleteWorkflow(workflowId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ar-workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-metrics"] });
+      setShowDeletePrompt(false);
+      onOpenChange(false);
+    },
+  });
 
   const {
     data: workflow,
@@ -469,6 +481,57 @@ export default function WorkflowDetailDrawer({
                         </span>
                       </div>
                     </div>
+
+                    {/* Initial Sale attributes */}
+                    {workflow?.workflow_type === "INITIAL_SALE" && (
+                      <div className="pt-3 border-t border-border grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <span className="text-muted-foreground block text-[11px]">Sales Originator</span>
+                          <span className="font-semibold text-foreground">{workflow.metadata?.sales_rep || "Steve (Sales)"}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[11px]">Quote / Reference #</span>
+                          <span className="font-mono font-semibold text-foreground">{workflow.metadata?.quote_number || workflow.reference_id}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[11px]">PO Gateway</span>
+                          <span className="font-semibold text-foreground">
+                            {workflow.metadata?.po_required ? `PO Required (#${workflow.metadata?.po_number || "Pending"})` : "Direct Invoicing (No PO)"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[11px]">Payment Terms</span>
+                          <span className="font-semibold text-foreground">{workflow.metadata?.payment_terms || "Net 30"}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Add-On attributes */}
+                    {workflow?.workflow_type === "ADD_ON" && (
+                      <div className="pt-3 border-t border-border grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <span className="text-muted-foreground block text-[11px]">Sales Originator</span>
+                          <span className="font-semibold text-foreground">{workflow.metadata?.sales_rep || "Steve (Sales)"}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[11px]">Parent Contract ID</span>
+                          <span className="font-mono font-semibold text-foreground">{workflow.metadata?.parent_contract_id || "CTR-PARENT"}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[11px]">Contract Renewal Date</span>
+                          <span className="font-mono font-semibold text-foreground">{workflow.metadata?.renewal_date || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[11px]">Prorated Amount</span>
+                          <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                            ${Number(workflow.metadata?.pro_rated_amount || workflow.amount || 0).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="col-span-2 p-2 bg-indigo-50/50 dark:bg-indigo-950/30 rounded border border-indigo-200/60 dark:border-indigo-900/40 text-[11px] text-indigo-900 dark:text-indigo-200">
+                          * Add-ons are prorated to align with the existing renewal date; totals consolidate at the next renewal.
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Line items if present */}
@@ -662,6 +725,57 @@ export default function WorkflowDetailDrawer({
                       )}
                     </div>
                   )}
+
+                  {/* Delete Workflow */}
+                  <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20 space-y-3">
+                    <h4 className="text-xs font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
+                      <Trash2 className="w-4 h-4" />
+                      Delete Workflow
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      Permanently remove this workflow instance, transition audit logs, and associated records.
+                    </p>
+                    {showDeletePrompt ? (
+                      <div className="space-y-2 pt-1">
+                        <div className="text-xs text-red-600 dark:text-red-400 font-semibold">
+                          Are you sure you want to permanently delete this workflow?
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => deleteMutation.mutate()}
+                            disabled={deleteMutation.isPending}
+                            className="text-xs gap-1.5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>{deleteMutation.isPending ? "Deleting..." : "Confirm Delete"}</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowDeletePrompt(false)}
+                            className="text-xs"
+                          >
+                            Back
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDeletePrompt(true)}
+                        className="text-xs text-red-600 dark:text-red-400 border-red-500/30 hover:bg-red-500/10 gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Workflow</span>
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
             </>

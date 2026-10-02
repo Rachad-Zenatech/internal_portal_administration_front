@@ -17,7 +17,7 @@ import {
   type FrequencyType,
   type ProjectedInstallment,
 } from "./recurringScheduleUtils";
-import { CalendarClock, CheckCircle2, Clock, Calendar, ArrowUpRight } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock, Calendar, ArrowUpRight, Landmark } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface ScheduleBreakdownModalProps {
@@ -25,6 +25,7 @@ interface ScheduleBreakdownModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEditRequest?: (request: PurchaseRequest) => void;
+  onEditWireInfo?: (request: PurchaseRequest) => void;
 }
 
 export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
@@ -32,6 +33,7 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
   open,
   onOpenChange,
   onEditRequest,
+  onEditWireInfo,
 }) => {
   const navigate = useNavigate();
 
@@ -275,6 +277,20 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
             Schedule: {formatDate(schedule.start_date || "")} - {formatDate(schedule.end_date || "")}
           </div>
           <div className="flex items-center gap-2">
+            {onEditWireInfo && request && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  onEditWireInfo(request);
+                }}
+                className="gap-1.5 text-xs text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 shadow-2xs"
+              >
+                <Landmark className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                Edit Wire Info
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
