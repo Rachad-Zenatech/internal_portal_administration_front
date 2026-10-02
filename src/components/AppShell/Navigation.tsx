@@ -60,6 +60,8 @@ export const navigation = [
     icon: CalendarCheck,
     section: "MAIN",
     navigationCode: "RECURRING_PAYMENTS",
+    // Purchase requesters can open the page to see their own recurring requests.
+    alternateNavigationCodes: ["PURCHASING"],
     subItems: [
       { label: "All Subscriptions", path: "/purchasing/recurring" },
       { label: "M&A Scheduled Payments", path: "/purchasing/recurring?filter=MA_SCHEDULED" },

@@ -279,7 +279,11 @@ export default function RecurringPayments() {
     hasPermission("SCHEDULED_PAYMENTS") ||
     (canAccessNavigationItem ? canAccessNavigationItem("SCHEDULED_PAYMENTS") : false) ||
     (canAccessNavigationItem ? canAccessNavigationItem("RECURRING_PAYMENTS") : false);
-  const canAccess = isSuperAdmin || isAP || isTreasury || hasRecurringPermission;
+  const canManageRecurring = isSuperAdmin || isAP || isTreasury || hasRecurringPermission;
+  // Purchase requesters get a read-only view; the backend scopes the list to their own requests.
+  const isRequesterView = !canManageRecurring && hasPermission("PURCHASING_READ");
+  const canAccess = canManageRecurring || isRequesterView;
+  const canCreateRecurring = canManageRecurring || hasPermission("PURCHASING_CREATE");
 
   const [viewMode, setViewMode] = useState<"table" | "calendar" | "master">("table");
   const [searchTerm, setSearchTerm] = useState("");
@@ -428,21 +432,18 @@ export default function RecurringPayments() {
     },
   });
 
-  // Helper to generate default 2-installment schedule starting from a base date
-  const getInitialDefaultSchedule = (baseDate?: string, amount?: number) => {
+  // Helper to generate default schedule starting from a base date
+  const getInitialDefaultSchedule = (baseDate?: string) => {
     const sDate = baseDate || new Date().toISOString().split("T")[0];
     const nextMonth = new Date(sDate + "T00:00:00");
     nextMonth.setMonth(nextMonth.getMonth() + 1);
     const nextMonthIso = formatDateToIso(nextMonth);
     return {
-      is_scheduled: true,
-      frequency: "CUSTOM" as FrequencyType,
+      is_scheduled: false,
+      frequency: "MONTHLY" as FrequencyType,
       start_date: sDate,
       end_date: nextMonthIso,
-      schedule_dates: [
-        { date: sDate, amount: amount && amount > 0 ? amount : undefined, note: "Installment #1" },
-        { date: nextMonthIso, amount: amount && amount > 0 ? amount : undefined, note: "Installment #2" },
-      ] as CustomScheduleDate[],
+      schedule_dates: [] as CustomScheduleDate[],
     };
   };
 
@@ -459,11 +460,11 @@ export default function RecurringPayments() {
     description: "",
     gl_code: "",
     priority: "MEDIUM",
-    is_scheduled: true,
-    frequency: "CUSTOM" as FrequencyType,
+    is_scheduled: false,
+    frequency: "MONTHLY" as FrequencyType,
     start_date: initialSchedule.start_date,
     end_date: initialSchedule.end_date,
-    schedule_dates: initialSchedule.schedule_dates,
+    schedule_dates: [] as CustomScheduleDate[],
   });
 
   // Edit recurring request form state
@@ -479,8 +480,8 @@ export default function RecurringPayments() {
     description: "",
     gl_code: "",
     priority: "MEDIUM",
-    is_scheduled: true,
-    frequency: "CUSTOM" as FrequencyType,
+    is_scheduled: false,
+    frequency: "MONTHLY" as FrequencyType,
     start_date: "",
     end_date: "",
     completed_installments: 0,
@@ -513,11 +514,11 @@ export default function RecurringPayments() {
       description: "",
       gl_code: "",
       priority: "MEDIUM",
-      is_scheduled: true,
-      frequency: "CUSTOM",
+      is_scheduled: false,
+      frequency: "MONTHLY",
       start_date: sched.start_date,
       end_date: sched.end_date,
-      schedule_dates: sched.schedule_dates,
+      schedule_dates: [] as CustomScheduleDate[],
     });
     setIsCreateOpen(true);
   };
@@ -555,11 +556,11 @@ export default function RecurringPayments() {
         description: "",
         gl_code: "",
         priority: "MEDIUM",
-        is_scheduled: true,
-        frequency: "CUSTOM",
+        is_scheduled: false,
+        frequency: "MONTHLY",
         start_date: sched.start_date,
         end_date: sched.end_date,
-        schedule_dates: sched.schedule_dates,
+        schedule_dates: [] as CustomScheduleDate[],
       });
       queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
       queryClient.invalidateQueries({ queryKey: ["purchasing"] });
@@ -631,7 +632,7 @@ export default function RecurringPayments() {
       }
     }
     const sched = req.recurring_schedule;
-    const isSched = sched?.is_scheduled !== undefined ? Boolean(sched.is_scheduled) : true;
+    const isSched = Boolean(sched?.is_scheduled);
     let schedDates: CustomScheduleDate[] = [];
     if (sched?.schedule_dates && sched.schedule_dates.length > 0) {
       schedDates = sched.schedule_dates;
@@ -666,7 +667,7 @@ export default function RecurringPayments() {
       gl_code: req.gl_code || "",
       priority: req.priority || "MEDIUM",
       is_scheduled: isSched,
-      frequency: (sched?.frequency as FrequencyType) || "CUSTOM",
+      frequency: (sched?.frequency as FrequencyType) || (isSched ? "CUSTOM" : "MONTHLY"),
       start_date: sched?.start_date ? sched.start_date.split("T")[0] : (schedDates[0]?.date || (req.due_date ? req.due_date.split("T")[0] : "")),
       end_date: sched?.end_date ? sched.end_date.split("T")[0] : (schedDates[schedDates.length - 1]?.date || ""),
       completed_installments: sched?.completed_installments || 0,
@@ -1275,16 +1276,18 @@ export default function RecurringPayments() {
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={handleOpenCreate}
-              className="h-9 gap-1.5 bg-sky-600 hover:bg-sky-700 text-white shadow-xs"
-            >
-              <Plus size={16} />
-              New Recurring Request
-            </Button>
-          </div>
+          {canCreateRecurring && (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={handleOpenCreate}
+                className="h-9 gap-1.5 bg-sky-600 hover:bg-sky-700 text-white shadow-xs"
+              >
+                <Plus size={16} />
+                New Recurring Request
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1830,6 +1833,7 @@ export default function RecurringPayments() {
                               <CalendarClock size={14} />
                             </Button>
                           )}
+                          {canManageRecurring && (<>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1866,6 +1870,7 @@ export default function RecurringPayments() {
                           >
                             <Trash2 size={14} />
                           </Button>
+                          </>)}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -2291,17 +2296,19 @@ export default function RecurringPayments() {
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const itm = selectedCalendarItem;
-                  setSelectedCalendarItem(null);
-                  handleOpenEdit(itm);
-                }}
-              >
-                Edit Request
-              </Button>
+              {canManageRecurring && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const itm = selectedCalendarItem;
+                    setSelectedCalendarItem(null);
+                    handleOpenEdit(itm);
+                  }}
+                >
+                  Edit Request
+                </Button>
+              )}
               <Button
                 size="sm"
                 onClick={() =>
@@ -2353,7 +2360,7 @@ export default function RecurringPayments() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
@@ -2361,12 +2368,12 @@ export default function RecurringPayments() {
                       </label>
                       {newForm.is_scheduled && newForm.frequency === "CUSTOM" && (
                         <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                          (Managed by Installments)
+                          (Installments)
                         </span>
                       )}
                       {newForm.is_scheduled && newForm.frequency !== "CUSTOM" && (
                         <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                          (Amount per cycle)
+                          (Per cycle)
                         </span>
                       )}
                     </div>
@@ -2392,11 +2399,35 @@ export default function RecurringPayments() {
                   </div>
 
                   <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Frequency <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={newForm.frequency}
+                      onValueChange={(val: any) => setNewForm({ ...newForm, frequency: val })}
+                    >
+                      <SelectTrigger className="h-10 text-sm bg-white dark:bg-zinc-950">
+                        <SelectValue placeholder="Frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MONTHLY">Monthly</SelectItem>
+                        <SelectItem value="ANNUALLY">Annually</SelectItem>
+                        <SelectItem value="WEEKLY">Weekly</SelectItem>
+                        <SelectItem value="BI_WEEKLY">Bi-Weekly</SelectItem>
+                        <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                        <SelectItem value="SEMI_ANNUALLY">Semi-Annually</SelectItem>
+                        <SelectItem value="DAILY">Daily</SelectItem>
+                        <SelectItem value="CUSTOM">Custom Dates</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
                       {newForm.is_scheduled && newForm.frequency === "CUSTOM" && (
                         <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                          (Managed by Schedule)
+                          (From Schedule)
                         </span>
                       )}
                     </div>
@@ -2579,7 +2610,7 @@ export default function RecurringPayments() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
@@ -2587,12 +2618,12 @@ export default function RecurringPayments() {
                         </label>
                         {editForm.is_scheduled && editForm.frequency === "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Managed by Installments)
+                            (Installments)
                           </span>
                         )}
                         {editForm.is_scheduled && editForm.frequency !== "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Amount per cycle)
+                            (Per cycle)
                           </span>
                         )}
                       </div>
@@ -2618,11 +2649,35 @@ export default function RecurringPayments() {
                     </div>
 
                     <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Frequency <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                        value={editForm.frequency}
+                        onValueChange={(val: any) => setEditForm({ ...editForm, frequency: val })}
+                      >
+                        <SelectTrigger className="h-10 text-sm bg-white dark:bg-zinc-950">
+                          <SelectValue placeholder="Frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MONTHLY">Monthly</SelectItem>
+                          <SelectItem value="ANNUALLY">Annually</SelectItem>
+                          <SelectItem value="WEEKLY">Weekly</SelectItem>
+                          <SelectItem value="BI_WEEKLY">Bi-Weekly</SelectItem>
+                          <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                          <SelectItem value="SEMI_ANNUALLY">Semi-Annually</SelectItem>
+                          <SelectItem value="DAILY">Daily</SelectItem>
+                          <SelectItem value="CUSTOM">Custom Dates</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
                         {editForm.is_scheduled && editForm.frequency === "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Managed by Schedule)
+                            (From Schedule)
                           </span>
                         )}
                       </div>
@@ -2795,14 +2850,15 @@ export default function RecurringPayments() {
         request={scheduleModalRequest}
         open={!!scheduleModalRequest}
         onOpenChange={(open) => !open && setScheduleModalRequest(null)}
-        onEditRequest={(req) => {
+        // Without onEditRequest the modal links to the request detail page instead.
+        onEditRequest={canManageRecurring ? (req) => {
           setScheduleModalRequest(null);
           handleOpenEdit(req);
-        }}
-        onEditWireInfo={(req) => {
+        } : undefined}
+        onEditWireInfo={canManageRecurring ? (req) => {
           setScheduleModalRequest(null);
           setWireModalRequest(req);
-        }}
+        } : undefined}
       />
 
       {/* Wire Transfer Dialog (Edit / Record Wire Info for Scheduled Payment) */}

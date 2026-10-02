@@ -151,8 +151,8 @@ export default function PurchaseRequestDetail() {
     description: "",
     gl_code: "",
     priority: "MEDIUM" as Priority,
-    is_scheduled: true,
-    frequency: "CUSTOM" as FrequencyType,
+    is_scheduled: false,
+    frequency: "MONTHLY" as FrequencyType,
     start_date: "",
     end_date: "",
     completed_installments: 0,
@@ -214,7 +214,7 @@ export default function PurchaseRequestDetail() {
   const handleOpenEdit = () => {
     if (!request) return;
     const sched = request.recurring_schedule;
-    const isSched = sched?.is_scheduled !== undefined ? Boolean(sched.is_scheduled) : true;
+    const isSched = Boolean(sched?.is_scheduled);
     let schedDates: CustomScheduleDate[] = [];
     if (sched?.schedule_dates && sched.schedule_dates.length > 0) {
       schedDates = sched.schedule_dates;
@@ -250,7 +250,7 @@ export default function PurchaseRequestDetail() {
       gl_code: request.gl_code || "",
       priority: request.priority || "MEDIUM",
       is_scheduled: isSched,
-      frequency: (sched?.frequency as FrequencyType) || "CUSTOM",
+      frequency: (sched?.frequency as FrequencyType) || (isSched ? "CUSTOM" : "MONTHLY"),
       start_date: sched?.start_date ? sched.start_date.split("T")[0] : (schedDates[0]?.date || (request.due_date ? request.due_date.split("T")[0] : "")),
       end_date: sched?.end_date ? sched.end_date.split("T")[0] : (schedDates[schedDates.length - 1]?.date || ""),
       completed_installments: sched?.completed_installments || 0,
@@ -2375,7 +2375,7 @@ export default function PurchaseRequestDetail() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
@@ -2383,11 +2383,11 @@ export default function PurchaseRequestDetail() {
                         </label>
                         {editForm.is_scheduled && editForm.frequency === "CUSTOM" ? (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Managed by Schedule)
+                            (Installments)
                           </span>
                         ) : editForm.is_scheduled ? (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Amount per cycle)
+                            (Per cycle)
                           </span>
                         ) : null}
                       </div>
@@ -2410,11 +2410,35 @@ export default function PurchaseRequestDetail() {
                     </div>
 
                     <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Frequency <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                        value={editForm.frequency}
+                        onValueChange={(val: any) => setEditForm({ ...editForm, frequency: val })}
+                      >
+                        <SelectTrigger className="h-10 text-sm bg-white dark:bg-zinc-950">
+                          <SelectValue placeholder="Frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MONTHLY">Monthly</SelectItem>
+                          <SelectItem value="ANNUALLY">Annually</SelectItem>
+                          <SelectItem value="WEEKLY">Weekly</SelectItem>
+                          <SelectItem value="BI_WEEKLY">Bi-Weekly</SelectItem>
+                          <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                          <SelectItem value="SEMI_ANNUALLY">Semi-Annually</SelectItem>
+                          <SelectItem value="DAILY">Daily</SelectItem>
+                          <SelectItem value="CUSTOM">Custom Dates</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
                         {editForm.is_scheduled && editForm.frequency === "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Managed by Schedule)
+                            (From Schedule)
                           </span>
                         )}
                       </div>
