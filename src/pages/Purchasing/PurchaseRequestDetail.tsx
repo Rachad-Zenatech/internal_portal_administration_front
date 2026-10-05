@@ -719,7 +719,6 @@ export default function PurchaseRequestDetail() {
   const workflowSteps = [
     { key: RequestStatus.UnderReview, label: "Under Review" },
     { key: RequestStatus.WaitingPayment, label: `Waiting Payment ${cycleBracket}` },
-    { key: RequestStatus.InvoiceReceived, label: `Invoice Received ${cycleBracket}` },
     { key: RequestStatus.Completed, label: "Completed" },
   ];
 
@@ -1031,15 +1030,24 @@ export default function PurchaseRequestDetail() {
                 </Button>
               ) : (
                 <>
-                  {parsedStatus === RequestStatus.InvoiceReceived && (
+                  {(parsedStatus === RequestStatus.InvoiceReceived || parsedStatus === RequestStatus.WaitingPayment) && (
                     <Button
                       size="sm"
-                      onClick={() =>
+                      onClick={() => {
+                        const hasInvOrReceipt = Boolean(
+                          (requestDetail?.invoices && requestDetail.invoices.length > 0) ||
+                          requestDetail?.invoice ||
+                          attachments.length > 0
+                        );
+                        if (!hasInvOrReceipt) {
+                          toast.error("Please record an invoice or upload a receipt before completing this request.");
+                          return;
+                        }
                         transitionMutation.mutate({
                           action: "COMPLETE",
                           comment: `Settled cycle ${currentCycle} payment and advanced recurring cycle`,
-                        })
-                      }
+                        });
+                      }}
                       disabled={transitionMutation.isPending}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5 h-8 font-semibold shadow-2xs"
                     >
@@ -1053,12 +1061,21 @@ export default function PurchaseRequestDetail() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
+                      onClick={() => {
+                        const hasInvOrReceipt = Boolean(
+                          (requestDetail?.invoices && requestDetail.invoices.length > 0) ||
+                          requestDetail?.invoice ||
+                          attachments.length > 0
+                        );
+                        if (!hasInvOrReceipt) {
+                          toast.error("Please record an invoice or upload a receipt before completing this request.");
+                          return;
+                        }
                         transitionMutation.mutate({
                           action: "COMPLETE",
                           comment: "Completed recurring billing item",
-                        })
-                      }
+                        });
+                      }}
                       disabled={transitionMutation.isPending}
                       className="text-xs h-8 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300"
                     >

@@ -35,7 +35,10 @@ import {
   Receipt,
   ChevronDown,
   CalendarCheck,
+  MoreHorizontal,
+  Repeat,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,12 +90,18 @@ import {
   type RequestCreateInput,
   type RequestType,
   type ItemMode,
+  type PurchaseRequest,
   type PurchaseRequestItem,
   type QuoteExtractionResponse,
   type WireTransferInput,
+  type FrequencyType,
+  type CustomScheduleDate,
 } from "@/types/purchasing";
 import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
 import { WireBankingFields } from "./WireBankingFields";
+import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
+import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
+import { calculateInstallmentsCount } from "./recurringScheduleUtils";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   STATUS_FILTER_OPTIONS,
@@ -108,6 +117,7 @@ import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { QuickBooksExportDialog } from "./QuickBooksExportDialog";
 import PrioritySelector from "./PrioritySelector";
 import { uploadAttachments, extractProductInfoFromUrl } from "@/services/purchasingService";
+import { ConvertToRecurringDialog } from "./ConvertToRecurringDialog";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 
 function RequesterAutocomplete({
@@ -282,12 +292,21 @@ const EMPTY_FORM: RequestCreateInput = {
 export function PurchaseRequests() {
   const kpiRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [convertingRequest, setConvertingRequest] = useState<PurchaseRequest | null>(null);
   const [itemMode, setItemMode] = useState<ItemMode>("SINGLE");
   const [form, setForm] = useState<RequestCreateInput>(EMPTY_FORM);
   const [apWireForm, setApWireForm] = useState<WireTransferInput>(EMPTY_WIRE_FORM);
+
+  // Recurring Schedule States for RECURRING request_type
+  const [isScheduled, setIsScheduled] = useState<boolean>(false);
+  const [schedFrequency, setSchedFrequency] = useState<FrequencyType>("MONTHLY");
+  const [schedStartDate, setSchedStartDate] = useState<string>("");
+  const [schedEndDate, setSchedEndDate] = useState<string>("");
+  const [schedDates, setSchedDates] = useState<CustomScheduleDate[]>([]);
 
   // URL Product Extraction state
   const [isExtractingUrl, setIsExtractingUrl] = useState(false);
@@ -453,7 +472,7 @@ export function PurchaseRequests() {
   const createMutation = useCreateRequest();
   const extractQuoteMutation = useExtractQuote();
 
-  const openCreate = () => {
+  const openCreate = (initialType: RequestType = "SPEND") => {
     if (!canCreate) {
       toast.error("You do not have permission to create purchase requests");
       return;
@@ -470,17 +489,26 @@ export function PurchaseRequests() {
       ? resolveUserDepartment(matchedUser, effectiveRoles)
       : (resolveUserDepartment({ ...user, roles }, effectiveRoles) || (user?.department && user.department.toUpperCase() !== "REQUESTER" ? user.department : "") || "");
 
+    const todayIso = new Date().toISOString().split("T")[0];
+
     setForm({
       ...EMPTY_FORM,
+      request_type: initialType,
       requester: defaultRequester,
       department: defaultDept || "",
+      due_date: initialType === "RECURRING" ? todayIso : "",
     });
     setApWireForm({
       ...EMPTY_WIRE_FORM,
-      entry_date: new Date().toISOString().split("T")[0],
-      payment_date: new Date().toISOString().split("T")[0],
+      entry_date: todayIso,
+      payment_date: todayIso,
     });
     setItemMode("SINGLE");
+    setIsScheduled(false);
+    setSchedFrequency("MONTHLY");
+    setSchedStartDate(todayIso);
+    setSchedEndDate("");
+    setSchedDates([]);
     setQuoteFile(null);
     setQuoteExtraction(null);
     setQuoteItems([]);
@@ -632,9 +660,10 @@ export function PurchaseRequests() {
       quoteItems.length > 0 ||
       quoteExtraction !== null ||
       shippingFee > 0 ||
-      taxFee > 0
+      taxFee > 0 ||
+      (form.request_type === "RECURRING" && (form.amount || isScheduled || schedDates.length > 0))
     );
-  }, [isDialogOpen, form, quoteItems, quoteExtraction, shippingFee, taxFee]);
+  }, [isDialogOpen, form, quoteItems, quoteExtraction, shippingFee, taxFee, isScheduled, schedDates]);
 
   const handleRequestClose = () => {
     if (isDirty) {
@@ -647,6 +676,7 @@ export function PurchaseRequests() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const isAP = form.request_type === "ACCOUNTS_PAYABLE";
+    const isRecurring = form.request_type === "RECURRING";
     let effectiveTitle = form.title;
     if (isAP && !effectiveTitle && apWireForm.vendor) {
       effectiveTitle = `Payment for ${apWireForm.vendor}${apWireForm.invoice_number ? ` - Inv #${apWireForm.invoice_number}` : ""}`;
@@ -662,7 +692,12 @@ export function PurchaseRequests() {
       return;
     }
 
-    if (itemMode === "MULTIPLE" && quoteItems.length === 0) {
+    if (isRecurring && (!form.amount || Number(form.amount) <= 0) && (!schedDates.length || schedFrequency !== "CUSTOM")) {
+      toast.error("Please enter a recurring payment amount.");
+      return;
+    }
+
+    if (!isRecurring && itemMode === "MULTIPLE" && quoteItems.length === 0) {
       toast.error("Please upload a quote PDF or add at least one line item for Multiple Parts.");
       return;
     }
@@ -682,17 +717,75 @@ export function PurchaseRequests() {
         original_currency: isForeign ? quoteCurr : undefined,
       })) : undefined;
 
+      const isCustom = schedFrequency === "CUSTOM";
+      const customDates = isCustom ? schedDates : [];
+      const isSched = Boolean(
+        isScheduled &&
+        (isCustom ? customDates.length > 0 : schedStartDate && schedEndDate)
+      );
+
+      let totalCycles: number | null = null;
+      let totalAmt: number | null = null;
+      const baseAmt = isCustom && customDates.length > 0
+        ? customDates.reduce((acc, itm) => acc + (itm.amount != null ? itm.amount : 0), 0)
+        : Number(form.amount || form.unit_price || 0);
+
+      if (isSched) {
+        if (isCustom) {
+          totalCycles = customDates.length;
+          totalAmt = customDates.reduce((acc, itm) => acc + (itm.amount != null ? itm.amount : baseAmt), 0);
+        } else {
+          totalCycles = calculateInstallmentsCount(schedStartDate, schedEndDate, schedFrequency);
+          totalAmt = totalCycles ? Math.round(baseAmt * totalCycles * 100) / 100 : null;
+        }
+      }
+
+      const effectiveStartDate = isCustom && customDates.length > 0 ? customDates[0].date : (schedStartDate || form.due_date || new Date().toISOString().split("T")[0]);
+      const effectiveEndDate = isCustom && customDates.length > 0 ? customDates[customDates.length - 1].date : schedEndDate;
+
+      const recurringScheduleObj = isRecurring ? (isSched ? {
+        is_scheduled: true,
+        frequency: schedFrequency,
+        start_date: effectiveStartDate,
+        end_date: effectiveEndDate,
+        total_installments: totalCycles,
+        completed_installments: 0,
+        amount_per_cycle: baseAmt,
+        total_amount: totalAmt,
+        custom_dates: isCustom ? customDates.map((d) => d.date) : null,
+        schedule_dates: isCustom ? customDates : null,
+      } : {
+        is_scheduled: false,
+        frequency: schedFrequency || "MONTHLY",
+        start_date: form.due_date || effectiveStartDate,
+        end_date: null,
+        total_installments: null,
+        completed_installments: 0,
+        amount_per_cycle: baseAmt,
+        total_amount: null,
+      }) : undefined;
+
       const payload: RequestCreateInput = {
         ...form,
         title: effectiveTitle,
-        item_mode: isAP ? "SINGLE" : itemMode,
-        amount: isAP ? (Number(apWireForm.amount) || 0) : (itemMode === "MULTIPLE" && isForeign ? finalUsdAmount : totalCalculatedAmount),
+        item_mode: isAP || isRecurring ? "SINGLE" : itemMode,
+        amount: isAP
+          ? (Number(apWireForm.amount) || 0)
+          : isRecurring
+          ? baseAmt
+          : (itemMode === "MULTIPLE" && isForeign ? finalUsdAmount : totalCalculatedAmount),
+        unit_price: isRecurring ? baseAmt : form.unit_price,
         currency: isAP ? (apWireForm.currency || "USD") : (form.currency || "USD"),
         product_info: extractedProductInfo || form.product_info || undefined,
-        due_date: isAP ? (apWireForm.due_date || undefined) : undefined,
-        items: isAP ? undefined : finalItems,
+        due_date: isAP
+          ? (apWireForm.due_date || undefined)
+          : isRecurring
+          ? (form.due_date || effectiveStartDate)
+          : undefined,
+        recurring_schedule: recurringScheduleObj,
+        items: (isAP || isRecurring) ? undefined : finalItems,
         quote_file_id: undefined,
-        quote_data: isAP ? undefined : (quoteExtraction?.extraction || undefined),
+        quote_data: (isAP || isRecurring) ? undefined : (quoteExtraction?.extraction || undefined),
         wire_transfer: isAP ? {
           ...apWireForm,
           amount: Number(apWireForm.amount) || 0,
@@ -709,7 +802,7 @@ export function PurchaseRequests() {
           toast.error("Request created, but failed to upload quote attachment.");
         }
       }
-      toast.success(`Request ${detail.request.id} created`);
+      toast.success(isRecurring ? `Recurring request #${detail.request.id} created successfully` : `Request ${detail.request.id} created`);
       setIsDialogOpen(false);
       navigate(`/purchasing/requests/${detail.request.id}`);
     } catch (err) {
@@ -761,16 +854,16 @@ export function PurchaseRequests() {
                   <ChevronDown className="h-3.5 w-3.5 opacity-70" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60 p-1.5 shadow-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+              <DropdownMenuContent align="end" className="w-64 p-1.5 shadow-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                 <DropdownMenuItem
-                  onClick={openCreate}
+                  onClick={() => openCreate("SPEND")}
                   className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium cursor-pointer rounded-md text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800"
                 >
                   <ShoppingCart className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   <span>Create Purchase Request</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => navigate("/purchasing/recurring?create=true")}
+                  onClick={() => openCreate("RECURRING")}
                   className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium cursor-pointer rounded-md text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800"
                 >
                   <CalendarCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -941,12 +1034,13 @@ export function PurchaseRequests() {
               <TableHead className="whitespace-nowrap">Priority</TableHead>
               <TableHead className="whitespace-nowrap">Status</TableHead>
               <TableHead className="whitespace-nowrap min-w-[110px]">Date</TableHead>
+              <TableHead className="w-10 text-right whitespace-nowrap">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-slate-500">
+                <TableCell colSpan={10} className="text-center py-8 text-slate-500">
                   Loading requests...
                 </TableCell>
               </TableRow>
@@ -1019,11 +1113,38 @@ export function PurchaseRequests() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-slate-500 text-sm whitespace-nowrap min-w-[110px]">{formatDate(r.request_date)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 shadow-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                        <DropdownMenuItem
+                          onClick={() => navigate(`/purchasing/requests/${r.id}`)}
+                          className="cursor-pointer"
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                          <span>View Details</span>
+                        </DropdownMenuItem>
+                        {r.request_type !== "RECURRING" && r.request_type !== "SCHEDULED_PAYMENT" && (
+                          <DropdownMenuItem
+                            onClick={() => setConvertingRequest(r)}
+                            className="cursor-pointer text-emerald-700 dark:text-emerald-400 focus:text-emerald-700 dark:focus:text-emerald-400"
+                          >
+                            <Repeat className="h-3.5 w-3.5 mr-2 text-emerald-600 dark:text-emerald-400" />
+                            <span>Convert to Recurring</span>
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-slate-500">
+                <TableCell colSpan={10} className="text-center py-8 text-slate-500">
                   No requests found.
                 </TableCell>
               </TableRow>
@@ -1062,8 +1183,14 @@ export function PurchaseRequests() {
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span>New Purchase Request</span>
-              {form.request_type !== "ACCOUNTS_PAYABLE" && itemMode === "MULTIPLE" && (
+              <span>
+                {form.request_type === "RECURRING"
+                  ? "New Recurring / Subscription Payment"
+                  : form.request_type === "ACCOUNTS_PAYABLE"
+                  ? "New Accounts Payable Request"
+                  : "New Purchase Request"}
+              </span>
+              {form.request_type !== "ACCOUNTS_PAYABLE" && form.request_type !== "RECURRING" && itemMode === "MULTIPLE" && (
                 <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border-indigo-200">
                   <Sparkles className="h-3 w-3 mr-1" /> Multi-Part Quote OCR
                 </Badge>
@@ -1077,9 +1204,10 @@ export function PurchaseRequests() {
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                 Request Type <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 {[
                   { value: "SPEND", label: "Spend Request", icon: ShoppingCart, desc: "Purchases, parts & hardware" },
+                  { value: "RECURRING", label: "Recurring", icon: Clock, desc: "Subscriptions & scheduled cycles" },
                   { value: "QUOTE", label: "Quote Request", icon: FileSpreadsheet, desc: "Estimates & RFQs" },
                   { value: "ADMIN", label: "Admin Triage", icon: FileText, desc: "Administrative & general" },
                   { value: "ACCOUNTS_PAYABLE", label: "Accounts Payable", icon: Landmark, desc: "Vendor invoices & wire payments" },
@@ -1091,7 +1219,7 @@ export function PurchaseRequests() {
                       type="button"
                       onClick={() => {
                         setForm((prev) => ({ ...prev, request_type: opt.value as RequestType }));
-                        if (opt.value === "ACCOUNTS_PAYABLE") {
+                        if (opt.value === "ACCOUNTS_PAYABLE" || opt.value === "RECURRING") {
                           setItemMode("SINGLE");
                         }
                       }}
@@ -1107,7 +1235,7 @@ export function PurchaseRequests() {
                           {opt.label}
                         </span>
                       </div>
-                      <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 leading-tight line-clamp-1">
+                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 leading-tight line-clamp-1">
                         {opt.desc}
                       </span>
                     </button>
@@ -1117,7 +1245,7 @@ export function PurchaseRequests() {
             </div>
 
             {/* 2. Mode Selector (Single Item vs Multiple Parts) - Only for Spend, Quote, Admin */}
-            {form.request_type !== "ACCOUNTS_PAYABLE" && (
+            {form.request_type !== "ACCOUNTS_PAYABLE" && form.request_type !== "RECURRING" && (
               <div className="p-3 bg-slate-50/70 dark:bg-zinc-800/40 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400 block">
                   Item Configuration
@@ -1144,7 +1272,7 @@ export function PurchaseRequests() {
             )}
 
             {/* 3. Multiple Parts PDF Dropzone & AI Extraction + Line Items Table */}
-            {form.request_type !== "ACCOUNTS_PAYABLE" && itemMode === "MULTIPLE" && (
+            {form.request_type !== "ACCOUNTS_PAYABLE" && form.request_type !== "RECURRING" && itemMode === "MULTIPLE" && (
               <div className="space-y-4 p-4 rounded-xl bg-gradient-to-b from-indigo-50/50 to-transparent dark:from-indigo-950/20 dark:to-transparent border border-indigo-200/80 dark:border-indigo-900/60 shadow-xs">
                 {/* PDF Upload (Optional) */}
                 <div className="space-y-2">
@@ -1500,7 +1628,7 @@ export function PurchaseRequests() {
             )}
 
             {/* Product / Website Link (Placed directly above Request Title with Live Auto-Extraction) */}
-            {(form.request_type === "ACCOUNTS_PAYABLE" || itemMode === "SINGLE") && (
+            {(form.request_type === "ACCOUNTS_PAYABLE" || form.request_type === "RECURRING" || itemMode === "SINGLE") && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
@@ -1609,13 +1737,15 @@ export function PurchaseRequests() {
             <div className="space-y-3.5">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                  Request Title <span className="text-red-500">*</span>
+                  {form.request_type === "RECURRING" ? "Subscription / Service Name" : "Request Title"} <span className="text-red-500">*</span>
                 </label>
                 <Input
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   placeholder={
-                    form.request_type === "ACCOUNTS_PAYABLE"
+                    form.request_type === "RECURRING"
+                      ? "e.g. AWS Cloud Infrastructure, Slack Enterprise, Datadog"
+                      : form.request_type === "ACCOUNTS_PAYABLE"
                       ? "e.g. Payment for Dell Technologies (Invoice #1049)"
                       : "e.g. Dell laptop for new hire or Quote Q-10294"
                   }
@@ -1779,53 +1909,153 @@ export function PurchaseRequests() {
               </div>
             )}
 
-            {/* 6. Single Item specific Pricing & Quantity (Hidden for Accounts Payable) */}
-            {form.request_type !== "ACCOUNTS_PAYABLE" && itemMode === "SINGLE" && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Quantity</label>
-                  <Input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={form.quantity ?? 1}
-                    onChange={(e) => {
-                      const q = Number(e.target.value) || 1;
-                      setForm((prev) => ({
-                        ...prev,
-                        quantity: q,
-                        amount: (Number(prev.unit_price) || 0) * q,
-                      }));
-                    }}
-                    className="h-9 text-xs"
-                  />
+            {/* 6. Single Item specific Pricing & Quantity (Hidden for Accounts Payable & Recurring) */}
+            {form.request_type !== "ACCOUNTS_PAYABLE" && form.request_type !== "RECURRING" && itemMode === "SINGLE" && (
+              <div className="space-y-3.5 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Quantity</label>
+                    <Input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={form.quantity ?? 1}
+                      onChange={(e) => {
+                        const q = Number(e.target.value) || 1;
+                        setForm((prev) => ({
+                          ...prev,
+                          quantity: q,
+                          amount: (Number(prev.unit_price) || 0) * q,
+                        }));
+                      }}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Unit Price</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={form.unit_price ? form.unit_price : ""}
+                      onChange={(e) => {
+                        const p = parseFloat(e.target.value) || 0;
+                        setForm((prev) => ({
+                          ...prev,
+                          unit_price: p,
+                          amount: p * (prev.quantity || 1),
+                        }));
+                      }}
+                      className="h-9 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Currency</label>
+                    <CurrencyAutocomplete
+                      value={form.currency || "USD"}
+                      onChange={(curr) => setForm((prev) => ({ ...prev, currency: curr }))}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Unit Price</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={form.unit_price ? form.unit_price : ""}
-                    onChange={(e) => {
-                      const p = parseFloat(e.target.value) || 0;
-                      setForm((prev) => ({
-                        ...prev,
-                        unit_price: p,
-                        amount: p * (prev.quantity || 1),
-                      }));
-                    }}
-                    className="h-9 text-xs font-mono"
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
+                  <GLCodeAutocomplete
+                    value={form.gl_code || ""}
+                    onChange={(val) => setForm((prev) => ({ ...prev, gl_code: val }))}
                   />
                 </div>
+              </div>
+            )}
+
+            {/* 6b. Recurring & Subscription Specific Fields */}
+            {form.request_type === "RECURRING" && (
+              <div className="space-y-4 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Amount (USD) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={
+                          isScheduled && schedFrequency === "CUSTOM" && schedDates.length > 0
+                            ? (schedDates.reduce((acc, itm) => acc + (itm.amount != null ? itm.amount : 0), 0) || "").toString()
+                            : (form.amount ? form.amount : "")
+                        }
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setForm((prev) => ({ ...prev, amount: val, unit_price: val }));
+                        }}
+                        disabled={isScheduled && schedFrequency === "CUSTOM"}
+                        className="h-9 text-xs font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                        required={!(isScheduled && schedFrequency === "CUSTOM")}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Frequency <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={schedFrequency}
+                      onValueChange={(val: any) => setSchedFrequency(val)}
+                    >
+                      <SelectTrigger className="h-9 text-xs bg-white dark:bg-zinc-950">
+                        <SelectValue placeholder="Frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MONTHLY">Monthly</SelectItem>
+                        <SelectItem value="ANNUALLY">Annually</SelectItem>
+                        <SelectItem value="WEEKLY">Weekly</SelectItem>
+                        <SelectItem value="BI_WEEKLY">Bi-Weekly</SelectItem>
+                        <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                        <SelectItem value="SEMI_ANNUALLY">Semi-Annually</SelectItem>
+                        <SelectItem value="DAILY">Daily</SelectItem>
+                        <SelectItem value="CUSTOM">Custom Dates</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
+                    <Input
+                      type="date"
+                      value={form.due_date || schedStartDate}
+                      onChange={(e) => setForm((prev) => ({ ...prev, due_date: e.target.value }))}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <ScheduleDatesBuilder
+                  isScheduled={isScheduled}
+                  onIsScheduledChange={setIsScheduled}
+                  frequency={schedFrequency}
+                  onFrequencyChange={setSchedFrequency}
+                  startDate={schedStartDate}
+                  onStartDateChange={setSchedStartDate}
+                  endDate={schedEndDate}
+                  onEndDateChange={setSchedEndDate}
+                  scheduleDates={schedDates}
+                  onScheduleDatesChange={setSchedDates}
+                  baseAmount={form.amount || 0}
+                />
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Currency</label>
-                  <CurrencyAutocomplete
-                    value={form.currency || "USD"}
-                    onChange={(curr) => setForm((prev) => ({ ...prev, currency: curr }))}
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
+                  <GLCodeAutocomplete
+                    value={form.gl_code || ""}
+                    onChange={(val) => setForm((prev) => ({ ...prev, gl_code: val }))}
                   />
                 </div>
               </div>
@@ -1834,12 +2064,16 @@ export function PurchaseRequests() {
             {/* 7. Description / Notes */}
             <div className="space-y-1.5 pt-1">
               <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                Description / Justification
+                {form.request_type === "RECURRING" ? "Subscription Terms / Description" : "Description / Justification"}
               </label>
               <Textarea
                 value={form.description ?? ""}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="What is being requested and why?"
+                placeholder={
+                  form.request_type === "RECURRING"
+                    ? "Billing schedule, renewal terms, seat count, invoice reference..."
+                    : "What is being requested and why?"
+                }
                 rows={3}
                 className="text-xs bg-white dark:bg-zinc-900"
               />
@@ -1850,7 +2084,7 @@ export function PurchaseRequests() {
                 Cancel
               </Button>
               <Button type="submit" disabled={createMutation.isPending || extractQuoteMutation.isPending}>
-                {createMutation.isPending ? "Creating..." : "Create Request"}
+                {createMutation.isPending ? "Creating..." : form.request_type === "RECURRING" ? "Create Recurring Request" : "Create Request"}
               </Button>
             </DialogFooter>
           </form>
@@ -2044,6 +2278,19 @@ export function PurchaseRequests() {
         onOpenChange={handleClosePreview}
         target={previewTarget}
       />
+
+      {/* Convert to Recurring Purchase Dialog */}
+      {convertingRequest && (
+        <ConvertToRecurringDialog
+          open={Boolean(convertingRequest)}
+          onOpenChange={(open) => !open && setConvertingRequest(null)}
+          request={convertingRequest}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+            queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+          }}
+        />
+      )}
     </div>
   );
 }

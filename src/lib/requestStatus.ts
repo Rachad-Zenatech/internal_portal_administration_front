@@ -34,7 +34,8 @@ const ALIASES: Readonly<Record<string, RequestStatus>> = {
   IN_TRANSIT: RequestStatus.Shipped,
   RECEIVED: RequestStatus.GoodsReceived,
   ITEMS_RECEIVED: RequestStatus.GoodsReceived,
-  INVOICE_RECORDED: RequestStatus.InvoiceReceived,
+  INVOICE_RECORDED: RequestStatus.WaitingPayment,
+  INVOICE_RECEIVED: RequestStatus.WaitingPayment,
   CLOSED: RequestStatus.Completed,
   FINALISED: RequestStatus.Completed,
   FINALIZED: RequestStatus.Completed,
@@ -50,7 +51,7 @@ const ALIASES: Readonly<Record<string, RequestStatus>> = {
  */
 const SUBSTRING_RULES: ReadonlyArray<readonly [string, RequestStatus]> = [
   ["HOLD", RequestStatus.OnHold],
-  ["INVOICE RECEIVED", RequestStatus.InvoiceReceived],
+  ["INVOICE RECEIVED", RequestStatus.WaitingPayment],
   ["GOODS", RequestStatus.GoodsReceived],
   ["UNDER REVIEW", RequestStatus.UnderReview],
   ["WAITING APPROVAL", RequestStatus.WaitingApproval],
@@ -109,7 +110,6 @@ export const PIPELINE_ORDER: readonly RequestStatus[] = [
   RequestStatus.Purchased,
   RequestStatus.Shipped,
   RequestStatus.GoodsReceived,
-  RequestStatus.InvoiceReceived,
   RequestStatus.Completed,
 ];
 
