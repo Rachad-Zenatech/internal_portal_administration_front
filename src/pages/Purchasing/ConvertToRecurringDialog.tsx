@@ -5,7 +5,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -13,13 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Repeat,
   AlertCircle,
@@ -181,174 +173,157 @@ export function ConvertToRecurringDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-        <DialogHeader>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-8 w-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Repeat className="h-4 w-4" />
+      <DialogContent
+        className="!w-[95vw] !max-w-[1200px] sm:!max-w-[1200px] max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl rounded-2xl"
+        style={{ width: "95vw", maxWidth: "1200px" }}
+      >
+        <div className="p-6 sm:px-8 border-b border-slate-100 dark:border-zinc-800/80 shrink-0">
+          <DialogHeader className="gap-0">
+            <div className="flex items-center gap-3.5">
+              <div className="h-11 w-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-xs">
+                <Repeat className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                  Convert Request #{request.id} to Recurring Purchase
+                </DialogTitle>
+                <DialogDescription className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-1">
+                  Transform this one-time spend request into an ongoing subscription or scheduled recurring payment cycle.
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <DialogTitle className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                Convert Request #{request.id} to Recurring Purchase
-              </DialogTitle>
-              <DialogDescription className="text-xs text-slate-500 dark:text-zinc-400">
-                Transform this one-time spend request into an ongoing subscription or scheduled cycle.
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-
-        {/* Informational Request Summary Card */}
-        <div className="rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/60 p-3 text-xs space-y-1.5">
-          <div className="flex items-center justify-between font-semibold text-slate-800 dark:text-zinc-200">
-            <span className="truncate max-w-[320px]">{request.title}</span>
-            <Badge variant="outline" className="font-mono text-[10px] uppercase">
-              Current: {request.request_type || "SPEND"}
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 text-[11px]">
-            <span>
-              Requester: <strong className="text-slate-700 dark:text-zinc-300">{request.requester || "—"}</strong>
-              {request.department ? ` • ${request.department}` : ""}
-            </span>
-            <span>
-              Stated Total: <strong className="text-slate-800 dark:text-zinc-200">{formatMoney(initialAmount, request.currency || "USD")}</strong>
-            </span>
-          </div>
+          </DialogHeader>
         </div>
 
-        <form onSubmit={handleConvert} className="space-y-4 pt-1">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            {/* Amount per cycle */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                Cycle Amount (USD) <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={cycleAmount}
-                  onChange={(e) => setCycleAmount(e.target.value)}
-                  className="h-9 text-xs font-mono pl-7 bg-white dark:bg-zinc-950"
-                  required
-                />
+        <form onSubmit={handleConvert} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+            {/* Informational Request Summary Card */}
+            <div className="rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700/60 p-4 sm:p-5 text-sm space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-slate-800 dark:text-zinc-100">
+                <span className="text-base truncate max-w-[650px]">{request.title}</span>
+                <Badge variant="outline" className="font-mono text-xs uppercase px-2.5 py-0.5 border-slate-300 dark:border-zinc-700">
+                  Current Type: {request.request_type || "SPEND"}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 text-slate-500 dark:text-zinc-400 text-xs sm:text-sm">
+                <span>
+                  Requester: <strong className="text-slate-800 dark:text-zinc-200 font-medium">{request.requester || "—"}</strong>
+                  {request.department ? ` • ${request.department}` : ""}
+                </span>
+                <span>
+                  Current Total: <strong className="text-slate-900 dark:text-zinc-100 text-sm font-semibold">{formatMoney(initialAmount, request.currency || "USD")}</strong>
+                </span>
               </div>
             </div>
 
-            {/* Frequency Selector */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                Billing Cadence <span className="text-rose-500">*</span>
-              </label>
-              <Select
-                value={frequency}
-                onValueChange={(val: any) => setFrequency(val)}
-              >
-                <SelectTrigger className="h-9 text-xs bg-white dark:bg-zinc-950">
-                  <SelectValue placeholder="Select Frequency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MONTHLY">Monthly</SelectItem>
-                  <SelectItem value="ANNUALLY">Annually</SelectItem>
-                  <SelectItem value="WEEKLY">Weekly</SelectItem>
-                  <SelectItem value="BI_WEEKLY">Bi-Weekly</SelectItem>
-                  <SelectItem value="QUARTERLY">Quarterly</SelectItem>
-                  <SelectItem value="SEMI_ANNUALLY">Semi-Annually</SelectItem>
-                  <SelectItem value="DAILY">Daily</SelectItem>
-                  <SelectItem value="CUSTOM">Custom Dates</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Amount per cycle */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+                  Cycle Amount (USD) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={cycleAmount}
+                    onChange={(e) => setCycleAmount(e.target.value)}
+                    className="h-10 text-sm font-mono pl-8 bg-white dark:bg-zinc-950"
+                    required
+                  />
+                </div>
+              </div>
 
-            {/* Next Due Date */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
-                <span>Next Due Date <span className="text-rose-500">*</span></span>
-              </label>
-              <div className="relative">
-                <Input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="h-9 text-xs bg-white dark:bg-zinc-950"
-                  required
-                />
+              {/* Next Due Date */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+                  <span>Next Billing Due Date <span className="text-rose-500">*</span></span>
+                </label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="h-10 text-sm bg-white dark:bg-zinc-950"
+                    required
+                  />
+                </div>
               </div>
             </div>
+
+            {/* Schedule Builder for milestones or fixed start/end dates */}
+            <div className="pt-2">
+              <ScheduleDatesBuilder
+                isScheduled={isScheduled}
+                onIsScheduledChange={setIsScheduled}
+                frequency={frequency}
+                onFrequencyChange={setFrequency}
+                startDate={startDate}
+                onStartDateChange={setStartDate}
+                endDate={endDate}
+                onEndDateChange={setEndDate}
+                scheduleDates={scheduleDates}
+                onScheduleDatesChange={setScheduleDates}
+                baseAmount={numCycleAmount}
+                currency={request.currency || "USD"}
+              />
+            </div>
+
+            {/* Description & Terms */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+                Subscription Terms / Renewal Notes
+              </label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g. Annual auto-renewal, monthly SaaS subscription, cancellation terms..."
+                rows={3}
+                className="text-sm bg-white dark:bg-zinc-950 resize-y"
+              />
+            </div>
+
+            <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs sm:text-sm">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                Once converted, this request will transition to <strong>Recurring Payments</strong> and follow subscription billing schedules and reminder workflows.
+              </span>
+            </div>
           </div>
 
-          {/* Schedule Builder for milestones or fixed start/end dates */}
-          <div className="pt-1">
-            <ScheduleDatesBuilder
-              isScheduled={isScheduled}
-              onIsScheduledChange={setIsScheduled}
-              frequency={frequency}
-              onFrequencyChange={setFrequency}
-              startDate={startDate}
-              onStartDateChange={setStartDate}
-              endDate={endDate}
-              onEndDateChange={setEndDate}
-              scheduleDates={scheduleDates}
-              onScheduleDatesChange={setScheduleDates}
-              baseAmount={numCycleAmount}
-              currency={request.currency || "USD"}
-            />
-          </div>
-
-          {/* Description & Terms */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-              Subscription Terms / Renewal Notes
-            </label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Annual auto-renewal, monthly SaaS subscription, cancellation terms..."
-              rows={2}
-              className="text-xs bg-white dark:bg-zinc-950 resize-none"
-            />
-          </div>
-
-          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs">
-            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-            <span>
-              Once converted, this request will transition to <strong>Recurring Payments</strong> and follow subscription billing schedules and reminder workflows.
-            </span>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <div className="p-4 sm:px-8 border-t border-slate-100 dark:border-zinc-800/80 bg-slate-50/80 dark:bg-zinc-900/90 backdrop-blur-xs flex items-center justify-end gap-3 shrink-0">
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="default"
               onClick={() => onOpenChange(false)}
               disabled={updateMutation.isPending}
+              className="h-10 px-5 text-sm"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              size="sm"
+              size="default"
               disabled={updateMutation.isPending}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+              className="h-10 px-6 text-sm bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-medium shadow-xs"
             >
               {updateMutation.isPending ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Converting...</span>
                 </>
               ) : (
                 <>
-                  <Repeat className="h-3.5 w-3.5" />
+                  <Repeat className="h-4 w-4" />
                   <span>Confirm &amp; Convert to Recurring</span>
                 </>
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
