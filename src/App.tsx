@@ -33,12 +33,16 @@ const MyApprovals = lazy(() => import("./pages/Purchasing/MyApprovals"));
 const AccountReceivable = lazy(() => import("./pages/AccountReceivable/AccountReceivablePage"));
 const GenerateInvoicePage = lazy(() => import("./pages/AccountReceivable/GenerateInvoicePage"));
 const GenerateQuotePage = lazy(() => import("./pages/AccountReceivable/GenerateQuotePage"));
+const QuoteDetailPage = lazy(() => import("./pages/AccountReceivable/QuoteDetailPage"));
 const WorkflowDetailPage = lazy(() => import("./pages/AccountReceivable/WorkflowDetailPage"));
 const Login = lazy(() => import("./pages/Login"));
 const PendingAccess = lazy(() => import("./pages/PendingAccess"));
 
 // Order System Pages
 const SystemLogsPage = lazy(() => import("./pages/Logs/SystemLogsPage"));
+
+// Customer Public Quote View
+const CustomerQuoteViewPage = lazy(() => import("./pages/AccountReceivable/CustomerQuoteViewPage"));
 
 function NotFoundAlert() {
   return (
@@ -67,6 +71,10 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/pending-access" element={<PendingAccess />} />
 
+            {/* Public Customer Quote Links (No internal auth required) */}
+            <Route path="/q/:token" element={<CustomerQuoteViewPage />} />
+            <Route path="/q/mobile/:token" element={<CustomerQuoteViewPage />} />
+
             {/* Main app layout routes */}
             <Route element={<ProtectedRoute><AppShell><Outlet /></AppShell></ProtectedRoute>}>
               <Route path="/" element={<Navigate to="/purchasing/requests" replace />} />
@@ -90,11 +98,15 @@ function App() {
               {/* Account Receivable (AR) */}
               <Route path="/account-receivable" element={<ProtectedRoute><AccountReceivable /></ProtectedRoute>} />
               <Route path="/account-receivable/generate" element={<ProtectedRoute><GenerateInvoicePage /></ProtectedRoute>} />
+              <Route path="/account-receivable/generate-invoice" element={<ProtectedRoute><GenerateInvoicePage /></ProtectedRoute>} />
               <Route path="/account-receivable/generate-quote" element={<ProtectedRoute><GenerateQuotePage /></ProtectedRoute>} />
+              <Route path="/account-receivable/quotes/:id" element={<ProtectedRoute><QuoteDetailPage /></ProtectedRoute>} />
               <Route path="/account-receivable/:id" element={<ProtectedRoute><WorkflowDetailPage /></ProtectedRoute>} />
               <Route path="/ar" element={<Navigate to="/account-receivable" replace />} />
               <Route path="/ar/generate" element={<ProtectedRoute><GenerateInvoicePage /></ProtectedRoute>} />
+              <Route path="/ar/generate-invoice" element={<ProtectedRoute><GenerateInvoicePage /></ProtectedRoute>} />
               <Route path="/ar/generate-quote" element={<ProtectedRoute><GenerateQuotePage /></ProtectedRoute>} />
+              <Route path="/ar/quotes/:id" element={<ProtectedRoute><QuoteDetailPage /></ProtectedRoute>} />
               <Route path="/ar/:id" element={<ProtectedRoute><WorkflowDetailPage /></ProtectedRoute>} />
               <Route path="/purchasing/ar" element={<Navigate to="/account-receivable" replace />} />
 

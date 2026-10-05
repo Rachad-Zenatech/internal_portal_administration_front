@@ -201,11 +201,11 @@ export default function GenerateInvoicePage() {
   const [lineItems, setLineItems] = useState<LineItemFormRow[]>([
     {
       date: "",
-      activity: "Monthly Subscription Pace+",
-      description: "Monthly Subscription Pace+\nCoverage Period: October 2026",
+      activity: "",
+      description: "",
       quantity: 1,
-      unit_price: 1050.00,
-      total: 1050.00,
+      unit_price: 0,
+      total: 0,
     },
   ]);
 
