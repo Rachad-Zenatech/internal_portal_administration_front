@@ -85,6 +85,7 @@ import {
   Layers,
   PauseCircle,
   Landmark,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { deletePurchaseRequest, updateWireTransfer as updateWireTransferApi } from "@/services/purchasingService";
@@ -279,7 +280,11 @@ export default function RecurringPayments() {
     hasPermission("SCHEDULED_PAYMENTS") ||
     (canAccessNavigationItem ? canAccessNavigationItem("SCHEDULED_PAYMENTS") : false) ||
     (canAccessNavigationItem ? canAccessNavigationItem("RECURRING_PAYMENTS") : false);
-  const canAccess = isSuperAdmin || isAP || isTreasury || hasRecurringPermission;
+  const canManageRecurring = isSuperAdmin || isAP || isTreasury || hasRecurringPermission;
+  // Purchase requesters get a read-only view; the backend scopes the list to their own requests.
+  const isRequesterView = !canManageRecurring && hasPermission("PURCHASING_READ");
+  const canAccess = canManageRecurring || isRequesterView;
+  const canCreateRecurring = canManageRecurring || hasPermission("PURCHASING_CREATE");
 
   const [viewMode, setViewMode] = useState<"table" | "calendar" | "master">("table");
   const [searchTerm, setSearchTerm] = useState("");
@@ -428,21 +433,18 @@ export default function RecurringPayments() {
     },
   });
 
-  // Helper to generate default 2-installment schedule starting from a base date
-  const getInitialDefaultSchedule = (baseDate?: string, amount?: number) => {
+  // Helper to generate default schedule starting from a base date
+  const getInitialDefaultSchedule = (baseDate?: string) => {
     const sDate = baseDate || new Date().toISOString().split("T")[0];
     const nextMonth = new Date(sDate + "T00:00:00");
     nextMonth.setMonth(nextMonth.getMonth() + 1);
     const nextMonthIso = formatDateToIso(nextMonth);
     return {
-      is_scheduled: true,
-      frequency: "CUSTOM" as FrequencyType,
+      is_scheduled: false,
+      frequency: "MONTHLY" as FrequencyType,
       start_date: sDate,
       end_date: nextMonthIso,
-      schedule_dates: [
-        { date: sDate, amount: amount && amount > 0 ? amount : undefined, note: "Installment #1" },
-        { date: nextMonthIso, amount: amount && amount > 0 ? amount : undefined, note: "Installment #2" },
-      ] as CustomScheduleDate[],
+      schedule_dates: [] as CustomScheduleDate[],
     };
   };
 
@@ -457,13 +459,14 @@ export default function RecurringPayments() {
     amount: "",
     due_date: initialSchedule.start_date,
     description: "",
+    item_url: "",
     gl_code: "",
     priority: "MEDIUM",
-    is_scheduled: true,
-    frequency: "CUSTOM" as FrequencyType,
+    is_scheduled: false,
+    frequency: "MONTHLY" as FrequencyType,
     start_date: initialSchedule.start_date,
     end_date: initialSchedule.end_date,
-    schedule_dates: initialSchedule.schedule_dates,
+    schedule_dates: [] as CustomScheduleDate[],
   });
 
   // Edit recurring request form state
@@ -477,10 +480,11 @@ export default function RecurringPayments() {
     amount: "",
     due_date: "",
     description: "",
+    item_url: "",
     gl_code: "",
     priority: "MEDIUM",
-    is_scheduled: true,
-    frequency: "CUSTOM" as FrequencyType,
+    is_scheduled: false,
+    frequency: "MONTHLY" as FrequencyType,
     start_date: "",
     end_date: "",
     completed_installments: 0,
@@ -511,13 +515,14 @@ export default function RecurringPayments() {
       amount: "",
       due_date: todayIso,
       description: "",
+      item_url: "",
       gl_code: "",
       priority: "MEDIUM",
-      is_scheduled: true,
-      frequency: "CUSTOM",
+      is_scheduled: false,
+      frequency: "MONTHLY",
       start_date: sched.start_date,
       end_date: sched.end_date,
-      schedule_dates: sched.schedule_dates,
+      schedule_dates: [] as CustomScheduleDate[],
     });
     setIsCreateOpen(true);
   };
@@ -553,13 +558,14 @@ export default function RecurringPayments() {
         amount: "",
         due_date: todayIso,
         description: "",
+        item_url: "",
         gl_code: "",
         priority: "MEDIUM",
-        is_scheduled: true,
-        frequency: "CUSTOM",
+        is_scheduled: false,
+        frequency: "MONTHLY",
         start_date: sched.start_date,
         end_date: sched.end_date,
-        schedule_dates: sched.schedule_dates,
+        schedule_dates: [] as CustomScheduleDate[],
       });
       queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
       queryClient.invalidateQueries({ queryKey: ["purchasing"] });
@@ -631,7 +637,7 @@ export default function RecurringPayments() {
       }
     }
     const sched = req.recurring_schedule;
-    const isSched = sched?.is_scheduled !== undefined ? Boolean(sched.is_scheduled) : true;
+    const isSched = Boolean(sched?.is_scheduled);
     let schedDates: CustomScheduleDate[] = [];
     if (sched?.schedule_dates && sched.schedule_dates.length > 0) {
       schedDates = sched.schedule_dates;
@@ -663,10 +669,11 @@ export default function RecurringPayments() {
       amount: req.amount ? req.amount.toString() : "",
       due_date: req.due_date ? req.due_date.split("T")[0] : "",
       description: req.description || "",
+      item_url: req.item_url || "",
       gl_code: req.gl_code || "",
       priority: req.priority || "MEDIUM",
       is_scheduled: isSched,
-      frequency: (sched?.frequency as FrequencyType) || "CUSTOM",
+      frequency: (sched?.frequency as FrequencyType) || (isSched ? "CUSTOM" : "MONTHLY"),
       start_date: sched?.start_date ? sched.start_date.split("T")[0] : (schedDates[0]?.date || (req.due_date ? req.due_date.split("T")[0] : "")),
       end_date: sched?.end_date ? sched.end_date.split("T")[0] : (schedDates[schedDates.length - 1]?.date || ""),
       completed_installments: sched?.completed_installments || 0,
@@ -769,6 +776,7 @@ export default function RecurringPayments() {
           unit_price: cycleAmt,
           quantity: 1,
           description: newForm.description,
+          item_url: newForm.item_url?.trim() || null,
           gl_code: null,
           due_date: effectiveDueDate || null,
           quote_data: {
@@ -810,6 +818,7 @@ export default function RecurringPayments() {
       unit_price: amt,
       quantity: 1,
       description: newForm.description,
+      item_url: newForm.item_url?.trim() || null,
       gl_code: null,
       due_date: effectiveDueDate || null,
       quote_data: {
@@ -921,6 +930,7 @@ export default function RecurringPayments() {
             unit_price: cycleAmt,
             quantity: 1,
             description: editForm.description,
+            item_url: editForm.item_url !== undefined ? (editForm.item_url.trim() || null) : (editingRequest?.item_url || null),
             gl_code: editingRequest?.gl_code || editForm.gl_code || null,
             due_date: effectiveDueDate || null,
             quote_data: {
@@ -965,6 +975,7 @@ export default function RecurringPayments() {
         unit_price: amt,
         quantity: 1,
         description: editForm.description,
+        item_url: editForm.item_url !== undefined ? (editForm.item_url.trim() || null) : (editingRequest?.item_url || null),
         gl_code: editingRequest?.gl_code || editForm.gl_code || null,
         due_date: effectiveDueDate || null,
         quote_data: {
@@ -1073,27 +1084,36 @@ export default function RecurringPayments() {
           return false;
         }
       }
-      if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
+      if (cardFilter === "ALL") {
+        // "All Subscriptions" tab: strictly show standard recurring subscriptions (exclude M&A)
+        if (isRejected) return false;
+        if (isMaTransaction(r)) return false;
+      } else if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
+        // "M&A Scheduled" tab: strictly show M&A transactions
         if (isRejected) return false;
         if (!isMaTransaction(r)) return false;
       } else if (cardFilter === "DUE_SOON") {
+        // Due in 7 Days: includes all payments (both subscriptions and M&A scheduled payments)
         if (!isDueSoon(r)) return false;
       } else if (cardFilter === "WAITING_REVIEW") {
+        // Waiting for Review: includes all payments (both subscriptions and M&A scheduled payments)
         if (isRejected) return false;
         const rev = r.review_status || "WAITING_FOR_REVIEW";
         if (rev !== "WAITING_FOR_REVIEW") return false;
       } else if (cardFilter === "REVIEWED") {
+        // Reviewed (AP): includes all payments (both subscriptions and M&A scheduled payments)
         if (isRejected) return false;
         if (r.review_status !== "REVIEWED") return false;
       } else if (cardFilter === "ON_HOLD") {
+        // On Hold: includes all payments (both subscriptions and M&A scheduled payments)
         if (parsedStatus !== RequestStatus.OnHold && r.status !== "ON_HOLD") return false;
       } else if (cardFilter === "COMPLETED") {
+        // Completed: includes all payments (both subscriptions and M&A scheduled payments)
         const isComp = parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID";
         if (!isComp) return false;
       } else if (cardFilter === "REJECTED") {
+        // Rejected: includes all payments (both subscriptions and M&A scheduled payments)
         if (!isRejected) return false;
-      } else if (cardFilter === "ALL") {
-        if (isRejected) return false;
       }
       if (dueFilter !== "ALL") {
         const isCompOrRej =
@@ -1138,23 +1158,28 @@ export default function RecurringPayments() {
 
   // Summary statistics
   const stats = useMemo(() => {
-    const activeSubs = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
-    const total = activeSubs.length;
-    const maScheduled = activeSubs.filter(isMaTransaction).length;
-    const dueSoon = requests.filter(isDueSoon).length;
-    const waitingReview = activeSubs.filter(
+    const nonMaRequests = requests.filter((r) => !isMaTransaction(r));
+    const maRequests = requests.filter(isMaTransaction);
+
+    const activeAll = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
+    const activeSubs = nonMaRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
+
+    const total = activeSubs.length; // "All Subscriptions" card count
+    const maScheduled = maRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected).length; // "M&A Scheduled" card count
+    const dueSoon = requests.filter(isDueSoon).length; // "Due in 7 Days"
+    const waitingReview = activeAll.filter(
       (r) => (r.review_status || "WAITING_FOR_REVIEW") === "WAITING_FOR_REVIEW"
-    ).length;
-    const reviewed = activeSubs.filter(
+    ).length; // "Waiting for Review"
+    const reviewed = activeAll.filter(
       (r) => r.review_status === "REVIEWED"
-    ).length;
+    ).length; // "Reviewed (AP)"
     const onHold = requests.filter(
       (r) => parseRequestStatus(r.status) === RequestStatus.OnHold || r.status === "ON_HOLD"
-    ).length;
+    ).length; // "On Hold"
     const completed = requests.filter(
       (r) => parseRequestStatus(r.status) === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID"
-    ).length;
-    const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length;
+    ).length; // "Completed"
+    const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length; // "Rejected"
     const totalAmount = activeSubs.reduce((sum, r) => sum + (r.amount || 0), 0);
     return { total, maScheduled, dueSoon, waitingReview, reviewed, onHold, completed, rejected, totalAmount };
   }, [requests]);
@@ -1275,16 +1300,18 @@ export default function RecurringPayments() {
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={handleOpenCreate}
-              className="h-9 gap-1.5 bg-sky-600 hover:bg-sky-700 text-white shadow-xs"
-            >
-              <Plus size={16} />
-              New Recurring Request
-            </Button>
-          </div>
+          {canCreateRecurring && (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={handleOpenCreate}
+                className="h-9 gap-1.5 bg-sky-600 hover:bg-sky-700 text-white shadow-xs"
+              >
+                <Plus size={16} />
+                New Recurring Request
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1423,7 +1450,7 @@ export default function RecurringPayments() {
                 {stats.dueSoon}
               </h3>
               <p className="text-[10px] text-muted-foreground mt-0.5">
-                {stats.dueSoon === 1 ? "1 renewal due soon" : `${stats.dueSoon} renewals due soon`}
+                {stats.dueSoon === 1 ? "1 payment due soon" : `${stats.dueSoon} payments due soon`}
               </p>
             </div>
             <div className="p-1.5 rounded-md bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-amber-600 shrink-0">
@@ -1674,6 +1701,19 @@ export default function RecurringPayments() {
                               Recurring
                             </Badge>
                           )}
+                          {req.item_url && (
+                            <a
+                              href={req.item_url.startsWith("http") ? req.item_url : `https://${req.item_url}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50/80 dark:bg-blue-950/50 px-1.5 py-0.5 rounded border border-blue-200/60 dark:border-blue-800/40 shrink-0"
+                              title={req.item_url}
+                            >
+                              <ExternalLink className="w-3 h-3 shrink-0" />
+                              <span>Link</span>
+                            </a>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <div onClick={(e) => e.stopPropagation()} className="shrink-0">
@@ -1830,6 +1870,7 @@ export default function RecurringPayments() {
                               <CalendarClock size={14} />
                             </Button>
                           )}
+                          {canManageRecurring && (<>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1866,6 +1907,7 @@ export default function RecurringPayments() {
                           >
                             <Trash2 size={14} />
                           </Button>
+                          </>)}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -2228,6 +2270,20 @@ export default function RecurringPayments() {
                 <span className="text-muted-foreground">Requester:</span>
                 <span className="font-medium">{selectedCalendarItem.requester}</span>
               </div>
+              {selectedCalendarItem.item_url && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Product Link:</span>
+                  <a
+                    href={selectedCalendarItem.item_url.startsWith("http") ? selectedCalendarItem.item_url : `https://${selectedCalendarItem.item_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline text-xs"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    <span>Open Product Page</span>
+                  </a>
+                </div>
+              )}
               {selectedCalendarItem.recurring_schedule?.is_scheduled && (
                 <>
                   <div className="flex justify-between items-center bg-indigo-50/60 dark:bg-indigo-950/30 p-2 rounded border border-indigo-100 dark:border-indigo-900/50">
@@ -2291,17 +2347,19 @@ export default function RecurringPayments() {
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const itm = selectedCalendarItem;
-                  setSelectedCalendarItem(null);
-                  handleOpenEdit(itm);
-                }}
-              >
-                Edit Request
-              </Button>
+              {canManageRecurring && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const itm = selectedCalendarItem;
+                    setSelectedCalendarItem(null);
+                    handleOpenEdit(itm);
+                  }}
+                >
+                  Edit Request
+                </Button>
+              )}
               <Button
                 size="sm"
                 onClick={() =>
@@ -2353,7 +2411,7 @@ export default function RecurringPayments() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
@@ -2361,12 +2419,12 @@ export default function RecurringPayments() {
                       </label>
                       {newForm.is_scheduled && newForm.frequency === "CUSTOM" && (
                         <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                          (Managed by Installments)
+                          (Installments)
                         </span>
                       )}
                       {newForm.is_scheduled && newForm.frequency !== "CUSTOM" && (
                         <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                          (Amount per cycle)
+                          (Per cycle)
                         </span>
                       )}
                     </div>
@@ -2392,11 +2450,35 @@ export default function RecurringPayments() {
                   </div>
 
                   <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Frequency <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={newForm.frequency}
+                      onValueChange={(val: any) => setNewForm({ ...newForm, frequency: val })}
+                    >
+                      <SelectTrigger className="h-10 text-sm bg-white dark:bg-zinc-950">
+                        <SelectValue placeholder="Frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MONTHLY">Monthly</SelectItem>
+                        <SelectItem value="ANNUALLY">Annually</SelectItem>
+                        <SelectItem value="WEEKLY">Weekly</SelectItem>
+                        <SelectItem value="BI_WEEKLY">Bi-Weekly</SelectItem>
+                        <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                        <SelectItem value="SEMI_ANNUALLY">Semi-Annually</SelectItem>
+                        <SelectItem value="DAILY">Daily</SelectItem>
+                        <SelectItem value="CUSTOM">Custom Dates</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
                       {newForm.is_scheduled && newForm.frequency === "CUSTOM" && (
                         <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                          (Managed by Schedule)
+                          (From Schedule)
                         </span>
                       )}
                     </div>
@@ -2490,6 +2572,32 @@ export default function RecurringPayments() {
                   />
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+                    <span>Product / Vendor Link (URL)</span>
+                    {newForm.item_url && (
+                      <a
+                        href={newForm.item_url.startsWith("http") ? newForm.item_url : `https://${newForm.item_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Test Link</span>
+                      </a>
+                    )}
+                  </label>
+                  <Input
+                    type="url"
+                    value={newForm.item_url}
+                    onChange={(e) =>
+                      setNewForm({ ...newForm, item_url: e.target.value })
+                    }
+                    placeholder="https://example.com/product-or-subscription"
+                    className="h-10 text-sm font-mono text-xs"
+                  />
+                </div>
+
                 <div className="space-y-1.5 flex-1 flex flex-col">
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>
                   <textarea
@@ -2579,7 +2687,7 @@ export default function RecurringPayments() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
@@ -2587,12 +2695,12 @@ export default function RecurringPayments() {
                         </label>
                         {editForm.is_scheduled && editForm.frequency === "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Managed by Installments)
+                            (Installments)
                           </span>
                         )}
                         {editForm.is_scheduled && editForm.frequency !== "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Amount per cycle)
+                            (Per cycle)
                           </span>
                         )}
                       </div>
@@ -2618,11 +2726,35 @@ export default function RecurringPayments() {
                     </div>
 
                     <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Frequency <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                        value={editForm.frequency}
+                        onValueChange={(val: any) => setEditForm({ ...editForm, frequency: val })}
+                      >
+                        <SelectTrigger className="h-10 text-sm bg-white dark:bg-zinc-950">
+                          <SelectValue placeholder="Frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MONTHLY">Monthly</SelectItem>
+                          <SelectItem value="ANNUALLY">Annually</SelectItem>
+                          <SelectItem value="WEEKLY">Weekly</SelectItem>
+                          <SelectItem value="BI_WEEKLY">Bi-Weekly</SelectItem>
+                          <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                          <SelectItem value="SEMI_ANNUALLY">Semi-Annually</SelectItem>
+                          <SelectItem value="DAILY">Daily</SelectItem>
+                          <SelectItem value="CUSTOM">Custom Dates</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
                         {editForm.is_scheduled && editForm.frequency === "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Managed by Schedule)
+                            (From Schedule)
                           </span>
                         )}
                       </div>
@@ -2716,6 +2848,32 @@ export default function RecurringPayments() {
                     />
                   </div>
 
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+                      <span>Product / Vendor Link (URL)</span>
+                      {editForm.item_url && (
+                        <a
+                          href={editForm.item_url.startsWith("http") ? editForm.item_url : `https://${editForm.item_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Open Link</span>
+                        </a>
+                      )}
+                    </label>
+                    <Input
+                      type="url"
+                      value={editForm.item_url}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, item_url: e.target.value })
+                      }
+                      placeholder="https://example.com/product-or-subscription"
+                      className="h-10 text-sm font-mono text-xs"
+                    />
+                  </div>
+
                   <div className="space-y-1.5 flex-1 flex flex-col">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>
                     <textarea
@@ -2795,14 +2953,15 @@ export default function RecurringPayments() {
         request={scheduleModalRequest}
         open={!!scheduleModalRequest}
         onOpenChange={(open) => !open && setScheduleModalRequest(null)}
-        onEditRequest={(req) => {
+        // Without onEditRequest the modal links to the request detail page instead.
+        onEditRequest={canManageRecurring ? (req) => {
           setScheduleModalRequest(null);
           handleOpenEdit(req);
-        }}
-        onEditWireInfo={(req) => {
+        } : undefined}
+        onEditWireInfo={canManageRecurring ? (req) => {
           setScheduleModalRequest(null);
           setWireModalRequest(req);
-        }}
+        } : undefined}
       />
 
       {/* Wire Transfer Dialog (Edit / Record Wire Info for Scheduled Payment) */}

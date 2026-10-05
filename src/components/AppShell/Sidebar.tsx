@@ -22,6 +22,7 @@ interface SidebarNavigationItem {
   icon: LucideIcon;
   section?: string;
   navigationCode?: string;
+  alternateNavigationCodes?: string[];
   subItems?: Array<{
     label: string;
     path: string;
@@ -158,8 +159,9 @@ export default function Sidebar({
     if (item.navigationCode) {
       const hasItemAccess =
         isSuperAdmin ||
-        hasPermission(`${item.navigationCode}_READ`) ||
-        hasPermission(`${item.navigationCode}_VIEW`);
+        [item.navigationCode, ...(item.alternateNavigationCodes ?? [])].some(
+          (code) => hasPermission(`${code}_READ`) || hasPermission(`${code}_VIEW`)
+        );
       if (!hasItemAccess) return acc;
     }
 

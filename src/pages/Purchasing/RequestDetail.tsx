@@ -52,6 +52,7 @@ import {
   DollarSign,
   Eye,
   UserCheck,
+  Repeat,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -101,6 +102,7 @@ import {
 } from "@/hooks/usePurchasing";
 import * as purchasingService from "@/services/purchasingService";
 import { EditCombinedRequestDialog } from "./EditCombinedRequestDialog";
+import { ConvertToRecurringDialog } from "./ConvertToRecurringDialog";
 import { WireTransferDialog } from "./WireTransferDialog";
 import { useAuth } from "@/lib/AuthContext";
 import Stepper from "@/components/Stepper";
@@ -324,6 +326,7 @@ export default function RequestDetail() {
   const [confirmGoods, setConfirmGoods] = useState({ description: "" });
   const [isActivityLogsOpen, setIsActivityLogsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isConvertToRecurringOpen, setIsConvertToRecurringOpen] = useState(false);
   const [activeDetailTab, setActiveDetailTab] = useState<string>("overview");
 
   useEffect(() => {
@@ -416,6 +419,11 @@ export default function RequestDetail() {
   }
 
   const { request, purchase_order, invoice: inv, approvals, available_actions } = data;
+  const hasInvoiceOrReceipt = Boolean(
+    (data?.invoices && data.invoices.length > 0) ||
+    data?.invoice ||
+    (data?.attachments && data.attachments.length > 0)
+  );
   const isMulti = request.item_mode === "MULTIPLE" || Boolean(request.items && request.items.length > 0) || Boolean(request.quote_data?.items && request.quote_data.items.length > 0);
 
   const multiPartsList: any[] = (request?.items && request.items.length > 0)
@@ -484,6 +492,10 @@ export default function RequestDetail() {
 
     const meta = ACTION_META[action];
     if (action === "COMPLETE") {
+      if (!hasInvoiceOrReceipt) {
+        toast.error("Please record an invoice or upload a receipt before completing this request.");
+        return;
+      }
       // If it is a scheduled recurring payment, bypass period picker dialog since time range and dates are predetermined
       if (isRecurring) {
         if (request.recurring_schedule?.is_scheduled) {
@@ -1018,6 +1030,19 @@ export default function RequestDetail() {
         </Button>
 
         <div className="flex items-center gap-2">
+          {(request.item_url || purchase_order?.item_url) && (
+            <a
+              href={(request.item_url || purchase_order?.item_url || "").startsWith("http") ? (request.item_url || purchase_order?.item_url || "#") : `https://${request.item_url || purchase_order?.item_url}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-semibold rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 transition-colors shadow-2xs shrink-0"
+              title={`Open vendor product page: ${request.item_url || purchase_order?.item_url}`}
+            >
+              <ExternalLink className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Open Link ↗</span>
+            </a>
+          )}
+
           <Button
             variant="outline"
             size="sm"
@@ -1027,6 +1052,18 @@ export default function RequestDetail() {
             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
             <span>Activity Logs</span>
           </Button>
+
+          {canEditRequest && request.request_type !== "RECURRING" && request.request_type !== "SCHEDULED_PAYMENT" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsConvertToRecurringOpen(true)}
+              className="h-8 text-xs gap-1.5 shadow-xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+            >
+              <Repeat className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Convert to Recurring</span>
+            </Button>
+          )}
 
           {canEditRequest && (
             <Button
@@ -1068,6 +1105,18 @@ export default function RequestDetail() {
               <Badge className="text-xs px-2 py-0.5 bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-700 font-bold shrink-0 shadow-2xs">
                 M&amp;A
               </Badge>
+            )}
+            {(request.item_url || purchase_order?.item_url) && (
+              <a
+                href={(request.item_url || purchase_order?.item_url || "").startsWith("http") ? (request.item_url || purchase_order?.item_url || "#") : `https://${request.item_url || purchase_order?.item_url}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 transition-colors shrink-0 shadow-2xs ml-1"
+                title={`Open vendor product page: ${request.item_url || purchase_order?.item_url}`}
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Link ↗</span>
+              </a>
             )}
           </h1>
           <span className="mt-1 shrink-0 inline-flex">
@@ -1203,9 +1252,12 @@ export default function RequestDetail() {
                 .map((action) => {
                   const meta = ACTION_META[action];
                   const isRecordInvoiceDisabled = isRecurring && action === "RECORD_INVOICE" && !isReviewed;
+                  const isCompleteMissingInvoice = action === "COMPLETE" && !hasInvoiceOrReceipt;
                   const isDisabled = transition.isPending || isRecordInvoiceDisabled;
                   const buttonTitle = isRecordInvoiceDisabled
                     ? "Recurring request must be marked as 'Reviewed' before recording an invoice."
+                    : isCompleteMissingInvoice
+                    ? "An invoice or receipt must be recorded before completing this request."
                     : undefined;
 
                   const isApprove = action === "APPROVE";
@@ -1235,6 +1287,11 @@ export default function RequestDetail() {
               {isRecurring && !isReviewed && available_actions.includes("RECORD_INVOICE") && (
                 <span className="text-xs text-amber-600 dark:text-amber-400 font-medium italic ml-1">
                   ← Click 'Mark as Reviewed' to enable Record Invoice
+                </span>
+              )}
+              {!hasInvoiceOrReceipt && available_actions.includes("COMPLETE") && (
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium italic ml-1">
+                  • Invoice or receipt required before completing
                 </span>
               )}
             </div>
@@ -2662,6 +2719,13 @@ export default function RequestDetail() {
         <div className="lg:col-span-4 xl:col-span-3 space-y-6">
 
           <EditCombinedRequestDialog open={isEditOpen} onOpenChange={setIsEditOpen} data={data} refetch={refetch} />
+
+          <ConvertToRecurringDialog
+            open={isConvertToRecurringOpen}
+            onOpenChange={setIsConvertToRecurringOpen}
+            request={request}
+            onSuccess={refetch}
+          />
 
           <Dialog open={isActivityLogsOpen} onOpenChange={setIsActivityLogsOpen}>
             <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[80vh] overflow-y-auto">

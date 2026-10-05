@@ -1072,7 +1072,7 @@ export function EditRequestDialog({
               </div>
             ) : formData.request_type === "RECURRING" ? (
               <div className="space-y-3.5 pt-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Amount (USD) <span className="text-red-500">*</span></label>
                     <Input
@@ -1085,6 +1085,30 @@ export function EditRequestDialog({
                       className="h-9 text-xs font-mono"
                       required
                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Frequency <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={schedFrequency}
+                      onValueChange={(val: any) => setSchedFrequency(val)}
+                    >
+                      <SelectTrigger className="h-9 text-xs bg-white dark:bg-zinc-950">
+                        <SelectValue placeholder="Frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MONTHLY">Monthly</SelectItem>
+                        <SelectItem value="ANNUALLY">Annually</SelectItem>
+                        <SelectItem value="WEEKLY">Weekly</SelectItem>
+                        <SelectItem value="BI_WEEKLY">Bi-Weekly</SelectItem>
+                        <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                        <SelectItem value="SEMI_ANNUALLY">Semi-Annually</SelectItem>
+                        <SelectItem value="DAILY">Daily</SelectItem>
+                        <SelectItem value="CUSTOM">Custom Dates</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {formData.request_type === "RECURRING" && (

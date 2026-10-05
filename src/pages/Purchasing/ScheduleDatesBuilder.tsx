@@ -196,60 +196,69 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
         </div>
       </div>
 
+      {/* Frequency & Cadence Selection (Always available to pick Monthly, Annually, Weekly, etc.) */}
+      <div className="space-y-1.5 pt-1">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+            Billing Frequency / Cadence <span className="text-red-500">*</span>
+          </label>
+          {isCustom ? (
+            <Badge variant="outline" className="text-xs px-2 py-0.5 border-indigo-300 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 font-semibold">
+              <Sparkles className="h-3 w-3 mr-1 text-indigo-500" />
+              Custom List
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-xs px-2 py-0.5 border-slate-300 text-slate-600 dark:text-zinc-400">
+              {isScheduled ? "Periodic Schedule" : "Ongoing Cadence"}
+            </Badge>
+          )}
+        </div>
+
+        <Select
+          value={frequency}
+          onValueChange={(v: FrequencyType) => {
+            onFrequencyChange(v);
+            if (v === "CUSTOM") {
+              onIsScheduledChange(true);
+              if (scheduleDates.length === 0) {
+                const d1 = startDate || new Date().toISOString().split("T")[0];
+                const nextMonth = new Date(d1 + "T00:00:00");
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                const d2 = formatDateToIso(nextMonth);
+                onScheduleDatesChange([
+                  { date: d1, amount: baseAmount, note: "Installment #1" },
+                  { date: d2, amount: baseAmount, note: "Installment #2" },
+                ]);
+              }
+            }
+          }}
+        >
+          <SelectTrigger className="h-9 text-xs font-medium bg-white dark:bg-zinc-950">
+            <SelectValue placeholder="Select Frequency" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="MONTHLY">Monthly (Billed every month)</SelectItem>
+            <SelectItem value="ANNUALLY">Annually (Billed once a year)</SelectItem>
+            <SelectItem value="WEEKLY">Weekly (Billed every week)</SelectItem>
+            <SelectItem value="BI_WEEKLY">Bi-Weekly (Billed every 2 weeks)</SelectItem>
+            <SelectItem value="QUARTERLY">Quarterly (Billed every 3 months)</SelectItem>
+            <SelectItem value="SEMI_ANNUALLY">Semi-Annually (Billed every 6 months)</SelectItem>
+            <SelectItem value="DAILY">Daily (Billed every day)</SelectItem>
+            <SelectItem value="CUSTOM" className="font-semibold text-indigo-600 dark:text-indigo-400">
+              ✨ Custom Installment Dates (List)
+            </SelectItem>
+          </SelectContent>
+        </Select>
+
+        {!isScheduled && (
+          <p className="text-[11px] text-muted-foreground pt-0.5">
+            Recurring payment cadence: <span className="font-semibold text-slate-700 dark:text-zinc-300">{frequency.toLowerCase()}</span>. To define fixed end dates or custom milestone amounts, check <strong>Enable Schedule</strong> above.
+          </p>
+        )}
+      </div>
+
       {isScheduled && (
-        <div className="space-y-3.5 pt-3 border-t border-slate-200 dark:border-zinc-800 flex-1 flex flex-col">
-          {/* Frequency & Schedule Type */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                Schedule Mode
-              </label>
-              {isCustom ? (
-                <Badge variant="outline" className="text-xs px-2 py-0.5 border-indigo-300 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 font-semibold">
-                  <Sparkles className="h-3 w-3 mr-1 text-indigo-500" />
-                  Custom List
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-xs px-2 py-0.5 border-slate-300 text-slate-600 dark:text-zinc-400">
-                  Periodic
-                </Badge>
-              )}
-            </div>
-
-            <Select
-              value={frequency}
-              onValueChange={(v: FrequencyType) => {
-                onFrequencyChange(v);
-                if (v === "CUSTOM" && scheduleDates.length === 0) {
-                  const d1 = startDate || new Date().toISOString().split("T")[0];
-                  const nextMonth = new Date(d1 + "T00:00:00");
-                  nextMonth.setMonth(nextMonth.getMonth() + 1);
-                  const d2 = formatDateToIso(nextMonth);
-                  onScheduleDatesChange([
-                    { date: d1, amount: baseAmount, note: "Installment #1" },
-                    { date: d2, amount: baseAmount, note: "Installment #2" },
-                  ]);
-                }
-              }}
-            >
-              <SelectTrigger className="h-9 text-xs font-medium bg-white dark:bg-zinc-950">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="CUSTOM" className="font-semibold text-indigo-600 dark:text-indigo-400">
-                  ✨ Custom Installment Dates (List)
-                </SelectItem>
-                <SelectItem value="MONTHLY">Monthly (Periodic)</SelectItem>
-                <SelectItem value="BI_WEEKLY">Bi-Weekly (Every 2 Weeks)</SelectItem>
-                <SelectItem value="WEEKLY">Weekly</SelectItem>
-                <SelectItem value="QUARTERLY">Quarterly (3 Months)</SelectItem>
-                <SelectItem value="SEMI_ANNUALLY">Semi-Annually (6 Months)</SelectItem>
-                <SelectItem value="ANNUALLY">Annually (1 Year)</SelectItem>
-                <SelectItem value="DAILY">Daily</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
+        <div className="space-y-3.5 pt-2 border-t border-slate-200 dark:border-zinc-800 flex-1 flex flex-col">
           {/* Periodic Start & End Date */}
           {!isCustom && (
             <div className="grid grid-cols-2 gap-3 pt-1">

@@ -33,6 +33,7 @@ import {
   PauseCircle,
   PlayCircle,
   UserCheck,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -123,6 +124,9 @@ export default function PurchaseRequestDetail() {
   const attachments = requestDetail?.attachments || [];
   const history = requestDetail?.history || [];
 
+  const itemUrl = request?.item_url || (requestDetail as any)?.purchase_order?.item_url;
+  const formattedItemUrl = itemUrl ? (itemUrl.startsWith("http://") || itemUrl.startsWith("https://") ? itemUrl : `https://${itemUrl}`) : "";
+
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isScheduleLedgerOpen, setIsScheduleLedgerOpen] = useState(false);
   const [isRecordInvoiceOpen, setIsRecordInvoiceOpen] = useState(false);
@@ -151,12 +155,13 @@ export default function PurchaseRequestDetail() {
     description: "",
     gl_code: "",
     priority: "MEDIUM" as Priority,
-    is_scheduled: true,
-    frequency: "CUSTOM" as FrequencyType,
+    is_scheduled: false,
+    frequency: "MONTHLY" as FrequencyType,
     start_date: "",
     end_date: "",
     completed_installments: 0,
     schedule_dates: [] as CustomScheduleDate[],
+    item_url: "",
   });
 
   // Invoice form state
@@ -214,7 +219,7 @@ export default function PurchaseRequestDetail() {
   const handleOpenEdit = () => {
     if (!request) return;
     const sched = request.recurring_schedule;
-    const isSched = sched?.is_scheduled !== undefined ? Boolean(sched.is_scheduled) : true;
+    const isSched = Boolean(sched?.is_scheduled);
     let schedDates: CustomScheduleDate[] = [];
     if (sched?.schedule_dates && sched.schedule_dates.length > 0) {
       schedDates = sched.schedule_dates;
@@ -250,11 +255,12 @@ export default function PurchaseRequestDetail() {
       gl_code: request.gl_code || "",
       priority: request.priority || "MEDIUM",
       is_scheduled: isSched,
-      frequency: (sched?.frequency as FrequencyType) || "CUSTOM",
+      frequency: (sched?.frequency as FrequencyType) || (isSched ? "CUSTOM" : "MONTHLY"),
       start_date: sched?.start_date ? sched.start_date.split("T")[0] : (schedDates[0]?.date || (request.due_date ? request.due_date.split("T")[0] : "")),
       end_date: sched?.end_date ? sched.end_date.split("T")[0] : (schedDates[schedDates.length - 1]?.date || ""),
       completed_installments: sched?.completed_installments || 0,
       schedule_dates: schedDates,
+      item_url: request.item_url || (requestDetail as any)?.purchase_order?.item_url || "",
     });
     setIsEditOpen(true);
   };
@@ -508,6 +514,7 @@ export default function PurchaseRequestDetail() {
       description: editForm.description,
       gl_code: request?.gl_code || editForm.gl_code || null,
       due_date: effectiveDueDate || null,
+      item_url: editForm.item_url?.trim() || null,
       quote_data: {
         ...(request?.quote_data || {}),
         location: editForm.location || "",
@@ -719,7 +726,6 @@ export default function PurchaseRequestDetail() {
   const workflowSteps = [
     { key: RequestStatus.UnderReview, label: "Under Review" },
     { key: RequestStatus.WaitingPayment, label: `Waiting Payment ${cycleBracket}` },
-    { key: RequestStatus.InvoiceReceived, label: `Invoice Received ${cycleBracket}` },
     { key: RequestStatus.Completed, label: "Completed" },
   ];
 
@@ -766,6 +772,19 @@ export default function PurchaseRequestDetail() {
               Put on Hold
             </Button>
           ) : null}
+
+          {formattedItemUrl && (
+            <a
+              href={formattedItemUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 transition-colors shadow-2xs shrink-0"
+              title={`Open vendor product page in new tab: ${formattedItemUrl}`}
+            >
+              <ExternalLink className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Open Link ↗</span>
+            </a>
+          )}
 
           <Button
             size="sm"
@@ -839,6 +858,20 @@ export default function PurchaseRequestDetail() {
                   </>
                 )}
               </button>
+
+              {/* Item / Product Link Badge */}
+              {formattedItemUrl && (
+                <a
+                  href={formattedItemUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 transition-colors shadow-2xs group shrink-0"
+                  title={`Open link in new tab: ${formattedItemUrl}`}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                  <span>Product Link ↗</span>
+                </a>
+              )}
             </div>
 
             <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-2 flex-wrap">
@@ -854,11 +887,30 @@ export default function PurchaseRequestDetail() {
                   · Location: <strong className="text-slate-800 dark:text-zinc-200">{(request as any).location || request.quote_data?.location}</strong>
                 </span>
               )}
+              {formattedItemUrl && (
+                <span className="inline-flex items-center gap-1">
+                  · Link: <a href={formattedItemUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline font-medium inline-flex items-center gap-0.5">
+                    {formattedItemUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]} <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                </span>
+              )}
               <span>· {formatDate(request.request_date || request.created_at)}</span>
             </p>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {formattedItemUrl && (
+              <a
+                href={formattedItemUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 transition-colors shadow-2xs"
+                title={`Open vendor product link: ${formattedItemUrl}`}
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Web Link ↗</span>
+              </a>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -1031,15 +1083,24 @@ export default function PurchaseRequestDetail() {
                 </Button>
               ) : (
                 <>
-                  {parsedStatus === RequestStatus.InvoiceReceived && (
+                  {(parsedStatus === RequestStatus.InvoiceReceived || parsedStatus === RequestStatus.WaitingPayment) && (
                     <Button
                       size="sm"
-                      onClick={() =>
+                      onClick={() => {
+                        const hasInvOrReceipt = Boolean(
+                          (requestDetail?.invoices && requestDetail.invoices.length > 0) ||
+                          requestDetail?.invoice ||
+                          attachments.length > 0
+                        );
+                        if (!hasInvOrReceipt) {
+                          toast.error("Please record an invoice or upload a receipt before completing this request.");
+                          return;
+                        }
                         transitionMutation.mutate({
                           action: "COMPLETE",
                           comment: `Settled cycle ${currentCycle} payment and advanced recurring cycle`,
-                        })
-                      }
+                        });
+                      }}
                       disabled={transitionMutation.isPending}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5 h-8 font-semibold shadow-2xs"
                     >
@@ -1053,12 +1114,21 @@ export default function PurchaseRequestDetail() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
+                      onClick={() => {
+                        const hasInvOrReceipt = Boolean(
+                          (requestDetail?.invoices && requestDetail.invoices.length > 0) ||
+                          requestDetail?.invoice ||
+                          attachments.length > 0
+                        );
+                        if (!hasInvOrReceipt) {
+                          toast.error("Please record an invoice or upload a receipt before completing this request.");
+                          return;
+                        }
                         transitionMutation.mutate({
                           action: "COMPLETE",
                           comment: "Completed recurring billing item",
-                        })
-                      }
+                        });
+                      }}
                       disabled={transitionMutation.isPending}
                       className="text-xs h-8 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300"
                     >
@@ -1373,6 +1443,25 @@ export default function PurchaseRequestDetail() {
                   </span>
                 </div>
               </div>
+
+              {formattedItemUrl && (
+                <div className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-blue-50/40 dark:bg-blue-950/20">
+                  <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+                    <ExternalLink className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                    Product / Vendor Web Link
+                  </span>
+                  <a
+                    href={formattedItemUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1.5 break-all text-xs"
+                    title={formattedItemUrl}
+                  >
+                    <span>{formattedItemUrl}</span>
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                  </a>
+                </div>
+              )}
 
               {request.description && (
                 <div className="p-3.5 space-y-1">
@@ -2375,7 +2464,7 @@ export default function PurchaseRequestDetail() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
@@ -2383,11 +2472,11 @@ export default function PurchaseRequestDetail() {
                         </label>
                         {editForm.is_scheduled && editForm.frequency === "CUSTOM" ? (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Managed by Schedule)
+                            (Installments)
                           </span>
                         ) : editForm.is_scheduled ? (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Amount per cycle)
+                            (Per cycle)
                           </span>
                         ) : null}
                       </div>
@@ -2410,11 +2499,35 @@ export default function PurchaseRequestDetail() {
                     </div>
 
                     <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Frequency <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                        value={editForm.frequency}
+                        onValueChange={(val: any) => setEditForm({ ...editForm, frequency: val })}
+                      >
+                        <SelectTrigger className="h-10 text-sm bg-white dark:bg-zinc-950">
+                          <SelectValue placeholder="Frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MONTHLY">Monthly</SelectItem>
+                          <SelectItem value="ANNUALLY">Annually</SelectItem>
+                          <SelectItem value="WEEKLY">Weekly</SelectItem>
+                          <SelectItem value="BI_WEEKLY">Bi-Weekly</SelectItem>
+                          <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                          <SelectItem value="SEMI_ANNUALLY">Semi-Annually</SelectItem>
+                          <SelectItem value="DAILY">Daily</SelectItem>
+                          <SelectItem value="CUSTOM">Custom Dates</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
                         {editForm.is_scheduled && editForm.frequency === "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            (Managed by Schedule)
+                            (From Schedule)
                           </span>
                         )}
                       </div>
@@ -2481,7 +2594,29 @@ export default function PurchaseRequestDetail() {
                     />
                   </div>
 
-
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+                      <span>Product / Web Link (URL)</span>
+                      {editForm.item_url?.trim() && (
+                        <a
+                          href={editForm.item_url.startsWith("http") ? editForm.item_url : `https://${editForm.item_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 font-normal"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          <span>Test Link</span>
+                        </a>
+                      )}
+                    </label>
+                    <Input
+                      type="url"
+                      placeholder="https://example.com/product"
+                      value={editForm.item_url}
+                      onChange={(e) => setEditForm({ ...editForm, item_url: e.target.value })}
+                      className="h-10 text-sm"
+                    />
+                  </div>
 
                   <div className="space-y-1.5 flex-1 flex flex-col">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>

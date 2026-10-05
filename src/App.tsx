@@ -86,7 +86,8 @@ function App() {
               <Route path="/purchasing/requests" element={<ProtectedRoute><PurchaseRequests /></ProtectedRoute>} />
               <Route path="/purchasing/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
               <Route path="/purchasing/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
-              <Route path="/purchasing/recurring" element={<ProtectedRoute navigationCode="RECURRING_PAYMENTS"><RecurringPayments /></ProtectedRoute>} />
+              {/* No navigationCode: purchase requesters see their own recurring requests; RecurringPayments gates access itself. */}
+              <Route path="/purchasing/recurring" element={<ProtectedRoute><RecurringPayments /></ProtectedRoute>} />
               <Route path="/purchasing/recurring-payments" element={<Navigate to="/purchasing/recurring" replace />} />
               <Route path="/purchasing/my-approvals" element={<ProtectedRoute navigationCode="MY_APPROVALS"><MyApprovals /></ProtectedRoute>} />
               <Route path="/purchasing/batch-approval" element={<Navigate to="/purchasing/my-approvals" replace />} />

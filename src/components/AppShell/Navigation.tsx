@@ -48,7 +48,6 @@ export const navigation = [
       { label: "Ordered / Purchased", path: "/purchasing/requests?status=PURCHASED" },
       { label: "Shipped", path: "/purchasing/requests?status=SHIPPED" },
       { label: "Goods Received", path: "/purchasing/requests?status=GOODS_RECEIVED" },
-      { label: "Invoice Received", path: "/purchasing/requests?status=INVOICE_RECEIVED" },
       { label: "Completed", path: "/purchasing/requests?status=COMPLETED" },
       { label: "Rejected", path: "/purchasing/requests?status=REJECTED" },
       { label: "On Hold", path: "/purchasing/requests?status=ON_HOLD" },
@@ -60,6 +59,8 @@ export const navigation = [
     icon: CalendarCheck,
     section: "MAIN",
     navigationCode: "RECURRING_PAYMENTS",
+    // Purchase requesters can open the page to see their own recurring requests.
+    alternateNavigationCodes: ["PURCHASING"],
     subItems: [
       { label: "All Subscriptions", path: "/purchasing/recurring" },
       { label: "M&A Scheduled Payments", path: "/purchasing/recurring?filter=MA_SCHEDULED" },
