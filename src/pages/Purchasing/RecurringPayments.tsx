@@ -1077,24 +1077,29 @@ export default function RecurringPayments() {
       if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
         if (isRejected) return false;
         if (!isMaTransaction(r)) return false;
-      } else if (cardFilter === "DUE_SOON") {
-        if (!isDueSoon(r)) return false;
-      } else if (cardFilter === "WAITING_REVIEW") {
-        if (isRejected) return false;
-        const rev = r.review_status || "WAITING_FOR_REVIEW";
-        if (rev !== "WAITING_FOR_REVIEW") return false;
-      } else if (cardFilter === "REVIEWED") {
-        if (isRejected) return false;
-        if (r.review_status !== "REVIEWED") return false;
-      } else if (cardFilter === "ON_HOLD") {
-        if (parsedStatus !== RequestStatus.OnHold && r.status !== "ON_HOLD") return false;
-      } else if (cardFilter === "COMPLETED") {
-        const isComp = parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID";
-        if (!isComp) return false;
-      } else if (cardFilter === "REJECTED") {
-        if (!isRejected) return false;
-      } else if (cardFilter === "ALL") {
-        if (isRejected) return false;
+      } else {
+        // All other cards / views represent standard recurring subscriptions - exclude M&A transactions
+        if (isMaTransaction(r)) return false;
+
+        if (cardFilter === "DUE_SOON") {
+          if (!isDueSoon(r)) return false;
+        } else if (cardFilter === "WAITING_REVIEW") {
+          if (isRejected) return false;
+          const rev = r.review_status || "WAITING_FOR_REVIEW";
+          if (rev !== "WAITING_FOR_REVIEW") return false;
+        } else if (cardFilter === "REVIEWED") {
+          if (isRejected) return false;
+          if (r.review_status !== "REVIEWED") return false;
+        } else if (cardFilter === "ON_HOLD") {
+          if (parsedStatus !== RequestStatus.OnHold && r.status !== "ON_HOLD") return false;
+        } else if (cardFilter === "COMPLETED") {
+          const isComp = parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID";
+          if (!isComp) return false;
+        } else if (cardFilter === "REJECTED") {
+          if (!isRejected) return false;
+        } else if (cardFilter === "ALL") {
+          if (isRejected) return false;
+        }
       }
       if (dueFilter !== "ALL") {
         const isCompOrRej =
@@ -1139,23 +1144,26 @@ export default function RecurringPayments() {
 
   // Summary statistics
   const stats = useMemo(() => {
-    const activeSubs = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
+    const nonMaRequests = requests.filter((r) => !isMaTransaction(r));
+    const maRequests = requests.filter(isMaTransaction);
+
+    const activeSubs = nonMaRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
     const total = activeSubs.length;
-    const maScheduled = activeSubs.filter(isMaTransaction).length;
-    const dueSoon = requests.filter(isDueSoon).length;
+    const maScheduled = maRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected).length;
+    const dueSoon = nonMaRequests.filter(isDueSoon).length;
     const waitingReview = activeSubs.filter(
       (r) => (r.review_status || "WAITING_FOR_REVIEW") === "WAITING_FOR_REVIEW"
     ).length;
     const reviewed = activeSubs.filter(
       (r) => r.review_status === "REVIEWED"
     ).length;
-    const onHold = requests.filter(
+    const onHold = nonMaRequests.filter(
       (r) => parseRequestStatus(r.status) === RequestStatus.OnHold || r.status === "ON_HOLD"
     ).length;
-    const completed = requests.filter(
+    const completed = nonMaRequests.filter(
       (r) => parseRequestStatus(r.status) === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID"
     ).length;
-    const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length;
+    const rejected = nonMaRequests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length;
     const totalAmount = activeSubs.reduce((sum, r) => sum + (r.amount || 0), 0);
     return { total, maScheduled, dueSoon, waitingReview, reviewed, onHold, completed, rejected, totalAmount };
   }, [requests]);
