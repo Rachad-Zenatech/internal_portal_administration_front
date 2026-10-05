@@ -1030,6 +1030,19 @@ export default function RequestDetail() {
         </Button>
 
         <div className="flex items-center gap-2">
+          {(request.item_url || purchase_order?.item_url) && (
+            <a
+              href={(request.item_url || purchase_order?.item_url || "").startsWith("http") ? (request.item_url || purchase_order?.item_url || "#") : `https://${request.item_url || purchase_order?.item_url}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-semibold rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 transition-colors shadow-2xs shrink-0"
+              title={`Open vendor product page: ${request.item_url || purchase_order?.item_url}`}
+            >
+              <ExternalLink className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Open Link ↗</span>
+            </a>
+          )}
+
           <Button
             variant="outline"
             size="sm"
@@ -1092,6 +1105,18 @@ export default function RequestDetail() {
               <Badge className="text-xs px-2 py-0.5 bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-700 font-bold shrink-0 shadow-2xs">
                 M&amp;A
               </Badge>
+            )}
+            {(request.item_url || purchase_order?.item_url) && (
+              <a
+                href={(request.item_url || purchase_order?.item_url || "").startsWith("http") ? (request.item_url || purchase_order?.item_url || "#") : `https://${request.item_url || purchase_order?.item_url}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 transition-colors shrink-0 shadow-2xs ml-1"
+                title={`Open vendor product page: ${request.item_url || purchase_order?.item_url}`}
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Link ↗</span>
+              </a>
             )}
           </h1>
           <span className="mt-1 shrink-0 inline-flex">

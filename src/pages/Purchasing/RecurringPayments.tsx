@@ -85,6 +85,7 @@ import {
   Layers,
   PauseCircle,
   Landmark,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { deletePurchaseRequest, updateWireTransfer as updateWireTransferApi } from "@/services/purchasingService";
@@ -458,6 +459,7 @@ export default function RecurringPayments() {
     amount: "",
     due_date: initialSchedule.start_date,
     description: "",
+    item_url: "",
     gl_code: "",
     priority: "MEDIUM",
     is_scheduled: false,
@@ -478,6 +480,7 @@ export default function RecurringPayments() {
     amount: "",
     due_date: "",
     description: "",
+    item_url: "",
     gl_code: "",
     priority: "MEDIUM",
     is_scheduled: false,
@@ -512,6 +515,7 @@ export default function RecurringPayments() {
       amount: "",
       due_date: todayIso,
       description: "",
+      item_url: "",
       gl_code: "",
       priority: "MEDIUM",
       is_scheduled: false,
@@ -554,6 +558,7 @@ export default function RecurringPayments() {
         amount: "",
         due_date: todayIso,
         description: "",
+        item_url: "",
         gl_code: "",
         priority: "MEDIUM",
         is_scheduled: false,
@@ -664,6 +669,7 @@ export default function RecurringPayments() {
       amount: req.amount ? req.amount.toString() : "",
       due_date: req.due_date ? req.due_date.split("T")[0] : "",
       description: req.description || "",
+      item_url: req.item_url || "",
       gl_code: req.gl_code || "",
       priority: req.priority || "MEDIUM",
       is_scheduled: isSched,
@@ -770,6 +776,7 @@ export default function RecurringPayments() {
           unit_price: cycleAmt,
           quantity: 1,
           description: newForm.description,
+          item_url: newForm.item_url?.trim() || null,
           gl_code: null,
           due_date: effectiveDueDate || null,
           quote_data: {
@@ -811,6 +818,7 @@ export default function RecurringPayments() {
       unit_price: amt,
       quantity: 1,
       description: newForm.description,
+      item_url: newForm.item_url?.trim() || null,
       gl_code: null,
       due_date: effectiveDueDate || null,
       quote_data: {
@@ -922,6 +930,7 @@ export default function RecurringPayments() {
             unit_price: cycleAmt,
             quantity: 1,
             description: editForm.description,
+            item_url: editForm.item_url !== undefined ? (editForm.item_url.trim() || null) : (editingRequest?.item_url || null),
             gl_code: editingRequest?.gl_code || editForm.gl_code || null,
             due_date: effectiveDueDate || null,
             quote_data: {
@@ -966,6 +975,7 @@ export default function RecurringPayments() {
         unit_price: amt,
         quantity: 1,
         description: editForm.description,
+        item_url: editForm.item_url !== undefined ? (editForm.item_url.trim() || null) : (editingRequest?.item_url || null),
         gl_code: editingRequest?.gl_code || editForm.gl_code || null,
         due_date: effectiveDueDate || null,
         quote_data: {
@@ -1074,32 +1084,36 @@ export default function RecurringPayments() {
           return false;
         }
       }
-      if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
+      if (cardFilter === "ALL") {
+        // "All Subscriptions" tab: strictly show standard recurring subscriptions (exclude M&A)
+        if (isRejected) return false;
+        if (isMaTransaction(r)) return false;
+      } else if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
+        // "M&A Scheduled" tab: strictly show M&A transactions
         if (isRejected) return false;
         if (!isMaTransaction(r)) return false;
-      } else {
-        // All other cards / views represent standard recurring subscriptions - exclude M&A transactions
-        if (isMaTransaction(r)) return false;
-
-        if (cardFilter === "DUE_SOON") {
-          if (!isDueSoon(r)) return false;
-        } else if (cardFilter === "WAITING_REVIEW") {
-          if (isRejected) return false;
-          const rev = r.review_status || "WAITING_FOR_REVIEW";
-          if (rev !== "WAITING_FOR_REVIEW") return false;
-        } else if (cardFilter === "REVIEWED") {
-          if (isRejected) return false;
-          if (r.review_status !== "REVIEWED") return false;
-        } else if (cardFilter === "ON_HOLD") {
-          if (parsedStatus !== RequestStatus.OnHold && r.status !== "ON_HOLD") return false;
-        } else if (cardFilter === "COMPLETED") {
-          const isComp = parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID";
-          if (!isComp) return false;
-        } else if (cardFilter === "REJECTED") {
-          if (!isRejected) return false;
-        } else if (cardFilter === "ALL") {
-          if (isRejected) return false;
-        }
+      } else if (cardFilter === "DUE_SOON") {
+        // Due in 7 Days: includes all payments (both subscriptions and M&A scheduled payments)
+        if (!isDueSoon(r)) return false;
+      } else if (cardFilter === "WAITING_REVIEW") {
+        // Waiting for Review: includes all payments (both subscriptions and M&A scheduled payments)
+        if (isRejected) return false;
+        const rev = r.review_status || "WAITING_FOR_REVIEW";
+        if (rev !== "WAITING_FOR_REVIEW") return false;
+      } else if (cardFilter === "REVIEWED") {
+        // Reviewed (AP): includes all payments (both subscriptions and M&A scheduled payments)
+        if (isRejected) return false;
+        if (r.review_status !== "REVIEWED") return false;
+      } else if (cardFilter === "ON_HOLD") {
+        // On Hold: includes all payments (both subscriptions and M&A scheduled payments)
+        if (parsedStatus !== RequestStatus.OnHold && r.status !== "ON_HOLD") return false;
+      } else if (cardFilter === "COMPLETED") {
+        // Completed: includes all payments (both subscriptions and M&A scheduled payments)
+        const isComp = parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID";
+        if (!isComp) return false;
+      } else if (cardFilter === "REJECTED") {
+        // Rejected: includes all payments (both subscriptions and M&A scheduled payments)
+        if (!isRejected) return false;
       }
       if (dueFilter !== "ALL") {
         const isCompOrRej =
@@ -1147,23 +1161,25 @@ export default function RecurringPayments() {
     const nonMaRequests = requests.filter((r) => !isMaTransaction(r));
     const maRequests = requests.filter(isMaTransaction);
 
+    const activeAll = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
     const activeSubs = nonMaRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
-    const total = activeSubs.length;
-    const maScheduled = maRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected).length;
-    const dueSoon = nonMaRequests.filter(isDueSoon).length;
-    const waitingReview = activeSubs.filter(
+
+    const total = activeSubs.length; // "All Subscriptions" card count
+    const maScheduled = maRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected).length; // "M&A Scheduled" card count
+    const dueSoon = requests.filter(isDueSoon).length; // "Due in 7 Days"
+    const waitingReview = activeAll.filter(
       (r) => (r.review_status || "WAITING_FOR_REVIEW") === "WAITING_FOR_REVIEW"
-    ).length;
-    const reviewed = activeSubs.filter(
+    ).length; // "Waiting for Review"
+    const reviewed = activeAll.filter(
       (r) => r.review_status === "REVIEWED"
-    ).length;
-    const onHold = nonMaRequests.filter(
+    ).length; // "Reviewed (AP)"
+    const onHold = requests.filter(
       (r) => parseRequestStatus(r.status) === RequestStatus.OnHold || r.status === "ON_HOLD"
-    ).length;
-    const completed = nonMaRequests.filter(
+    ).length; // "On Hold"
+    const completed = requests.filter(
       (r) => parseRequestStatus(r.status) === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID"
-    ).length;
-    const rejected = nonMaRequests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length;
+    ).length; // "Completed"
+    const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length; // "Rejected"
     const totalAmount = activeSubs.reduce((sum, r) => sum + (r.amount || 0), 0);
     return { total, maScheduled, dueSoon, waitingReview, reviewed, onHold, completed, rejected, totalAmount };
   }, [requests]);
@@ -1434,7 +1450,7 @@ export default function RecurringPayments() {
                 {stats.dueSoon}
               </h3>
               <p className="text-[10px] text-muted-foreground mt-0.5">
-                {stats.dueSoon === 1 ? "1 renewal due soon" : `${stats.dueSoon} renewals due soon`}
+                {stats.dueSoon === 1 ? "1 payment due soon" : `${stats.dueSoon} payments due soon`}
               </p>
             </div>
             <div className="p-1.5 rounded-md bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-amber-600 shrink-0">
@@ -1684,6 +1700,19 @@ export default function RecurringPayments() {
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-300 font-medium shrink-0">
                               Recurring
                             </Badge>
+                          )}
+                          {req.item_url && (
+                            <a
+                              href={req.item_url.startsWith("http") ? req.item_url : `https://${req.item_url}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50/80 dark:bg-blue-950/50 px-1.5 py-0.5 rounded border border-blue-200/60 dark:border-blue-800/40 shrink-0"
+                              title={req.item_url}
+                            >
+                              <ExternalLink className="w-3 h-3 shrink-0" />
+                              <span>Link</span>
+                            </a>
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -2241,6 +2270,20 @@ export default function RecurringPayments() {
                 <span className="text-muted-foreground">Requester:</span>
                 <span className="font-medium">{selectedCalendarItem.requester}</span>
               </div>
+              {selectedCalendarItem.item_url && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Product Link:</span>
+                  <a
+                    href={selectedCalendarItem.item_url.startsWith("http") ? selectedCalendarItem.item_url : `https://${selectedCalendarItem.item_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline text-xs"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    <span>Open Product Page</span>
+                  </a>
+                </div>
+              )}
               {selectedCalendarItem.recurring_schedule?.is_scheduled && (
                 <>
                   <div className="flex justify-between items-center bg-indigo-50/60 dark:bg-indigo-950/30 p-2 rounded border border-indigo-100 dark:border-indigo-900/50">
@@ -2529,6 +2572,32 @@ export default function RecurringPayments() {
                   />
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+                    <span>Product / Vendor Link (URL)</span>
+                    {newForm.item_url && (
+                      <a
+                        href={newForm.item_url.startsWith("http") ? newForm.item_url : `https://${newForm.item_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Test Link</span>
+                      </a>
+                    )}
+                  </label>
+                  <Input
+                    type="url"
+                    value={newForm.item_url}
+                    onChange={(e) =>
+                      setNewForm({ ...newForm, item_url: e.target.value })
+                    }
+                    placeholder="https://example.com/product-or-subscription"
+                    className="h-10 text-sm font-mono text-xs"
+                  />
+                </div>
+
                 <div className="space-y-1.5 flex-1 flex flex-col">
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>
                   <textarea
@@ -2776,6 +2845,32 @@ export default function RecurringPayments() {
                       onChange={(val) => setEditForm((prev) => ({ ...prev, location: val }))}
                       placeholder="Search or enter location..."
                       label="Location"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+                      <span>Product / Vendor Link (URL)</span>
+                      {editForm.item_url && (
+                        <a
+                          href={editForm.item_url.startsWith("http") ? editForm.item_url : `https://${editForm.item_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Open Link</span>
+                        </a>
+                      )}
+                    </label>
+                    <Input
+                      type="url"
+                      value={editForm.item_url}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, item_url: e.target.value })
+                      }
+                      placeholder="https://example.com/product-or-subscription"
+                      className="h-10 text-sm font-mono text-xs"
                     />
                   </div>
 

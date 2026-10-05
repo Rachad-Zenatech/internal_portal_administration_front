@@ -607,6 +607,31 @@ export default function GenerateInvoicePage() {
     setLineItems((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Handle switching invoice layout template (Pace+ vs interlinkONE)
+  const handleSelectInvoiceTemplate = (style: InvoiceLayoutStyle) => {
+    setLayoutStyle(style);
+    if (style === "pace_plus" || style === "modern") {
+      setFromCompany("Pace Plus Inc.");
+      setFromPhone("(312) 614-1288 | ext 1098");
+      setFromEmail("Accounting@paceplus.com");
+      setFromAddress("602B W 5th Ave\nNaperville, IL 60563 USA");
+      setBankName("Bank of America");
+      setBankAccount("2910 2819 7458");
+      setAchRouting("026009593");
+      setWireRouting("026009593");
+    } else if (style === "interlinkone" || style === "classic") {
+      setFromCompany("interlinkONE");
+      setFromPhone("(312) 614-1288 | ext 1098");
+      setFromEmail("Accounting@paceplus.com");
+      setFromAddress("602B W 5th Ave\nNaperville, IL 60563 USA");
+      setBankName("Bank of America");
+      setBankAddress("896 N Route 59, Aurora, IL 60504");
+      setBankAccount("2910 3381 9572");
+      setAchRouting("081904808");
+      setWireRouting("026009593");
+    }
+  };
+
   // Reset form to defaults
   const handleResetForm = () => {
     setCurrentInvoiceId(null);
@@ -807,6 +832,19 @@ export default function GenerateInvoicePage() {
     },
   });
 
+  // Generate & Save Invoice Handler with Validation
+  const handleGenerateInvoice = () => {
+    if (!layoutStyle) {
+      alert("Please select an Invoice Template (Pace+ or interlinkONE) before generating the invoice.");
+      return;
+    }
+    if (!selectedCustomer && !billToName.trim()) {
+      alert("Please select an A/R Customer or provide a Bill-To Name before generating the invoice.");
+      return;
+    }
+    generateInvoiceMutation.mutate();
+  };
+
   // Send Email Modal Trigger
   const handleOpenSendEmail = () => {
     setEmailRecipient(billToEmail || selectedCustomer?.email || "");
@@ -918,7 +956,13 @@ export default function GenerateInvoicePage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => saveTemplateMutation.mutate()}
+            onClick={() => {
+              if (!layoutStyle) {
+                alert("Please select an Invoice Template (Pace+ or interlinkONE) before saving.");
+                return;
+              }
+              saveTemplateMutation.mutate();
+            }}
             disabled={saveTemplateMutation.isPending || (!selectedCustomer && !billToName)}
             title="Save changes to template and update invoice"
             className="text-xs gap-1.5 h-8 px-3 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 cursor-pointer"
@@ -933,7 +977,7 @@ export default function GenerateInvoicePage() {
 
           <Button
             size="sm"
-            onClick={() => generateInvoiceMutation.mutate()}
+            onClick={handleGenerateInvoice}
             disabled={generateInvoiceMutation.isPending}
             className="text-xs gap-1.5 h-8 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs cursor-pointer"
           >
@@ -1048,7 +1092,9 @@ export default function GenerateInvoicePage() {
                     <Bookmark className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-foreground block">Template Preset</span>
+                    <span className="text-xs font-bold text-foreground block">
+                      Template Preset <span className="text-red-500">*</span>
+                    </span>
                     <span className="text-[11px] text-muted-foreground">Saved item & layout preset for customer</span>
                   </div>
                 </div>
@@ -1150,61 +1196,44 @@ export default function GenerateInvoicePage() {
                 </div>
               </div>
 
-              {/* Right: 2 Invoice Template Options (Pace+ and interlinkONE) */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 mr-1">
-                  <Palette className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="text-xs font-semibold text-muted-foreground">Invoice Template:</span>
+              {/* Right: Invoice Template Options (Pace+ and interlinkONE) - Required Dropdown */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                    <Palette className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-foreground block">
+                      Invoice Template <span className="text-red-500">*</span>
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">Select Pace+ or interlinkONE</span>
+                  </div>
                 </div>
 
-                <div className="inline-flex rounded-xl bg-muted p-1 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLayoutStyle("pace_plus");
-                      setFromCompany("Pace Plus Inc.");
-                      setFromPhone("(312) 614-1288 | ext 1098");
-                      setFromEmail("Accounting@paceplus.com");
-                      setFromAddress("602B W 5th Ave\nNaperville, IL 60563 USA");
-                      setBankName("Bank of America");
-                      setBankAccount("2910 2819 7458");
-                      setAchRouting("026009593");
-                      setWireRouting("026009593");
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-2 ${
-                      layoutStyle === "pace_plus" || layoutStyle === "modern"
-                        ? "bg-card text-blue-900 dark:text-blue-200 shadow-xs font-bold border border-blue-200/60 dark:border-blue-800/60"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#1B365D] inline-block shadow-2xs" />
-                    <span>Pace+</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLayoutStyle("interlinkone");
-                      setFromCompany("interlinkONE");
-                      setFromPhone("(312) 614-1288 | ext 1098");
-                      setFromEmail("Accounting@paceplus.com");
-                      setFromAddress("602B W 5th Ave\nNaperville, IL 60563 USA");
-                      setBankName("Bank of America");
-                      setBankAddress("896 N Route 59, Aurora, IL 60504");
-                      setBankAccount("2910 3381 9572");
-                      setAchRouting("081904808");
-                      setWireRouting("026009593");
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-2 ${
-                      layoutStyle === "interlinkone"
-                        ? "bg-card text-teal-800 dark:text-teal-200 shadow-xs font-bold border border-teal-200/60 dark:border-teal-800/60"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#008b94] inline-block shadow-2xs" />
-                    <span>interlinkONE</span>
-                  </button>
-                </div>
+                <Select
+                  value={layoutStyle === "modern" ? "pace_plus" : layoutStyle === "classic" ? "interlinkone" : layoutStyle}
+                  onValueChange={(val) => {
+                    handleSelectInvoiceTemplate(val as InvoiceLayoutStyle);
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs min-w-[170px] bg-background">
+                    <SelectValue placeholder="Select Invoice Template *" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pace_plus" className="text-xs font-medium">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#1B365D] inline-block shadow-2xs" />
+                        <span className="font-semibold text-foreground">Pace+</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="interlinkone" className="text-xs font-medium">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#008b94] inline-block shadow-2xs" />
+                        <span className="font-semibold text-foreground">interlinkONE</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -1912,7 +1941,7 @@ export default function GenerateInvoicePage() {
 
             <Button
               size="sm"
-              onClick={() => generateInvoiceMutation.mutate()}
+              onClick={handleGenerateInvoice}
               disabled={generateInvoiceMutation.isPending}
               className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-semibold cursor-pointer"
             >

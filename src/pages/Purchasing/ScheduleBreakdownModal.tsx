@@ -128,6 +128,19 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                   Request #{request.id} &bull; {request.department} &bull; Requester: {request.requester}
                 </DialogDescription>
+                {request.item_url && (
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <a
+                      href={request.item_url.startsWith("http") ? request.item_url : `https://${request.item_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                      <span>{request.item_url}</span>
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
             <Badge

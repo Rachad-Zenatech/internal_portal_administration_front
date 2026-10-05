@@ -16,6 +16,8 @@ import {
   Repeat,
   AlertCircle,
   Loader2,
+  ExternalLink,
+  Link as LinkIcon,
 } from "lucide-react";
 import { useUpdateRequest } from "@/hooks/usePurchasing";
 import { toast } from "sonner";
@@ -63,6 +65,9 @@ export function ConvertToRecurringDialog({
   );
   const [description, setDescription] = useState<string>(
     request.description || ""
+  );
+  const [itemUrl, setItemUrl] = useState<string>(
+    request.item_url || ""
   );
 
   // Schedule builder states
@@ -140,6 +145,7 @@ export function ConvertToRecurringDialog({
       unit_price: baseAmt,
       due_date: dueDate || effectiveStartDate || null,
       description: description.trim() || request.description || null,
+      item_url: itemUrl.trim() || request.item_url || null,
       recurring_schedule: recurringSchedulePayload,
     };
 
@@ -214,6 +220,23 @@ export function ConvertToRecurringDialog({
                   Current Total: <strong className="text-slate-900 dark:text-zinc-100 text-sm font-semibold">{formatMoney(initialAmount, request.currency || "USD")}</strong>
                 </span>
               </div>
+              {(itemUrl || request.item_url) && (
+                <div className="pt-2 border-t border-slate-200/60 dark:border-zinc-700/60 flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-xs text-slate-500 dark:text-zinc-400">Product / Item Link:</span>
+                  <a
+                    href={(() => {
+                      const link = itemUrl || request.item_url || "";
+                      return link.startsWith("http") ? link : `https://${link}`;
+                    })()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline max-w-[550px] truncate"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{itemUrl || request.item_url}</span>
+                  </a>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -283,6 +306,34 @@ export function ConvertToRecurringDialog({
                 placeholder="e.g. Annual auto-renewal, monthly SaaS subscription, cancellation terms..."
                 rows={3}
                 className="text-sm bg-white dark:bg-zinc-950 resize-y"
+              />
+            </div>
+
+            {/* Product / Vendor Link (URL) */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <LinkIcon className="h-3.5 w-3.5 text-slate-400" />
+                  Product / Vendor Link (URL)
+                </span>
+                {itemUrl.trim() && (
+                  <a
+                    href={itemUrl.trim().startsWith("http") ? itemUrl.trim() : `https://${itemUrl.trim()}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 normal-case tracking-normal"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    <span>Open / Test Link</span>
+                  </a>
+                )}
+              </label>
+              <Input
+                type="url"
+                value={itemUrl}
+                onChange={(e) => setItemUrl(e.target.value)}
+                placeholder="https://example.com/product-or-subscription"
+                className="h-10 text-sm bg-white dark:bg-zinc-950 font-mono text-xs"
               />
             </div>
 
