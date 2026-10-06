@@ -343,6 +343,10 @@ export const arQuoteService = {
       payment_date?: string;
       reference_number?: string;
       notes?: string;
+      gl_code?: string;
+      category?: string;
+      class_name?: string;
+      class?: string;
       invoice_id?: string;
     }
   ): Promise<{ success: boolean; message: string }> {

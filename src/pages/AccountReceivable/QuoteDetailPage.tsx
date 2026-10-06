@@ -12,6 +12,7 @@ import {
   Copy,
   CornerDownRight,
   CreditCard,
+  Download,
   FileCheck2,
   FileSpreadsheet,
   History,
@@ -46,6 +47,8 @@ import { useNotificationStream } from "@/hooks/useNotifications";
 import { SendQuoteModal } from "./SendQuoteModal";
 import { QuoteNotesThread } from "./QuoteNotesThread";
 import { QuoteStepper } from "./QuoteStepper";
+import { GLCodeAutocomplete } from "@/pages/Purchasing/GLCodeAutocomplete";
+import { ClassAutocomplete } from "@/pages/Purchasing/ClassAutocomplete";
 
 export default function QuoteDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -60,6 +63,8 @@ export default function QuoteDetailPage() {
   const [paymentAmount, setPaymentAmount] = useState<number | string>("");
   const [paymentMethod, setPaymentMethod] = useState("WIRE");
   const [paymentRef, setPaymentRef] = useState("");
+  const [paymentGLCode, setPaymentGLCode] = useState("");
+  const [paymentClass, setPaymentClass] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
@@ -160,13 +165,16 @@ export default function QuoteDetailPage() {
 
   const convertInvoiceMutation = useMutation({
     mutationFn: (quoteId: string) => arQuoteService.convertToInvoice(quoteId),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["ar-quote-detail", id] });
       queryClient.invalidateQueries({ queryKey: ["ar-quotes"] });
       queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
       queryClient.invalidateQueries({ queryKey: ["ar-quote-summary"] });
       refetch();
       refetchLogs();
+      if (res?.invoice_id) {
+        navigate(`/account-receivable/generate-invoice?invoiceId=${res.invoice_id}`);
+      }
     },
   });
 
@@ -217,6 +225,10 @@ export default function QuoteDetailPage() {
         amount: Number(paymentAmount),
         payment_method: paymentMethod,
         reference_number: paymentRef,
+        gl_code: paymentGLCode,
+        category: paymentGLCode,
+        class_name: paymentClass,
+        class: paymentClass,
         notes: paymentNotes,
       });
       queryClient.invalidateQueries({ queryKey: ["ar-quote-detail", id] });
@@ -227,6 +239,8 @@ export default function QuoteDetailPage() {
       setIsPaymentModalOpen(false);
       setPaymentAmount("");
       setPaymentRef("");
+      setPaymentGLCode("");
+      setPaymentClass("");
       setPaymentNotes("");
     } catch (err: any) {
       alert("Failed to record payment: " + err.message);
@@ -392,9 +406,9 @@ export default function QuoteDetailPage() {
   const isPaid = quote.payment_status === "PAID";
 
   return (
-    <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6 print:min-h-0 print:p-0 print:m-0 print:bg-white print:w-full print:space-y-4">
       {/* ── Top Navigation Bar ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
@@ -436,7 +450,17 @@ export default function QuoteDetailPage() {
         </div>
 
         {/* Action Buttons Toolbar */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap print:hidden">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.print()}
+            className="h-8 text-xs rounded-xl border-slate-200 dark:border-slate-800 cursor-pointer gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>Download PDF</span>
+          </Button>
+
           {isSuperseded && quote.superseded_by_id && (
             <Button
               size="sm"
@@ -548,7 +572,7 @@ export default function QuoteDetailPage() {
 
       {/* ── Prominent Superseded / Disabled Banner ── */}
       {isSuperseded && (
-        <div className="bg-slate-100 dark:bg-slate-800/80 border-2 border-slate-300 dark:border-slate-700 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-slate-100 dark:bg-slate-800/80 border-2 border-slate-300 dark:border-slate-700 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
           <div className="flex items-start gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0 mt-0.5">
               <Layers className="w-5 h-5 text-slate-600 dark:text-slate-300" />
@@ -577,7 +601,7 @@ export default function QuoteDetailPage() {
 
       {/* ── Prominent Customer Change Request Alert Banner ── */}
       {!isSuperseded && isChanges && (
-        <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-amber-950/40 border-2 border-amber-300 dark:border-amber-700/80 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-amber-950/40 border-2 border-amber-300 dark:border-amber-700/80 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
           <div className="flex items-start gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
               <XCircle className="w-6 h-6 text-amber-600" />
@@ -621,7 +645,7 @@ export default function QuoteDetailPage() {
       )}
 
       {/* ── Main Header Title Card ── */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs space-y-5">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs space-y-5 print:hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2.5 flex-wrap">
@@ -895,11 +919,17 @@ export default function QuoteDetailPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate("/account-receivable?tab=invoices")}
+                    onClick={() => {
+                      if (quote.invoice_id) {
+                        navigate(`/account-receivable/generate-invoice?invoiceId=${quote.invoice_id}`);
+                      } else {
+                        navigate("/account-receivable?tab=invoices");
+                      }
+                    }}
                     className="h-8 text-xs rounded-xl border-slate-200 dark:border-slate-800 cursor-pointer gap-1.5"
                   >
                     <Receipt className="w-3.5 h-3.5" />
-                    <span>View Invoices</span>
+                    <span>View Generated Invoice</span>
                   </Button>
                 </>
               )}
@@ -908,11 +938,17 @@ export default function QuoteDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate("/account-receivable?tab=invoices")}
+                  onClick={() => {
+                    if (quote.invoice_id) {
+                      navigate(`/account-receivable/generate-invoice?invoiceId=${quote.invoice_id}`);
+                    } else {
+                      navigate("/account-receivable?tab=invoices");
+                    }
+                  }}
                   className="h-8 text-xs rounded-xl border-slate-200 dark:border-slate-800 cursor-pointer gap-1.5"
                 >
                   <Receipt className="w-3.5 h-3.5" />
-                  <span>View Invoices</span>
+                  <span>View Generated Invoice</span>
                 </Button>
               )}
             </div>
@@ -921,11 +957,11 @@ export default function QuoteDetailPage() {
       </div>
 
       {/* ── 2-Column Content Grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block print:w-full print:m-0 print:p-0">
         {/* Left Column (2 Cols): Document Details & Line Items */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 print:w-full print:max-w-none print:space-y-6 print:m-0 print:p-0">
           {/* Customer & Prepared By Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs grid grid-cols-1 sm:grid-cols-2 gap-6 print:border-none print:shadow-none print:p-0 print:rounded-none">
             <div className="space-y-2">
               <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 uppercase tracking-wider">
                 <Building2 className="w-3.5 h-3.5 text-amber-600" />
@@ -960,25 +996,25 @@ export default function QuoteDetailPage() {
           </div>
 
           {/* Line Items Table */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden print:border-none print:shadow-none print:rounded-none print:p-0">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between print:px-0">
               <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-wider">
                 <FileSpreadsheet className="w-4 h-4 text-amber-600" />
                 <span>Line Items ({quote.line_items?.length || 0})</span>
               </h3>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-medium">
-                    <th className="py-3 px-4">Item & Description</th>
-                    <th className="py-3 px-4 text-right w-28">Unit Price</th>
-                    <th className="py-3 px-4 text-right w-20">Qty</th>
-                    <th className="py-3 px-4 text-right w-32">Subtotal</th>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-medium print:bg-[#f8f9fa] print:text-slate-900">
+                    <th className="py-3 px-4 font-bold">Item &amp; Description</th>
+                    <th className="py-3 px-4 text-right w-28 font-bold">Unit Price</th>
+                    <th className="py-3 px-4 text-right w-20 font-bold">Qty</th>
+                    <th className="py-3 px-4 text-right w-32 font-bold">Subtotal</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-200">
                   {quote.line_items?.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="py-8 text-center text-slate-400">
@@ -991,10 +1027,15 @@ export default function QuoteDetailPage() {
                         <td className="py-3 px-4">
                           <div className="font-semibold text-slate-900 dark:text-white">{item.name || "—"}</div>
                           {item.description && (
-                            <div className="text-[11px] text-slate-400 mt-0.5">{item.description}</div>
+                            <div className="text-[11px] text-slate-500 mt-0.5 whitespace-pre-line leading-relaxed">{item.description}</div>
                           )}
-                          {(item.billing_frequency || item.term || item.billing_start_date) && (
+                          {(item.billing_frequency || item.term || item.billing_start_date || item.status === "Paid" || item.service_status === "Paid" || isPaid) && (
                             <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[10.5px] text-slate-500">
+                              {(item.status === "Paid" || item.service_status === "Paid" || isPaid) && (
+                                <Badge className="text-[9.5px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-semibold">
+                                  Paid
+                                </Badge>
+                              )}
                               {item.billing_frequency && (
                                 <Badge variant="outline" className="text-[9.5px] px-1.5 py-0">
                                   {item.billing_frequency}
@@ -1031,7 +1072,7 @@ export default function QuoteDetailPage() {
             </div>
 
             {/* Financial Summary */}
-            <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+            <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800 flex justify-end print:bg-white print:border-slate-200">
               <div className="w-64 space-y-2 text-xs">
                 <div className="flex justify-between text-slate-500">
                   <span>Subtotal</span>
@@ -1061,14 +1102,14 @@ export default function QuoteDetailPage() {
 
           {/* Signature Verification Certificate */}
           {isSigned && (
-            <div className="bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl p-5 space-y-4">
+            <div className="bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl p-5 space-y-4 print:bg-white print:border-slate-200 print:rounded-none">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-emerald-900 dark:text-emerald-300">
-                    Cryptographic Acceptance & Signature Certificate
+                    Cryptographic Acceptance &amp; Signature Certificate
                   </h4>
                   <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
                     Legally binding electronic signature verified with SHA-256 audit hashing.
@@ -1076,7 +1117,7 @@ export default function QuoteDetailPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-white dark:bg-slate-900 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/40">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-white dark:bg-slate-900 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/40 print:border-slate-200">
                 <div className="space-y-1">
                   <span className="text-slate-400">Signer Name</span>
                   <p className="font-bold text-slate-900 dark:text-white">{quote.signer_name || "Customer"}</p>
@@ -1121,7 +1162,7 @@ export default function QuoteDetailPage() {
 
           {/* Customer Change Request Notice */}
           {isChanges && quote.change_request_message && (
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-5 space-y-2">
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-5 space-y-2 print:hidden">
               <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-bold text-xs">
                 <XCircle className="w-4 h-4 text-amber-600" />
                 <span>Customer Requested Changes</span>
@@ -1133,16 +1174,18 @@ export default function QuoteDetailPage() {
           )}
 
           {/* Documents Required & Messages Thread */}
-          <QuoteNotesThread
-            quoteId={quote.id}
-            authorType="SALES"
-            defaultAuthorName={quote.prepared_by_name || "Sales Team"}
-            defaultAuthorEmail={quote.prepared_by_email || ""}
-          />
+          <div className="print:hidden">
+            <QuoteNotesThread
+              quoteId={quote.id}
+              authorType="SALES"
+              defaultAuthorName={quote.prepared_by_name || "Sales Team"}
+              defaultAuthorEmail={quote.prepared_by_email || ""}
+            />
+          </div>
         </div>
 
         {/* Right Column (1 Col): Security Link, Payments, and Audit Logs */}
-        <div className="space-y-6">
+        <div className="space-y-6 print:hidden">
           {/* Version Lineage Card */}
           {quote.version_history && quote.version_history.length > 1 && (
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-3">
@@ -1396,7 +1439,7 @@ export default function QuoteDetailPage() {
       {/* Record Payment Modal */}
       {quote && (
         <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-xl w-full">
             <DialogHeader>
               <DialogTitle className="text-base font-bold flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-emerald-600" />
@@ -1409,8 +1452,10 @@ export default function QuoteDetailPage() {
 
             <div className="space-y-3 py-2 text-xs">
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold">Payment Amount ({quote.currency}) *</Label>
+                <Label htmlFor="payment-modal-amount" className="text-[11px] font-semibold">Payment Amount ({quote.currency}) *</Label>
                 <Input
+                  id="payment-modal-amount"
+                  name="paymentAmount"
                   type="number"
                   step="any"
                   value={paymentAmount}
@@ -1422,8 +1467,10 @@ export default function QuoteDetailPage() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-semibold">Payment Method</Label>
+                  <Label htmlFor="payment-modal-method" className="text-[11px] font-semibold">Payment Method</Label>
                   <Input
+                    id="payment-modal-method"
+                    name="paymentMethod"
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     placeholder="e.g. WIRE, ACH, CHECK"
@@ -1431,8 +1478,10 @@ export default function QuoteDetailPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-semibold">Reference / Tx ID</Label>
+                  <Label htmlFor="payment-modal-ref" className="text-[11px] font-semibold">Reference / Tx ID</Label>
                   <Input
+                    id="payment-modal-ref"
+                    name="paymentRef"
                     value={paymentRef}
                     onChange={(e) => setPaymentRef(e.target.value)}
                     placeholder="e.g. WIRE-88491"
@@ -1441,9 +1490,39 @@ export default function QuoteDetailPage() {
                 </div>
               </div>
 
+              {/* 2 Auto-completed Fields: Category (GL Codes) & Class (Classes Table) */}
+              <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-semibold flex items-center justify-between">
+                    <span>Category (GL Code)</span>
+                    <span className="text-[10px] text-slate-400 font-normal font-sans">Chart of Accounts</span>
+                  </Label>
+                  <GLCodeAutocomplete
+                    value={paymentGLCode}
+                    onChange={setPaymentGLCode}
+                    placeholder="GL Code & Account..."
+                    showDetailCard={false}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-semibold flex items-center justify-between">
+                    <span>Class</span>
+                    <span className="text-[10px] text-slate-400 font-normal font-sans">Classes Table</span>
+                  </Label>
+                  <ClassAutocomplete
+                    value={paymentClass}
+                    onChange={setPaymentClass}
+                    placeholder="Select Class..."
+                  />
+                </div>
+              </div>
+
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold">Internal Notes</Label>
+                <Label htmlFor="payment-modal-notes" className="text-[11px] font-semibold">Internal Notes</Label>
                 <Textarea
+                  id="payment-modal-notes"
+                  name="paymentNotes"
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
                   rows={2}

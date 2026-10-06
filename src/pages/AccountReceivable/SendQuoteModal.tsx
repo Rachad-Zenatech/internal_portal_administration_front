@@ -84,7 +84,7 @@ export function SendQuoteModal({
         }
       } else {
         setCustomMessage(
-          `<p>Dear {{customer_name}},</p><p>Please review our official quotation proposal <strong>{{quote_number}}</strong> prepared for your organization.</p><p><a href="{{quote_link}}" style="display:inline-block;padding:12px 24px;background-color:#d97706;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;">View &amp; Sign Quote</a></p><p>Secure link expires on {{expiry_date}}.</p><p>Best regards,<br/>{{prepared_by_name}}<br/>{{company_name}}</p>`
+          `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 620px; margin: 0 auto; background-color: #f8fafc; padding: 24px 16px;"><div style="background-color: #0b1329; border-radius: 10px 10px 0 0; padding: 18px 24px; display: flex; align-items: center;"><span style="font-size: 17px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">ZENATECH</span><span style="font-size: 14px; font-weight: 500; color: #60a5fa; margin-left: 10px;">Purchasing Portal</span></div><div style="background-color: #ffffff; border-radius: 0 0 10px 10px; border: 1px solid #e2e8f0; border-top: none; padding: 32px 28px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);"><h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">Formal Quotation Proposal (Quote# {{quote_number}})</h2><p style="margin: 0 0 18px 0; font-size: 14px; color: #334155;">Hello <strong>{{customer_name}}</strong>,</p><div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 6px; padding: 14px 18px; margin: 18px 0;"><p style="margin: 0 0 5px 0; font-size: 14px; font-weight: 700; color: #166534;">You have received a formal quotation proposal from {{company_name}}.</p><p style="margin: 0; font-size: 13px; color: #15803d; line-height: 1.5;">Please review the quotation details and summary below. You can inspect itemized line items, download the official PDF, request revisions, or provide your electronic signature.</p></div><table style="width: 100%; border-collapse: collapse; margin: 24px 0 28px 0; font-size: 13px;"><thead><tr style="border-bottom: 2px solid #e2e8f0; text-align: left; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;"><th style="padding: 10px 8px; font-weight: 600;">Quote #</th><th style="padding: 10px 8px; font-weight: 600;">Client</th><th style="padding: 10px 8px; font-weight: 600; text-align: right;">Amount</th><th style="padding: 10px 8px; font-weight: 600; text-align: right;">Valid Until</th></tr></thead><tbody><tr style="border-bottom: 1px solid #f1f5f9; color: #1e293b;"><td style="padding: 14px 8px; font-weight: 700; color: #2563eb;">#{{quote_number}}</td><td style="padding: 14px 8px; font-weight: 500; color: #334155;">{{customer_name}}</td><td style="padding: 14px 8px; font-weight: 700; text-align: right; color: #0f172a; font-family: monospace; font-size: 14px;">{{total_amount}}</td><td style="padding: 14px 8px; text-align: right; color: #d97706; font-weight: 600;">{{expiry_date}}</td></tr></tbody></table><div style="margin: 28px 0 24px 0;"><a href="{{quote_link}}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); text-align: center;">View &amp; Sign Quotation &rarr;</a></div><div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; line-height: 1.6;"><p style="margin: 0 0 6px 0;">Or copy and paste this secure link into your browser:</p><p style="margin: 0 0 10px 0;"><a href="{{quote_link}}" style="color: #2563eb; word-break: break-all; text-decoration: underline;">{{quote_link}}</a></p><p style="margin: 0; font-style: italic; color: #94a3b8;">Note: This secure link is valid until {{expiry_date}}.</p></div><div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f1f5f9; font-size: 13px; color: #334155; line-height: 1.5;"><div>Best regards,</div><div style="font-weight: 700; color: #0f172a; margin-top: 2px;">{{prepared_by_name}}</div><div style="color: #64748b;">{{company_name}}</div></div></div></div>`
         );
       }
       setIsPreviewMode(false);
@@ -160,12 +160,15 @@ export function SendQuoteModal({
     ? new Date(quote.valid_until).toLocaleDateString()
     : new Date(Date.now() + validityDays * 86400000).toLocaleDateString();
 
+  const totalAmountStr = `$${Number(quote.total_amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${quote.currency || "USD"}`;
+
   const renderedPreviewHtml = customMessage
     .replace(/{{customer_name}}/g, recipientName || quote.customer_name || "Customer")
     .replace(/{{quote_number}}/g, quote.quote_number)
     .replace(/{{company_name}}/g, quote.company_name)
     .replace(/{{quote_link}}/g, "https://portal.zenatech.com/q/sample-secure-token")
     .replace(/{{expiry_date}}/g, expiryDateStr)
+    .replace(/{{total_amount}}/g, totalAmountStr)
     .replace(/{{prepared_by_name}}/g, quote.prepared_by_name);
 
   return (
@@ -205,8 +208,11 @@ export function SendQuoteModal({
           {/* Recipient Details */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
             <div className="space-y-1">
-              <Label className="text-[11px] font-semibold text-slate-600">Recipient Email *</Label>
+              <Label htmlFor="send-quote-recipient-email" className="text-[11px] font-semibold text-slate-600">Recipient Email *</Label>
               <Input
+                id="send-quote-recipient-email"
+                name="recipientEmail"
+                type="email"
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
                 placeholder="client@example.com"
@@ -214,8 +220,10 @@ export function SendQuoteModal({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px] font-semibold text-slate-600">Recipient Contact Name</Label>
+              <Label htmlFor="send-quote-recipient-name" className="text-[11px] font-semibold text-slate-600">Recipient Contact Name</Label>
               <Input
+                id="send-quote-recipient-name"
+                name="recipientName"
                 value={recipientName}
                 onChange={(e) => setRecipientName(e.target.value)}
                 placeholder="e.g. Jasper O. I"
@@ -260,8 +268,10 @@ export function SendQuoteModal({
           {!isPreviewMode ? (
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-slate-600">Subject Line</Label>
+                <Label htmlFor="send-quote-subject" className="text-[11px] font-semibold text-slate-600">Subject Line</Label>
                 <Input
+                  id="send-quote-subject"
+                  name="subject"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   className="h-8 text-xs"
@@ -270,12 +280,14 @@ export function SendQuoteModal({
 
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-semibold text-slate-600">Message Body (HTML / Placeholders supported)</Label>
+                  <Label htmlFor="send-quote-custom-message" className="text-[11px] font-semibold text-slate-600">Message Body (HTML / Placeholders supported)</Label>
                   <span className="text-[10px] text-slate-400">
                     Variables: <code>{"{{quote_link}}"}</code>, <code>{"{{expiry_date}}"}</code>, <code>{"{{customer_name}}"}</code>
                   </span>
                 </div>
                 <Textarea
+                  id="send-quote-custom-message"
+                  name="customMessage"
                   value={customMessage}
                   onChange={(e) => setCustomMessage(e.target.value)}
                   rows={10}
@@ -288,6 +300,8 @@ export function SendQuoteModal({
                 {isSavingTemplate ? (
                   <div className="flex items-center gap-2 flex-1">
                     <Input
+                      id="send-quote-new-template-name"
+                      name="newTemplateName"
                       value={newTemplateName}
                       onChange={(e) => setNewTemplateName(e.target.value)}
                       placeholder="Template preset name (e.g. Follow-up Proposal)..."

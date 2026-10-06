@@ -250,6 +250,8 @@
     overflow: visible !important;
     margin: 0 !important;
     padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .print\:hidden {
@@ -257,7 +259,29 @@
   }
 
   @page {
-    size: auto;
-    margin: 6mm;
+    size: letter portrait;
+    margin: 6mm 8mm;
+  }
+
+  #invoice-document-canvas,
+  #quote-document-canvas,
+  .printable-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr, td, th {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }

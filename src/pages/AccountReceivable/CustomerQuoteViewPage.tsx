@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Clock,
   Download,
-  KeyRound,
   MessageSquare,
   Paperclip,
   PenTool,
@@ -47,15 +46,6 @@ export default function CustomerQuoteViewPage() {
   const [loading, setLoading] = useState(true);
   const [quoteData, setQuoteData] = useState<PublicQuoteResponse | null>(null);
   const [errorReason, setErrorReason] = useState<string | null>(null);
-
-  // Email Verification State
-  const [isVerified, setIsVerified] = useState(false);
-  const [isVerifModalOpen, setIsVerifModalOpen] = useState(false);
-  const [verificationCode, setVerificationCode] = useState("");
-  const [codeSending, setCodeSending] = useState(false);
-  const [codeVerifying, setCodeVerifying] = useState(false);
-  const [verifError, setVerifError] = useState<string | null>(null);
-  const [verifSuccessMsg, setVerifSuccessMsg] = useState<string | null>(null);
 
   // Signing Modal State
   const [isSignModalOpen, setIsSignModalOpen] = useState(false);
@@ -99,11 +89,6 @@ export default function CustomerQuoteViewPage() {
           setSignerJobTitle(res.quote.customer_contact_title || "");
           // Send human page load beacon
           arQuoteService.sendPublicBeacon(token);
-
-          // If quote requires verification to view and not verified yet, open verification dialog
-          if (res.requires_verification_to_view && !isVerified) {
-            setIsVerifModalOpen(true);
-          }
         } else {
           setErrorReason(res.reason || "Invalid or expired quotation link.");
         }
@@ -114,7 +99,7 @@ export default function CustomerQuoteViewPage() {
       .finally(() => {
         setLoading(false);
       });
-  }, [token, isVerified]);
+  }, [token]);
 
   // Real-time SSE listener for live signing updates (especially for Mobile QR sync)
   useEffect(() => {
@@ -208,49 +193,9 @@ export default function CustomerQuoteViewPage() {
     setHasSignature(false);
   };
 
-  // Request Email Code
-  const handleRequestCode = async () => {
-    if (!token) return;
-    setCodeSending(true);
-    setVerifError(null);
-    try {
-      const res = await arQuoteService.requestVerificationCode(token);
-      setVerifSuccessMsg(res.message);
-    } catch (err: any) {
-      setVerifError(err?.response?.data?.detail || err.message || "Failed to send verification code.");
-    } finally {
-      setCodeSending(false);
-    }
-  };
-
-  // Verify Email Code
-  const handleVerifyCode = async () => {
-    if (!token || !verificationCode.trim()) return;
-    setCodeVerifying(true);
-    setVerifError(null);
-    try {
-      const res = await arQuoteService.verifyCode(token, verificationCode.trim());
-      if (res.verified) {
-        setIsVerified(true);
-        setIsVerifModalOpen(false);
-        // If they were trying to sign, now proceed to sign dialog
-        setIsSignModalOpen(true);
-      }
-    } catch (err: any) {
-      setVerifError(err?.response?.data?.detail || err.message || "Invalid or expired code.");
-    } finally {
-      setCodeVerifying(false);
-    }
-  };
-
-  // Open Sign Dialog
+  // Open Sign Dialog Directly (No verification code required)
   const handleOpenSignDialog = () => {
-    if (!isVerified) {
-      setIsVerifModalOpen(true);
-      handleRequestCode();
-    } else {
-      setIsSignModalOpen(true);
-    }
+    setIsSignModalOpen(true);
   };
 
   // Submit Handwritten Signature
@@ -359,8 +304,8 @@ export default function CustomerQuoteViewPage() {
   const isChangesPending = quote.customer_response_state === "CHANGES_REQUESTED";
 
   return (
-    <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 py-6 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 py-6 px-4 sm:px-6 lg:px-8 font-sans print:min-h-0 print:p-0 print:m-0 print:bg-white print:w-full">
+      <div className="max-w-4xl mx-auto space-y-6 print:max-w-none print:m-0 print:p-0 print:space-y-0 print:w-full">
         {/* Top Status & Security Bar */}
         <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 lg:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm print:hidden">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -463,7 +408,7 @@ export default function CustomerQuoteViewPage() {
 
         {/* Change Request Notification Banner */}
         {isChangesPending && (
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs font-medium flex items-start gap-3">
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs font-medium flex items-start gap-3 print:hidden">
             <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <div>
               <p className="font-bold">A revision or document request is currently being reviewed by your account representative.</p>
@@ -472,9 +417,9 @@ export default function CustomerQuoteViewPage() {
           </div>
         )}
 
-        {/* Signed Success Notification Banner */}
+        {/* Signed Success Notification Banner (Screen only, signature displays on document below) */}
         {isAlreadySigned && (
-          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-medium flex items-start justify-between gap-3">
+          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-medium flex items-start justify-between gap-3 print:hidden">
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div>
@@ -493,8 +438,8 @@ export default function CustomerQuoteViewPage() {
           </div>
         )}
 
-        {/* Visual Document Layout (Matches exact reference quote layout) */}
-        <div className="p-8 sm:p-14 bg-white text-slate-900 border border-slate-200 rounded-2xl shadow-sm font-sans text-sm space-y-8 min-h-[750px]">
+        {/* Visual Document Layout (Matches clean paper document format) */}
+        <div className="p-8 sm:p-14 bg-white text-slate-900 border border-slate-200 rounded-2xl shadow-sm font-sans text-sm space-y-8 min-h-[750px] print:border-none print:shadow-none print:rounded-none print:p-0 print:m-0 print:space-y-6 print:min-h-0 print:w-full">
           {/* Brand Logo */}
           {quote.logo_url && (
             <div className="h-12 sm:h-14 max-w-[220px] flex items-center mb-6">
@@ -572,7 +517,7 @@ export default function CustomerQuoteViewPage() {
                       <td className="py-3 px-4">
                         <div className="text-slate-900 font-medium">{itm.name || "—"}</div>
                         {itm.description && (
-                          <div className="text-slate-400 text-[12px] mt-0.5 font-light">
+                          <div className="text-slate-500 text-[12px] mt-0.5 whitespace-pre-line leading-relaxed">
                             {itm.description}
                           </div>
                         )}
@@ -655,15 +600,39 @@ export default function CustomerQuoteViewPage() {
               </p>
             )}
 
-            <div className="space-y-3 pt-2">
+            <div className="space-y-2 pt-2">
               <div>Thank you,</div>
-              <div className="pt-2 font-medium text-slate-900">{quote.prepared_by_name}</div>
+              <div className="pt-1 font-medium text-slate-900">{quote.prepared_by_name}</div>
             </div>
+
+            {/* Official Signature on Document (Printed with document) */}
+            {quote.signature_data_url && (
+              <div className="pt-6 border-t border-slate-200/80 space-y-2">
+                <div className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Accepted &amp; Authorized Signature
+                </div>
+                <div className="flex items-center gap-4 pt-1">
+                  <div className="h-12 w-36 border border-slate-200 bg-white rounded-md p-1 flex items-center justify-center shadow-2xs">
+                    <img src={quote.signature_data_url} alt="Signature" className="max-h-full max-w-full object-contain" />
+                  </div>
+                  <div className="text-xs text-slate-700 space-y-0.5">
+                    <div className="font-semibold text-slate-900">
+                      {quote.signer_name || signerFullName} {quote.signer_title ? `(${quote.signer_title})` : ""}
+                    </div>
+                    {quote.signed_at && (
+                      <div className="text-[11px] text-slate-500">
+                        Date: {new Date(quote.signed_at).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Documents Required & Notes Thread for Customer */}
-        <div id="quote-documents-thread">
+        <div id="quote-documents-thread" className="print:hidden">
           <QuoteNotesThread
             token={token}
             authorType="CUSTOMER"
@@ -676,76 +645,6 @@ export default function CustomerQuoteViewPage() {
           />
         </div>
       </div>
-
-      {/* 1. Email Verification Modal */}
-      <Dialog open={isVerifModalOpen} onOpenChange={setIsVerifModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <KeyRound className="w-5 h-5 text-amber-600" />
-              <span>Email Verification Required</span>
-            </DialogTitle>
-            <DialogDescription>
-              To confirm your identity, we've sent a single-use 6-digit code to <strong>{quoteData.recipient_email}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-3">
-            {verifSuccessMsg && (
-              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                <span>{verifSuccessMsg}</span>
-              </div>
-            )}
-            {verifError && (
-              <div className="p-3 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-medium flex items-center gap-2">
-                <XCircle className="w-4 h-4" />
-                <span>{verifError}</span>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Enter 6-Digit Code</Label>
-              <Input
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                placeholder="123456"
-                maxLength={6}
-                className="text-center font-mono text-xl tracking-widest h-11"
-              />
-            </div>
-
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-500">Didn't receive code?</span>
-              <button
-                type="button"
-                onClick={handleRequestCode}
-                disabled={codeSending}
-                className="text-amber-600 hover:text-amber-700 font-semibold cursor-pointer"
-              >
-                {codeSending ? "Sending..." : "Resend Code"}
-              </button>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsVerifModalOpen(false)}
-              className="text-xs rounded-xl"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleVerifyCode}
-              disabled={codeVerifying || verificationCode.length < 6}
-              className="text-xs rounded-xl bg-amber-600 hover:bg-amber-700 text-white"
-            >
-              {codeVerifying ? "Verifying..." : "Verify & Continue"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* 2. Handwritten Signing Modal */}
       <Dialog open={isSignModalOpen} onOpenChange={setIsSignModalOpen}>

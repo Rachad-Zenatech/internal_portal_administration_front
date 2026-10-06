@@ -1,5 +1,5 @@
 import { useState, useMemo, Fragment } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
@@ -56,8 +56,9 @@ import {
 import type {
   ARQuote,
 } from "../../services/arQuoteService";
-import { QuoteDetailDrawer } from "./QuoteDetailDrawer";
 import { SendQuoteModal } from "./SendQuoteModal";
+import { GLCodeAutocomplete } from "../Purchasing/GLCodeAutocomplete";
+import { ClassAutocomplete } from "../Purchasing/ClassAutocomplete";
 import { useNotificationStream } from "@/hooks/useNotifications";
 
 export type ARTab =
@@ -72,15 +73,28 @@ export type ARTab =
 
 export default function AccountReceivablePage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<ARTab>("overview");
+  const activeTab: ARTab = (searchParams.get("tab") as ARTab) || "overview";
+  const setActiveTab = (tab: ARTab) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (tab === "overview") {
+          next.delete("tab");
+        } else {
+          next.set("tab", tab);
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  };
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  // Selected Quote for Details Drawer / Send Modal
-  const [selectedQuote, setSelectedQuote] = useState<ARQuote | null>(null);
-  const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const [quoteToSend, setQuoteToSend] = useState<ARQuote | null>(null);
 
   // Send Invoice Email State
@@ -91,6 +105,7 @@ export default function AccountReceivablePage() {
   const [emailSubject, setEmailSubject] = useState("");
   const [emailCustomMessage, setEmailCustomMessage] = useState("");
 
+
   // Notification Banner
   const [bannerSuccess, setBannerSuccess] = useState<string | null>(null);
 
@@ -98,19 +113,24 @@ export default function AccountReceivablePage() {
   useNotificationStream({
     onNotification: (raw: any) => {
       if (!raw) return;
-      const isQuoteType =
-        (raw.type && (raw.type.includes("AR_QUOTE") || raw.type.includes("quote") || raw.type.includes("invoice") || raw.type.includes("payment") || raw.type.includes("PAYMENT") || raw.type.includes("audit"))) ||
+      const isARType =
+        raw.type === "WORKFLOW_SYNC" ||
+        (raw.type && (raw.type.includes("AR_") || raw.type.includes("quote") || raw.type.includes("invoice") || raw.type.includes("payment") || raw.type.includes("PAYMENT") || raw.type.includes("audit"))) ||
         raw.entity_type === "ARQuote" ||
         raw.entity_type === "Quote" ||
-        raw.entity_type === "ARInvoice";
+        raw.entity_type === "ARInvoice" ||
+        raw.entity_type === "Invoice" ||
+        raw.entity_type === "ARCustomer";
 
-      if (isQuoteType) {
+      if (isARType) {
         queryClient.invalidateQueries({ queryKey: ["ar-quotes"] });
         queryClient.invalidateQueries({ queryKey: ["ar-quote-summary"] });
         queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
+        queryClient.invalidateQueries({ queryKey: ["ar-customers"] });
         if (raw.entity_id) {
           queryClient.invalidateQueries({ queryKey: ["ar-quote-detail", raw.entity_id] });
           queryClient.invalidateQueries({ queryKey: ["ar-quote-audit", raw.entity_id] });
+          queryClient.invalidateQueries({ queryKey: ["ar-invoice-detail", raw.entity_id] });
         }
       }
     },
@@ -163,6 +183,20 @@ export default function AccountReceivablePage() {
     },
   });
 
+  // Delete Invoice Mutation
+  const deleteInvoiceMutation = useMutation({
+    mutationFn: (id: string) => arInvoiceService.deleteInvoice(id),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-quote-summary"] });
+      setBannerSuccess(res.message || "Invoice deleted successfully.");
+      setTimeout(() => setBannerSuccess(null), 5000);
+    },
+    onError: (err: any) => {
+      alert(`Failed to delete invoice: ${err.message || err}`);
+    },
+  });
+
   // Send Invoice Email Mutation
   const sendInvoiceEmailMutation = useMutation({
     mutationFn: async () => {
@@ -191,9 +225,63 @@ export default function AccountReceivablePage() {
     setIsInvoiceEmailModalOpen(true);
   };
 
-  const handleOpenQuoteDrawer = (q: ARQuote) => {
-    setSelectedQuote(q);
-    setIsDetailDrawerOpen(true);
+  // Record Invoice Payment Dialog State
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<GeneratedInvoiceSummary | null>(null);
+  const [isInvoicePaymentModalOpen, setIsInvoicePaymentModalOpen] = useState(false);
+  const [invoicePaymentAmount, setInvoicePaymentAmount] = useState<number | string>("");
+  const [invoicePaymentMethod, setInvoicePaymentMethod] = useState("WIRE");
+  const [invoicePaymentDate, setInvoicePaymentDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [invoicePaymentRef, setInvoicePaymentRef] = useState("");
+  const [invoicePaymentGLCode, setInvoicePaymentGLCode] = useState("");
+  const [invoicePaymentClass, setInvoicePaymentClass] = useState("");
+  const [invoicePaymentNotes, setInvoicePaymentNotes] = useState("");
+  const [isSubmittingInvoicePayment, setIsSubmittingInvoicePayment] = useState(false);
+
+  const handleOpenRecordInvoicePayment = (inv: GeneratedInvoiceSummary) => {
+    setSelectedInvoiceForPayment(inv);
+    const balanceRemaining = inv.balance_due !== undefined ? inv.balance_due : (inv.total_amount - (inv.amount_paid || 0));
+    setInvoicePaymentAmount(balanceRemaining > 0 ? balanceRemaining : (inv.total_amount || 0));
+    setInvoicePaymentMethod("WIRE");
+    setInvoicePaymentDate(new Date().toISOString().split("T")[0]);
+    setInvoicePaymentRef("");
+    setInvoicePaymentGLCode("");
+    setInvoicePaymentClass("");
+    setInvoicePaymentNotes("");
+    setIsInvoicePaymentModalOpen(true);
+  };
+
+  const handleConfirmInvoicePayment = async () => {
+    if (!selectedInvoiceForPayment) return;
+    const numAmt = Number(invoicePaymentAmount);
+    if (isNaN(numAmt) || numAmt <= 0) {
+      alert("Please enter a valid payment amount greater than zero.");
+      return;
+    }
+    setIsSubmittingInvoicePayment(true);
+    try {
+      await arInvoiceService.recordInvoicePayment(selectedInvoiceForPayment.id, {
+        amount: numAmt,
+        payment_method: invoicePaymentMethod,
+        payment_date: invoicePaymentDate,
+        reference_number: invoicePaymentRef,
+        gl_code: invoicePaymentGLCode,
+        category: invoicePaymentGLCode,
+        class_name: invoicePaymentClass,
+        class: invoicePaymentClass,
+        notes: invoicePaymentNotes,
+      });
+      queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-quote-summary"] });
+      setIsInvoicePaymentModalOpen(false);
+      setSelectedInvoiceForPayment(null);
+      setBannerSuccess(`Successfully recorded $${numAmt.toFixed(2)} payment for invoice ${selectedInvoiceForPayment.invoice_number}`);
+      setTimeout(() => setBannerSuccess(null), 5000);
+    } catch (err: any) {
+      alert("Failed to record invoice payment: " + (err?.response?.data?.detail || err.message));
+    } finally {
+      setIsSubmittingInvoicePayment(false);
+    }
   };
 
   const [expandedQuoteIds, setExpandedQuoteIds] = useState<Set<string>>(new Set());
@@ -344,12 +432,71 @@ export default function AccountReceivablePage() {
   );
 
   const awaitingPaymentInvoices = invoices.filter(
-    (inv) => inv.status !== "PAID"
+    (inv) => !inv.status || !(inv.status.toUpperCase().startsWith("PAID"))
   );
 
-  const completedQuotes = quotes.filter(
-    (q) => q.payment_status === "PAID"
-  );
+  interface CompletedRecord {
+    id: string;
+    type: "INVOICE" | "QUOTE";
+    number: string;
+    customer_name: string;
+    contact_person: string;
+    paid_amount: number;
+    currency: string;
+    status: string;
+    date: string;
+    viewUrl: string;
+  }
+
+  const completedRecords = useMemo<CompletedRecord[]>(() => {
+    const list: CompletedRecord[] = [];
+    const linkedQuoteIds = new Set<string>();
+
+    // 1. Fully paid invoices
+    invoices.forEach((inv) => {
+      const isPaid =
+        (inv.status || "").toUpperCase().startsWith("PAID") ||
+        (Number(inv.balance_due) === 0 && Number(inv.total_amount) > 0 && Number(inv.amount_paid) > 0);
+      if (isPaid) {
+        if (inv.quote_id) {
+          linkedQuoteIds.add(String(inv.quote_id));
+        }
+        list.push({
+          id: inv.id,
+          type: "INVOICE",
+          number: inv.invoice_number,
+          customer_name: inv.customer_name || "—",
+          contact_person: inv.bill_to_name || "—",
+          paid_amount: Number(inv.amount_paid !== undefined && Number(inv.amount_paid) > 0 ? inv.amount_paid : inv.total_amount || 0),
+          currency: inv.currency || "USD",
+          status: inv.status || "PAID",
+          date: inv.invoice_date || "",
+          viewUrl: `/account-receivable/generate?invoiceId=${encodeURIComponent(inv.id)}`,
+        });
+      }
+    });
+
+    // 2. Fully paid quotes that aren't already represented by an invoice
+    quotes.forEach((q) => {
+      const isPaid = (q.payment_status || "").toUpperCase().startsWith("PAID");
+      if (isPaid && !linkedQuoteIds.has(q.id)) {
+        list.push({
+          id: q.id,
+          type: "QUOTE",
+          number: q.quote_number,
+          customer_name: q.customer_name || "—",
+          contact_person: q.signer_name || "—",
+          paid_amount: Number(q.paid_amount || q.total_amount || 0),
+          currency: q.currency || "USD",
+          status: q.payment_status || "PAID",
+          date: q.quote_date || "",
+          viewUrl: `/account-receivable/quotes/${q.id}`,
+        });
+      }
+    });
+
+    return list;
+  }, [invoices, quotes]);
 
   return (
     <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 p-4 sm:p-6 lg:p-8">
@@ -534,7 +681,7 @@ export default function AccountReceivablePage() {
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>Completed</span>
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-              {completedQuotes.length}
+              {completedRecords.length}
             </Badge>
           </button>
         </div>
@@ -716,6 +863,9 @@ export default function AccountReceivablePage() {
               <div className="relative w-full sm:w-80">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <Input
+                  id="ar-quotes-search"
+                  name="quotesSearch"
+                  aria-label="Search quotations by number, customer, or email"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search quote #, customer name, email..."
@@ -725,6 +875,9 @@ export default function AccountReceivablePage() {
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <select
+                  id="ar-quotes-status-filter"
+                  name="quotesStatusFilter"
+                  aria-label="Filter quotations by status"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="h-8 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-slate-700 dark:text-slate-300 cursor-pointer"
@@ -1186,7 +1339,8 @@ export default function AccountReceivablePage() {
                       <th className="py-3 px-4">Customer</th>
                       <th className="py-3 px-4">Date</th>
                       <th className="py-3 px-4">Due Date</th>
-                      <th className="py-3 px-4 text-right">Amount</th>
+                      <th className="py-3 px-4 text-right">Total Amount</th>
+                      <th className="py-3 px-4 text-right">Balance Due</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
@@ -1194,7 +1348,7 @@ export default function AccountReceivablePage() {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {invoices.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-slate-400">
+                        <td colSpan={8} className="py-12 text-center text-slate-400">
                           <p className="mb-3">No generated invoices archived yet.</p>
                           <Button
                             onClick={() => navigate("/account-receivable/generate")}
@@ -1224,8 +1378,27 @@ export default function AccountReceivablePage() {
                           <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
                             ${Number(inv.total_amount).toFixed(2)} {inv.currency || "USD"}
                           </td>
+                          <td className="py-3.5 px-4 text-right font-mono font-bold">
+                            <span className={Number(inv.balance_due !== undefined ? inv.balance_due : (inv.status?.toUpperCase().startsWith("PAID") ? 0 : inv.total_amount)) === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                              ${Number(inv.balance_due !== undefined ? inv.balance_due : (inv.status?.toUpperCase().startsWith("PAID") ? 0 : inv.total_amount)).toFixed(2)} {inv.currency || "USD"}
+                            </span>
+                          </td>
                           <td className="py-3.5 px-4">
-                            <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">
+                            <Badge
+                              className={
+                                (inv.status || "").toUpperCase() === "PAID (PRORATED)"
+                                  ? "bg-teal-50 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 border-teal-300 dark:border-teal-700 text-[10px] font-semibold"
+                                  : (inv.status || "").toUpperCase() === "PAID"
+                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[10px]"
+                                  : (inv.status || "").toUpperCase() === "DRAFT"
+                                  ? "bg-slate-100 text-slate-700 border-slate-300 text-[10px]"
+                                  : (inv.status || "").toUpperCase() === "OVERDUE"
+                                  ? "bg-rose-50 text-rose-700 border-rose-200 text-[10px]"
+                                  : (inv.status || "").toUpperCase() === "VOID" || (inv.status || "").toUpperCase() === "CANCELLED"
+                                  ? "bg-zinc-100 text-zinc-500 border-zinc-200 text-[10px]"
+                                  : "bg-blue-50 text-blue-700 border-blue-200 text-[10px]"
+                              }
+                            >
                               {inv.status || "ISSUED"}
                             </Badge>
                           </td>
@@ -1242,13 +1415,19 @@ export default function AccountReceivablePage() {
                               </Button>
 
                               <Button
+                                variant="ghost"
                                 size="sm"
-                                variant="outline"
-                                onClick={() => navigate(`/account-receivable/generate?invoiceId=${encodeURIComponent(inv.id)}`)}
-                                className="h-7 text-xs rounded-lg gap-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 border-blue-200 cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Are you sure you want to delete invoice ${inv.invoice_number}? This action cannot be undone.`)) {
+                                    deleteInvoiceMutation.mutate(inv.id);
+                                  }
+                                }}
+                                disabled={deleteInvoiceMutation.isPending}
+                                className="h-7 w-7 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer"
+                                title="Delete invoice"
                               >
-                                <Eye className="w-3 h-3" />
-                                <span>View / Edit</span>
+                                <Trash2 className="w-3.5 h-3.5" />
                               </Button>
                             </div>
                           </td>
@@ -1273,6 +1452,7 @@ export default function AccountReceivablePage() {
                       <th className="py-3 px-4">Invoice #</th>
                       <th className="py-3 px-4">Customer</th>
                       <th className="py-3 px-4">Invoice Date</th>
+                      <th className="py-3 px-4 text-right">Total Amount</th>
                       <th className="py-3 px-4 text-right">Balance Due</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
@@ -1280,31 +1460,29 @@ export default function AccountReceivablePage() {
                   <tbody className="divide-y divide-slate-100">
                     {awaitingPaymentInvoices.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-slate-400">
+                        <td colSpan={6} className="py-12 text-center text-slate-400">
                           No invoices currently awaiting payment.
                         </td>
                       </tr>
                     ) : (
                       awaitingPaymentInvoices.map((inv) => (
                         <tr key={inv.id} className="hover:bg-slate-50/70">
-                          <td className="py-3 px-4 font-mono font-bold">{inv.invoice_number}</td>
+                          <td className="py-3 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">{inv.invoice_number}</td>
                           <td className="py-3 px-4 font-semibold">{inv.customer_name}</td>
                           <td className="py-3 px-4 text-slate-500 font-mono">{inv.invoice_date}</td>
-                          <td className="py-3 px-4 text-right font-mono font-bold text-amber-600">
-                            ${Number(inv.total_amount).toFixed(2)}
+                          <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
+                            ${Number(inv.total_amount).toFixed(2)} {inv.currency || "USD"}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-bold">
+                            <span className={Number(inv.balance_due !== undefined ? inv.balance_due : (inv.total_amount - (inv.amount_paid || 0))) === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                              ${Number(inv.balance_due !== undefined ? inv.balance_due : (inv.total_amount - (inv.amount_paid || 0))).toFixed(2)} {inv.currency || "USD"}
+                            </span>
                           </td>
                           <td className="py-3 px-4 text-right">
                             <Button
                               size="sm"
-                              onClick={() => {
-                                const matchingQuote = quotes.find((q) => q.invoice_id === inv.id);
-                                if (matchingQuote) {
-                                  handleOpenQuoteDrawer(matchingQuote);
-                                } else {
-                                  alert(`Please record payment on invoice ${inv.invoice_number}.`);
-                                }
-                              }}
-                              className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-xs"
+                              onClick={() => handleOpenRecordInvoicePayment(inv)}
+                              className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-xs cursor-pointer gap-1"
                             >
                               <CreditCard className="w-3.5 h-3.5" />
                               <span>Record Payment</span>
@@ -1328,46 +1506,59 @@ export default function AccountReceivablePage() {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 font-bold border-b border-slate-200/80">
                     <tr>
-                      <th className="py-3 px-4">Quote / Invoice #</th>
+                      <th className="py-3 px-4">Type</th>
+                      <th className="py-3 px-4">Invoice / Quote #</th>
                       <th className="py-3 px-4">Customer</th>
-                      <th className="py-3 px-4">Signer</th>
+                      <th className="py-3 px-4">Signer / Contact</th>
                       <th className="py-3 px-4 text-right">Paid Amount</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {completedQuotes.length === 0 ? (
+                    {completedRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-400">
+                        <td colSpan={7} className="py-12 text-center text-slate-400">
                           No completed &amp; fully paid records yet.
                         </td>
                       </tr>
                     ) : (
-                      completedQuotes.map((q) => (
+                      completedRecords.map((item) => (
                         <tr
-                          key={q.id}
-                          onClick={() => navigate(`/account-receivable/quotes/${q.id}`)}
+                          key={item.id}
+                          onClick={() => navigate(item.viewUrl)}
                           className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
                         >
-                          <td className="py-3 px-4 font-mono font-bold text-amber-700 dark:text-amber-400 hover:underline">
-                            {q.quote_number}
+                          <td className="py-3 px-4">
+                            <Badge
+                              variant="outline"
+                              className={
+                                item.type === "INVOICE"
+                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 text-[10px]"
+                                  : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 text-[10px]"
+                              }
+                            >
+                              {item.type === "INVOICE" ? "Invoice" : "Quote"}
+                            </Badge>
                           </td>
-                          <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">{q.customer_name}</td>
-                          <td className="py-3 px-4">{q.signer_name || "—"}</td>
+                          <td className="py-3 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                            {item.number}
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">{item.customer_name}</td>
+                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{item.contact_person}</td>
                           <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600">
-                            ${Number(q.paid_amount).toFixed(2)} {q.currency}
+                            ${Number(item.paid_amount).toFixed(2)} {item.currency}
                           </td>
                           <td className="py-3 px-4">
                             <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[10px]">
-                              Completed &amp; Paid
+                              {item.status.toUpperCase().includes("PRORATED") ? "Paid (Prorated)" : "Completed & Paid"}
                             </Badge>
                           </td>
                           <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => navigate(`/account-receivable/quotes/${q.id}`)}
+                              onClick={() => navigate(item.viewUrl)}
                               className="h-7 text-xs gap-1 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                             >
                               <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
@@ -1384,14 +1575,6 @@ export default function AccountReceivablePage() {
           </div>
         )}
       </div>
-
-      {/* Quote Detail Drawer */}
-      <QuoteDetailDrawer
-        quote={selectedQuote}
-        isOpen={isDetailDrawerOpen}
-        onClose={() => setIsDetailDrawerOpen(false)}
-        onEditQuote={(q) => navigate(`/account-receivable/generate-quote?id=${q.id}`)}
-      />
 
       {/* Send Quote Modal */}
       {quoteToSend && (
@@ -1421,8 +1604,11 @@ export default function AccountReceivablePage() {
 
           <div className="space-y-3 py-2 text-xs">
             <div className="space-y-1">
-              <Label className="text-[11px] font-semibold">Recipient Email *</Label>
+              <Label htmlFor="send-invoice-recipient-email" className="text-[11px] font-semibold">Recipient Email *</Label>
               <Input
+                id="send-invoice-recipient-email"
+                name="recipientEmail"
+                type="email"
                 value={emailRecipient}
                 onChange={(e) => setEmailRecipient(e.target.value)}
                 placeholder="client@example.com"
@@ -1430,16 +1616,20 @@ export default function AccountReceivablePage() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px] font-semibold">Subject Line</Label>
+              <Label htmlFor="send-invoice-subject-line" className="text-[11px] font-semibold">Subject Line</Label>
               <Input
+                id="send-invoice-subject-line"
+                name="subjectLine"
                 value={emailSubject}
                 onChange={(e) => setEmailSubject(e.target.value)}
                 className="h-8 text-xs"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px] font-semibold">Custom Message (Optional)</Label>
+              <Label htmlFor="send-invoice-custom-message" className="text-[11px] font-semibold">Custom Message (Optional)</Label>
               <Textarea
+                id="send-invoice-custom-message"
+                name="customMessage"
                 value={emailCustomMessage}
                 onChange={(e) => setEmailCustomMessage(e.target.value)}
                 rows={3}
@@ -1469,6 +1659,155 @@ export default function AccountReceivablePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Record Invoice Payment Dialog (Centered modal dialog for invoices) */}
+      <Dialog open={isInvoicePaymentModalOpen} onOpenChange={setIsInvoicePaymentModalOpen}>
+        <DialogContent className="max-w-xl w-full">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-emerald-600" />
+              <span>Record Invoice Payment</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Record a payment settlement against Invoice <strong>{selectedInvoiceForPayment?.invoice_number}</strong> for <strong>{selectedInvoiceForPayment?.customer_name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedInvoiceForPayment && (
+            <div className="space-y-3 py-2 text-xs">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between text-xs">
+                <div>
+                  <div className="font-semibold text-slate-900 dark:text-white font-mono">{selectedInvoiceForPayment.invoice_number}</div>
+                  <div className="text-[11px] text-slate-500">{selectedInvoiceForPayment.customer_name}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[11px] text-slate-500">Balance Due</div>
+                  <div className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                    ${Number(selectedInvoiceForPayment.balance_due !== undefined ? selectedInvoiceForPayment.balance_due : selectedInvoiceForPayment.total_amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })} {selectedInvoiceForPayment.currency || "USD"}
+                  </div>
+                  <div className="text-[10px] text-slate-400">Total: ${Number(selectedInvoiceForPayment.total_amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="record-invoice-payment-amount" className="text-[11px] font-semibold">
+                  Payment Amount ({selectedInvoiceForPayment.currency || "USD"}) *
+                </Label>
+                <Input
+                  id="record-invoice-payment-amount"
+                  name="invoicePaymentAmount"
+                  type="number"
+                  step="any"
+                  value={invoicePaymentAmount}
+                  onChange={(e) => setInvoicePaymentAmount(e.target.value)}
+                  placeholder={String(selectedInvoiceForPayment.total_amount || 0)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="record-invoice-payment-method" className="text-[11px] font-semibold">Payment Method</Label>
+                  <Input
+                    id="record-invoice-payment-method"
+                    name="invoicePaymentMethod"
+                    value={invoicePaymentMethod}
+                    onChange={(e) => setInvoicePaymentMethod(e.target.value)}
+                    placeholder="WIRE, ACH, CHECK, CARD"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="record-invoice-payment-date" className="text-[11px] font-semibold">Payment Date</Label>
+                  <Input
+                    id="record-invoice-payment-date"
+                    name="invoicePaymentDate"
+                    type="date"
+                    value={invoicePaymentDate}
+                    onChange={(e) => setInvoicePaymentDate(e.target.value)}
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="record-invoice-payment-ref" className="text-[11px] font-semibold">Reference / Tx ID (Optional)</Label>
+                <Input
+                  id="record-invoice-payment-ref"
+                  name="invoicePaymentRef"
+                  value={invoicePaymentRef}
+                  onChange={(e) => setInvoicePaymentRef(e.target.value)}
+                  placeholder="e.g. WIRE-88491 / CHK-1002"
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+
+              {/* 2 Auto-completed Fields: Category (GL Codes) & Class (Classes Table) */}
+              <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-semibold flex items-center justify-between">
+                    <span>Category (GL Code)</span>
+                    <span className="text-[10px] text-slate-400 font-normal font-sans">Chart of Accounts</span>
+                  </Label>
+                  <GLCodeAutocomplete
+                    value={invoicePaymentGLCode}
+                    onChange={setInvoicePaymentGLCode}
+                    placeholder="GL Code & Account..."
+                    showDetailCard={false}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-semibold flex items-center justify-between">
+                    <span>Class</span>
+                    <span className="text-[10px] text-slate-400 font-normal font-sans">Classes Table</span>
+                  </Label>
+                  <ClassAutocomplete
+                    value={invoicePaymentClass}
+                    onChange={setInvoicePaymentClass}
+                    placeholder="Select Class..."
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="record-invoice-payment-notes" className="text-[11px] font-semibold">Internal Notes (Optional)</Label>
+                <Textarea
+                  id="record-invoice-payment-notes"
+                  name="invoicePaymentNotes"
+                  value={invoicePaymentNotes}
+                  onChange={(e) => setInvoicePaymentNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Any settlement details or notes..."
+                  className="text-xs resize-none"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsInvoicePaymentModalOpen(false)}
+              className="text-xs rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleConfirmInvoicePayment}
+              disabled={isSubmittingInvoicePayment || !invoicePaymentAmount || Number(invoicePaymentAmount) <= 0}
+              className="text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 cursor-pointer shadow-xs"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>{isSubmittingInvoicePayment ? "Recording Payment..." : "Confirm Payment"}</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Seats / Add-ons Modal from AR list */}
     </div>
   );
 }
