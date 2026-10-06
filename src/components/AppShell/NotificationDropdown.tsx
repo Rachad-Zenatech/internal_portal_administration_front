@@ -20,6 +20,7 @@ import {
   PauseCircle,
   XCircle,
   RefreshCw,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -425,7 +426,7 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
   const canViewRecurringTab =
     isSuperAdmin || (!isRequester && (isAP || isTreasury || hasRecurringPermission));
 
-  const [activeTab, setActiveTab] = useState<"grouped" | "recurring" | "all" | "unread">("grouped");
+  const [activeTab, setActiveTab] = useState<"grouped" | "recurring" | "invoices" | "all" | "unread">("grouped");
 
   useEffect(() => {
     if (!canViewRecurringTab && activeTab === "recurring") {
@@ -497,18 +498,46 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
 
   const totalUnread = unreadCountData?.count ?? 0;
 
-  // Separate recurring vs request notifications
+  // Helper to detect AR invoice notifications
+  const isInvoiceNotification = (n: Notification): boolean => {
+    if (!n) return false;
+    const t = (n.type || "").toUpperCase();
+    const ent = (n.entity_type || "").toUpperCase();
+    const tit = (n.title || "").toLowerCase();
+    const msg = (n.message || "").toLowerCase();
+    const url = (n.link_url || "").toLowerCase();
+    return (
+      ent === "ARINVOICE" ||
+      ent === "INVOICE" ||
+      t.startsWith("AR_INVOICE") ||
+      t.includes("INVOICE") ||
+      tit.includes("invoice") ||
+      msg.includes("invoice") ||
+      url.includes("invoices") ||
+      url.includes("account-receivable")
+    );
+  };
+
+  // Separate recurring, invoice, and request notifications
   const recurringNotifications = useMemo(() => {
     return notifications.filter(isRecurringNotification);
   }, [notifications]);
 
+  const invoiceNotifications = useMemo(() => {
+    return notifications.filter(isInvoiceNotification);
+  }, [notifications]);
+
   const requestNotifications = useMemo(() => {
-    return notifications.filter((n) => !isRecurringNotification(n));
+    return notifications.filter((n) => !isRecurringNotification(n) && !isInvoiceNotification(n));
   }, [notifications]);
 
   const unreadRecurringCount = useMemo(() => {
     return recurringNotifications.filter((n) => !n.is_read).length;
   }, [recurringNotifications]);
+
+  const unreadInvoiceCount = useMemo(() => {
+    return invoiceNotifications.filter((n) => !n.is_read).length;
+  }, [invoiceNotifications]);
 
   // Unified recurring items list combining live recurring requests and notification history
   const recurringItems = useMemo(() => {
@@ -821,6 +850,23 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
             )}
 
             <button
+              onClick={() => setActiveTab("invoices")}
+              className={`px-2.5 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+                activeTab === "invoices"
+                  ? "bg-white dark:bg-zinc-950 text-emerald-600 dark:text-emerald-400 shadow-xs font-bold"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+              }`}
+            >
+              <Receipt className="h-3.5 w-3.5" />
+              <span>Invoices ({invoiceNotifications.length})</span>
+              {unreadInvoiceCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center font-bold">
+                  {unreadInvoiceCount}
+                </span>
+              )}
+            </button>
+
+            <button
               onClick={() => setActiveTab("all")}
               className={`px-2.5 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
                 activeTab === "all"
@@ -893,7 +939,127 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
 
         {/* Notification Scrollable Body */}
         <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800">
-          {activeTab === "recurring" ? (
+          {activeTab === "invoices" ? (
+            // Dedicated Accounts Receivable Invoices View
+            invoiceNotifications.length === 0 ? (
+              <div className="p-10 flex flex-col items-center justify-center text-center text-slate-400 dark:text-zinc-500">
+                <div className="h-12 w-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/50 mb-3">
+                  <Receipt className="h-6 w-6 stroke-1.5" />
+                </div>
+                <p className="text-sm font-semibold text-slate-800 dark:text-zinc-200">No invoice updates</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 max-w-[320px]">
+                  Real-time status changes, payments, generated invoices, and customer billing alerts will appear here.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    navigate("/account-receivable?tab=invoices");
+                  }}
+                  className="mt-4 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950 cursor-pointer"
+                >
+                  <Receipt className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Go to Account Receivables</span>
+                </Button>
+              </div>
+            ) : (
+              invoiceNotifications.map((notif) => {
+                const invNumMatch = (notif.title + " " + notif.message).match(/INV-[\w\d-]+/i);
+                const invNum = invNumMatch ? invNumMatch[0].toUpperCase() : null;
+                const status = extractStatus(notif.message) || extractStatus(notif.title);
+                const isPaid = status === "COMPLETED" || (status && status.includes("PAID"));
+                const targetUrl = notif.link_url || `/account-receivable?tab=invoices${notif.entity_id ? `&id=${notif.entity_id}` : ""}`;
+
+                return (
+                  <div
+                    key={`inv-notif-${notif.id}`}
+                    onClick={() => handleOpenLink(targetUrl, [notif])}
+                    className={`p-3 px-4 flex items-start justify-between gap-3 hover:bg-slate-50/80 dark:hover:bg-zinc-900/50 transition-colors cursor-pointer group ${
+                      !notif.is_read ? "bg-emerald-50/20 dark:bg-emerald-950/15" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      {/* Icon */}
+                      <div
+                        className={`mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0 border ${
+                          isPaid
+                            ? "bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400"
+                            : status === "WAITING PAYMENT" || status === "UNDER REVIEW"
+                            ? "bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
+                            : "bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300"
+                        }`}
+                      >
+                        <Receipt className="h-4 w-4" />
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        {/* Line 1: Invoice Identifier + Title */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {invNum && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] font-bold px-1.5 py-0 border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 shrink-0 font-mono"
+                            >
+                              {invNum}
+                            </Badge>
+                          )}
+                          <span className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
+                            {formatNotificationText(notif.title)}
+                          </span>
+                        </div>
+
+                        {/* Line 2: Status pill + Message details */}
+                        <div className="flex items-center gap-2 mt-1 min-w-0 flex-wrap">
+                          {status && (
+                            <span
+                              className={`inline-flex items-center gap-1 text-[9.5px] font-semibold px-2 py-0.5 rounded-full border shrink-0 whitespace-nowrap leading-none select-none ${
+                                isPaid
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800"
+                                  : status === "WAITING PAYMENT"
+                                  ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
+                                  : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800"
+                              }`}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-current opacity-75 shrink-0" />
+                              <span>{formatStatusLabel(status)}</span>
+                            </span>
+                          )}
+                          {notif.message && (
+                            <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate flex-1 min-w-0">
+                              {formatNotificationText(notif.message)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+                        {formatRelativeTime(notif.created_at)}
+                      </span>
+                      {!notif.is_read ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markAsRead(notif.id);
+                          }}
+                          className="w-5 h-5 rounded-full flex items-center justify-center transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-600 cursor-pointer"
+                          title="Mark as read"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                        </button>
+                      ) : (
+                        <span className="w-5 h-5" />
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )
+          ) : activeTab === "recurring" ? (
             // Dedicated Live Recurring Payments & Incoming Due Dates View
             recurringItems.length === 0 ? (
               <div className="p-10 flex flex-col items-center justify-center text-center text-slate-400 dark:text-zinc-500">
@@ -1369,12 +1535,28 @@ export function NotificationDropdownContent({ onClose }: { onClose: () => void }
         {/* Footer Actions */}
         <div className="p-3 px-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-900/50 shrink-0">
           <span className="text-xs text-slate-500 dark:text-zinc-400">
-            {activeTab === "recurring"
+            {activeTab === "invoices"
+              ? `${invoiceNotifications.length} invoice updates • ${unreadInvoiceCount} unread`
+              : activeTab === "recurring"
               ? `${recurringNotifications.length} recurring • ${unreadRecurringCount} unread`
               : `${notifications.length} total • ${totalUnread} unread`}
           </span>
 
           <div className="flex items-center gap-2">
+            {activeTab === "invoices" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  navigate("/account-receivable?tab=invoices");
+                }}
+                className="h-7 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950 cursor-pointer"
+              >
+                <span>Invoices Table</span>
+              </Button>
+            )}
+
             {activeTab === "recurring" && (
               <Button
                 variant="outline"

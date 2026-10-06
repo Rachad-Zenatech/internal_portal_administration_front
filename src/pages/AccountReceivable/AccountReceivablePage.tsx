@@ -109,7 +109,28 @@ export default function AccountReceivablePage() {
   // Notification Banner
   const [bannerSuccess, setBannerSuccess] = useState<string | null>(null);
 
-  // Real-time WebSocket notifications & live cache updates
+  // Queries
+  const { data: summaryStats, refetch: refetchSummaryStats } = useQuery({
+    queryKey: ["ar-quote-summary"],
+    queryFn: () => arQuoteService.getSummaryStats(),
+  });
+
+  const { data: quotes = [], refetch: refetchQuotes } = useQuery({
+    queryKey: ["ar-quotes"],
+    queryFn: () => arQuoteService.listQuotes(),
+  });
+
+  const { data: invoices = [], refetch: refetchInvoices } = useQuery({
+    queryKey: ["ar-invoices"],
+    queryFn: () => arInvoiceService.listInvoices(),
+  });
+
+  const { data: customers = [], refetch: refetchCustomers } = useQuery({
+    queryKey: ["ar-customers"],
+    queryFn: () => arInvoiceService.getCustomers(),
+  });
+
+  // Real-time SSE / WebSocket notifications & instant live cache updates
   useNotificationStream({
     onNotification: (raw: any) => {
       if (!raw) return;
@@ -127,6 +148,10 @@ export default function AccountReceivablePage() {
         queryClient.invalidateQueries({ queryKey: ["ar-quote-summary"] });
         queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
         queryClient.invalidateQueries({ queryKey: ["ar-customers"] });
+        refetchQuotes();
+        refetchInvoices();
+        refetchSummaryStats();
+        refetchCustomers();
         if (raw.entity_id) {
           queryClient.invalidateQueries({ queryKey: ["ar-quote-detail", raw.entity_id] });
           queryClient.invalidateQueries({ queryKey: ["ar-quote-audit", raw.entity_id] });
@@ -134,27 +159,6 @@ export default function AccountReceivablePage() {
         }
       }
     },
-  });
-
-  // Queries
-  const { data: summaryStats } = useQuery({
-    queryKey: ["ar-quote-summary"],
-    queryFn: () => arQuoteService.getSummaryStats(),
-  });
-
-  const { data: quotes = [], refetch: refetchQuotes } = useQuery({
-    queryKey: ["ar-quotes"],
-    queryFn: () => arQuoteService.listQuotes(),
-  });
-
-  const { data: invoices = [], refetch: refetchInvoices } = useQuery({
-    queryKey: ["ar-invoices"],
-    queryFn: () => arInvoiceService.listInvoices(),
-  });
-
-  const { data: customers = [] } = useQuery({
-    queryKey: ["ar-customers"],
-    queryFn: () => arInvoiceService.getCustomers(),
   });
 
   // Convert to Invoice Mutation
