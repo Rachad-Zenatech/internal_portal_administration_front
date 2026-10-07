@@ -33,8 +33,7 @@ import {
   Landmark,
   Eye,
   Receipt,
-  ChevronDown,
-  CalendarCheck,
+
   MoreHorizontal,
   Repeat,
   ExternalLink,
@@ -847,31 +846,13 @@ export function PurchaseRequests() {
             <span>QuickBooks Sync & Exports</span>
           </Button>
           {canCreate && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="w-full sm:w-auto gap-2 font-medium shadow-sm bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 cursor-pointer">
-                  <Plus className="h-4 w-4" />
-                  <span>New Request</span>
-                  <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 p-1.5 shadow-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                <DropdownMenuItem
-                  onClick={() => openCreate("SPEND")}
-                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium cursor-pointer rounded-md text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800"
-                >
-                  <ShoppingCart className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  <span>Create Purchase Request</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => openCreate("RECURRING")}
-                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium cursor-pointer rounded-md text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800"
-                >
-                  <CalendarCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>Create Recurring Payments</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              onClick={() => openCreate("SPEND")}
+              className="w-full sm:w-auto gap-2 font-medium shadow-sm bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create Purchase Request</span>
+            </Button>
           )}
         </div>
       </div>
@@ -1218,10 +1199,9 @@ export function PurchaseRequests() {
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                 Request Type <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
                   { value: "SPEND", label: "Spend Request", icon: ShoppingCart, desc: "Purchases, parts & hardware" },
-                  { value: "RECURRING", label: "Recurring", icon: Clock, desc: "Subscriptions & scheduled cycles" },
                   { value: "QUOTE", label: "Quote Request", icon: FileSpreadsheet, desc: "Estimates & RFQs" },
                   { value: "ADMIN", label: "Admin Triage", icon: FileText, desc: "Administrative & general" },
                   { value: "ACCOUNTS_PAYABLE", label: "Accounts Payable", icon: Landmark, desc: "Vendor invoices & wire payments" },
