@@ -83,10 +83,22 @@ export function ARCustomerAutocomplete({
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
-  // Synchronize internal query with customerName prop
+  // Synchronize internal query with customerName or customerId
   useEffect(() => {
-    setQuery(customerName || "");
-  }, [customerName]);
+    if (customerName) {
+      setQuery(customerName);
+    } else if (customerId && customers.length > 0) {
+      const match = customers.find(
+        (c) =>
+          c.id.toLowerCase() === customerId.toLowerCase() ||
+          `CUST-${c.id}`.toLowerCase() === customerId.toLowerCase() ||
+          c.id.toLowerCase().endsWith(customerId.toLowerCase())
+      );
+      if (match) {
+        setQuery(match.display_name);
+      }
+    }
+  }, [customerName, customerId, customers]);
 
   // Load real AR Customers from financeService / payable-contacts endpoint
   useEffect(() => {

@@ -3,8 +3,11 @@ import { ChevronRight, Home } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export interface BreadcrumbItem {
-  title: string;
+  title?: string;
+  label?: string;
+  name?: string;
   path?: string;
+  to?: string;
 }
 
 export default function Breadcrumbs() {
@@ -16,18 +19,22 @@ export default function Breadcrumbs() {
   useEffect(() => {
     const handleSetTitle = (e: Event) => {
       const customEvent = e as CustomEvent<{ path: string; title: string }>;
-      setCustomTitles((prev) => ({
-        ...prev,
-        [customEvent.detail.path]: customEvent.detail.title,
-      }));
+      if (customEvent.detail?.path) {
+        setCustomTitles((prev) => ({
+          ...prev,
+          [customEvent.detail.path]: customEvent.detail.title,
+        }));
+      }
     };
 
     const handleSetTrail = (e: Event) => {
       const customEvent = e as CustomEvent<{ path: string; items: BreadcrumbItem[] }>;
-      setCustomTrails((prev) => ({
-        ...prev,
-        [customEvent.detail.path]: customEvent.detail.items,
-      }));
+      if (customEvent.detail?.path && Array.isArray(customEvent.detail.items)) {
+        setCustomTrails((prev) => ({
+          ...prev,
+          [customEvent.detail.path]: customEvent.detail.items,
+        }));
+      }
     };
 
     document.addEventListener("set-breadcrumb-title", handleSetTitle);
@@ -40,6 +47,7 @@ export default function Breadcrumbs() {
 
   // Define custom mapping for breadcrumb names to ensure they look pretty
   const formatName = (name: string) => {
+    if (!name) return "";
     const specialNames: Record<string, string> = {
       recurring: "Recurring Payments",
       "recurring-payments": "Recurring Payments",
@@ -54,8 +62,10 @@ export default function Breadcrumbs() {
       "accounts-receivable": "Account Receivable",
       receivables: "Account Receivable",
       receivable: "Account Receivable",
+      quotes: "Quotes",
       generate: "Invoice Generator",
       "generate-invoice": "Invoice Generator",
+      "generate-quote": "Quote Generator",
       "workflow-assignments": "Workflow Assignments",
       "chart-of-accounts": "Chart of Accounts",
       "upload-files": "Upload Files",
@@ -76,7 +86,7 @@ export default function Breadcrumbs() {
     return name
       .replace(/-/g, " ")
       .split(" ")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   };
 
@@ -109,22 +119,29 @@ export default function Breadcrumbs() {
         <Home className="h-4 w-4" />
       </Link>
       
-      {activeTrail ? (
+      {activeTrail && activeTrail.length > 0 ? (
         activeTrail.map((item, index) => {
           const isLast = index === activeTrail.length - 1;
+          const title = item.title || item.label || item.name || formatName(item.path || String(index));
+          const targetPath = item.path || item.to;
+          const uniqueKey = `active-trail-${targetPath || title || index}-${index}`;
+
           return (
-            <div key={item.title + index} className="flex items-center">
+            <div key={uniqueKey} className="flex items-center">
               <ChevronRight className="h-4 w-4 mx-1 opacity-50 shrink-0" />
-              {isLast || !item.path ? (
-                <span className={isLast ? "font-semibold text-foreground" : "text-muted-foreground"} aria-current={isLast ? "page" : undefined}>
-                  {item.title}
+              {isLast || !targetPath ? (
+                <span
+                  className={isLast ? "font-semibold text-foreground" : "text-muted-foreground"}
+                  aria-current={isLast ? "page" : undefined}
+                >
+                  {title}
                 </span>
               ) : (
-                <Link 
-                  to={item.path} 
+                <Link
+                  to={targetPath}
                   className="hover:text-foreground hover:underline underline-offset-4 transition-colors"
                 >
-                  {item.title}
+                  {title}
                 </Link>
               )}
             </div>
@@ -134,9 +151,10 @@ export default function Breadcrumbs() {
         breadcrumbItems.map((item, index) => {
           const isLast = index === breadcrumbItems.length - 1;
           const displayName = customTitles[item.to] || formatName(item.value);
+          const uniqueKey = `crumb-${item.to || item.value || index}-${index}`;
 
           return (
-            <div key={item.to} className="flex items-center">
+            <div key={uniqueKey} className="flex items-center">
               <ChevronRight className="h-4 w-4 mx-1 opacity-50 shrink-0" />
               {isLast ? (
                 <span className="font-semibold text-foreground" aria-current="page">

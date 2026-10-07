@@ -186,6 +186,11 @@ export function useNotificationStream(options?: { onNotification?: NotificationL
       queryClient.invalidateQueries({ queryKey: ["purchasing"] });
       queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-quote-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-templates"] });
       handlerRef.current?.(payload);
     });
   }, [queryClient]);

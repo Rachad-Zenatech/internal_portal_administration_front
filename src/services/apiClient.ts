@@ -205,12 +205,123 @@ function resolveActionMeta(
     };
   }
 
-  // 8. Invoice & Invoicing
-  if (lower.includes("/invoice") || lower.includes("/bill")) {
-    if (lower.includes("/pay")) {
+  // 8. Accounts Receivable: Quotations & Customer Portal
+  if (lower.includes("/ar/quotes") || lower.includes("/quotes") || lower.includes("/customer-quote")) {
+    if (lower.includes("/convert-to-invoice") || lower.includes("/convert-invoice")) {
       return {
-        title: "Processing Payment",
-        subtitle: "Recording payment and updating invoice status...",
+        title: "Converting to Invoice",
+        subtitle: "Generating accounts receivable invoice from signed quote...",
+      };
+    }
+    if (lower.includes("/sign") || lower.includes("/accept")) {
+      return {
+        title: "Signing Quotation",
+        subtitle: "Submitting electronic signature and recording agreement...",
+      };
+    }
+    if (lower.includes("/send-code")) {
+      return {
+        title: "Sending Security Code",
+        subtitle: "Delivering 2FA verification code to customer email...",
+      };
+    }
+    if (lower.includes("/verify-code") || lower.includes("/verify")) {
+      return {
+        title: "Verifying Security Code",
+        subtitle: "Validating your 2FA authentication code...",
+      };
+    }
+    if (lower.includes("/request-changes") || lower.includes("/changes")) {
+      return {
+        title: "Submitting Change Request",
+        subtitle: "Sending requested adjustments to account representative...",
+      };
+    }
+    if (lower.includes("/publish")) {
+      return {
+        title: "Publishing Quotation",
+        subtitle: "Finalizing quote and preparing secure customer link...",
+      };
+    }
+    if (lower.includes("/draft")) {
+      return {
+        title: "Reverting to Draft",
+        subtitle: "Switching quote back to draft mode...",
+      };
+    }
+    if (lower.includes("/revision") || lower.includes("/revisions")) {
+      return {
+        title: "Creating Revision",
+        subtitle: "Generating a new version of this quotation...",
+      };
+    }
+    if (lower.includes("/send") || lower.includes("/email")) {
+      return {
+        title: "Sending Quotation",
+        subtitle: "Dispatching secure quotation email to customer...",
+      };
+    }
+    if (lower.includes("/mobile-session") || lower.includes("/mobile")) {
+      return {
+        title: "Initiating Mobile Session",
+        subtitle: "Generating QR code for phone signature...",
+      };
+    }
+    if (lower.includes("/links")) {
+      if (m === "DELETE") {
+        return {
+          title: "Revoking Link",
+          subtitle: "Invalidating customer access token...",
+        };
+      }
+      return {
+        title: "Generating Access Link",
+        subtitle: "Creating secure token for customer view...",
+      };
+    }
+    if (lower.includes("/save") || lower.endsWith("/quotes") || lower.endsWith("/quotes/")) {
+      const pubState = String(parsedBody?.publication_state || "").toUpperCase();
+      if (pubState === "PUBLISHED") {
+        return {
+          title: "Publishing Quotation",
+          subtitle: "Saving and publishing quote for customer review...",
+        };
+      }
+      if (parsedBody?.id) {
+        return {
+          title: "Saving Draft Quotation",
+          subtitle: "Updating quote details, line items, and totals...",
+        };
+      }
+      return {
+        title: "Creating Quotation",
+        subtitle: "Drafting new quotation and calculating totals...",
+      };
+    }
+    if (m === "DELETE") {
+      return {
+        title: "Deleting Quotation",
+        subtitle: "Removing quotation from the system...",
+      };
+    }
+    return {
+      title: "Saving Quotation",
+      subtitle: "Please wait while quotation changes are saved...",
+    };
+  }
+
+  // 8b. Accounts Receivable: Invoices & Invoice Generator
+  if (lower.includes("/ar/invoices") || lower.includes("/ar/generated-invoices") || lower.includes("/generate-invoice") || lower.includes("/invoices")) {
+    if (lower.includes("/send")) {
+      return {
+        title: "Sending Invoice",
+        subtitle: "Dispatching invoice document to customer...",
+      };
+    }
+    if (lower.includes("/pay") || lower.includes("/payment")) {
+      return {
+        title: "Recording Payment",
+        subtitle: "Applying payment to accounts receivable invoice...",
       };
     }
     if (m === "DELETE") {
@@ -221,13 +332,13 @@ function resolveActionMeta(
     }
     if (m === "POST") {
       return {
-        title: "Recording Invoice",
-        subtitle: "Saving invoice details and GL account allocations...",
+        title: "Generating Invoice",
+        subtitle: "Creating official invoice and updating AR records...",
       };
     }
     return {
-      title: "Updating Invoice Records",
-      subtitle: "Saving invoice information and allocations...",
+      title: "Updating Invoice",
+      subtitle: "Saving invoice line items and calculation updates...",
     };
   }
 

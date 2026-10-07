@@ -248,7 +248,47 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
       return;
     }
 
-    const capitalizedTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "Zenatech Portal";
+    let displayTitle = newNotif.title ? newNotif.title.charAt(0).toUpperCase() + newNotif.title.slice(1) : "Zenatech Portal";
+    let displayMessage = newNotif.message || "New notification received";
+
+    // Format raw JSON messages or technical titles to human-readable strings
+    if (typeof displayMessage === "string" && displayMessage.trim().startsWith("{")) {
+      try {
+        const parsed = JSON.parse(displayMessage);
+        if (parsed.type?.startsWith("quote.")) {
+          const pubState = parsed.data?.publication_state;
+          if (pubState === "PUBLISHED") {
+            displayTitle = "Quote Published";
+            displayMessage = "Quotation has been published and is ready to send.";
+          } else if (pubState === "DRAFT") {
+            displayTitle = "Quote Saved as Draft";
+            displayMessage = "Quotation draft was saved successfully.";
+          } else if (parsed.type === "quote.signed") {
+            displayTitle = "Quote Signed & Accepted";
+            displayMessage = `Quotation was signed by ${parsed.data?.signer_name || "customer"}.`;
+          } else if (parsed.type === "quote.sent") {
+            displayTitle = "Quote Sent to Customer";
+            displayMessage = `Quotation sent to ${parsed.data?.recipient_email || "customer"}.`;
+          } else if (parsed.type === "quote.viewed") {
+            displayTitle = "Customer Viewed Quote";
+            displayMessage = "Customer opened and viewed the quotation.";
+          } else if (parsed.type === "quote.changes_requested") {
+            displayTitle = "Customer Requested Changes";
+            displayMessage = `Customer requested adjustments: "${parsed.data?.message || ""}"`;
+          } else {
+            displayTitle = "Quote Updated";
+            displayMessage = "Quotation has been updated.";
+          }
+        }
+      } catch {
+        // Fallback to original message
+      }
+    }
+
+    if (displayTitle.startsWith("Quote Update: quote.")) {
+      displayTitle = displayTitle.replace("Quote Update: quote.", "Quote ").replace("_", " ");
+      displayTitle = displayTitle.charAt(0).toUpperCase() + displayTitle.slice(1);
+    }
 
     if (inAppAlerts) {
       toast(
@@ -256,8 +296,8 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
           className="cursor-pointer w-full flex flex-col gap-1"
           onClick={() => newNotif.link_url && navigate(newNotif.link_url)}
         >
-          <div className="font-medium">{capitalizedTitle}</div>
-          <div className="text-sm text-slate-500 dark:text-zinc-400 whitespace-pre-line">{newNotif.message}</div>
+          <div className="font-medium">{displayTitle}</div>
+          <div className="text-sm text-slate-500 dark:text-zinc-400 whitespace-pre-line">{displayMessage}</div>
         </div>,
         {
           position: "bottom-right",
@@ -269,8 +309,8 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
 
     if (windowsNotifications && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
       sendWindowsNotification(
-        capitalizedTitle,
-        newNotif.message || "New notification received",
+        displayTitle,
+        displayMessage,
         newNotif.link_url,
         (url) => navigate(url)
       );
