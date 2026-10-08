@@ -632,12 +632,14 @@ export default function QuickBooksPage() {
         monthParam = selectedMonth !== "ALL" ? parseInt(selectedMonth, 10) : null;
       }
 
+      const txnType = stagingTab === "bills" ? "BILL" : stagingTab === "expenses" ? "EXPENSE" : undefined;
+
       if (mode === "BUNDLE") {
         await exportQuickBooksBundle(idsParam, statusParam, yearParam, monthParam, startDt, endDt);
       } else if (mode === "XLSX") {
-        await exportQuickBooksXlsx(idsParam, statusParam, yearParam, monthParam, startDt, endDt);
+        await exportQuickBooksXlsx(idsParam, statusParam, yearParam, monthParam, startDt, endDt, txnType);
       } else if (mode === "CSV") {
-        await exportQuickBooksCsv(idsParam, statusParam, yearParam, monthParam, startDt, endDt);
+        await exportQuickBooksCsv(idsParam, statusParam, yearParam, monthParam, startDt, endDt, txnType);
       } else if (mode === "DOCUMENTS") {
         await exportQuickBooksDocuments(idsParam, statusParam, yearParam, monthParam, startDt, endDt);
       } else if (mode === "RECONCILIATION") {

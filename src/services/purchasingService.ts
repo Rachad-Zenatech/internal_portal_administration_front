@@ -214,7 +214,8 @@ export function exportQuickBooksCsv(
   year?: number | null,
   month?: number | null,
   start_datetime?: string | null,
-  end_datetime?: string | null
+  end_datetime?: string | null,
+  txn_type?: "EXPENSE" | "BILL"
 ) {
   const params = new URLSearchParams();
   if (ids && ids.length > 0) {
@@ -235,9 +236,13 @@ export function exportQuickBooksCsv(
   if (end_datetime) {
     params.set("end_datetime", end_datetime);
   }
+  if (txn_type) {
+    params.set("txn_type", txn_type);
+  }
   const qs = params.toString() ? `?${params.toString()}` : "";
 
   const nameParts = ["QuickBooks_Export"];
+  if (txn_type) nameParts.push(txn_type === "BILL" ? "Bills" : "Expenses");
   if (year) nameParts.push(String(year));
   if (month) nameParts.push(String(month).padStart(2, "0"));
   if (status && status !== "ALL" && status !== "COMPLETED" && status !== "ORDERED / PURCHASED") nameParts.push(status);
@@ -256,7 +261,8 @@ export function exportQuickBooksXlsx(
   year?: number | null,
   month?: number | null,
   start_datetime?: string | null,
-  end_datetime?: string | null
+  end_datetime?: string | null,
+  txn_type?: "EXPENSE" | "BILL"
 ) {
   const params = new URLSearchParams();
   if (ids && ids.length > 0) {
@@ -277,9 +283,13 @@ export function exportQuickBooksXlsx(
   if (end_datetime) {
     params.set("end_datetime", end_datetime);
   }
+  if (txn_type) {
+    params.set("txn_type", txn_type);
+  }
   const qs = params.toString() ? `?${params.toString()}` : "";
 
   const nameParts = ["QuickBooks_Export"];
+  if (txn_type) nameParts.push(txn_type === "BILL" ? "Bills" : "Expenses");
   if (year) nameParts.push(String(year));
   if (month) nameParts.push(String(month).padStart(2, "0"));
   if (status && status !== "ALL" && status !== "COMPLETED" && status !== "ORDERED / PURCHASED") nameParts.push(status);
