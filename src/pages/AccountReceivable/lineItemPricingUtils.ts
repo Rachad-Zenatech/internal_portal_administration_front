@@ -80,19 +80,7 @@ export function calculateRowPricing(params: {
   let freqLabel = "/yr";
   let isProrated = false;
 
-  if (isPaid) {
-    // Paid items are already settled full subscriptions — never prorate
-    isProrated = false;
-    if (freq.includes("annual") || freq.includes("year")) {
-      totalMonths = 12;
-      remainingMonths = 12;
-      freqLabel = "/yr";
-    } else if (freq.includes("month")) {
-      totalMonths = 1;
-      remainingMonths = 1;
-      freqLabel = "/mo";
-    }
-  } else if (freq.includes("annual") || freq.includes("year")) {
+  if (freq.includes("annual") || freq.includes("year")) {
     totalMonths = 12;
     freqLabel = "/yr";
     // Remaining months in current year (inclusive of current month)
@@ -125,7 +113,7 @@ export function calculateRowPricing(params: {
 
   const formulaParts: string[] = [];
   formulaParts.push(`${qty} × $${price.toFixed(2)}${freqLabel}`);
-  if (isProrated && !isPaid) {
+  if (isProrated) {
     formulaParts.push(`× (${remainingMonths}/${totalMonths} mo prorated)`);
   }
   if (termCount > 1) {
@@ -139,7 +127,7 @@ export function calculateRowPricing(params: {
   }
   const formulaString = `${formulaParts.join(" ")} = $${finalAmt.toFixed(2)}`;
 
-  const proratedNote = isProrated && !isPaid
+  const proratedNote = isProrated
     ? `Prorated (${remainingMonths} ${remainingMonths === 1 ? "month" : "months"} left): $${finalAmt.toFixed(2)}`
     : undefined;
 
@@ -150,7 +138,7 @@ export function calculateRowPricing(params: {
     discountAmount: discAmt * termCount,
     taxAmount: taxAmt,
     formulaString,
-    isProrated: isProrated && !isPaid,
+    isProrated,
     badge: isPaid ? "Paid" : isProrated ? "Prorated" : "Recurring",
     prorationRatio: ratio,
     termCount,
@@ -212,4 +200,23 @@ export function formatDateOnly(dateStr?: string | null, formatStr: string = "MM 
     return `${monthNames[d.getMonth()]} ${d.getDate()}, ${y}`;
   }
   return `${m}/${day}/${y}`;
+}
+
+/**
+ * Normalizes arbitrary billing frequency string into standard values: "One-Time", "Monthly", "Annually"
+ */
+export function normalizeBillingFrequencyForSelect(freq?: string | null): string {
+  if (!freq) return "none";
+  const f = String(freq).trim().toLowerCase().replace("-", " ").replace("_", " ");
+  if (f === "none" || f === "") return "none";
+  if (f.includes("annu") || f.includes("year") || f.includes("12 month")) return "Annually";
+  if (f.includes("month") || f === "mo" || f.includes("semi") || f.includes("quarter")) return "Monthly";
+  if (f.includes("one time") || f.includes("onetime") || f.includes("once")) return "One-Time";
+  return "One-Time";
+}
+
+export function normalizeBillingFrequency(freq?: string | null): string {
+  if (!freq) return "One-Time";
+  const norm = normalizeBillingFrequencyForSelect(freq);
+  return norm === "none" ? "One-Time" : norm;
 }

@@ -145,7 +145,7 @@ export const AddSeatsAddonsModal: React.FC<AddSeatsAddonsModalProps> = ({
       setBillingPeriodEnd(primarySub.current_period_end || `${new Date().getFullYear()}-12-31`);
       if (primarySub.billing_frequency) {
         const bf = primarySub.billing_frequency.toUpperCase();
-        setBillingFrequency(bf === "MONTHLY" ? "Monthly" : bf === "QUARTERLY" ? "Quarterly" : bf === "SEMI_ANNUAL" ? "Semi-annually" : "Monthly");
+        setBillingFrequency(bf.includes("ANNU") || bf.includes("YEAR") ? "Annually" : bf === "MONTHLY" ? "Monthly" : "Monthly");
       }
     }
   }, [primarySub, selectedSubId]);

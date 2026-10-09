@@ -8,7 +8,7 @@ export interface ARQuoteLineItem {
   quantity: number | string;
   unit_discount?: number | string;
   discount_type?: "%" | "$";
-  billing_frequency?: "One-Time" | "Monthly" | "Quarterly" | "Semi-annually" | "Annually" | "One-time" | "" | string;
+  billing_frequency?: "One-Time" | "Monthly" | "Annually" | "One-time" | "" | string;
   term?: number | string;
   billing_start_date?: string;
   tax_rate?: number | string;

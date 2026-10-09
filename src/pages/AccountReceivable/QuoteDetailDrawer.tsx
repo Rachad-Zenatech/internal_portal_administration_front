@@ -449,8 +449,15 @@ export function QuoteDetailDrawer({
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {quote.line_items.map((item, idx) => (
                 <div key={idx} className="py-2 flex items-start justify-between gap-2">
-                  <div>
-                    <strong className="text-slate-800 dark:text-zinc-200">{item.name}</strong>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <strong className="text-slate-800 dark:text-zinc-200">{item.name}</strong>
+                      {item.billing_frequency && (
+                        <Badge variant="outline" className="text-[9.5px] px-1.5 py-0 font-medium">
+                          {item.billing_frequency}
+                        </Badge>
+                      )}
+                    </div>
                     {item.description && <p className="text-[10px] text-slate-400">{item.description}</p>}
                   </div>
                   <div className="text-right font-mono">

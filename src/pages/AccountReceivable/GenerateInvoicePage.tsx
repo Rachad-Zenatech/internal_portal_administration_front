@@ -87,7 +87,7 @@ import { GLCodeAutocomplete } from "../Purchasing/GLCodeAutocomplete";
 import { ClassAutocomplete } from "../Purchasing/ClassAutocomplete";
 import { OverridePriceModal } from "./OverridePriceModal";
 import { BillingStartDatePicker } from "./BillingStartDatePicker";
-import { calculateRowPricing } from "./lineItemPricingUtils";
+import { calculateRowPricing, normalizeBillingFrequencyForSelect } from "./lineItemPricingUtils";
 import { useNotificationStream } from "@/hooks/useNotifications";
 
 export interface InvoiceSubItem {
@@ -104,6 +104,7 @@ export interface InvoiceSubItem {
   unit_discount?: string | number;
   discount_type?: "%" | "$";
   billing_frequency?: string;
+  billing_type?: string;
   term?: string | number;
   billing_start_date?: string;
   service_period?: string;
@@ -112,7 +113,7 @@ export interface InvoiceSubItem {
   next_billing_date?: string;
   end_date?: string;
   tax_rate?: string | number;
-  total: number;
+  total: string | number;
   charge?: number;
   badge?: string;
   is_prorated?: boolean;
@@ -122,6 +123,7 @@ export interface InvoiceSubItem {
   date_range?: string;
   full_recurring_label?: string;
   is_manual_override?: boolean;
+  is_manual_total?: boolean;
   override_reason?: string;
   status?: string;
   service_status?: string;
@@ -139,6 +141,7 @@ export interface LineItemFormRow {
   unit_discount?: string | number;
   discount_type?: "%" | "$";
   billing_frequency?: string;
+  billing_type?: string;
   term?: string | number;
   billing_start_date?: string;
   service_period?: string;
@@ -147,9 +150,10 @@ export interface LineItemFormRow {
   next_billing_date?: string;
   end_date?: string;
   tax_rate?: string | number;
-  total: number;
+  total: string | number;
   badge?: string;
   is_prorated?: boolean;
+  is_manual_total?: boolean;
   calculation?: string;
   status?: string;
   service_status?: string;
@@ -697,20 +701,44 @@ export default function GenerateInvoicePage() {
             if (inv.bank_email) setBankEmail(inv.bank_email);
 
             if (inv.line_items && inv.line_items.length > 0) {
-              const recordedPaid = Number(invData.amount_paid) || 0;
+              const recordedPaid = Number(invData.amount_paid) || (invData.payments ? invData.payments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0) : 0);
               const recordedTotal = Number(invData.total_amount) || 0;
               const isInvFullyPaid = recordedPaid >= recordedTotal && recordedTotal > 0;
+              let remainingPaidPool = recordedPaid;
               setLineItems(
                 inv.line_items.map((li: any) => {
                   const isProrated = !!li.is_prorated || li.badge === "Prorated";
-                  // An item is Paid if explicitly marked Paid, or if it's a baseline non-prorated item on a fully paid invoice
-                  const itemIsPaid = (isInvFullyPaid && li.status !== "Unpaid") || (li.status === "Paid" || li.service_status === "Paid");
+                  const rawFreqForSelect = normalizeBillingFrequencyForSelect(li.billing_frequency || li.billing_type);
+                  const rawFreq = rawFreqForSelect === "none" ? "" : rawFreqForSelect;
+
+                  const testProration = computeItemProration(
+                    li.quantity !== undefined ? li.quantity : 1,
+                    li.unit_price !== undefined ? li.unit_price : "",
+                    li.unit_discount ?? "",
+                    li.discount_type || "%",
+                    rawFreq,
+                    li.billing_start_date || "",
+                    li.tax_rate ?? "",
+                    li.term ?? 1,
+                    false
+                  );
+                  const liAmount = Number(li.total) || testProration.amount || 0;
+
+                  // An item is Paid if explicitly marked Paid, or if it's covered by recorded payments
+                  let itemIsPaid = (isInvFullyPaid && li.status !== "Unpaid") || (li.status === "Paid" || li.service_status === "Paid");
+                  if (!itemIsPaid && remainingPaidPool >= (liAmount - 0.01) && liAmount > 0) {
+                    itemIsPaid = true;
+                  }
+                  if (itemIsPaid) {
+                    remainingPaidPool = Math.max(0, remainingPaidPool - liAmount);
+                  }
+
                   const proration = computeItemProration(
                     li.quantity !== undefined ? li.quantity : 1,
                     li.unit_price !== undefined ? li.unit_price : "",
                     li.unit_discount ?? "",
                     li.discount_type || "%",
-                    li.billing_frequency || "",
+                    rawFreq,
                     li.billing_start_date || "",
                     li.tax_rate ?? "",
                     li.term ?? 1,
@@ -718,7 +746,6 @@ export default function GenerateInvoicePage() {
                   );
 
                   const itemDate = li.date || inv.date || invoiceDate;
-                  const rawFreq = li.billing_frequency || "";
                   let derivedPeriod = li.service_period || li.date_range || "";
                   let derivedNextBilling = li.next_billing_date || "";
                   if (rawFreq && rawFreq.toLowerCase().includes("month") && (derivedPeriod.includes("2027") || !derivedPeriod) && (itemDate.includes("2026") || (inv.date && inv.date.includes("2026")))) {
@@ -726,6 +753,12 @@ export default function GenerateInvoicePage() {
                     if (p.service_period) derivedPeriod = p.service_period;
                     if (p.next_billing_date) derivedNextBilling = p.next_billing_date;
                   }
+
+                  const effectiveTotal = (li.is_manual_total && li.total !== undefined && li.total !== null && li.total !== "")
+                    ? (Number(li.total) || 0)
+                    : ((li.total !== undefined && li.total !== null && li.total !== "")
+                      ? Number(li.total)
+                      : proration.amount);
 
                   return {
                       id: li.id,
@@ -746,17 +779,40 @@ export default function GenerateInvoicePage() {
                       next_billing_date: derivedNextBilling,
                       end_date: li.end_date || "",
                       tax_rate: li.tax_rate ?? "",
-                      total: proration.amount,
+                      total: effectiveTotal,
+                      is_manual_total: !!li.is_manual_total,
                       badge: itemIsPaid ? "Paid" : (li.badge || proration.badge),
-                      is_prorated: !itemIsPaid && (isProrated || proration.isProrated),
-                      calculation: proration.formulaString,
-                      status: itemIsPaid ? "Paid" : "Unpaid",
-                      service_status: itemIsPaid ? "Paid" : "Unpaid",
+                      is_prorated: isProrated || proration.isProrated,
+                      calculation: li.calculation || proration.formulaString,
+                      status: itemIsPaid ? "Paid" : (li.status || "Unpaid"),
+                      service_status: itemIsPaid ? "Paid" : (li.service_status || "Unpaid"),
                       sub_items: Array.isArray(li.sub_items) ? li.sub_items.map((sub: any, sIdx: number) => {
                         const subIsProrated = sub.is_prorated !== undefined ? !!sub.is_prorated : (sub.badge === "Prorated" || false);
-                        const subIsPaid = (isInvFullyPaid && sub.status !== "Unpaid" && sub.service_status !== "Unpaid") || ((sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid");
                         const subDate = sub.date || itemDate;
-                        const subFreq = sub.billing_frequency || rawFreq || "Monthly";
+                        const rawSubFreqForSelect = normalizeBillingFrequencyForSelect(sub.billing_frequency || sub.billing_type || rawFreq);
+                        const subFreq = rawSubFreqForSelect === "none" ? rawFreq || "Monthly" : rawSubFreqForSelect;
+
+                        const testSubProration = computeItemProration(
+                          sub.quantity !== undefined ? sub.quantity : 1,
+                          sub.unit_price !== undefined ? sub.unit_price : "",
+                          sub.unit_discount ?? "",
+                          sub.discount_type || "%",
+                          subFreq,
+                          sub.billing_start_date || subDate,
+                          sub.tax_rate ?? "",
+                          sub.term ?? 1,
+                          false
+                        );
+                        const subAmount = Number(sub.total) || testSubProration.amount || 0;
+
+                        let subIsPaid = (isInvFullyPaid && sub.status !== "Unpaid" && sub.service_status !== "Unpaid") || ((sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid");
+                        if (!subIsPaid && remainingPaidPool >= (subAmount - 0.01) && subAmount > 0) {
+                          subIsPaid = true;
+                        }
+                        if (subIsPaid) {
+                          remainingPaidPool = Math.max(0, remainingPaidPool - subAmount);
+                        }
+
                         let subDerivedPeriod = sub.service_period || sub.date_range || "";
                         let subDerivedNextBilling = sub.next_billing_date || "";
                         if (subFreq && subFreq.toLowerCase().includes("month") && (subDerivedPeriod.includes("2027") || !subDerivedPeriod) && (subDate.includes("2026") || (inv.date && inv.date.includes("2026")))) {
@@ -778,6 +834,11 @@ export default function GenerateInvoicePage() {
                         );
 
                         const subTitle = sub.title || sub.activity || sub.name || `Additional Service #${sIdx + 1}`;
+                        const effectiveSubTotal = (sub.is_manual_total && sub.total !== undefined && sub.total !== null && sub.total !== "")
+                          ? (Number(sub.total) || 0)
+                          : ((sub.total !== undefined && sub.total !== null && sub.total !== "")
+                            ? Number(sub.total)
+                            : subProration.amount);
 
                         return {
                           id: sub.id || `sub-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -799,16 +860,17 @@ export default function GenerateInvoicePage() {
                           next_billing_date: subDerivedNextBilling,
                           end_date: sub.end_date || "",
                           tax_rate: sub.tax_rate ?? "",
-                          total: subProration.amount,
+                          total: effectiveSubTotal,
+                          is_manual_total: !!sub.is_manual_total,
                           badge: subIsPaid ? "Paid" : (sub.badge || subProration.badge),
-                          is_prorated: !subIsPaid && (subIsProrated || subProration.isProrated),
+                          is_prorated: subIsProrated || subProration.isProrated,
                           is_reference_only: !!sub.is_reference_only,
                           reference_amount: sub.reference_amount,
-                          calculation: subProration.formulaString,
+                          calculation: sub.calculation || subProration.formulaString,
                           date_range: sub.date_range,
                           full_recurring_label: sub.full_recurring_label,
-                          status: subIsPaid ? "Paid" : "Unpaid",
-                          service_status: subIsPaid ? "Paid" : "Unpaid",
+                          status: subIsPaid ? "Paid" : (sub.status || "Unpaid"),
+                          service_status: subIsPaid ? "Paid" : (sub.service_status || "Unpaid"),
                         };
                       }) : [],
                     };
@@ -903,10 +965,15 @@ export default function GenerateInvoicePage() {
                     const discType = li.discount_type || "%";
                     const tax = li.tax_rate ?? "";
                     const term = li.term ?? 1;
-                    const freq = li.billing_frequency || "One-Time";
+                    const rawFreqForSelect = normalizeBillingFrequencyForSelect(li.billing_frequency || li.billing_type);
+                    const freq = rawFreqForSelect === "none" ? "One-Time" : rawFreqForSelect;
                     const bStart = li.billing_start_date || "";
 
                     const proration = computeItemProration(qty, price, disc, discType, freq, bStart, tax, term);
+
+                    const quoteLineTotal = (li.is_manual_total && li.total !== undefined && li.total !== "")
+                      ? (Number(li.total) || 0)
+                      : (li.total !== undefined && li.total !== "" ? Number(li.total) : (li.subtotal !== undefined && li.subtotal !== "" ? Number(li.subtotal) : proration.amount));
 
                     return {
                       id: li.id || `line-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -922,8 +989,9 @@ export default function GenerateInvoicePage() {
                       term: term,
                       billing_start_date: bStart,
                       tax_rate: tax,
-                      total: proration.amount,
-                      calculation: proration.formulaString,
+                      total: quoteLineTotal,
+                      is_manual_total: !!li.is_manual_total,
+                      calculation: li.calculation || proration.formulaString,
                       badge: proration.badge,
                       is_prorated: proration.isProrated,
                       sub_items: Array.isArray(li.sub_items) ? li.sub_items.map((sub: any) => {
@@ -931,11 +999,15 @@ export default function GenerateInvoicePage() {
                         const sPrice = sub.unit_price !== undefined ? sub.unit_price : (sub.price !== undefined ? sub.price : "");
                         const sDisc = sub.unit_discount ?? "";
                         const sDiscType = sub.discount_type || "%";
-                        const sFreq = sub.billing_frequency || "One-Time";
+                        const rawSubFreqForSelect = normalizeBillingFrequencyForSelect(sub.billing_frequency || sub.billing_type || freq);
+                        const sFreq = rawSubFreqForSelect === "none" ? freq || "One-Time" : rawSubFreqForSelect;
                         const sTerm = sub.term ?? 1;
                         const sBStart = sub.billing_start_date || "";
                         const sTax = sub.tax_rate ?? "";
                         const sProration = computeItemProration(sQty, sPrice, sDisc, sDiscType, sFreq, sBStart, sTax, sTerm);
+                        const quoteSubTotal = (sub.is_manual_total && sub.total !== undefined && sub.total !== "")
+                          ? (Number(sub.total) || 0)
+                          : (sub.total !== undefined && sub.total !== "" ? Number(sub.total) : (sub.subtotal !== undefined && sub.subtotal !== "" ? Number(sub.subtotal) : sProration.amount));
 
                         return {
                           id: sub.id || `sub-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -953,8 +1025,9 @@ export default function GenerateInvoicePage() {
                           term: sTerm,
                           billing_start_date: sBStart,
                           tax_rate: sTax,
-                          total: sProration.amount,
-                          calculation: sProration.formulaString,
+                          total: quoteSubTotal,
+                          is_manual_total: !!sub.is_manual_total,
+                          calculation: sub.calculation || sProration.formulaString,
                           badge: sub.badge || sProration.badge,
                           is_prorated: sProration.isProrated,
                           is_reference_only: !!sub.is_reference_only,
@@ -1211,7 +1284,7 @@ export default function GenerateInvoicePage() {
         isItemPaid
       );
 
-      const itemTotal = parentRes.amount;
+      const itemTotal = (item.total !== undefined && item.total !== "") ? (Number(item.total) || 0) : parentRes.amount;
       newCharges += itemTotal;
       totalDiscounts += parentRes.discountAmount;
       totalTaxes += parentRes.taxAmount;
@@ -1237,7 +1310,7 @@ export default function GenerateInvoicePage() {
             isSubPaid
           );
 
-          const subTotal = subRes.amount;
+          const subTotal = (sub.total !== undefined && sub.total !== "") ? (Number(sub.total) || 0) : subRes.amount;
           if (sub.is_reference_only) {
             referenceCharges += Number(sub.reference_amount) || subTotal || 0;
           } else {
@@ -1570,7 +1643,7 @@ export default function GenerateInvoicePage() {
 
   const handleUpdateLine = (
     index: number,
-    field: keyof LineItemFormRow,
+    field: keyof LineItemFormRow | "total",
     val: any
   ) => {
     setLineItems((prev) => {
@@ -1584,22 +1657,32 @@ export default function GenerateInvoicePage() {
         item.next_billing_date = periods.next_billing_date;
       }
 
-      const isItemPaid = (item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid";
-      const proration = computeItemProration(
-        item.quantity,
-        item.unit_price,
-        item.unit_discount,
-        item.discount_type,
-        item.billing_frequency,
-        item.billing_start_date,
-        item.tax_rate,
-        item.term,
-        isItemPaid
-      );
-      item.total = proration.amount;
-      item.calculation = proration.formulaString;
-      item.badge = proration.badge;
-      item.is_prorated = proration.isProrated;
+      if (field === "total") {
+        const manualVal = val === "" ? "" : parseFloat(val);
+        item.total = manualVal === "" ? "" : (isNaN(manualVal) ? 0 : manualVal);
+        item.is_manual_total = val !== "";
+        if (val !== "") {
+          item.calculation = `Manual Override: $${(Number(item.total) || 0).toFixed(2)}`;
+        }
+      } else {
+        item.is_manual_total = false;
+        const isItemPaid = (item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid";
+        const proration = computeItemProration(
+          item.quantity,
+          item.unit_price,
+          item.unit_discount,
+          item.discount_type,
+          item.billing_frequency,
+          item.billing_start_date,
+          item.tax_rate,
+          item.term,
+          isItemPaid
+        );
+        item.total = proration.amount;
+        item.calculation = proration.formulaString;
+        item.badge = proration.badge;
+        item.is_prorated = proration.isProrated;
+      }
       copy[index] = item;
       return copy;
     });
@@ -1698,7 +1781,7 @@ export default function GenerateInvoicePage() {
   const handleUpdateSubItem = (
     parentIndex: number,
     subIndex: number,
-    field: keyof InvoiceSubItem,
+    field: keyof InvoiceSubItem | "total",
     val: any
   ) => {
     setLineItems((prev) => {
@@ -1715,22 +1798,32 @@ export default function GenerateInvoicePage() {
         sub.next_billing_date = periods.next_billing_date;
       }
 
-      const isSubPaid = (sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid";
-      const subProration = computeItemProration(
-        sub.quantity,
-        sub.unit_price,
-        sub.unit_discount,
-        sub.discount_type,
-        sub.billing_frequency,
-        sub.billing_start_date,
-        sub.tax_rate,
-        sub.term,
-        isSubPaid
-      );
-      sub.total = subProration.amount;
-      sub.calculation = subProration.formulaString;
-      sub.badge = subProration.badge;
-      sub.is_prorated = subProration.isProrated;
+      if (field === "total") {
+        const manualVal = val === "" ? "" : parseFloat(val);
+        sub.total = manualVal === "" ? "" : (isNaN(manualVal) ? 0 : manualVal);
+        sub.is_manual_total = val !== "";
+        if (val !== "") {
+          sub.calculation = `Manual Override: $${(Number(sub.total) || 0).toFixed(2)}`;
+        }
+      } else {
+        sub.is_manual_total = false;
+        const isSubPaid = (sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid";
+        const subProration = computeItemProration(
+          sub.quantity,
+          sub.unit_price,
+          sub.unit_discount,
+          sub.discount_type,
+          sub.billing_frequency,
+          sub.billing_start_date,
+          sub.tax_rate,
+          sub.term,
+          isSubPaid
+        );
+        sub.total = subProration.amount;
+        sub.calculation = subProration.formulaString;
+        sub.badge = subProration.badge;
+        sub.is_prorated = subProration.isProrated;
+      }
       subs[subIndex] = sub;
       parent.sub_items = subs;
       copy[parentIndex] = parent;
@@ -1885,12 +1978,13 @@ export default function GenerateInvoicePage() {
         next_billing_date: li.next_billing_date || "",
         end_date: li.end_date || "",
         tax_rate: li.tax_rate === "" ? 0 : (parseFloat(String(li.tax_rate)) || 0),
-        total: liPricing.amount,
-        calculation: liPricing.formulaString,
+        total: (li.is_manual_total && li.total !== undefined && li.total !== "") ? (Number(li.total) || 0) : liPricing.amount,
+        calculation: (li.is_manual_total && li.calculation) ? li.calculation : liPricing.formulaString,
         badge: li.badge || liPricing.badge,
         is_prorated: !!li.is_prorated || liPricing.isProrated,
-        status: li.status || (li.is_prorated ? "Unpaid" : (calculatedTotals.totalPaidAmount > 0 ? "Paid" : "Unpaid")),
-        service_status: li.service_status || li.status || (li.is_prorated ? "Unpaid" : (calculatedTotals.totalPaidAmount > 0 ? "Paid" : "Unpaid")),
+        is_manual_total: !!li.is_manual_total,
+        status: li.status || (calculatedTotals.totalPaidAmount > 0 && !li.is_prorated ? "Paid" : "Unpaid"),
+        service_status: li.service_status || li.status || (calculatedTotals.totalPaidAmount > 0 && !li.is_prorated ? "Paid" : "Unpaid"),
         sub_items: li.sub_items ? li.sub_items.map((sub) => {
           const subPricing = computeItemProration(
             sub.quantity === "" ? 1 : sub.quantity,
@@ -1922,10 +2016,11 @@ export default function GenerateInvoicePage() {
             next_billing_date: sub.next_billing_date || "",
             end_date: sub.end_date || "",
             tax_rate: sub.tax_rate === "" ? 0 : (parseFloat(String(sub.tax_rate)) || 0),
-            total: subPricing.amount,
-            calculation: subPricing.formulaString,
+            total: (sub.is_manual_total && sub.total !== undefined && sub.total !== "") ? (Number(sub.total) || 0) : subPricing.amount,
+            calculation: (sub.is_manual_total && sub.calculation) ? sub.calculation : subPricing.formulaString,
             badge: sub.badge || subPricing.badge,
             is_prorated: !!sub.is_prorated || subPricing.isProrated,
+            is_manual_total: !!sub.is_manual_total,
             status: sub.status || (sub.is_prorated ? "Unpaid" : "Paid"),
             service_status: sub.service_status || sub.status || (sub.is_prorated ? "Unpaid" : "Paid"),
             is_reference_only: !!sub.is_reference_only,
@@ -3511,26 +3606,24 @@ export default function GenerateInvoicePage() {
                                   Paid
                                 </Badge>
                               ) : (
-                                <>
-                                  <Badge className="text-[9.5px] px-1.5 py-0.5 bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-700 font-bold shrink-0">
-                                    Unpaid
+                                <Badge className="text-[9.5px] px-1.5 py-0.5 bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-700 font-bold shrink-0">
+                                  Unpaid
+                                </Badge>
+                              )}
+                              {item.billing_frequency && item.billing_frequency !== "One-Time" && item.billing_frequency !== "none" ? (
+                                parentProration.isProrated ? (
+                                  <Badge className="text-[9px] px-1.5 py-0 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 shrink-0">
+                                    Prorated
                                   </Badge>
-                                  {item.billing_frequency && item.billing_frequency !== "One-Time" && item.billing_frequency !== "none" ? (
-                                    parentProration.isProrated ? (
-                                      <Badge className="text-[9px] px-1.5 py-0 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 shrink-0">
-                                        Prorated
-                                      </Badge>
-                                    ) : (
-                                      <Badge className="text-[9px] px-1.5 py-0 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 shrink-0">
-                                        Recurring
-                                      </Badge>
-                                    )
-                                  ) : (
-                                    <Badge className="text-[9px] px-1.5 py-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 shrink-0">
-                                      One-Time
-                                    </Badge>
-                                  )}
-                                </>
+                                ) : (
+                                  <Badge className="text-[9px] px-1.5 py-0 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 shrink-0">
+                                    Recurring
+                                  </Badge>
+                                )
+                              ) : (
+                                <Badge className="text-[9px] px-1.5 py-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 shrink-0">
+                                  One-Time
+                                </Badge>
                               )}
                             </div>
                             <textarea
@@ -3542,7 +3635,7 @@ export default function GenerateInvoicePage() {
                               rows={1}
                               className="w-full text-[11px] text-muted-foreground border border-input rounded-md bg-transparent px-2 py-1 resize-y min-h-[28px] focus:outline-none focus:border-blue-500 leading-relaxed"
                             />
-                            {!isItemPaid && parentProration.isProrated && parentProration.proratedNote && (
+                            {parentProration.isProrated && parentProration.proratedNote && (
                               <div className="text-[10.5px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded font-medium inline-flex items-center gap-1 mt-0.5">
                                 <span>ℹ️ {parentProration.proratedNote}</span>
                               </div>
@@ -3558,7 +3651,7 @@ export default function GenerateInvoicePage() {
                                 )}
                               </div>
                             )}
-                            {!isItemPaid && parentProration.isProrated && parentProration.formulaString && (
+                            {parentProration.isProrated && parentProration.formulaString && (
                               <div className="text-[11px] text-blue-600 dark:text-blue-400 italic font-mono mt-0.5 tracking-tight break-words">
                                 Formula: {parentProration.formulaString}
                               </div>
@@ -3625,7 +3718,7 @@ export default function GenerateInvoicePage() {
                           {/* Billing Frequency */}
                           <td className="py-2 px-2 align-top">
                             <Select
-                              value={item.billing_frequency || "none"}
+                              value={normalizeBillingFrequencyForSelect(item.billing_frequency || item.billing_type)}
                               onValueChange={(val) => handleUpdateLine(idx, "billing_frequency", val === "none" ? "" : val)}
                             >
                               <SelectTrigger className="h-7 text-xs border-input bg-card px-2">
@@ -3676,8 +3769,16 @@ export default function GenerateInvoicePage() {
                           </td>
 
                           {/* Net Price / Amount */}
-                          <td className="py-2 px-3 text-right font-mono text-xs font-bold text-foreground align-top pt-2">
-                            ${parentProration.amount.toFixed(2)}
+                          <td className="py-2 px-2 align-top">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.total !== undefined && item.total !== "" ? item.total : parentProration.amount}
+                              onChange={(e) => handleUpdateLine(idx, "total", e.target.value)}
+                              placeholder="0.00"
+                              className="h-7 text-xs text-right font-mono font-bold border-input bg-card px-2"
+                            />
                           </td>
 
                           {/* Actions: Add Sub-item & Delete */}
@@ -3806,26 +3907,24 @@ export default function GenerateInvoicePage() {
                                       Paid
                                     </Badge>
                                   ) : (
-                                    <>
-                                      <Badge className="text-[9px] px-1.5 py-0 bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-700 font-bold shrink-0">
-                                        Unpaid
+                                    <Badge className="text-[9px] px-1.5 py-0 bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-700 font-bold shrink-0">
+                                      Unpaid
+                                    </Badge>
+                                  )}
+                                  {sub.billing_frequency && sub.billing_frequency !== "One-Time" && sub.billing_frequency !== "none" ? (
+                                    subProration.isProrated ? (
+                                      <Badge className="text-[9px] px-1.5 py-0 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 shrink-0">
+                                        Prorated
                                       </Badge>
-                                      {sub.billing_frequency && sub.billing_frequency !== "One-Time" && sub.billing_frequency !== "none" ? (
-                                        subProration.isProrated ? (
-                                          <Badge className="text-[9px] px-1.5 py-0 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 shrink-0">
-                                            Prorated
-                                          </Badge>
-                                        ) : (
-                                          <Badge className="text-[9px] px-1.5 py-0 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 shrink-0">
-                                            Recurring
-                                          </Badge>
-                                        )
-                                      ) : (
-                                        <Badge className="text-[9px] px-1.5 py-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 shrink-0">
-                                          One-Time
-                                        </Badge>
-                                      )}
-                                    </>
+                                    ) : (
+                                      <Badge className="text-[9px] px-1.5 py-0 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 shrink-0">
+                                        Recurring
+                                      </Badge>
+                                    )
+                                  ) : (
+                                    <Badge className="text-[9px] px-1.5 py-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 shrink-0">
+                                      One-Time
+                                    </Badge>
                                   )}
                                   {sub.is_reference_only && (
                                     <Badge className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-800 border-amber-200 shrink-0">
@@ -3841,7 +3940,7 @@ export default function GenerateInvoicePage() {
                                     rows={1}
                                     className="w-full text-[11px] text-muted-foreground border border-input rounded bg-card px-2 py-0.5 resize-y min-h-[24px] focus:outline-none focus:border-blue-500 leading-relaxed"
                                   />
-                                  {!isSubPaid && subProration.isProrated && subProration.proratedNote && (
+                                  {subProration.isProrated && subProration.proratedNote && (
                                     <div className="text-[10.5px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded font-medium inline-flex items-center gap-1 mt-0.5">
                                       <span>ℹ️ {subProration.proratedNote}</span>
                                     </div>
@@ -3857,7 +3956,7 @@ export default function GenerateInvoicePage() {
                                       )}
                                     </div>
                                   )}
-                                  {!isSubPaid && subProration.isProrated && activeFormula && (
+                                  {subProration.isProrated && activeFormula && (
                                     <div className="text-[11px] text-blue-600 dark:text-blue-400 italic font-mono tracking-tight break-words">
                                       Formula: {activeFormula}
                                     </div>
@@ -3925,7 +4024,7 @@ export default function GenerateInvoicePage() {
                           {/* Sub-item Billing Frequency */}
                           <td className="py-1.5 px-2 align-top">
                             <Select
-                              value={sub.billing_frequency || "none"}
+                              value={normalizeBillingFrequencyForSelect(sub.billing_frequency || sub.billing_type)}
                               onValueChange={(val) => handleUpdateSubItem(idx, sIdx, "billing_frequency", val === "none" ? "" : val)}
                             >
                               <SelectTrigger className="h-6 text-[11px] border-input bg-card px-1.5">
@@ -3976,13 +4075,21 @@ export default function GenerateInvoicePage() {
                           </td>
 
                           {/* Sub-item Total */}
-                          <td className="py-1.5 px-3 text-right font-mono text-[11px] font-bold text-foreground align-top pt-1.5">
+                          <td className="py-1.5 px-2 align-top">
                             {sub.is_reference_only ? (
-                              <span className="text-[10px] text-muted-foreground italic font-normal">
-                                Ref: ${(Number(sub.reference_amount) || subProration.amount).toFixed(2)}
-                              </span>
+                              <div className="text-[10px] text-muted-foreground italic font-normal text-right pt-1 px-1.5">
+                                Ref: ${(Number(sub.reference_amount) || (sub.total !== undefined && sub.total !== "" ? Number(sub.total) : subProration.amount)).toFixed(2)}
+                              </div>
                             ) : (
-                              `$${subProration.amount.toFixed(2)}`
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={sub.total !== undefined && sub.total !== "" ? sub.total : subProration.amount}
+                                onChange={(e) => handleUpdateSubItem(idx, sIdx, "total", e.target.value)}
+                                placeholder="0.00"
+                                className="h-6 text-[11px] text-right font-mono font-bold border-input bg-card px-1.5"
+                              />
                             )}
                           </td>
 
@@ -4504,26 +4611,24 @@ export default function GenerateInvoicePage() {
                                       Paid
                                     </span>
                                   ) : (
-                                    <>
-                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
-                                        Unpaid
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
+                                      Unpaid
+                                    </span>
+                                  )}
+                                  {item.billing_frequency && item.billing_frequency !== "One-Time" && item.billing_frequency !== "none" ? (
+                                    parentProration.isProrated ? (
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
+                                        Prorated
                                       </span>
-                                      {item.billing_frequency && item.billing_frequency !== "One-Time" && item.billing_frequency !== "none" ? (
-                                        parentProration.isProrated ? (
-                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
-                                            Prorated
-                                          </span>
-                                        ) : (
-                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
-                                            Recurring
-                                          </span>
-                                        )
-                                      ) : (
-                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300 font-medium">
-                                          One-Time
-                                        </span>
-                                      )}
-                                    </>
+                                    ) : (
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+                                        Recurring
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300 font-medium">
+                                      One-Time
+                                    </span>
                                   )}
                                 </div>
                                 {item.description && (
@@ -4557,7 +4662,7 @@ export default function GenerateInvoicePage() {
                                     )}
                                   </div>
                                 )}
-                                {!isItemPaid && parentProration.isProrated && parentProration.proratedNote && (
+                                {parentProration.isProrated && parentProration.proratedNote && (
                                   <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] text-amber-800 font-medium mt-0.5">
                                     <span>ℹ️ {parentProration.proratedNote}</span>
                                   </div>
@@ -4573,7 +4678,7 @@ export default function GenerateInvoicePage() {
                                     )}
                                   </div>
                                 )}
-                                {!isItemPaid && parentProration.isProrated && parentProration.formulaString && (
+                                {parentProration.isProrated && parentProration.formulaString && (
                                   <div className="text-[10px] text-blue-600 italic font-mono mt-0.5 tracking-tight break-words">
                                     Formula: {parentProration.formulaString}
                                   </div>
@@ -4606,7 +4711,7 @@ export default function GenerateInvoicePage() {
                               </td>
                             )}
                             <td className="py-2.5 px-2.5 text-right font-mono text-slate-900 font-bold align-top text-xs whitespace-nowrap">
-                              ${parentProration.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ${((item.total !== undefined && item.total !== "") ? (Number(item.total) || 0) : parentProration.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                           </tr>
 
@@ -4643,10 +4748,10 @@ export default function GenerateInvoicePage() {
                                           Paid
                                         </span>
                                       ) : (
-                                        <>
-                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
-                                            Unpaid
-                                          </span>
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
+                                          Unpaid
+                                        </span>
+                                      )}
                                           {sub.billing_frequency && sub.billing_frequency !== "One-Time" && sub.billing_frequency !== "none" ? (
                                             subProration.isProrated ? (
                                               <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
@@ -4662,8 +4767,7 @@ export default function GenerateInvoicePage() {
                                               One-Time
                                             </span>
                                           )}
-                                        </>
-                                      )}
+
                                       {sub.is_reference_only && (
                                         <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
                                           Ref Only
@@ -4699,7 +4803,7 @@ export default function GenerateInvoicePage() {
                                         )}
                                       </div>
                                     )}
-                                    {!isSubPaid && subProration.isProrated && subProration.proratedNote && (
+                                    {subProration.isProrated && subProration.proratedNote && (
                                       <div className="pl-4 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] text-amber-800 font-medium mt-0.5">
                                         <span>ℹ️ {subProration.proratedNote}</span>
                                       </div>
@@ -4715,7 +4819,7 @@ export default function GenerateInvoicePage() {
                                         )}
                                       </div>
                                     )}
-                                    {!isSubPaid && subProration.isProrated && activeFormula && (
+                                    {subProration.isProrated && activeFormula && (
                                       <div className="pl-4 text-[10px] text-blue-600 italic font-mono mt-0.5 tracking-tight break-words">
                                         Formula: {activeFormula}
                                       </div>
@@ -4753,7 +4857,7 @@ export default function GenerateInvoicePage() {
                                       Ref: ${(Number(sub.reference_amount ?? sub.charge ?? sub.total ?? 0)).toFixed(2)}
                                     </span>
                                   ) : (
-                                    `$${subProration.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                    `$${((sub.total !== undefined && sub.total !== "") ? (Number(sub.total) || 0) : subProration.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                   )}
                                 </td>
                               </tr>
@@ -5004,26 +5108,24 @@ export default function GenerateInvoicePage() {
                                       Paid
                                     </span>
                                   ) : (
-                                    <>
-                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
-                                        Unpaid
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border-rose-300 font-bold">
+                                      Unpaid
+                                    </span>
+                                  )}
+                                  {item.billing_frequency && item.billing_frequency !== "One-Time" && item.billing_frequency !== "none" ? (
+                                    parentProration.isProrated || item.is_prorated || item.badge === "Prorated" ? (
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
+                                        Prorated
                                       </span>
-                                      {item.billing_frequency && item.billing_frequency !== "One-Time" && item.billing_frequency !== "none" ? (
-                                        parentProration.isProrated || item.is_prorated || item.badge === "Prorated" ? (
-                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
-                                            Prorated
-                                          </span>
-                                        ) : (
-                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
-                                            Recurring
-                                          </span>
-                                        )
-                                      ) : (
-                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300 font-medium">
-                                          One-Time
-                                        </span>
-                                      )}
-                                    </>
+                                    ) : (
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+                                        Recurring
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300 font-medium">
+                                      One-Time
+                                    </span>
                                   )}
                                 </div>
                                 {item.description && (
@@ -5057,7 +5159,7 @@ export default function GenerateInvoicePage() {
                                     )}
                                   </div>
                                 )}
-                                {!isItemPaid && parentProration.isProrated && parentProration.proratedNote && (
+                                {parentProration.isProrated && parentProration.proratedNote && (
                                   <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] text-teal-900 font-medium mt-0.5">
                                     <span>ℹ️ {parentProration.proratedNote}</span>
                                   </div>
@@ -5073,7 +5175,7 @@ export default function GenerateInvoicePage() {
                                     )}
                                   </div>
                                 )}
-                                {!isItemPaid && parentProration.isProrated && parentProration.formulaString && (
+                                {parentProration.isProrated && parentProration.formulaString && (
                                   <div className="text-[10px] text-teal-800 italic font-mono mt-0.5 tracking-tight break-words">
                                     Formula: {parentProration.formulaString}
                                   </div>
@@ -5106,7 +5208,7 @@ export default function GenerateInvoicePage() {
                               </td>
                             )}
                             <td className="py-2.5 px-2.5 text-right font-mono text-slate-900 font-bold align-top text-xs whitespace-nowrap">
-                              ${parentProration.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ${((item.total !== undefined && item.total !== "") ? (Number(item.total) || 0) : parentProration.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                           </tr>
 
@@ -5143,10 +5245,10 @@ export default function GenerateInvoicePage() {
                                           Paid
                                         </span>
                                       ) : (
-                                        <>
-                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
-                                            Unpaid
-                                          </span>
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
+                                          Unpaid
+                                        </span>
+                                      )}
                                           {sub.billing_frequency && sub.billing_frequency !== "One-Time" && sub.billing_frequency !== "none" ? (
                                             subProration.isProrated ? (
                                               <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
@@ -5162,8 +5264,7 @@ export default function GenerateInvoicePage() {
                                               One-Time
                                             </span>
                                           )}
-                                        </>
-                                      )}
+
                                       {sub.is_reference_only && (
                                         <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
                                           Ref Only
@@ -5199,7 +5300,7 @@ export default function GenerateInvoicePage() {
                                         )}
                                       </div>
                                     )}
-                                    {!isSubPaid && subProration.isProrated && subProration.proratedNote && (
+                                    {subProration.isProrated && subProration.proratedNote && (
                                       <div className="pl-4 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] text-teal-900 font-medium mt-0.5">
                                         <span>ℹ️ {subProration.proratedNote}</span>
                                       </div>
@@ -5215,7 +5316,7 @@ export default function GenerateInvoicePage() {
                                         )}
                                       </div>
                                     )}
-                                    {!isSubPaid && subProration.isProrated && activeFormula && (
+                                    {subProration.isProrated && activeFormula && (
                                       <div className="pl-4 text-[10px] text-teal-800 italic font-mono mt-0.5 tracking-tight break-words">
                                         Formula: {activeFormula}
                                       </div>
@@ -5253,7 +5354,7 @@ export default function GenerateInvoicePage() {
                                       Ref: ${(Number(sub.reference_amount ?? sub.charge ?? sub.total ?? 0)).toFixed(2)}
                                     </span>
                                   ) : (
-                                    `$${subProration.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                    `$${((sub.total !== undefined && sub.total !== "") ? (Number(sub.total) || 0) : subProration.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                   )}
                                 </td>
                               </tr>

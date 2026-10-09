@@ -52,7 +52,7 @@ import { ARCustomerAutocomplete } from "./ARCustomerAutocomplete";
 import type { ARCustomerOption } from "./ARCustomerAutocomplete";
 import { UserAutocomplete } from "./UserAutocomplete";
 import { SendQuoteModal } from "./SendQuoteModal";
-import { calculateRowPricing, parseDateOnly, formatDateOnly } from "./lineItemPricingUtils";
+import { calculateRowPricing, parseDateOnly, formatDateOnly, normalizeBillingFrequencyForSelect } from "./lineItemPricingUtils";
 import { CurrencyAutocomplete } from "../Purchasing/CurrencyAutocomplete";
 
 export interface QuoteLineItem {
@@ -1179,7 +1179,7 @@ export default function GenerateQuotePage() {
                         </td>
                         <td className="py-2 px-2 align-top">
                           <Select
-                            value={itm.billing_frequency || "none"}
+                            value={normalizeBillingFrequencyForSelect(itm.billing_frequency)}
                             onValueChange={(val) => handleLineItemChange(i, "billing_frequency", val === "none" ? "" : val)}
                           >
                             <SelectTrigger className="h-7 text-xs border-slate-200 focus:border-amber-500 bg-transparent px-2">
