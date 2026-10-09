@@ -95,7 +95,7 @@ export const AddSeatsAddonsModal: React.FC<AddSeatsAddonsModalProps> = ({
   const [quantity, setQuantity] = useState<string>("5");
   const [chargeType, setChargeType] = useState<"RECURRING" | "ONE_TIME">("RECURRING");
   const [unitPrice, setUnitPrice] = useState<string>("360");
-  const [billingFrequency, setBillingFrequency] = useState<string>("Annually");
+  const [billingFrequency, setBillingFrequency] = useState<string>("Monthly");
   const [billingStartDateOption, setBillingStartDateOption] = useState<string>("Immediate");
   const [effectiveDate, setEffectiveDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [billingPeriodStart, setBillingPeriodStart] = useState<string>(
@@ -145,7 +145,7 @@ export const AddSeatsAddonsModal: React.FC<AddSeatsAddonsModalProps> = ({
       setBillingPeriodEnd(primarySub.current_period_end || `${new Date().getFullYear()}-12-31`);
       if (primarySub.billing_frequency) {
         const bf = primarySub.billing_frequency.toUpperCase();
-        setBillingFrequency(bf === "MONTHLY" ? "Monthly" : bf === "QUARTERLY" ? "Quarterly" : bf === "SEMI_ANNUAL" ? "Semi-annually" : "Annually");
+        setBillingFrequency(bf === "MONTHLY" ? "Monthly" : bf === "QUARTERLY" ? "Quarterly" : bf === "SEMI_ANNUAL" ? "Semi-annually" : "Monthly");
       }
     }
   }, [primarySub, selectedSubId]);
@@ -157,7 +157,7 @@ export const AddSeatsAddonsModal: React.FC<AddSeatsAddonsModalProps> = ({
       setProductName("Additional Seats");
       setChargeType("RECURRING");
       setProrationMethod("DAILY_ACTUAL");
-      setBillingFrequency("Annually");
+      setBillingFrequency("Monthly");
       setUnitPrice(String(primarySub?.unit_price || "360"));
     } else if (type === "RECURRING_ADDON") {
       setProductName("Reporting add-on");
@@ -559,8 +559,6 @@ export const AddSeatsAddonsModal: React.FC<AddSeatsAddonsModalProps> = ({
                 </SelectTrigger>
                 <SelectContent className="text-xs">
                   <SelectItem value="Annually">Annually (12 months)</SelectItem>
-                  <SelectItem value="Semi-Annually">Semi-Annually (6 months)</SelectItem>
-                  <SelectItem value="Quarterly">Quarterly (3 months)</SelectItem>
                   <SelectItem value="Monthly">Monthly (1 month)</SelectItem>
                   <SelectItem value="One-Time">One-Time (No proration)</SelectItem>
                 </SelectContent>

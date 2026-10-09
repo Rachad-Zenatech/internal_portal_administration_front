@@ -49,6 +49,7 @@ import { QuoteNotesThread } from "./QuoteNotesThread";
 import { QuoteStepper } from "./QuoteStepper";
 import { GLCodeAutocomplete } from "@/pages/Purchasing/GLCodeAutocomplete";
 import { ClassAutocomplete } from "@/pages/Purchasing/ClassAutocomplete";
+import { calculateRowPricing, formatDateOnly } from "./lineItemPricingUtils";
 
 export default function QuoteDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -702,12 +703,13 @@ export default function QuoteDetailPage() {
               <span>•</span>
               <span className="flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                Date: {new Date(quote.quote_date).toLocaleDateString()}
+                Date: {formatDateOnly(quote.quote_date, "MMM d, yyyy")}
               </span>
               <span>•</span>
               <span className="flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
-                Validity: {quote.terms || `${quote.validity_days} days`}
+                Validity: {quote.terms || `${quote.validity_days || 30} days`}
+                {quote.valid_until && ` (Valid until ${formatDateOnly(quote.valid_until, "MMM d, yyyy")})`}
               </span>
             </div>
           </div>
@@ -960,6 +962,26 @@ export default function QuoteDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block print:w-full print:m-0 print:p-0">
         {/* Left Column (2 Cols): Document Details & Line Items */}
         <div className="lg:col-span-2 space-y-6 print:w-full print:max-w-none print:space-y-6 print:m-0 print:p-0">
+          {/* Brand Logo & Company Header if present */}
+          {(quote.logo_url || quote.company_name) && (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-2 print:border-none print:shadow-none print:p-0 print:rounded-none">
+              {quote.logo_url && (
+                <div className="h-16 max-w-[280px] flex items-center">
+                  <img
+                    src={quote.logo_url}
+                    alt={quote.company_name || "Company Logo"}
+                    className="max-h-full max-w-full h-auto w-auto object-contain object-left"
+                  />
+                </div>
+              )}
+              {quote.company_name && (
+                <div className="text-base font-bold text-slate-900 dark:text-white">
+                  {quote.company_name}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Customer & Prepared By Card */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs grid grid-cols-1 sm:grid-cols-2 gap-6 print:border-none print:shadow-none print:p-0 print:rounded-none">
             <div className="space-y-2">
@@ -985,10 +1007,10 @@ export default function QuoteDetailPage() {
                 <span>Prepared By</span>
               </span>
               <div className="text-xs space-y-1 text-slate-600 dark:text-zinc-300">
-                {quote.company_name && <p className="font-semibold text-slate-900 dark:text-white text-sm">{quote.company_name}</p>}
-                {quote.prepared_by_name && <p>Representative: {quote.prepared_by_name}</p>}
+                {quote.company_name && <p className="text-slate-900 dark:text-white font-medium"><span className="text-slate-500 font-normal">Company:</span> {quote.company_name}</p>}
+                {quote.prepared_by_name && <p className="font-semibold text-slate-900 dark:text-white text-sm"><span className="text-slate-500 font-normal">Prepared By:</span> {quote.prepared_by_name}</p>}
                 {quote.prepared_by_email && <p>Email: {quote.prepared_by_email}</p>}
-                {!quote.company_name && !quote.prepared_by_name && !quote.prepared_by_email && (
+                {!quote.prepared_by_name && !quote.prepared_by_email && !quote.company_name && (
                   <p className="text-slate-400 italic">—</p>
                 )}
               </div>
@@ -1007,65 +1029,110 @@ export default function QuoteDetailPage() {
             <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-medium print:bg-[#f8f9fa] print:text-slate-900">
-                    <th className="py-3 px-4 font-bold">Item &amp; Description</th>
-                    <th className="py-3 px-4 text-right w-28 font-bold">Unit Price</th>
-                    <th className="py-3 px-4 text-right w-20 font-bold">Qty</th>
-                    <th className="py-3 px-4 text-right w-32 font-bold">Subtotal</th>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-medium print:bg-[#f8f9fa] print:text-slate-900 uppercase tracking-wider text-[11px]">
+                    <th className="py-3 px-4 font-bold text-left w-[40%]">Item &amp; Description</th>
+                    <th className="py-3 px-3 text-right font-bold w-[14%]">Unit Price</th>
+                    <th className="py-3 px-2 text-center font-bold w-[10%]">Currency</th>
+                    <th className="py-3 px-2 text-center font-bold w-[8%]">Qty</th>
+                    <th className="py-3 px-3 text-center font-bold w-[10%]">Discount</th>
+                    <th className="py-3 px-4 text-right font-bold w-[18%]">Net Price</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-200">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-200 text-[12px]">
                   {quote.line_items?.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-8 text-center text-slate-400">
+                      <td colSpan={6} className="py-8 text-center text-slate-400">
                         No line items recorded for this quotation.
                       </td>
                     </tr>
                   ) : (
-                    quote.line_items?.map((item: any, i: number) => (
-                      <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-slate-900 dark:text-white">{item.name || "—"}</div>
-                          {item.description && (
-                            <div className="text-[11px] text-slate-500 mt-0.5 whitespace-pre-line leading-relaxed">{item.description}</div>
-                          )}
-                          {(item.billing_frequency || item.term || item.billing_start_date || item.status === "Paid" || item.service_status === "Paid" || isPaid) && (
-                            <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[10.5px] text-slate-500">
-                              {(item.status === "Paid" || item.service_status === "Paid" || isPaid) && (
-                                <Badge className="text-[9.5px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-semibold">
-                                  Paid
-                                </Badge>
-                              )}
-                              {item.billing_frequency && (
-                                <Badge variant="outline" className="text-[9.5px] px-1.5 py-0">
-                                  {item.billing_frequency}
-                                </Badge>
-                              )}
-                              {item.term && (
-                                <span>• {item.term} terms</span>
-                              )}
-                              {item.billing_start_date && (
-                                <span>• Start: {item.billing_start_date}</span>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono text-slate-700 dark:text-zinc-300">
-                          <div>${Number(item.price || 0).toFixed(2)}</div>
-                          {Number(item.unit_discount || 0) > 0 && (
-                            <div className="text-[10px] text-emerald-600">
-                              -{item.unit_discount}{item.discount_type === "$" ? "$" : "%"}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono text-slate-700 dark:text-zinc-300">
-                          {item.quantity}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
-                          ${Number(item.subtotal || 0).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))
+                    quote.line_items?.map((item: any, i: number) => {
+                      const pricing = calculateRowPricing({
+                        quantity: item.quantity !== undefined && item.quantity !== null && item.quantity !== "" ? item.quantity : 1,
+                        unit_price: item.price !== undefined && item.price !== null && item.price !== "" ? item.price : (item.unit_price || 0),
+                        unit_discount: item.unit_discount ?? 0,
+                        discount_type: item.discount_type || "%",
+                        billing_frequency: item.billing_frequency || item.billing_type || "",
+                        term: item.term ?? 1,
+                        billing_start_date: item.billing_start_date || "",
+                        tax_rate: item.tax_rate ?? 0,
+                      });
+                      const formulaStr = item.calculation || pricing.formulaString;
+                      const displaySubtotal = Number(item.subtotal) || pricing.amount;
+
+                      return (
+                        <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                          <td className="py-3 px-4 align-top">
+                            <div className="font-semibold text-slate-900 dark:text-white text-[12.5px]">{item.name || "—"}</div>
+                            {item.description && (
+                              <div className="text-[11px] text-slate-500 mt-0.5 whitespace-pre-line leading-relaxed">{item.description}</div>
+                            )}
+                            {pricing.isProrated && pricing.proratedNote && (
+                              <div className="text-[10.5px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded font-medium inline-flex items-center gap-1 mt-1">
+                                <span>ℹ️ {pricing.proratedNote}</span>
+                              </div>
+                            )}
+                            {(item.billing_frequency || item.term || (item.tax_rate !== "" && item.tax_rate !== undefined && Number(item.tax_rate) > 0) || item.status === "Paid" || item.service_status === "Paid" || isPaid) && (
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[10.5px] text-slate-500">
+                                {(item.status === "Paid" || item.service_status === "Paid" || isPaid) && (
+                                  <Badge className="text-[9.5px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-semibold">
+                                    Paid
+                                  </Badge>
+                                )}
+                                {item.billing_frequency && (
+                                  <span className="inline-flex items-center gap-1 font-medium">
+                                    <span className="text-slate-400 font-normal">Frequency:</span>
+                                    <Badge variant="outline" className="text-[9.5px] px-1.5 py-0">
+                                      {item.billing_frequency}
+                                    </Badge>
+                                  </span>
+                                )}
+                                {item.term && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="text-slate-400 font-normal">Term:</span>
+                                    <span className="font-medium text-slate-700 dark:text-zinc-300">
+                                      {item.term} {typeof item.term === "number" || !isNaN(Number(item.term)) ? (Number(item.term) === 1 ? "month" : "months") : ""}
+                                    </span>
+                                  </span>
+                                )}
+                                {item.tax_rate !== "" && item.tax_rate !== undefined && Number(item.tax_rate) > 0 && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="text-slate-400 font-normal">Tax Rate:</span>
+                                    <span className="font-medium text-slate-700 dark:text-zinc-300">{item.tax_rate}%</span>
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {formulaStr && (
+                              <div className="mt-1 font-mono text-[10px] text-slate-500 bg-slate-50 dark:bg-slate-800/60 px-2 py-0.5 rounded inline-block border border-slate-200/60 dark:border-slate-700/50">
+                                {formulaStr}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-zinc-300 align-top">
+                            ${Number(item.price || 0).toFixed(2)}
+                          </td>
+                          <td className="py-3 px-2 text-center font-mono align-top text-slate-800 dark:text-zinc-200 font-semibold">
+                            {item.currency || quote.currency || "USD"}
+                          </td>
+                          <td className="py-3 px-2 text-center font-mono text-slate-700 dark:text-zinc-300 align-top">
+                            {item.quantity}
+                          </td>
+                          <td className="py-3 px-3 text-center align-top font-mono text-slate-700 dark:text-zinc-300">
+                            {Number(item.unit_discount || 0) > 0 ? (
+                              <span className="text-emerald-600 font-medium">
+                                {item.unit_discount}{item.discount_type === "$" ? "$" : "%"}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white align-top">
+                            ${displaySubtotal.toFixed(2)}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1099,6 +1166,28 @@ export default function QuoteDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Closing Message, Notes & Sign-off Card */}
+          {(quote.closing_message || quote.notes || quote.prepared_by_name) && (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-4 print:border-none print:shadow-none print:p-0 print:space-y-3">
+              {quote.closing_message && (
+                <div className="text-xs text-slate-700 dark:text-zinc-300 whitespace-pre-line leading-relaxed">
+                  {quote.closing_message}
+                </div>
+              )}
+              {quote.notes && (
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
+                  <div className="font-semibold text-slate-900 dark:text-white mb-1">Notes &amp; Terms:</div>
+                  <p className="whitespace-pre-line leading-relaxed">{quote.notes}</p>
+                </div>
+              )}
+              <div className="space-y-0.5 pt-1 text-xs">
+                <div className="text-slate-500">Thank you,</div>
+                <div className="font-bold text-slate-900 dark:text-white">{quote.prepared_by_name || "Steve Rhode"}</div>
+                {quote.prepared_by_email && <div className="text-slate-500 font-mono text-[11px]">{quote.prepared_by_email}</div>}
+              </div>
+            </div>
+          )}
 
           {/* Signature Verification Certificate */}
           {isSigned && (

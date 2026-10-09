@@ -55,6 +55,21 @@ export interface CustomerInvoiceTemplate {
   line_items: InvoiceLineItem[];
 }
 
+export interface InvoicePaymentRecord {
+  id: string;
+  quote_id?: string;
+  invoice_id?: string;
+  amount: number;
+  payment_date?: string;
+  payment_method: string;
+  reference_number?: string;
+  notes?: string;
+  gl_code?: string;
+  class_name?: string;
+  recorded_by?: string;
+  created_at?: string;
+}
+
 export interface GeneratedInvoiceSummary {
   id: string;
   invoice_number: string;
@@ -72,6 +87,7 @@ export interface GeneratedInvoiceSummary {
   amount_paid?: number;
   balance_due?: number;
   status: string;
+  payments?: InvoicePaymentRecord[];
   is_supplemental?: boolean;
   parent_invoice_id?: string;
   quote_id?: string;
@@ -467,4 +483,136 @@ export const arInvoiceService = {
       }
     );
   },
+
+  async getDueDateReminderSettings(): Promise<ARDueDateReminderSettings> {
+    return apiClient.get<ARDueDateReminderSettings>("/api/ar/settings/due-date-reminders");
+  },
+
+  async saveDueDateReminderSettings(payload: ARDueDateReminderSettings): Promise<ARDueDateReminderSettings> {
+    return apiClient.put<ARDueDateReminderSettings>(
+      "/api/ar/settings/due-date-reminders",
+      payload,
+      {
+        actionLabel: "Saving Due Date Reminder Settings",
+        actionSubtitle: "Updating automated customer notifications...",
+      }
+    );
+  },
+
+  async triggerDueDateRemindersTest(days?: number): Promise<{
+    processed_count: number;
+    sent_count: number;
+    sent_invoices: any[];
+    skipped_invoices: any[];
+    message?: string;
+  }> {
+    return apiClient.post(
+      `/api/ar/settings/due-date-reminders/test-trigger${days ? `?days_threshold=${days}` : ""}`,
+      {},
+      {
+        actionLabel: "Triggering Due Date Reminders",
+        actionSubtitle: "Evaluating customer invoice due dates...",
+      }
+    );
+  },
+
+  async getNextInvoiceEligibility(invoiceId: string): Promise<NextInvoiceEligibility> {
+    return apiClient.get<NextInvoiceEligibility>(`/api/ar/invoices/${encodeURIComponent(invoiceId)}/next-invoice-eligibility`);
+  },
+
+  async generateRenewalQuote(invoiceId: string): Promise<{ success: boolean; quote_id: string; quote_number: string; message: string }> {
+    return apiClient.post<{ success: boolean; quote_id: string; quote_number: string; message: string }>(
+      `/api/ar/invoices/${encodeURIComponent(invoiceId)}/generate-renewal-quote`,
+      {},
+      {
+        actionLabel: "Generating Next Quote",
+        actionSubtitle: "Aggregating active services and preparing full-term renewal quote...",
+      }
+    );
+  },
+
+  async generateNextInvoice(invoiceId: string): Promise<NextInvoiceGenerateResult> {
+    return apiClient.post<NextInvoiceGenerateResult>(
+      `/api/ar/invoices/${encodeURIComponent(invoiceId)}/generate-next-invoice`,
+      {},
+      {
+        actionLabel: "Generating Next Invoice",
+        actionSubtitle: "Preparing next recurring period draft invoice...",
+      }
+    );
+  },
+
+  async recordPayment(
+    invoiceId: string,
+    payload: {
+      amount: number;
+      payment_method: string;
+      payment_date?: string;
+      reference_number?: string;
+      notes?: string;
+      gl_code?: string;
+      class_name?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return apiClient.post<{ success: boolean; message: string }>(
+      `/api/ar/invoices/${encodeURIComponent(invoiceId)}/payment`,
+      payload,
+      {
+        actionLabel: "Recording Payment",
+        actionSubtitle: "Updating invoice payment status & ledger...",
+      }
+    );
+  },
 };
+
+export interface ARDueDateReminderSettings {
+  enabled: boolean;
+  days_threshold: number;
+  notify_customer_email: boolean;
+  notify_in_app: boolean;
+  sender_email: string;
+  sender_name: string;
+  email_subject: string;
+  custom_message?: string;
+}
+
+export interface NextInvoiceEligibility {
+  eligible: boolean;
+  reason?: string;
+  target_billing_date?: string;
+  target_period_label?: string;
+  due_lines_count?: number;
+  due_lines?: Array<{
+    name: string;
+    description: string;
+    billing_frequency: string;
+    service_period: string;
+    service_period_start: string;
+    service_period_end: string;
+    next_billing_date: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+  }>;
+  all_recurring_lines_count?: number;
+  already_generated?: boolean;
+  next_invoice_id?: string;
+  next_invoice_number?: string;
+  next_invoice_status?: string;
+  balance_due?: number;
+  is_paid?: boolean;
+  is_recurring?: boolean;
+}
+
+export interface NextInvoiceGenerateResult {
+  success: boolean;
+  invoice_id: string;
+  invoice_number: string;
+  status: string;
+  subtotal: number;
+  total_amount: number;
+  due_date?: string;
+  service_period?: string;
+  message: string;
+  already_generated?: boolean;
+}

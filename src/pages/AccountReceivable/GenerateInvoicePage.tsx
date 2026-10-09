@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, parse, isValid, addDays } from "date-fns";
+import { format, parse, isValid, addDays, addMonths } from "date-fns";
 import {
   ArrowLeft,
   ArrowUp,
@@ -11,6 +11,7 @@ import {
   Calendar as CalendarIcon,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   CreditCard,
   Edit3,
@@ -21,6 +22,7 @@ import {
   Layers,
   Loader2,
   Mail,
+  MoreHorizontal,
   Palette,
   Pencil,
   Plus,
@@ -62,6 +64,13 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
+import {
   arInvoiceService,
 } from "../../services/arInvoiceService";
 import { arQuoteService } from "../../services/arQuoteService";
@@ -69,10 +78,13 @@ import type {
   ARCustomer,
   CustomerInvoiceTemplate,
   AddonHierarchyChildRow,
+  InvoicePaymentRecord,
 } from "../../services/arInvoiceService";
 import { ARCustomerAutocomplete } from "./ARCustomerAutocomplete";
 import type { ARCustomerOption } from "./ARCustomerAutocomplete";
 import { CurrencyAutocomplete } from "../Purchasing/CurrencyAutocomplete";
+import { GLCodeAutocomplete } from "../Purchasing/GLCodeAutocomplete";
+import { ClassAutocomplete } from "../Purchasing/ClassAutocomplete";
 import { OverridePriceModal } from "./OverridePriceModal";
 import { BillingStartDatePicker } from "./BillingStartDatePicker";
 import { calculateRowPricing } from "./lineItemPricingUtils";
@@ -86,6 +98,7 @@ export interface InvoiceSubItem {
   title?: string;
   product_name?: string;
   description: string;
+  currency?: string;
   quantity: string | number;
   unit_price: string | number;
   unit_discount?: string | number;
@@ -93,6 +106,11 @@ export interface InvoiceSubItem {
   billing_frequency?: string;
   term?: string | number;
   billing_start_date?: string;
+  service_period?: string;
+  service_period_start?: string;
+  service_period_end?: string;
+  next_billing_date?: string;
+  end_date?: string;
   tax_rate?: string | number;
   total: number;
   charge?: number;
@@ -115,6 +133,7 @@ export interface LineItemFormRow {
   activity?: string;
   name?: string;
   description: string;
+  currency?: string;
   quantity: string | number;
   unit_price: string | number;
   unit_discount?: string | number;
@@ -122,6 +141,11 @@ export interface LineItemFormRow {
   billing_frequency?: string;
   term?: string | number;
   billing_start_date?: string;
+  service_period?: string;
+  service_period_start?: string;
+  service_period_end?: string;
+  next_billing_date?: string;
+  end_date?: string;
   tax_rate?: string | number;
   total: number;
   badge?: string;
@@ -157,13 +181,49 @@ export default function GenerateInvoicePage() {
       queryClient.invalidateQueries({ queryKey: ["ar-customers"] });
       queryClient.invalidateQueries({ queryKey: ["customer-templates"] });
       queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["next-invoice-eligibility"] });
       if (currentInvoiceId && raw.entity_id && (raw.entity_id === currentInvoiceId || String(raw.entity_id) === String(currentInvoiceId))) {
-        arInvoiceService.getInvoice(currentInvoiceId).then((inv) => {
-          if (inv && inv.status) {
-            setInvoiceStatus(inv.status);
+        arInvoiceService.getInvoice(currentInvoiceId).then((inv: any) => {
+          if (inv) {
+            if (inv.status) setInvoiceStatus(inv.status);
+            if (inv.amount_paid !== undefined) setInvoiceAmountPaid(Number(inv.amount_paid) || 0);
+            if (inv.payments) setInvoicePayments(inv.payments);
           }
         });
       }
+    },
+  });
+
+  // Next Invoice Eligibility Query
+  const {
+    data: nextInvoiceEligibility,
+    isLoading: isNextInvoiceEligibilityLoading,
+  } = useQuery({
+    queryKey: ["next-invoice-eligibility", currentInvoiceId],
+    queryFn: () =>
+      currentInvoiceId
+        ? arInvoiceService.getNextInvoiceEligibility(currentInvoiceId)
+        : Promise.resolve(null),
+    enabled: !!currentInvoiceId,
+  });
+
+  // Generate Renewal Quote Mutation
+  const generateRenewalQuoteMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentInvoiceId) throw new Error("No invoice selected");
+      return arInvoiceService.generateRenewalQuote(currentInvoiceId);
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["ar-quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-quote-summary"] });
+      setSaveSuccessMsg(`Generated Renewal Quote #${result.quote_number}! Redirecting to quotation...`);
+      setTimeout(() => {
+        navigate(`/account-receivable/quotes/${encodeURIComponent(result.quote_id)}`);
+      }, 700);
+    },
+    onError: (err: any) => {
+      alert(err?.response?.data?.detail || err?.message || "Failed to generate renewal quote");
     },
   });
 
@@ -253,6 +313,19 @@ export default function GenerateInvoicePage() {
   // Invoice State & Due Date
   const [invoiceStatus, setInvoiceStatus] = useState("Draft");
   const [invoiceAmountPaid, setInvoiceAmountPaid] = useState(0);
+  const [invoicePayments, setInvoicePayments] = useState<InvoicePaymentRecord[]>([]);
+
+  // Record Payment Dialog State
+  const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
+  const [paymentAmountInput, setPaymentAmountInput] = useState<number | string>("");
+  const [paymentMethodInput, setPaymentMethodInput] = useState("WIRE");
+  const [paymentDateInput, setPaymentDateInput] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [paymentRefInput, setPaymentRefInput] = useState("");
+  const [paymentGLCodeInput, setPaymentGLCodeInput] = useState("");
+  const [paymentClassInput, setPaymentClassInput] = useState("");
+  const [paymentNotesInput, setPaymentNotesInput] = useState("");
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
+
   const [invoiceNumber, setInvoiceNumber] = useState("18067");
   const [currency, setCurrency] = useState("USD");
   const [invoiceDate, setInvoiceDate] = useState(
@@ -264,7 +337,7 @@ export default function GenerateInvoicePage() {
     format(addDays(new Date(), 29), "MM/dd/yyyy")
   );
   const [isDueDatePopoverOpen, setIsDueDatePopoverOpen] = useState(false);
-  const [terms, setTerms] = useState("Due on receipt");
+  const [terms, setTerms] = useState("30 days");
   const [poNumber, setPoNumber] = useState("");
 
   // From Details (Default: Pace Plus Inc. / 602B W 5th Ave)
@@ -519,6 +592,60 @@ export default function GenerateInvoicePage() {
     },
   });
 
+  // Open Record Payment Modal
+  const handleOpenRecordPayment = () => {
+    const rem = calculatedTotals.effectiveBalanceDue > 0 ? calculatedTotals.effectiveBalanceDue : (Number(subTotal) || 0);
+    setPaymentAmountInput(rem > 0 ? rem : 0);
+    setPaymentMethodInput("WIRE");
+    setPaymentDateInput(new Date().toISOString().split("T")[0]);
+    setPaymentRefInput("");
+    setPaymentGLCodeInput("");
+    setPaymentClassInput("");
+    setPaymentNotesInput("");
+    setIsRecordPaymentOpen(true);
+  };
+
+  const handleConfirmRecordPayment = async () => {
+    if (!currentInvoiceId) return;
+    const numAmt = Number(paymentAmountInput);
+    if (isNaN(numAmt) || numAmt <= 0) {
+      alert("Please enter a valid payment amount greater than $0.00.");
+      return;
+    }
+    setIsPaymentSubmitting(true);
+    try {
+      await arInvoiceService.recordPayment(currentInvoiceId, {
+        amount: numAmt,
+        payment_method: paymentMethodInput || "WIRE",
+        payment_date: paymentDateInput || new Date().toISOString().split("T")[0],
+        reference_number: paymentRefInput.trim() || undefined,
+        gl_code: paymentGLCodeInput || undefined,
+        class_name: paymentClassInput || undefined,
+        notes: paymentNotesInput.trim() || undefined,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["next-invoice-eligibility", currentInvoiceId] });
+
+      // Refresh invoice data
+      const updated = await arInvoiceService.getInvoice(currentInvoiceId);
+      if (updated) {
+        const upData = updated as any;
+        if (upData.status) setInvoiceStatus(upData.status);
+        if (upData.amount_paid !== undefined) setInvoiceAmountPaid(Number(upData.amount_paid) || 0);
+        if (upData.payments) setInvoicePayments(upData.payments);
+      }
+
+      setIsRecordPaymentOpen(false);
+      setSaveSuccessMsg(`Payment of $${numAmt.toFixed(2)} ${currency} recorded successfully!`);
+      setTimeout(() => setSaveSuccessMsg(null), 4000);
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || err?.message || "Failed to record payment.");
+    } finally {
+      setIsPaymentSubmitting(false);
+    }
+  };
+
   const lastProcessedUrlSignatureRef = useRef<string | null>(null);
 
   // Initial load from URL query params (either specific invoiceId, quoteId or customerId)
@@ -540,6 +667,7 @@ export default function GenerateInvoicePage() {
             const invData = inv as any;
             if (invData.status) setInvoiceStatus(invData.status);
             if (invData.amount_paid !== undefined) setInvoiceAmountPaid(Number(invData.amount_paid) || 0);
+            if (invData.payments) setInvoicePayments(invData.payments);
             if (invData.invoice_number) setInvoiceNumber(invData.invoice_number);
             if (invData.currency) setCurrency(invData.currency);
             if (inv.layout_style) setLayoutStyle(inv.layout_style as InvoiceLayoutStyle);
@@ -569,65 +697,122 @@ export default function GenerateInvoicePage() {
             if (inv.bank_email) setBankEmail(inv.bank_email);
 
             if (inv.line_items && inv.line_items.length > 0) {
-              const isInvPaid = !!(invData.status && invData.status.toUpperCase().startsWith("PAID"));
-              const hasRecordedPayment = (Number(invData.amount_paid) || 0) > 0;
+              const recordedPaid = Number(invData.amount_paid) || 0;
+              const recordedTotal = Number(invData.total_amount) || 0;
+              const isInvFullyPaid = recordedPaid >= recordedTotal && recordedTotal > 0;
               setLineItems(
                 inv.line_items.map((li: any) => {
                   const isProrated = !!li.is_prorated || li.badge === "Prorated";
-                  // An item is Paid if explicitly marked Paid, or if it's a baseline non-prorated item on a paid/partially-paid invoice
-                  const itemIsPaid = isInvPaid || (li.status === "Paid" || li.service_status === "Paid") || (!isProrated && hasRecordedPayment);
+                  // An item is Paid if explicitly marked Paid, or if it's a baseline non-prorated item on a fully paid invoice
+                  const itemIsPaid = (isInvFullyPaid && li.status !== "Unpaid") || (li.status === "Paid" || li.service_status === "Paid");
+                  const proration = computeItemProration(
+                    li.quantity !== undefined ? li.quantity : 1,
+                    li.unit_price !== undefined ? li.unit_price : "",
+                    li.unit_discount ?? "",
+                    li.discount_type || "%",
+                    li.billing_frequency || "",
+                    li.billing_start_date || "",
+                    li.tax_rate ?? "",
+                    li.term ?? 1,
+                    itemIsPaid
+                  );
+
+                  const itemDate = li.date || inv.date || invoiceDate;
+                  const rawFreq = li.billing_frequency || "";
+                  let derivedPeriod = li.service_period || li.date_range || "";
+                  let derivedNextBilling = li.next_billing_date || "";
+                  if (rawFreq && rawFreq.toLowerCase().includes("month") && (derivedPeriod.includes("2027") || !derivedPeriod) && (itemDate.includes("2026") || (inv.date && inv.date.includes("2026")))) {
+                    const p = calculateServicePeriodAndNextBilling(itemDate, rawFreq, li.term ?? 1);
+                    if (p.service_period) derivedPeriod = p.service_period;
+                    if (p.next_billing_date) derivedNextBilling = p.next_billing_date;
+                  }
 
                   return {
-                    id: li.id,
-                    date: li.date || "",
-                    activity: li.activity || li.name || "",
-                    name: li.name || li.activity || "",
-                    description: li.description || "",
-                    quantity: li.quantity !== undefined ? li.quantity : 1,
-                    unit_price: li.unit_price !== undefined ? li.unit_price : "",
-                    unit_discount: li.unit_discount ?? "",
-                    discount_type: li.discount_type || "%",
-                    billing_frequency: li.billing_frequency || "",
-                    term: li.term ?? "",
-                    billing_start_date: li.billing_start_date || "",
-                    tax_rate: li.tax_rate ?? "",
-                    total: Number(li.total) || (Number(li.quantity) || 0) * (Number(li.unit_price) || 0),
-                    badge: li.badge || (isProrated ? "Prorated" : ""),
-                    is_prorated: isProrated,
-                    status: itemIsPaid ? "Paid" : "Unpaid",
-                    service_status: itemIsPaid ? "Paid" : "Unpaid",
-                    sub_items: Array.isArray(li.sub_items) ? li.sub_items.map((sub: any) => {
-                      const subIsProrated = sub.is_prorated !== undefined ? !!sub.is_prorated : (sub.badge === "Prorated" || false);
-                      const subIsPaid = isInvPaid || (sub.status === "Paid" || sub.service_status === "Paid") || (!subIsProrated && hasRecordedPayment);
+                      id: li.id,
+                      date: itemDate,
+                      activity: li.activity || li.name || "",
+                      name: li.name || li.activity || "",
+                      description: li.description || "",
+                      quantity: li.quantity !== undefined ? li.quantity : 1,
+                      unit_price: li.unit_price !== undefined ? li.unit_price : "",
+                      unit_discount: li.unit_discount ?? "",
+                      discount_type: li.discount_type || "%",
+                      billing_frequency: rawFreq,
+                      term: li.term ?? 1,
+                      billing_start_date: li.billing_start_date || itemDate,
+                      service_period: derivedPeriod,
+                      service_period_start: li.service_period_start || "",
+                      service_period_end: li.service_period_end || "",
+                      next_billing_date: derivedNextBilling,
+                      end_date: li.end_date || "",
+                      tax_rate: li.tax_rate ?? "",
+                      total: proration.amount,
+                      badge: itemIsPaid ? "Paid" : (li.badge || proration.badge),
+                      is_prorated: !itemIsPaid && (isProrated || proration.isProrated),
+                      calculation: proration.formulaString,
+                      status: itemIsPaid ? "Paid" : "Unpaid",
+                      service_status: itemIsPaid ? "Paid" : "Unpaid",
+                      sub_items: Array.isArray(li.sub_items) ? li.sub_items.map((sub: any, sIdx: number) => {
+                        const subIsProrated = sub.is_prorated !== undefined ? !!sub.is_prorated : (sub.badge === "Prorated" || false);
+                        const subIsPaid = (isInvFullyPaid && sub.status !== "Unpaid" && sub.service_status !== "Unpaid") || ((sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid");
+                        const subDate = sub.date || itemDate;
+                        const subFreq = sub.billing_frequency || rawFreq || "Monthly";
+                        let subDerivedPeriod = sub.service_period || sub.date_range || "";
+                        let subDerivedNextBilling = sub.next_billing_date || "";
+                        if (subFreq && subFreq.toLowerCase().includes("month") && (subDerivedPeriod.includes("2027") || !subDerivedPeriod) && (subDate.includes("2026") || (inv.date && inv.date.includes("2026")))) {
+                          const sp = calculateServicePeriodAndNextBilling(subDate, subFreq, sub.term ?? 1);
+                          subDerivedPeriod = sp.service_period || derivedPeriod;
+                          subDerivedNextBilling = sp.next_billing_date || derivedNextBilling;
+                        }
 
-                      return {
-                        id: sub.id || `sub-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-                        date: sub.date || "",
-                        activity: sub.activity || sub.name || "",
-                        name: sub.name || sub.activity || "",
-                        description: sub.description || "",
-                        quantity: sub.quantity !== undefined ? sub.quantity : 1,
-                        unit_price: sub.unit_price !== undefined ? sub.unit_price : "",
-                        unit_discount: sub.unit_discount ?? "",
-                        discount_type: sub.discount_type || "%",
-                        billing_frequency: sub.billing_frequency || "",
-                        term: sub.term ?? "",
-                        billing_start_date: sub.billing_start_date || "",
-                        tax_rate: sub.tax_rate ?? "",
-                        total: Number(sub.total) || (Number(sub.quantity) || 0) * (Number(sub.unit_price) || 0),
-                        badge: sub.badge || (subIsProrated ? "Prorated" : "One-Time"),
-                        is_prorated: subIsProrated,
-                        is_reference_only: !!sub.is_reference_only,
-                        reference_amount: sub.reference_amount,
-                        calculation: sub.calculation,
-                        date_range: sub.date_range,
-                        full_recurring_label: sub.full_recurring_label,
-                        status: subIsPaid ? "Paid" : "Unpaid",
-                        service_status: subIsPaid ? "Paid" : "Unpaid",
-                      };
-                    }) : [],
-                  };
-                })
+                        const subProration = computeItemProration(
+                          sub.quantity !== undefined ? sub.quantity : 1,
+                          sub.unit_price !== undefined ? sub.unit_price : "",
+                          sub.unit_discount ?? "",
+                          sub.discount_type || "%",
+                          subFreq,
+                          sub.billing_start_date || subDate,
+                          sub.tax_rate ?? "",
+                          sub.term ?? 1,
+                          subIsPaid
+                        );
+
+                        const subTitle = sub.title || sub.activity || sub.name || `Additional Service #${sIdx + 1}`;
+
+                        return {
+                          id: sub.id || `sub-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                          date: subDate,
+                          activity: subTitle,
+                          name: subTitle,
+                          title: subTitle,
+                          description: sub.description || "",
+                          quantity: sub.quantity !== undefined ? sub.quantity : 1,
+                          unit_price: sub.unit_price !== undefined ? sub.unit_price : "",
+                          unit_discount: sub.unit_discount ?? "",
+                          discount_type: sub.discount_type || "%",
+                          billing_frequency: subFreq,
+                          term: sub.term ?? 1,
+                          billing_start_date: sub.billing_start_date || subDate,
+                          service_period: subDerivedPeriod,
+                          service_period_start: sub.service_period_start || "",
+                          service_period_end: sub.service_period_end || "",
+                          next_billing_date: subDerivedNextBilling,
+                          end_date: sub.end_date || "",
+                          tax_rate: sub.tax_rate ?? "",
+                          total: subProration.amount,
+                          badge: subIsPaid ? "Paid" : (sub.badge || subProration.badge),
+                          is_prorated: !subIsPaid && (subIsProrated || subProration.isProrated),
+                          is_reference_only: !!sub.is_reference_only,
+                          reference_amount: sub.reference_amount,
+                          calculation: subProration.formulaString,
+                          date_range: sub.date_range,
+                          full_recurring_label: sub.full_recurring_label,
+                          status: subIsPaid ? "Paid" : "Unpaid",
+                          service_status: subIsPaid ? "Paid" : "Unpaid",
+                        };
+                      }) : [],
+                    };
+                  })
               );
             }
 
@@ -717,13 +902,11 @@ export default function GenerateInvoicePage() {
                     const disc = li.unit_discount ?? "";
                     const discType = li.discount_type || "%";
                     const tax = li.tax_rate ?? "";
-                    const rawBase = (Number(qty) || 0) * (Number(price) || 0);
-                    const discNum = Number(disc) || 0;
-                    const discAmt = discNum > 0 ? (discType === "$" ? discNum : (rawBase * discNum) / 100) : 0;
-                    const afterDisc = Math.max(0, rawBase - discAmt);
-                    const taxNum = Number(tax) || 0;
-                    const taxAmt = taxNum > 0 ? (afterDisc * taxNum) / 100 : 0;
-                    const itemTotal = Number((afterDisc + taxAmt).toFixed(2));
+                    const term = li.term ?? 1;
+                    const freq = li.billing_frequency || "One-Time";
+                    const bStart = li.billing_start_date || "";
+
+                    const proration = computeItemProration(qty, price, disc, discType, freq, bStart, tax, term);
 
                     return {
                       id: li.id || `line-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -735,35 +918,51 @@ export default function GenerateInvoicePage() {
                       unit_price: price,
                       unit_discount: disc,
                       discount_type: discType,
-                      billing_frequency: li.billing_frequency || "One-Time",
-                      term: li.term ?? "",
-                      billing_start_date: li.billing_start_date || "",
+                      billing_frequency: freq,
+                      term: term,
+                      billing_start_date: bStart,
                       tax_rate: tax,
-                      total: Number(li.subtotal) || itemTotal,
-                      sub_items: Array.isArray(li.sub_items) ? li.sub_items.map((sub: any) => ({
-                        id: sub.id || `sub-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-                        date: sub.date || quote.quote_date || invoiceDate,
-                        activity: sub.activity || sub.name || sub.title || "Additional Service",
-                        name: sub.name || sub.activity || sub.title || "Additional Service",
-                        title: sub.title || sub.activity || sub.name || "Additional Service",
-                        product_name: sub.product_name || sub.name || "",
-                        description: sub.description || "",
-                        quantity: sub.quantity !== undefined ? sub.quantity : 1,
-                        unit_price: sub.unit_price !== undefined ? sub.unit_price : (sub.price !== undefined ? sub.price : ""),
-                        unit_discount: sub.unit_discount ?? "",
-                        discount_type: sub.discount_type || "%",
-                        billing_frequency: sub.billing_frequency || "One-Time",
-                        term: sub.term ?? "",
-                        billing_start_date: sub.billing_start_date || "",
-                        tax_rate: sub.tax_rate ?? "",
-                        total: Number(sub.total) || (Number(sub.quantity) || 0) * (Number(sub.unit_price || sub.price) || 0),
-                        badge: sub.badge,
-                        is_reference_only: !!sub.is_reference_only,
-                        reference_amount: sub.reference_amount,
-                        calculation: sub.calculation,
-                        date_range: sub.date_range,
-                        full_recurring_label: sub.full_recurring_label,
-                      })) : [],
+                      total: proration.amount,
+                      calculation: proration.formulaString,
+                      badge: proration.badge,
+                      is_prorated: proration.isProrated,
+                      sub_items: Array.isArray(li.sub_items) ? li.sub_items.map((sub: any) => {
+                        const sQty = sub.quantity !== undefined ? sub.quantity : 1;
+                        const sPrice = sub.unit_price !== undefined ? sub.unit_price : (sub.price !== undefined ? sub.price : "");
+                        const sDisc = sub.unit_discount ?? "";
+                        const sDiscType = sub.discount_type || "%";
+                        const sFreq = sub.billing_frequency || "One-Time";
+                        const sTerm = sub.term ?? 1;
+                        const sBStart = sub.billing_start_date || "";
+                        const sTax = sub.tax_rate ?? "";
+                        const sProration = computeItemProration(sQty, sPrice, sDisc, sDiscType, sFreq, sBStart, sTax, sTerm);
+
+                        return {
+                          id: sub.id || `sub-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                          date: sub.date || quote.quote_date || invoiceDate,
+                          activity: sub.activity || sub.name || sub.title || "Additional Service",
+                          name: sub.name || sub.activity || sub.title || "Additional Service",
+                          title: sub.title || sub.activity || sub.name || "Additional Service",
+                          product_name: sub.product_name || sub.name || "",
+                          description: sub.description || "",
+                          quantity: sQty,
+                          unit_price: sPrice,
+                          unit_discount: sDisc,
+                          discount_type: sDiscType,
+                          billing_frequency: sFreq,
+                          term: sTerm,
+                          billing_start_date: sBStart,
+                          tax_rate: sTax,
+                          total: sProration.amount,
+                          calculation: sProration.formulaString,
+                          badge: sub.badge || sProration.badge,
+                          is_prorated: sProration.isProrated,
+                          is_reference_only: !!sub.is_reference_only,
+                          reference_amount: sub.reference_amount,
+                          date_range: sub.date_range,
+                          full_recurring_label: sub.full_recurring_label,
+                        };
+                      }) : [],
                     };
                   })
                 );
@@ -832,15 +1031,37 @@ export default function GenerateInvoicePage() {
     );
   }, [currentInvoiceId, invoiceNumber, location.pathname]);
 
-  // Date Parsing Helpers
+  // Date Parsing Helpers (Strict Local Date Parsing to prevent UTC timezone day shifts)
   const parseFlexibleDate = (dStr: string): Date => {
+    if (!dStr) return new Date();
     try {
-      const p1 = parse(dStr, "MM/dd/yyyy", new Date());
+      const clean = String(dStr).trim();
+      // 1. yyyy-MM-dd or yyyy/MM/dd
+      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(clean)) {
+        const parts = clean.split(/[-/]/);
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        return new Date(y, m, d);
+      }
+      // 2. MM/dd/yyyy or MM-dd-yyyy
+      if (/^\d{1,2}[-/]\d{1,2}[-/]\d{4}/.test(clean)) {
+        const parts = clean.split(/[-/]/);
+        const m = parseInt(parts[0], 10) - 1;
+        const d = parseInt(parts[1], 10);
+        const y = parseInt(parts[2], 10);
+        return new Date(y, m, d);
+      }
+      const p1 = parse(clean, "yyyy-MM-dd", new Date());
       if (isValid(p1)) return p1;
-      const p2 = parse(dStr, "d MMMM yyyy", new Date());
+      const p2 = parse(clean, "MM/dd/yyyy", new Date());
       if (isValid(p2)) return p2;
-      const p3 = new Date(dStr);
+      const p3 = parse(clean, "d MMMM yyyy", new Date());
       if (isValid(p3)) return p3;
+      const p4 = parse(clean, "MMM dd, yyyy", new Date());
+      if (isValid(p4)) return p4;
+      const p5 = new Date(clean.replace(/-/g, "/"));
+      if (isValid(p5)) return p5;
     } catch {
       // ignore
     }
@@ -849,6 +1070,86 @@ export default function GenerateInvoicePage() {
 
   const getSelectedCalendarDate = (): Date => parseFlexibleDate(invoiceDate);
   const getSelectedDueDate = (): Date => parseFlexibleDate(dueDate);
+
+  const handleTermsChange = (newTerm: string) => {
+    setTerms(newTerm);
+    try {
+      const baseDate = parseFlexibleDate(invoiceDate);
+      if (newTerm === "15 days" || newTerm === "Net 15") {
+        setDueDate(format(addDays(baseDate, 15), "MM/dd/yyyy"));
+      } else if (newTerm === "30 days" || newTerm === "Net 30") {
+        setDueDate(format(addDays(baseDate, 30), "MM/dd/yyyy"));
+      } else if (newTerm === "3 days") {
+        setDueDate(format(addDays(baseDate, 3), "MM/dd/yyyy"));
+      } else if (newTerm === "7 days") {
+        setDueDate(format(addDays(baseDate, 7), "MM/dd/yyyy"));
+      } else if (newTerm === "14 days") {
+        setDueDate(format(addDays(baseDate, 14), "MM/dd/yyyy"));
+      } else if (newTerm === "Net 60") {
+        setDueDate(format(addDays(baseDate, 60), "MM/dd/yyyy"));
+      } else if (newTerm === "Due on receipt") {
+        setDueDate(format(baseDate, "MM/dd/yyyy"));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const getChargeablePeriodLabel = (term?: number | string, frequency?: string): string => {
+    const t = Number(term) || 1;
+    const freq = (frequency || "").toLowerCase();
+    if (freq.includes("annual") || freq.includes("year")) {
+      return `${t} ${t === 1 ? "year" : "years"}`;
+    }
+    if (freq.includes("month")) {
+      return `${t} ${t === 1 ? "month" : "months"}`;
+    }
+    if (freq.includes("quarter")) {
+      return `${t} ${t === 1 ? "quarter" : "quarters"}`;
+    }
+    if (freq.includes("semi")) {
+      return `${t} ${t === 1 ? "semi-annual period" : "semi-annual periods"}`;
+    }
+    return `${t} ${t === 1 ? "month" : "months"}`;
+  };
+
+  const calculateServicePeriodAndNextBilling = (
+    startDateStr: string | undefined,
+    frequency: string | undefined,
+    term: number | string | undefined = 1
+  ): { service_period?: string; next_billing_date?: string } => {
+    if (!startDateStr || !frequency) return {};
+    const freq = frequency.toLowerCase().trim();
+    if (freq === "one-time" || freq === "once" || freq === "none" || freq === "") {
+      return { service_period: undefined, next_billing_date: undefined };
+    }
+    try {
+      const startDate = parseFlexibleDate(startDateStr);
+      if (!isValid(startDate)) return {};
+      const t = Math.max(1, Number(term) || 1);
+      let monthsToAdd = 1;
+      if (freq.includes("annual") || freq.includes("year")) {
+        monthsToAdd = 12 * t;
+      } else if (freq.includes("semi")) {
+        monthsToAdd = 6 * t;
+      } else if (freq.includes("quarter")) {
+        monthsToAdd = 3 * t;
+      } else if (freq.includes("month")) {
+        monthsToAdd = 1 * t;
+      }
+
+      const endDate = addMonths(startDate, monthsToAdd);
+      endDate.setDate(endDate.getDate() - 1);
+      const nextDate = addMonths(startDate, monthsToAdd);
+
+      return {
+        service_period: `${format(startDate, "MMM dd, yyyy")} – ${format(endDate, "MMM dd, yyyy")}`,
+        next_billing_date: format(nextDate, "yyyy-MM-dd"),
+      };
+    } catch {
+      return {};
+    }
+  };
 
   // Proration & Full Pricing Calculation Helper based on All 7 Fields
   const computeItemProration = (
@@ -859,7 +1160,8 @@ export default function GenerateInvoicePage() {
     billing_frequency: string = "",
     billing_start_date: string = "",
     tax_rate?: string | number,
-    term?: string | number
+    term?: string | number,
+    is_paid?: boolean
   ) => {
     const res = calculateRowPricing({
       quantity,
@@ -870,6 +1172,7 @@ export default function GenerateInvoicePage() {
       term,
       billing_start_date,
       tax_rate,
+      is_paid,
     });
 
     return {
@@ -880,6 +1183,9 @@ export default function GenerateInvoicePage() {
       formulaString: res.formulaString,
       isProrated: res.isProrated,
       badge: res.badge,
+      remainingMonths: res.remainingMonths,
+      totalMonths: res.totalMonths,
+      proratedNote: res.proratedNote,
     };
   };
 
@@ -892,6 +1198,7 @@ export default function GenerateInvoicePage() {
     let totalUnpaidAmount = 0;
 
     lineItems.forEach((item) => {
+      const isItemPaid = (item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid";
       const parentRes = computeItemProration(
         item.quantity,
         item.unit_price,
@@ -900,7 +1207,8 @@ export default function GenerateInvoicePage() {
         item.billing_frequency,
         item.billing_start_date,
         item.tax_rate,
-        item.term
+        item.term,
+        isItemPaid
       );
 
       const itemTotal = parentRes.amount;
@@ -908,7 +1216,6 @@ export default function GenerateInvoicePage() {
       totalDiscounts += parentRes.discountAmount;
       totalTaxes += parentRes.taxAmount;
 
-      const isItemPaid = (item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid";
       if (isItemPaid) {
         totalPaidAmount += itemTotal;
       } else {
@@ -917,6 +1224,7 @@ export default function GenerateInvoicePage() {
 
       if (item.sub_items && item.sub_items.length > 0) {
         item.sub_items.forEach((sub) => {
+          const isSubPaid = (sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid";
           const subRes = computeItemProration(
             sub.quantity,
             sub.unit_price,
@@ -925,7 +1233,8 @@ export default function GenerateInvoicePage() {
             sub.billing_frequency,
             sub.billing_start_date,
             sub.tax_rate,
-            sub.term
+            sub.term,
+            isSubPaid
           );
 
           const subTotal = subRes.amount;
@@ -936,7 +1245,6 @@ export default function GenerateInvoicePage() {
             totalDiscounts += subRes.discountAmount;
             totalTaxes += subRes.taxAmount;
 
-            const isSubPaid = (sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid";
             if (isSubPaid) {
               totalPaidAmount += subTotal;
             } else {
@@ -947,7 +1255,7 @@ export default function GenerateInvoicePage() {
       }
     });
 
-    const finalPaidAmount = totalPaidAmount > 0 ? totalPaidAmount : (invoiceAmountPaid || 0);
+    const finalPaidAmount = Number(invoiceAmountPaid) || 0;
     const balanceDue = Math.max(0, newCharges - finalPaidAmount);
 
     return {
@@ -964,6 +1272,64 @@ export default function GenerateInvoicePage() {
 
   const calculatedTotals = calculateTotals();
   const subTotal = calculatedTotals.amountDue;
+
+  // Compute Payment Due Date status badge & reminder indicators
+  const dueDateInfo = useMemo(() => {
+    if (!dueDate) return null;
+    const due = parseFlexibleDate(dueDate);
+    if (!isValid(due)) return null;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const target = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    const diffTime = target.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    const isPaid = (invoiceStatus || "").toUpperCase().startsWith("PAID") || calculatedTotals.effectiveBalanceDue === 0;
+
+    if (isPaid) {
+      return {
+        label: "Settled & Paid",
+        variant: "paid",
+        diffDays,
+        text: "Paid in full",
+        badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700",
+      };
+    }
+    if (diffDays < 0) {
+      const overdueDays = Math.abs(diffDays);
+      return {
+        label: `Overdue by ${overdueDays} ${overdueDays === 1 ? "day" : "days"}`,
+        variant: "overdue",
+        diffDays,
+        text: `Past due date (${dueDate})`,
+        badgeClass: "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-700 font-bold",
+      };
+    }
+    if (diffDays === 0) {
+      return {
+        label: "Payment Due Today",
+        variant: "due_today",
+        diffDays,
+        text: "Payment is due today",
+        badgeClass: "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700 font-bold",
+      };
+    }
+    if (diffDays <= 7) {
+      return {
+        label: `Due in ${diffDays} ${diffDays === 1 ? "day" : "days"} • Auto-Reminder Active`,
+        variant: "due_soon",
+        diffDays,
+        text: `Payment due within 7 days (${dueDate})`,
+        badgeClass: "bg-orange-50 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-700 font-bold",
+      };
+    }
+    return {
+      label: `Due in ${diffDays} days`,
+      variant: "upcoming",
+      diffDays,
+      text: `Due on ${dueDate}`,
+      badgeClass: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800",
+    };
+  }, [dueDate, invoiceStatus, calculatedTotals.effectiveBalanceDue]);
 
   // Dynamically compute Next Renewal Projection from live lineItems & sub-items
   const computedNextRenewal = useMemo(() => {
@@ -1101,6 +1467,107 @@ export default function GenerateInvoicePage() {
     };
   }, [lineItems, currency]);
 
+  // Check column visibility: hide any column that is empty/unfilled, null, undefined, or 0 across all items and sub-items
+  const allInvoiceItems = useMemo(() => {
+    const list: any[] = [];
+    (lineItems || []).forEach((item) => {
+      list.push(item);
+      if (item.sub_items && Array.isArray(item.sub_items)) {
+        item.sub_items.forEach((sub: any) => list.push(sub));
+      }
+    });
+    return list;
+  }, [lineItems]);
+
+  const showDateCol = useMemo(() => {
+    return allInvoiceItems.some(
+      (i) => (i.date && String(i.date).trim() !== "") || (i.date_range && String(i.date_range).trim() !== "")
+    ) || (!!invoiceDate && String(invoiceDate).trim() !== "");
+  }, [allInvoiceItems, invoiceDate]);
+
+  const showUnitPriceCol = useMemo(() => {
+    return allInvoiceItems.some(
+      (i) => i.unit_price !== undefined && i.unit_price !== null && String(i.unit_price).trim() !== "" && Number(i.unit_price) > 0
+    );
+  }, [allInvoiceItems]);
+
+  const showCurrencyCol = useMemo(() => {
+    return allInvoiceItems.some(
+      (i) => i.currency && String(i.currency).trim() !== "" && String(i.currency).trim() !== "0"
+    );
+  }, [allInvoiceItems]);
+
+  const showQtyCol = useMemo(() => {
+    return allInvoiceItems.some(
+      (i) => i.quantity !== undefined && i.quantity !== null && String(i.quantity).trim() !== "" && Number(i.quantity) > 0
+    );
+  }, [allInvoiceItems]);
+
+  const showDiscountCol = useMemo(() => {
+    return allInvoiceItems.some(
+      (i) => i.unit_discount !== undefined && i.unit_discount !== null && String(i.unit_discount).trim() !== "" && Number(i.unit_discount) > 0
+    );
+  }, [allInvoiceItems]);
+
+  const showTaxCol = useMemo(() => {
+    return allInvoiceItems.some(
+      (i) => i.tax_rate !== undefined && i.tax_rate !== null && String(i.tax_rate).trim() !== "" && Number(i.tax_rate) > 0
+    );
+  }, [allInvoiceItems]);
+
+  const visibleColumnCount = useMemo(() => {
+    return [
+      showDateCol,
+      true, // ACTIVITY / ITEM & DESCRIPTION
+      showUnitPriceCol,
+      showCurrencyCol,
+      showQtyCol,
+      showDiscountCol,
+      showTaxCol,
+      true, // NET PRICE
+    ].filter(Boolean).length;
+  }, [
+    showDateCol,
+    showUnitPriceCol,
+    showCurrencyCol,
+    showQtyCol,
+    showDiscountCol,
+    showTaxCol,
+  ]);
+
+  // Determine if this invoice represents a recurring service agreement
+  const isRecurringInvoice = useMemo(() => {
+    if (nextInvoiceEligibility?.is_recurring || nextInvoiceEligibility?.eligible || nextInvoiceEligibility?.already_generated) return true;
+    if (computedNextRenewal !== null) return true;
+    return lineItems.some((li: any) => {
+      const freq = (li.billing_frequency || li.billing_type || "").toLowerCase();
+      const badge = (li.badge || "").toLowerCase();
+      const subHasRec = li.sub_items && li.sub_items.some((sub: any) => {
+        const subFreq = (sub.billing_frequency || sub.billing_type || "").toLowerCase();
+        const subBadge = (sub.badge || "").toLowerCase();
+        return (
+          subFreq.includes("month") ||
+          subFreq.includes("annual") ||
+          subFreq.includes("semi") ||
+          subFreq.includes("quarter") ||
+          subBadge.includes("recurring") ||
+          subBadge.includes("prorated")
+        );
+      });
+      return (
+        freq.includes("month") ||
+        freq.includes("annual") ||
+        freq.includes("semi") ||
+        freq.includes("quarter") ||
+        badge.includes("recurring") ||
+        badge.includes("prorated") ||
+        li.is_prorated ||
+        li.is_recurring ||
+        subHasRec
+      );
+    });
+  }, [nextInvoiceEligibility, computedNextRenewal, lineItems]);
+
   const handleUpdateLine = (
     index: number,
     field: keyof LineItemFormRow,
@@ -1109,6 +1576,15 @@ export default function GenerateInvoicePage() {
     setLineItems((prev) => {
       const copy = [...prev];
       const item = { ...copy[index], [field]: val };
+
+      if (field === "billing_frequency" || field === "date" || field === "term" || field === "billing_start_date") {
+        const itemDate = item.billing_start_date || item.date || invoiceDate;
+        const periods = calculateServicePeriodAndNextBilling(itemDate, item.billing_frequency, item.term);
+        item.service_period = periods.service_period;
+        item.next_billing_date = periods.next_billing_date;
+      }
+
+      const isItemPaid = (item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid";
       const proration = computeItemProration(
         item.quantity,
         item.unit_price,
@@ -1117,10 +1593,13 @@ export default function GenerateInvoicePage() {
         item.billing_frequency,
         item.billing_start_date,
         item.tax_rate,
-        item.term
+        item.term,
+        isItemPaid
       );
       item.total = proration.amount;
       item.calculation = proration.formulaString;
+      item.badge = proration.badge;
+      item.is_prorated = proration.isProrated;
       copy[index] = item;
       return copy;
     });
@@ -1138,12 +1617,13 @@ export default function GenerateInvoicePage() {
         date: invoiceDate,
         activity: `Item ${prev.length + 1}`,
         description: "",
+        currency: currency || "USD",
         quantity: 1,
         unit_price: "",
         unit_discount: "",
         discount_type: "%",
         billing_frequency: "One-Time",
-        term: "",
+        term: 1,
         billing_start_date: "",
         tax_rate: "",
         total: 0,
@@ -1166,23 +1646,34 @@ export default function GenerateInvoicePage() {
       const copy = [...prev];
       const parent = { ...copy[parentIndex] };
       const subs = parent.sub_items ? [...parent.sub_items] : [];
+      const parentStartDate = parent.billing_start_date || parent.date || invoiceDate;
+      const subFreq = parent.billing_frequency || "Monthly";
+
+      const periods = calculateServicePeriodAndNextBilling(parentStartDate, subFreq, 1);
+      const subIndex = subs.length + 1;
+      const defaultTitle = `Additional Service #${subIndex}`;
+
       subs.push({
         id: `sub-${Date.now()}`,
-        date: parent.date || invoiceDate,
-        activity: "Additional Service",
-        name: "Additional Service",
+        date: parent.date || parentStartDate,
+        activity: defaultTitle,
+        name: defaultTitle,
+        title: defaultTitle,
         description: "",
+        currency: parent.currency || currency || "USD",
         quantity: 1,
         unit_price: "",
         unit_discount: "",
         discount_type: "%",
-        billing_frequency: "Annually",
-        term: "",
-        billing_start_date: "Immediate",
+        billing_frequency: subFreq,
+        term: 1,
+        billing_start_date: parentStartDate,
+        service_period: periods.service_period || parent.service_period,
+        next_billing_date: periods.next_billing_date || parent.next_billing_date,
         tax_rate: "",
         total: 0,
-        badge: "Prorated",
-        is_prorated: true,
+        badge: "Recurring",
+        is_prorated: false,
         status: "Unpaid",
         service_status: "Unpaid",
       });
@@ -1216,6 +1707,15 @@ export default function GenerateInvoicePage() {
       if (!parent.sub_items) return prev;
       const subs = [...parent.sub_items];
       const sub = { ...subs[subIndex], [field]: val };
+
+      if (field === "billing_frequency" || field === "date" || field === "term" || field === "billing_start_date") {
+        const subDate = sub.billing_start_date || sub.date || parent.billing_start_date || parent.date || invoiceDate;
+        const periods = calculateServicePeriodAndNextBilling(subDate, sub.billing_frequency, sub.term);
+        sub.service_period = periods.service_period;
+        sub.next_billing_date = periods.next_billing_date;
+      }
+
+      const isSubPaid = (sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid";
       const subProration = computeItemProration(
         sub.quantity,
         sub.unit_price,
@@ -1224,11 +1724,13 @@ export default function GenerateInvoicePage() {
         sub.billing_frequency,
         sub.billing_start_date,
         sub.tax_rate,
-        sub.term
+        sub.term,
+        isSubPaid
       );
       sub.total = subProration.amount;
       sub.calculation = subProration.formulaString;
       sub.badge = subProration.badge;
+      sub.is_prorated = subProration.isProrated;
       subs[subIndex] = sub;
       parent.sub_items = subs;
       copy[parentIndex] = parent;
@@ -1293,7 +1795,7 @@ export default function GenerateInvoicePage() {
         unit_discount: "",
         discount_type: "%",
         billing_frequency: "Monthly",
-        term: "",
+        term: 1,
         billing_start_date: "",
         tax_rate: "",
         total: 50.00,
@@ -1310,11 +1812,18 @@ export default function GenerateInvoicePage() {
   };
 
   // Build current template payload with sanitized numbers and sub_items
-  const currentPayload: CustomerInvoiceTemplate & { id?: string; status?: string; amount_paid?: number; balance_due?: number } = {
+  const currentPayload: CustomerInvoiceTemplate & {
+    id?: string;
+    status?: string;
+    amount_paid?: number;
+    balance_due?: number;
+    subtotal?: number;
+    total_amount?: number;
+  } = {
     id: currentInvoiceId || undefined,
     status: calculatedTotals.effectiveBalanceDue === 0 && calculatedTotals.totalPaidAmount > 0
       ? "PAID"
-      : (calculatedTotals.totalPaidAmount > 0 ? "OPEN / UNPAID" : invoiceStatus || "OPEN / UNPAID"),
+      : (calculatedTotals.totalPaidAmount > 0 ? "PARTIALLY_PAID" : invoiceStatus || "OPEN / UNPAID"),
     amount_paid: calculatedTotals.totalPaidAmount,
     balance_due: calculatedTotals.effectiveBalanceDue,
     template_id: selectedTemplateId || undefined,
@@ -1343,51 +1852,90 @@ export default function GenerateInvoicePage() {
     ach_routing: achRouting,
     wire_routing: wireRouting,
     bank_email: bankEmail,
-    line_items: lineItems.map((li) => ({
-      id: li.id,
-      date: li.date,
-      activity: li.activity || li.name || "",
-      name: li.name || li.activity || "",
-      description: li.description,
-      quantity: li.quantity === "" ? 0 : (parseFloat(String(li.quantity)) || 0),
-      unit_price: li.unit_price === "" ? 0 : (parseFloat(String(li.unit_price)) || 0),
-      unit_discount: li.unit_discount === "" ? 0 : (parseFloat(String(li.unit_discount)) || 0),
-      discount_type: li.discount_type || "%",
-      billing_frequency: li.billing_frequency || "",
-      term: li.term === "" ? 0 : (parseFloat(String(li.term)) || 0),
-      billing_start_date: li.billing_start_date || "",
-      tax_rate: li.tax_rate === "" ? 0 : (parseFloat(String(li.tax_rate)) || 0),
-      total: Number(li.total) || 0,
-      badge: li.badge,
-      is_prorated: !!li.is_prorated,
-      status: li.status || (li.is_prorated ? "Unpaid" : (calculatedTotals.totalPaidAmount > 0 ? "Paid" : "Unpaid")),
-      service_status: li.service_status || li.status || (li.is_prorated ? "Unpaid" : (calculatedTotals.totalPaidAmount > 0 ? "Paid" : "Unpaid")),
-      sub_items: li.sub_items ? li.sub_items.map((sub) => ({
-        id: sub.id,
-        date: sub.date,
-        activity: sub.activity || sub.name || "",
-        name: sub.name || sub.activity || "",
-        description: sub.description,
-        quantity: sub.quantity === "" ? 0 : (parseFloat(String(sub.quantity)) || 0),
-        unit_price: sub.unit_price === "" ? 0 : (parseFloat(String(sub.unit_price)) || 0),
-        unit_discount: sub.unit_discount === "" ? 0 : (parseFloat(String(sub.unit_discount)) || 0),
-        discount_type: sub.discount_type || "%",
-        billing_frequency: sub.billing_frequency || "",
-        term: sub.term === "" ? 0 : (parseFloat(String(sub.term)) || 0),
-        billing_start_date: sub.billing_start_date || "",
-        tax_rate: sub.tax_rate === "" ? 0 : (parseFloat(String(sub.tax_rate)) || 0),
-        total: Number(sub.total) || 0,
-        badge: sub.badge,
-        is_prorated: !!sub.is_prorated,
-        status: sub.status || (sub.is_prorated ? "Unpaid" : "Paid"),
-        service_status: sub.service_status || sub.status || (sub.is_prorated ? "Unpaid" : "Paid"),
-        is_reference_only: !!sub.is_reference_only,
-        reference_amount: sub.reference_amount,
-        calculation: sub.calculation,
-        date_range: sub.date_range,
-        full_recurring_label: sub.full_recurring_label,
-      })) : [],
-    })),
+    subtotal: calculatedTotals.newChargesSubtotal,
+    total_amount: calculatedTotals.newChargesSubtotal,
+    line_items: lineItems.map((li) => {
+      const liPricing = computeItemProration(
+        li.quantity === "" ? 1 : li.quantity,
+        li.unit_price,
+        li.unit_discount,
+        li.discount_type,
+        li.billing_frequency,
+        li.billing_start_date,
+        li.tax_rate,
+        li.term === "" ? 1 : li.term
+      );
+
+      return {
+        id: li.id,
+        date: li.date,
+        activity: li.activity || li.name || "",
+        name: li.name || li.activity || "",
+        description: li.description,
+        quantity: li.quantity === "" ? 1 : Math.max(1, parseFloat(String(li.quantity)) || 1),
+        unit_price: li.unit_price === "" ? 0 : (parseFloat(String(li.unit_price)) || 0),
+        unit_discount: li.unit_discount === "" ? 0 : (parseFloat(String(li.unit_discount)) || 0),
+        discount_type: li.discount_type || "%",
+        billing_frequency: li.billing_frequency || "",
+        term: li.term === "" ? 1 : Math.max(1, parseFloat(String(li.term)) || 1),
+        billing_start_date: li.billing_start_date || "",
+        service_period: li.service_period || "",
+        service_period_start: li.service_period_start || "",
+        service_period_end: li.service_period_end || "",
+        next_billing_date: li.next_billing_date || "",
+        end_date: li.end_date || "",
+        tax_rate: li.tax_rate === "" ? 0 : (parseFloat(String(li.tax_rate)) || 0),
+        total: liPricing.amount,
+        calculation: liPricing.formulaString,
+        badge: li.badge || liPricing.badge,
+        is_prorated: !!li.is_prorated || liPricing.isProrated,
+        status: li.status || (li.is_prorated ? "Unpaid" : (calculatedTotals.totalPaidAmount > 0 ? "Paid" : "Unpaid")),
+        service_status: li.service_status || li.status || (li.is_prorated ? "Unpaid" : (calculatedTotals.totalPaidAmount > 0 ? "Paid" : "Unpaid")),
+        sub_items: li.sub_items ? li.sub_items.map((sub) => {
+          const subPricing = computeItemProration(
+            sub.quantity === "" ? 1 : sub.quantity,
+            sub.unit_price,
+            sub.unit_discount,
+            sub.discount_type,
+            sub.billing_frequency,
+            sub.billing_start_date,
+            sub.tax_rate,
+            sub.term === "" ? 1 : sub.term
+          );
+
+          return {
+            id: sub.id,
+            date: sub.date,
+            activity: sub.activity || sub.name || "",
+            name: sub.name || sub.activity || "",
+            description: sub.description,
+            quantity: sub.quantity === "" ? 1 : Math.max(1, parseFloat(String(sub.quantity)) || 1),
+            unit_price: sub.unit_price === "" ? 0 : (parseFloat(String(sub.unit_price)) || 0),
+            unit_discount: sub.unit_discount === "" ? 0 : (parseFloat(String(sub.unit_discount)) || 0),
+            discount_type: sub.discount_type || "%",
+            billing_frequency: sub.billing_frequency || "",
+            term: sub.term === "" ? 1 : Math.max(1, parseFloat(String(sub.term)) || 1),
+            billing_start_date: sub.billing_start_date || "",
+            service_period: sub.service_period || "",
+            service_period_start: sub.service_period_start || "",
+            service_period_end: sub.service_period_end || "",
+            next_billing_date: sub.next_billing_date || "",
+            end_date: sub.end_date || "",
+            tax_rate: sub.tax_rate === "" ? 0 : (parseFloat(String(sub.tax_rate)) || 0),
+            total: subPricing.amount,
+            calculation: subPricing.formulaString,
+            badge: sub.badge || subPricing.badge,
+            is_prorated: !!sub.is_prorated || subPricing.isProrated,
+            status: sub.status || (sub.is_prorated ? "Unpaid" : "Paid"),
+            service_status: sub.service_status || sub.status || (sub.is_prorated ? "Unpaid" : "Paid"),
+            is_reference_only: !!sub.is_reference_only,
+            reference_amount: sub.reference_amount,
+            date_range: sub.date_range,
+            full_recurring_label: sub.full_recurring_label,
+          };
+        }) : [],
+      };
+    }),
   };
 
   // Preview & Scroll Action
@@ -1583,10 +2131,15 @@ export default function GenerateInvoicePage() {
     mutationFn: () => arInvoiceService.generateInvoice(currentPayload),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
-      setSaveSuccessMsg(`Invoice ${data.invoice_number} saved successfully without modifying template!`);
+      if (data.invoice_id) {
+        queryClient.invalidateQueries({ queryKey: ["next-invoice-eligibility", data.invoice_id] });
+        setCurrentInvoiceId(data.invoice_id);
+        navigate(`/account-receivable/generate?invoiceId=${encodeURIComponent(data.invoice_id)}`, { replace: true });
+      }
+      setSaveSuccessMsg(`Invoice ${data.invoice_number} saved successfully!`);
       setTimeout(() => {
-        navigate("/account-receivable");
-      }, 1200);
+        setSaveSuccessMsg(null);
+      }, 4000);
     },
   });
 
@@ -1741,60 +2294,84 @@ export default function GenerateInvoicePage() {
             </Select>
           </div>
 
-          {currentInvoiceId && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDeleteInvoice}
-              disabled={deleteInvoiceMutation.isPending}
-              className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 gap-1.5 h-8 px-2.5 cursor-pointer"
-              title="Delete invoice"
-            >
-              {deleteInvoiceMutation.isPending ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="w-3.5 h-3.5" />
-              )}
-              <span>Delete</span>
-            </Button>
-          )}
-
+          {/* Preview PDF */}
           <Button
             variant="outline"
             size="sm"
             onClick={handlePreviewAndScroll}
-            className="text-xs gap-1.5 h-8 px-3 bg-card hover:bg-muted text-foreground cursor-pointer"
+            className="text-xs gap-1.5 h-8 px-3 bg-card hover:bg-muted text-foreground cursor-pointer shadow-2xs"
+            title="Preview PDF layout"
           >
             <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             <span>Preview PDF</span>
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePrint}
-            className="text-xs gap-1.5 h-8 px-3 bg-card hover:bg-muted text-foreground cursor-pointer"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Print / PDF</span>
-          </Button>
+          {/* More Actions Dropdown (Print, Apply to Template, Delete) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs gap-1 h-8 px-2.5 bg-card hover:bg-muted text-foreground cursor-pointer shadow-2xs"
+                title="More actions & options"
+              >
+                <MoreHorizontal className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                <span className="hidden sm:inline">More</span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem
+                onClick={handlePrint}
+                className="text-xs gap-2 py-2 cursor-pointer font-medium"
+              >
+                <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                <span>Print / Save as PDF</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleOpenApplyTemplateDialog}
+                disabled={saveTemplateMutation.isPending || (!selectedCustomer && !billToName)}
+                className="text-xs gap-2 py-2 cursor-pointer font-medium text-blue-700 dark:text-blue-400"
+              >
+                {saveTemplateMutation.isPending ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Save className="w-3.5 h-3.5 text-blue-600" />
+                )}
+                <span>{currentInvoiceId ? "Apply Changes to Template" : "Save Changes as Template"}</span>
+              </DropdownMenuItem>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleOpenApplyTemplateDialog}
-            disabled={saveTemplateMutation.isPending || (!selectedCustomer && !billToName)}
-            title="Save changes to template and update invoice"
-            className="text-xs gap-1.5 h-8 px-3 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 cursor-pointer"
-          >
-            {saveTemplateMutation.isPending ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Save className="w-3.5 h-3.5" />
-            )}
-            <span>{currentInvoiceId ? "Apply Changes to Template" : "Save Changes"}</span>
-          </Button>
+              {currentInvoiceId && calculatedTotals.effectiveBalanceDue > 0 && (
+                <DropdownMenuItem
+                  onClick={handleOpenRecordPayment}
+                  className="text-xs gap-2 py-2 cursor-pointer font-medium text-emerald-700 dark:text-emerald-400"
+                >
+                  <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Record Payment</span>
+                </DropdownMenuItem>
+              )}
 
+              {currentInvoiceId && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleDeleteInvoice}
+                    disabled={deleteInvoiceMutation.isPending}
+                    className="text-xs gap-2 py-2 cursor-pointer font-medium text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/40"
+                  >
+                    {deleteInvoiceMutation.isPending ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                    )}
+                    <span>Delete Invoice</span>
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Primary Action: Save / Generate Invoice */}
           <Button
             size="sm"
             onClick={handleGenerateInvoice}
@@ -1809,11 +2386,30 @@ export default function GenerateInvoicePage() {
             <span>{currentInvoiceId ? "Save Invoice Changes" : "Generate Invoice"}</span>
           </Button>
 
+          {/* Contextual Action: Generate Next Quotes (Renewal Quote) - only shown when invoice is settled/paid */}
+          {currentInvoiceId && calculatedTotals.effectiveBalanceDue === 0 && Number(invoiceAmountPaid) > 0 && (
+            <Button
+              size="sm"
+              onClick={() => generateRenewalQuoteMutation.mutate()}
+              disabled={generateRenewalQuoteMutation.isPending}
+              className="text-xs gap-1.5 h-8 px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs cursor-pointer"
+              title="Generate full-term renewal quote combining base products and accepted add-ons"
+            >
+              {generateRenewalQuoteMutation.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              <span>Generate Next Quotes</span>
+            </Button>
+          )}
+
+          {/* Send Email */}
           {currentInvoiceId && (
             <Button
               size="sm"
               onClick={handleOpenSendEmail}
-              className="text-xs gap-1.5 h-8 px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs cursor-pointer"
+              className="text-xs gap-1.5 h-8 px-3.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-xs cursor-pointer"
               title="Send invoice statement to client via SendGrid"
             >
               <Mail className="w-3.5 h-3.5" />
@@ -1834,14 +2430,14 @@ export default function GenerateInvoicePage() {
                 </h1>
                 <Badge
                   className={
-                    (invoiceStatus || "").toUpperCase().startsWith("PAID") || calculatedTotals.effectiveBalanceDue === 0
+                    (invoiceStatus || "").toUpperCase().startsWith("PAID") || (invoiceStatus || "").toUpperCase().includes("COMPLETED") || calculatedTotals.effectiveBalanceDue === 0
                       ? "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700 text-xs font-semibold gap-1"
                       : (invoiceStatus || "").toUpperCase() === "OVERDUE"
                       ? "bg-rose-50 text-rose-700 border-rose-300 text-xs font-semibold gap-1"
                       : "bg-blue-50 text-blue-700 border-blue-300 text-xs font-semibold gap-1"
                   }
                 >
-                  {(invoiceStatus || "").toUpperCase().startsWith("PAID") || calculatedTotals.effectiveBalanceDue === 0 ? (
+                  {(invoiceStatus || "").toUpperCase().startsWith("PAID") || (invoiceStatus || "").toUpperCase().includes("COMPLETED") || calculatedTotals.effectiveBalanceDue === 0 ? (
                     <>
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                       <span>{invoiceStatus || "Completed & Paid"}</span>
@@ -1869,21 +2465,43 @@ export default function GenerateInvoicePage() {
                     <span>Due: {dueDate}</span>
                   </span>
                 )}
+                {dueDateInfo && (
+                  <Badge variant="outline" className={`text-xs px-2.5 py-0.5 gap-1.5 font-semibold ${dueDateInfo.badgeClass}`}>
+                    <Clock className="w-3 h-3 shrink-0" />
+                    <span>{dueDateInfo.label}</span>
+                  </Badge>
+                )}
               </div>
             </div>
 
-            {/* Quick Balance & Paid Snapshot */}
-            <div className="flex items-center gap-4 bg-muted/40 p-3 rounded-xl border border-border/60">
+            {/* Quick Balance & Paid Snapshot with Add-on Adjustment Breakdown */}
+            <div className="flex items-center gap-4 bg-muted/40 p-3 rounded-xl border border-border/60 flex-wrap sm:flex-nowrap">
               <div>
                 <div className="text-[11px] text-muted-foreground">Total Invoiced</div>
                 <div className="font-mono font-bold text-sm text-foreground">
                   ${(Number(subTotal) || 0).toFixed(2)} {currency}
                 </div>
               </div>
+              {calculatedTotals.totalPaidAmount > 0 && (
+                <>
+                  <div className="h-6 w-px bg-border hidden sm:block" />
+                  <div>
+                    <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                      <Check className="w-3 h-3" />
+                      <span>Original Paid Subscription</span>
+                    </div>
+                    <div className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                      -${calculatedTotals.totalPaidAmount.toFixed(2)} {currency}
+                    </div>
+                  </div>
+                </>
+              )}
               <div className="h-6 w-px bg-border" />
               <div>
-                <div className="text-[11px] text-muted-foreground">Balance Due</div>
-                <div className={`font-mono font-bold text-sm ${calculatedTotals.effectiveBalanceDue === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                <div className="text-[11px] text-muted-foreground font-semibold">
+                  {calculatedTotals.totalPaidAmount > 0 ? "New Add-on Balance Due" : "Balance Due"}
+                </div>
+                <div className={`font-mono font-bold text-sm ${((invoiceStatus || "").toUpperCase().startsWith("PAID") || (invoiceStatus || "").toUpperCase().includes("COMPLETED") || calculatedTotals.effectiveBalanceDue === 0) ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
                   ${calculatedTotals.effectiveBalanceDue.toFixed(2)} {currency}
                 </div>
               </div>
@@ -1898,7 +2516,7 @@ export default function GenerateInvoicePage() {
                 <span>Workflow Status</span>
               </span>
               <span className="text-xs">
-                {(invoiceStatus || "").toUpperCase().startsWith("PAID") || calculatedTotals.effectiveBalanceDue === 0 ? (
+                {(invoiceStatus || "").toUpperCase().startsWith("PAID") || (invoiceStatus || "").toUpperCase().includes("COMPLETED") || calculatedTotals.effectiveBalanceDue === 0 ? (
                   <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Invoice Fully Paid &amp; Settled</span>
@@ -1929,6 +2547,204 @@ export default function GenerateInvoicePage() {
               />
             </div>
           </div>
+
+          {/* ── Recorded Payments & Settlement Ledger Section ── */}
+          {currentInvoiceId && (
+            <div className="pt-3.5 border-t border-border space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Payment Records &amp; Settlement Ledger</span>
+                  </span>
+                  <Badge variant="outline" className="text-[10px] font-semibold bg-muted/50">
+                    {invoicePayments.length} {invoicePayments.length === 1 ? "record" : "records"}
+                  </Badge>
+                </div>
+
+                {calculatedTotals.effectiveBalanceDue > 0 ? (
+                  <Button
+                    size="sm"
+                    onClick={handleOpenRecordPayment}
+                    className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 font-semibold px-2.5 shadow-2xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Record Payment</span>
+                  </Button>
+                ) : (
+                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 text-[10px] font-bold gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>Settled in Full</span>
+                  </Badge>
+                )}
+              </div>
+
+              {invoicePayments.length === 0 ? (
+                <div className="p-4 rounded-xl border border-dashed border-border text-center bg-muted/20">
+                  <p className="text-xs text-muted-foreground">
+                    No payments have been recorded for this invoice yet.
+                  </p>
+                  {calculatedTotals.effectiveBalanceDue > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleOpenRecordPayment}
+                      className="mt-2.5 text-xs h-7 gap-1.5 border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 font-semibold cursor-pointer"
+                    >
+                      <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Record Initial Payment</span>
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-border bg-card">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <th className="py-2 px-3">Date</th>
+                        <th className="py-2 px-3">Method</th>
+                        <th className="py-2 px-3">Reference / Tx ID</th>
+                        <th className="py-2 px-3">Category (GL Code)</th>
+                        <th className="py-2 px-3">Class</th>
+                        <th className="py-2 px-3">Notes</th>
+                        <th className="py-2 px-3 text-right">Amount Paid</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {invoicePayments.map((p, idx) => (
+                        <tr key={p.id || idx} className="hover:bg-muted/30 transition-colors font-medium">
+                          <td className="py-2 px-3 font-mono text-foreground whitespace-nowrap">
+                            {p.payment_date || "—"}
+                          </td>
+                          <td className="py-2 px-3">
+                            <Badge variant="outline" className="text-[10px] font-bold bg-indigo-50/60 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">
+                              {p.payment_method || "WIRE"}
+                            </Badge>
+                          </td>
+                          <td className="py-2 px-3 font-mono text-muted-foreground">
+                            {p.reference_number || "—"}
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground font-mono text-[11px]">
+                            {p.gl_code || "—"}
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground">
+                            {p.class_name || "—"}
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground truncate max-w-[200px]" title={p.notes}>
+                            {p.notes || "—"}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                            +${Number(p.amount).toFixed(2)} {currency}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-border bg-muted/40 font-semibold text-xs">
+                        <td colSpan={6} className="py-2 px-3 text-right text-muted-foreground">
+                          Total Payments Recorded:
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          ${invoicePayments.reduce((s, p) => s + (Number(p.amount) || 0), 0).toFixed(2)} {currency}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Recurring Billing Schedule & Next Invoice Generation Panel (Only for Recurring Invoices) */}
+          {currentInvoiceId && isRecurringInvoice && (
+            <div className="pt-3.5 border-t border-border space-y-2.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <RotateCcw className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                  <span>Recurring Billing Schedule &amp; Next Invoice</span>
+                </span>
+                {nextInvoiceEligibility?.eligible && (
+                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 text-[10px] font-bold gap-1">
+                    <Sparkles className="w-3 h-3 text-emerald-600" />
+                    <span>Eligible for Next Invoice</span>
+                  </Badge>
+                )}
+                {nextInvoiceEligibility?.already_generated && (
+                  <Badge className="bg-indigo-50 text-indigo-700 border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300 text-[10px] font-bold gap-1">
+                    <Check className="w-3 h-3 text-indigo-600" />
+                    <span>Next Period Invoiced</span>
+                  </Badge>
+                )}
+              </div>
+
+              {isNextInvoiceEligibilityLoading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <span>Checking recurring billing schedule and payment eligibility...</span>
+                </div>
+              ) : nextInvoiceEligibility?.already_generated ? (
+                <div className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <span>Next Invoice Already Generated: Draft #{nextInvoiceEligibility.next_invoice_number}</span>
+                    </div>
+                    <p className="text-[11px] text-indigo-900/70 dark:text-indigo-300/70">
+                      The subsequent billing cycle draft has been prepared and linked. Review and send it via the standard workflow when ready.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => navigate(`/account-receivable/generate?invoiceId=${encodeURIComponent(nextInvoiceEligibility.next_invoice_id!)}`)}
+                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold gap-1.5 shrink-0 cursor-pointer shadow-xs"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Open Draft #{nextInvoiceEligibility.next_invoice_number}</span>
+                  </Button>
+                </div>
+              ) : (calculatedTotals.effectiveBalanceDue === 0 && Number(invoiceAmountPaid) > 0) ? (
+                <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="text-xs font-bold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Ready for Renewal: Generate Next Quote</span>
+                    </div>
+                    <p className="text-[11px] text-emerald-900/70 dark:text-emerald-300/70">
+                      This invoice is fully settled. Generates a full-term renewal quote consolidating base subscriptions and active add-ons.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => generateRenewalQuoteMutation.mutate()}
+                    disabled={generateRenewalQuoteMutation.isPending}
+                    className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 shrink-0 cursor-pointer shadow-xs"
+                  >
+                    {generateRenewalQuoteMutation.isPending ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5" />
+                    )}
+                    <span>Generate Next Quotes</span>
+                  </Button>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="text-xs font-bold text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Recurring Service Schedule Active</span>
+                    </div>
+                    <p className="text-[11px] text-amber-900/70 dark:text-amber-300/70">
+                      Next renewal quote will become eligible for generation once all invoice payments are settled in full.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] bg-amber-100/80 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border-amber-300 shrink-0 self-start sm:self-center">
+                    Awaiting Payment Settlement
+                  </Badge>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -2380,15 +3196,23 @@ export default function GenerateInvoicePage() {
             {/* Terms Field */}
             <div className="space-y-1.5">
               {renderFieldHeader("Terms", "terms")}
-              <Input
-                id="terms"
-                name="terms"
-                type="text"
-                value={terms}
-                onChange={(e) => setTerms(e.target.value)}
-                placeholder="e.g. Due on receipt / Net 30"
-                className={`text-xs ${!isFieldVisible("terms") ? "opacity-60 bg-muted/40" : ""}`}
-              />
+              <Select value={terms} onValueChange={handleTermsChange}>
+                <SelectTrigger
+                  id="terms"
+                  className={`h-9 text-xs border-slate-200 dark:border-slate-800 ${
+                    !isFieldVisible("terms") ? "opacity-60 bg-muted/40" : ""
+                  }`}
+                >
+                  <SelectValue placeholder="Select terms" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15 days">15 days</SelectItem>
+                  <SelectItem value="30 days">30 days</SelectItem>
+                  {terms && !["15 days", "30 days"].includes(terms) && (
+                    <SelectItem value={terms}>{terms}</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* P/O Number */}
@@ -2574,17 +3398,18 @@ export default function GenerateInvoicePage() {
 
             {/* Line Items Table with Quotes Columns & Indented Sub-items */}
             <div className="overflow-x-auto border border-border rounded-xl shadow-2xs bg-card">
-              <table className="w-full text-xs text-left border-collapse min-w-[1080px]">
+              <table className="w-full text-xs text-left border-collapse min-w-[1100px]">
                 <thead>
                   <tr className="bg-muted/80 text-muted-foreground font-bold uppercase tracking-wider text-[11px] border-b border-border">
-                    <th className="py-2.5 px-2.5 w-[130px] min-w-[130px] text-left">Date</th>
-                    <th className="py-2.5 px-3 min-w-[260px] text-left">Activity / Item &amp; Description</th>
+                    <th className="py-2.5 px-2.5 w-[130px] min-w-[130px] text-left">Start Date</th>
+                    <th className="py-2.5 px-3 min-w-[320px] text-left">Activity / Item &amp; Description</th>
                     <th className="py-2.5 px-2 w-[95px] min-w-[95px] text-left">Unit price</th>
+                    <th className="py-2.5 px-2 w-[110px] min-w-[110px] text-left">Currency</th>
                     <th className="py-2.5 px-2 w-[75px] min-w-[75px] text-left">Quantity</th>
                     <th className="py-2.5 px-2 w-[110px] min-w-[110px] text-left">Unit discount</th>
                     <th className="py-2.5 px-2 w-[130px] min-w-[130px] text-left">Billing frequency</th>
-                    <th className="py-2.5 px-2 w-[70px] min-w-[70px] text-left">Term</th>
-                    <th className="py-2.5 px-2 w-[145px] min-w-[145px] text-left">Billing start date</th>
+                    <th className="py-2.5 px-2 w-[95px] min-w-[95px] text-left">Chargeable months</th>
+                    <th className="py-2.5 px-2 w-[145px] min-w-[145px] text-left">Service start date</th>
                     <th className="py-2.5 px-2 w-[80px] min-w-[80px] text-left">Tax rate</th>
                     <th className="py-2.5 px-3 w-[100px] min-w-[100px] text-right">Net price</th>
                     <th className="py-2.5 px-2 w-[70px] min-w-[70px] text-center">Actions</th>
@@ -2592,6 +3417,7 @@ export default function GenerateInvoicePage() {
                 </thead>
                 <tbody className="divide-y divide-border text-[12px]">
                   {lineItems.map((item, idx) => {
+                    const isItemPaid = (item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid";
                     const parentProration = computeItemProration(
                       item.quantity,
                       item.unit_price,
@@ -2600,7 +3426,8 @@ export default function GenerateInvoicePage() {
                       item.billing_frequency,
                       item.billing_start_date,
                       item.tax_rate,
-                      item.term
+                      item.term,
+                      isItemPaid
                     );
 
                     return (
@@ -2679,7 +3506,7 @@ export default function GenerateInvoicePage() {
                                 placeholder="Activity / Item name..."
                                 className="text-xs h-7 font-medium flex-1"
                               />
-                              {(item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid" ? (
+                              {isItemPaid ? (
                                 <Badge className="text-[9.5px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700 font-bold shrink-0">
                                   Paid
                                 </Badge>
@@ -2689,7 +3516,7 @@ export default function GenerateInvoicePage() {
                                     Unpaid
                                   </Badge>
                                   {item.billing_frequency && item.billing_frequency !== "One-Time" && item.billing_frequency !== "none" ? (
-                                    parentProration.isProrated || item.is_prorated || item.badge === "Prorated" ? (
+                                    parentProration.isProrated ? (
                                       <Badge className="text-[9px] px-1.5 py-0 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 shrink-0">
                                         Prorated
                                       </Badge>
@@ -2715,8 +3542,24 @@ export default function GenerateInvoicePage() {
                               rows={1}
                               className="w-full text-[11px] text-muted-foreground border border-input rounded-md bg-transparent px-2 py-1 resize-y min-h-[28px] focus:outline-none focus:border-blue-500 leading-relaxed"
                             />
-                            {parentProration.formulaString && (
-                              <div className="text-[11px] text-blue-600 dark:text-blue-400 italic font-mono mt-0.5 tracking-tight">
+                            {!isItemPaid && parentProration.isProrated && parentProration.proratedNote && (
+                              <div className="text-[10.5px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded font-medium inline-flex items-center gap-1 mt-0.5">
+                                <span>ℹ️ {parentProration.proratedNote}</span>
+                              </div>
+                            )}
+                            {item.service_period && (
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-indigo-600 dark:text-indigo-400 font-medium pt-0.5 leading-snug">
+                                <span className="inline-flex items-center gap-1 shrink-0">
+                                  <CalendarIcon className="w-3 h-3 shrink-0" />
+                                  <span>Service Period: {item.service_period}</span>
+                                </span>
+                                {item.next_billing_date && (
+                                  <span className="text-muted-foreground whitespace-nowrap">• Next Billing Date: {item.next_billing_date}</span>
+                                )}
+                              </div>
+                            )}
+                            {!isItemPaid && parentProration.isProrated && parentProration.formulaString && (
+                              <div className="text-[11px] text-blue-600 dark:text-blue-400 italic font-mono mt-0.5 tracking-tight break-words">
                                 Formula: {parentProration.formulaString}
                               </div>
                             )}
@@ -2734,11 +3577,21 @@ export default function GenerateInvoicePage() {
                             />
                           </td>
 
+                          {/* Currency */}
+                          <td className="py-2 px-2 align-top">
+                            <CurrencyAutocomplete
+                              value={item.currency || currency || "USD"}
+                              onChange={(val) => handleUpdateLine(idx, "currency", val)}
+                              className="h-7 text-xs px-2"
+                            />
+                          </td>
+
                           {/* Quantity */}
                           <td className="py-2 px-2 align-top">
                             <Input
                               type="number"
                               step="1"
+                              min="1"
                               value={item.quantity ?? ""}
                               onChange={(e) => handleUpdateLine(idx, "quantity", e.target.value)}
                               placeholder="1"
@@ -2782,8 +3635,6 @@ export default function GenerateInvoicePage() {
                                 <SelectItem value="none">Select...</SelectItem>
                                 <SelectItem value="One-Time">One-Time</SelectItem>
                                 <SelectItem value="Monthly">Monthly</SelectItem>
-                                <SelectItem value="Quarterly">Quarterly</SelectItem>
-                                <SelectItem value="Semi-Annually">Semi-Annually</SelectItem>
                                 <SelectItem value="Annually">Annually</SelectItem>
                               </SelectContent>
                             </Select>
@@ -2794,10 +3645,10 @@ export default function GenerateInvoicePage() {
                             <Input
                               type="number"
                               step="1"
-                              min="0"
+                              min="1"
                               value={item.term ?? ""}
                               onChange={(e) => handleUpdateLine(idx, "term", e.target.value)}
-                              placeholder="0"
+                              placeholder="1"
                               className="h-7 text-xs text-left font-normal border-input bg-card px-2"
                             />
                           </td>
@@ -2826,7 +3677,7 @@ export default function GenerateInvoicePage() {
 
                           {/* Net Price / Amount */}
                           <td className="py-2 px-3 text-right font-mono text-xs font-bold text-foreground align-top pt-2">
-                            ${(Number(item.total) || 0).toFixed(2)}
+                            ${parentProration.amount.toFixed(2)}
                           </td>
 
                           {/* Actions: Add Sub-item & Delete */}
@@ -2859,6 +3710,7 @@ export default function GenerateInvoicePage() {
 
                         {/* Indented Sub-items / Prorated Charges under this parent activity */}
                         {item.sub_items && item.sub_items.map((sub, sIdx) => {
+                          const isSubPaid = (sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid";
                           const subProration = computeItemProration(
                             sub.quantity,
                             sub.unit_price,
@@ -2867,7 +3719,8 @@ export default function GenerateInvoicePage() {
                             sub.billing_frequency,
                             sub.billing_start_date,
                             sub.tax_rate,
-                            sub.term
+                            sub.term,
+                            isSubPaid
                           );
                           const activeFormula = subProration.formulaString || sub.calculation;
 
@@ -2948,7 +3801,7 @@ export default function GenerateInvoicePage() {
                                     placeholder="Prorated charge / sub-item name..."
                                     className="text-xs h-6 font-medium bg-card flex-1"
                                   />
-                                  {(sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid" ? (
+                                  {isSubPaid ? (
                                     <Badge className="text-[9px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700 font-bold shrink-0">
                                       Paid
                                     </Badge>
@@ -2958,7 +3811,7 @@ export default function GenerateInvoicePage() {
                                         Unpaid
                                       </Badge>
                                       {sub.billing_frequency && sub.billing_frequency !== "One-Time" && sub.billing_frequency !== "none" ? (
-                                        subProration.isProrated || sub.is_prorated || sub.badge === "Prorated" ? (
+                                        subProration.isProrated ? (
                                           <Badge className="text-[9px] px-1.5 py-0 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 shrink-0">
                                             Prorated
                                           </Badge>
@@ -2988,8 +3841,24 @@ export default function GenerateInvoicePage() {
                                     rows={1}
                                     className="w-full text-[11px] text-muted-foreground border border-input rounded bg-card px-2 py-0.5 resize-y min-h-[24px] focus:outline-none focus:border-blue-500 leading-relaxed"
                                   />
-                                  {activeFormula && (
-                                    <div className="text-[11px] text-blue-600 dark:text-blue-400 italic font-mono tracking-tight">
+                                  {!isSubPaid && subProration.isProrated && subProration.proratedNote && (
+                                    <div className="text-[10.5px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded font-medium inline-flex items-center gap-1 mt-0.5">
+                                      <span>ℹ️ {subProration.proratedNote}</span>
+                                    </div>
+                                  )}
+                                  {sub.service_period && (
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-indigo-600 dark:text-indigo-400 font-medium pt-0.5 leading-snug">
+                                      <span className="inline-flex items-center gap-1 shrink-0">
+                                        <CalendarIcon className="w-3 h-3 shrink-0" />
+                                        <span>Service Period: {sub.service_period}</span>
+                                      </span>
+                                      {sub.next_billing_date && (
+                                        <span className="text-muted-foreground whitespace-nowrap">• Next Billing Date: {sub.next_billing_date}</span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {!isSubPaid && subProration.isProrated && activeFormula && (
+                                    <div className="text-[11px] text-blue-600 dark:text-blue-400 italic font-mono tracking-tight break-words">
                                       Formula: {activeFormula}
                                     </div>
                                   )}
@@ -3008,11 +3877,21 @@ export default function GenerateInvoicePage() {
                             />
                           </td>
 
+                          {/* Sub-item Currency */}
+                          <td className="py-1.5 px-2 align-top">
+                            <CurrencyAutocomplete
+                              value={sub.currency || item.currency || currency || "USD"}
+                              onChange={(val) => handleUpdateSubItem(idx, sIdx, "currency", val)}
+                              className="h-6 text-[11px] px-1.5"
+                            />
+                          </td>
+
                           {/* Sub-item Quantity */}
                           <td className="py-1.5 px-2 align-top">
                             <Input
                               type="number"
                               step="1"
+                              min="1"
                               value={sub.quantity ?? ""}
                               onChange={(e) => handleUpdateSubItem(idx, sIdx, "quantity", e.target.value)}
                               placeholder="1"
@@ -3056,8 +3935,6 @@ export default function GenerateInvoicePage() {
                                 <SelectItem value="none">Select...</SelectItem>
                                 <SelectItem value="One-Time">One-Time</SelectItem>
                                 <SelectItem value="Monthly">Monthly</SelectItem>
-                                <SelectItem value="Quarterly">Quarterly</SelectItem>
-                                <SelectItem value="Semi-Annually">Semi-Annually</SelectItem>
                                 <SelectItem value="Annually">Annually</SelectItem>
                               </SelectContent>
                             </Select>
@@ -3068,10 +3945,10 @@ export default function GenerateInvoicePage() {
                             <Input
                               type="number"
                               step="1"
-                              min="0"
+                              min="1"
                               value={sub.term ?? ""}
                               onChange={(e) => handleUpdateSubItem(idx, sIdx, "term", e.target.value)}
-                              placeholder="0"
+                              placeholder="1"
                               className="h-6 text-[11px] text-left font-normal border-input bg-card px-1.5"
                             />
                           </td>
@@ -3102,10 +3979,10 @@ export default function GenerateInvoicePage() {
                           <td className="py-1.5 px-3 text-right font-mono text-[11px] font-bold text-foreground align-top pt-1.5">
                             {sub.is_reference_only ? (
                               <span className="text-[10px] text-muted-foreground italic font-normal">
-                                Ref: ${(Number(sub.total) || 0).toFixed(2)}
+                                Ref: ${(Number(sub.reference_amount) || subProration.amount).toFixed(2)}
                               </span>
                             ) : (
-                              `$${(Number(sub.total) || 0).toFixed(2)}`
+                              `$${subProration.amount.toFixed(2)}`
                             )}
                           </td>
 
@@ -3399,22 +4276,6 @@ export default function GenerateInvoicePage() {
             <div className="flex items-center gap-3">
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleOpenApplyTemplateDialog}
-                disabled={saveTemplateMutation.isPending || (!selectedCustomer && !billToName)}
-                className="text-xs gap-1.5 cursor-pointer"
-              >
-                {saveTemplateMutation.isPending ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Save className="w-3.5 h-3.5" />
-                )}
-                <span>Save as Template</span>
-              </Button>
-
-              <Button
-                type="button"
                 size="default"
                 onClick={handlePreviewAndScroll}
                 className="text-xs sm:text-sm font-bold gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-all px-5 cursor-pointer"
@@ -3489,18 +4350,18 @@ export default function GenerateInvoicePage() {
           {(layoutStyle === "pace_plus" || layoutStyle === "modern") && (
             <div className="p-6 sm:p-10 print:p-4 space-y-6 print:space-y-3 bg-white text-slate-900 print:text-[11px]">
               {/* Header: Logo (Left), Address (Middle), Invoice Title (Right) */}
-              <div className="grid grid-cols-12 gap-4 items-start pb-2">
+              <div className="grid grid-cols-12 gap-4 items-center pb-2">
                 {/* Logo PACE+ (Original image from attachments) */}
-                <div className="col-span-12 sm:col-span-4 flex items-center">
+                <div className="col-span-12 sm:col-span-5 flex items-center">
                   <img
                     src="/pace_plus_logo.png"
                     alt="PACE+"
-                    className="h-10 sm:h-12 w-auto object-contain select-none"
+                    className="h-14 sm:h-16 lg:h-18 w-auto max-w-[280px] object-contain select-none"
                   />
                 </div>
 
                 {/* Company Address (Middle) */}
-                <div className="col-span-12 sm:col-span-5 text-xs text-slate-800 leading-relaxed pt-1 whitespace-pre-line">
+                <div className="col-span-12 sm:col-span-4 text-xs text-slate-800 leading-relaxed pt-1 whitespace-pre-line">
                   {isFieldVisible("from_address") && fromAddress ? fromAddress : ""}
                 </div>
 
@@ -3577,24 +4438,42 @@ export default function GenerateInvoicePage() {
                 </table>
               </div>
 
-              {/* Line Items Table (6 Columns: DATE, ACTIVITY, DESCRIPTION, QTY, RATE, AMOUNT) */}
-              <div className="overflow-hidden border border-[#dce6f1] rounded-xs">
-                <table className="w-full text-xs text-left border-collapse">
+              {/* Line Items Table (Dynamic Columns - hides non-filled / 0 / null columns) */}
+              <div className="overflow-x-auto border border-[#dce6f1] rounded-xs w-full">
+                <table
+                  className="w-full text-xs text-left border-collapse"
+                  style={{ minWidth: visibleColumnCount >= 8 ? "850px" : "100%", tableLayout: "auto" }}
+                >
                   <thead>
                     <tr
-                      className="text-[11px] font-bold uppercase tracking-wider text-slate-800 border-b border-[#cbd5e1]"
+                      className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-wider text-slate-800 border-b border-[#cbd5e1]"
                       style={{ backgroundColor: "#dce6f1" }}
                     >
-                      <th className="py-1.5 px-3 border-r border-[#cbd5e1] w-[14%]">DATE</th>
-                      <th className="py-1.5 px-3 border-r border-[#cbd5e1] w-[22%]">ACTIVITY</th>
-                      <th className="py-1.5 px-3 border-r border-[#cbd5e1] w-[32%]">DESCRIPTION</th>
-                      <th className="py-1.5 px-3 text-center border-r border-[#cbd5e1] w-[8%]">QTY</th>
-                      <th className="py-1.5 px-3 text-right border-r border-[#cbd5e1] w-[12%]">RATE</th>
-                      <th className="py-1.5 px-3 text-right w-[12%]">AMOUNT</th>
+                      {showDateCol && (
+                        <th className="py-2 px-2 border-r border-[#cbd5e1] text-left w-[85px] min-w-[85px]">DATE</th>
+                      )}
+                      <th className="py-2 px-3 border-r border-[#cbd5e1] text-left min-w-[200px]">ACTIVITY / ITEM &amp; DESCRIPTION</th>
+                      {showUnitPriceCol && (
+                        <th className="py-2 px-2 border-r border-[#cbd5e1] text-right w-[80px] min-w-[80px]">UNIT PRICE</th>
+                      )}
+                      {showCurrencyCol && (
+                        <th className="py-2 px-1 border-r border-[#cbd5e1] text-center w-[55px] min-w-[55px]">CURRENCY</th>
+                      )}
+                      {showQtyCol && (
+                        <th className="py-2 px-1 border-r border-[#cbd5e1] text-center w-[40px] min-w-[40px]">QTY</th>
+                      )}
+                      {showDiscountCol && (
+                        <th className="py-2 px-1.5 border-r border-[#cbd5e1] text-center w-[75px] min-w-[75px]">UNIT DISC</th>
+                      )}
+                      {showTaxCol && (
+                        <th className="py-2 px-1 border-r border-[#cbd5e1] text-center w-[45px] min-w-[45px]">TAX</th>
+                      )}
+                      <th className="py-2 px-2.5 text-right w-[90px] min-w-[90px]">NET PRICE</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#dce6f1]">
                     {lineItems.map((item, idx) => {
+                      const isItemPaid = (item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid";
                       const parentProration = computeItemProration(
                         item.quantity,
                         item.unit_price,
@@ -3602,63 +4481,138 @@ export default function GenerateInvoicePage() {
                         item.discount_type,
                         item.billing_frequency,
                         item.billing_start_date,
-                        item.tax_rate
+                        item.tax_rate,
+                        item.term,
+                        isItemPaid
                       );
 
                       return (
                         <Fragment key={idx}>
                           {/* Parent Activity / Item Row */}
                           <tr className="bg-white hover:bg-slate-50/30">
-                            <td className="py-2.5 px-3 border-r border-[#dce6f1] text-slate-700 align-top">
-                              {item.date || invoiceDate}
-                            </td>
-                            <td className="py-2.5 px-3 border-r border-[#dce6f1] font-bold text-slate-900 align-top">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span>{item.activity || item.name || `Item ${idx + 1}`}</span>
-                                {(item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid" ? (
-                                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold">
-                                    Paid
-                                  </span>
-                                ) : (
-                                  <>
-                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
-                                      Unpaid
+                            {showDateCol && (
+                              <td className="py-2.5 px-2 border-r border-[#dce6f1] text-slate-700 align-top text-[11px] whitespace-nowrap">
+                                {item.date || invoiceDate}
+                              </td>
+                            )}
+                            <td className="py-2.5 px-3 border-r border-[#dce6f1] text-slate-900 align-top">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-slate-900 text-xs">{item.activity || item.name || `Item ${idx + 1}`}</span>
+                                  {isItemPaid ? (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold">
+                                      Paid
                                     </span>
-                                    {item.billing_frequency && item.billing_frequency !== "One-Time" && item.billing_frequency !== "none" ? (
-                                      parentProration.isProrated || item.is_prorated || item.badge === "Prorated" ? (
-                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
-                                          Prorated
-                                        </span>
+                                  ) : (
+                                    <>
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
+                                        Unpaid
+                                      </span>
+                                      {item.billing_frequency && item.billing_frequency !== "One-Time" && item.billing_frequency !== "none" ? (
+                                        parentProration.isProrated ? (
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
+                                            Prorated
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+                                            Recurring
+                                          </span>
+                                        )
                                       ) : (
-                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
-                                          Recurring
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300 font-medium">
+                                          One-Time
                                         </span>
-                                      )
-                                    ) : (
-                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300 font-medium">
-                                        One-Time
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                                {item.description && (
+                                  <div className="text-slate-700 text-[11px] whitespace-pre-line leading-relaxed">{item.description}</div>
+                                )}
+                                {/* Frequency, Chargeable period, Start Billing note */}
+                                {(item.billing_frequency || (item.term !== undefined && item.term !== null && String(item.term).trim() !== "") || item.billing_start_date) && (
+                                  <div className="text-[10.5px] text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-0.5">
+                                    {item.billing_frequency && item.billing_frequency !== "—" && (
+                                      <span>
+                                        <strong className="font-semibold text-slate-800">Frequency:</strong> {item.billing_frequency}
                                       </span>
                                     )}
-                                  </>
+                                    {item.term !== undefined && item.term !== null && String(item.term).trim() !== "" && (
+                                      <>
+                                        {item.billing_frequency && item.billing_frequency !== "—" && <span className="text-slate-400">•</span>}
+                                        <span>
+                                          <strong className="font-semibold text-slate-800">Chargeable period:</strong> {getChargeablePeriodLabel(item.term, item.billing_frequency)}
+                                        </span>
+                                      </>
+                                    )}
+                                    {item.billing_start_date && item.billing_start_date !== "—" && (
+                                      <>
+                                        {((item.billing_frequency && item.billing_frequency !== "—") || (item.term !== undefined && item.term !== null && String(item.term).trim() !== "")) && (
+                                          <span className="text-slate-400">•</span>
+                                        )}
+                                        <span>
+                                          <strong className="font-semibold text-slate-800">Start Billing:</strong> {item.billing_start_date}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                                {!isItemPaid && parentProration.isProrated && parentProration.proratedNote && (
+                                  <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] text-amber-800 font-medium mt-0.5">
+                                    <span>ℹ️ {parentProration.proratedNote}</span>
+                                  </div>
+                                )}
+                                {item.service_period && (
+                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-indigo-600 font-medium pt-0.5 leading-snug">
+                                    <span className="inline-flex items-center gap-1 shrink-0">
+                                      <CalendarIcon className="w-3 h-3 shrink-0" />
+                                      <span>Service Period: {item.service_period}</span>
+                                    </span>
+                                    {item.next_billing_date && (
+                                      <span className="text-muted-foreground whitespace-nowrap">• Next Billing Date: {item.next_billing_date}</span>
+                                    )}
+                                  </div>
+                                )}
+                                {!isItemPaid && parentProration.isProrated && parentProration.formulaString && (
+                                  <div className="text-[10px] text-blue-600 italic font-mono mt-0.5 tracking-tight break-words">
+                                    Formula: {parentProration.formulaString}
+                                  </div>
                                 )}
                               </div>
                             </td>
-                            <td className="py-2.5 px-3 border-r border-[#dce6f1] text-slate-800 whitespace-pre-line align-top leading-relaxed text-[11px]">
-                              <div>{item.description || "—"}</div>
-                            </td>
-                            <td className="py-2.5 px-3 text-center border-r border-[#dce6f1] font-mono text-slate-800 align-top">
-                              {item.quantity !== "" && item.quantity !== undefined ? item.quantity : 1}
-                            </td>
-                            <td className="py-2.5 px-3 text-right border-r border-[#dce6f1] font-mono text-slate-800 align-top">
-                              ${(Number(item.unit_price) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            <td className="py-2.5 px-3 text-right font-mono text-slate-900 font-semibold align-top">
-                              ${(Number(item.total) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {showUnitPriceCol && (
+                              <td className="py-2.5 px-2 text-right border-r border-[#dce6f1] font-mono text-slate-800 align-top text-xs whitespace-nowrap">
+                                ${(Number(item.unit_price) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            )}
+                            {showCurrencyCol && (
+                              <td className="py-2.5 px-1 text-center border-r border-[#dce6f1] text-slate-700 align-top text-xs whitespace-nowrap">
+                                {item.currency || currency || "USD"}
+                              </td>
+                            )}
+                            {showQtyCol && (
+                              <td className="py-2.5 px-1 text-center border-r border-[#dce6f1] font-mono text-slate-800 align-top text-xs whitespace-nowrap">
+                                {item.quantity !== "" && item.quantity !== undefined ? item.quantity : 1}
+                              </td>
+                            )}
+                            {showDiscountCol && (
+                              <td className="py-2.5 px-1.5 text-center border-r border-[#dce6f1] font-mono text-slate-700 align-top text-xs whitespace-nowrap">
+                                {item.unit_discount ? `${item.unit_discount}${item.discount_type || "%"}` : "0%"}
+                              </td>
+                            )}
+                            {showTaxCol && (
+                              <td className="py-2.5 px-1 text-center border-r border-[#dce6f1] font-mono text-slate-700 align-top text-xs whitespace-nowrap">
+                                {item.tax_rate !== "" && item.tax_rate !== undefined && Number(item.tax_rate) > 0 ? `${item.tax_rate}%` : "0%"}
+                              </td>
+                            )}
+                            <td className="py-2.5 px-2.5 text-right font-mono text-slate-900 font-bold align-top text-xs whitespace-nowrap">
+                              ${parentProration.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                           </tr>
 
                           {/* Indented Child Sub-items / Prorated Charges under this parent */}
                           {item.sub_items && item.sub_items.map((sub, sIdx) => {
+                            const isSubPaid = (sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid";
                             const subProration = computeItemProration(
                               sub.quantity,
                               sub.unit_price,
@@ -3666,76 +4620,140 @@ export default function GenerateInvoicePage() {
                               sub.discount_type,
                               sub.billing_frequency,
                               sub.billing_start_date,
-                              sub.tax_rate
+                              sub.tax_rate,
+                              sub.term,
+                              isSubPaid
                             );
+                            const activeFormula = subProration.formulaString || sub.calculation;
 
                             return (
-                              <tr key={sub.id || sIdx} className="bg-slate-50/60 hover:bg-slate-50/90">
-                                <td className="py-2.5 px-3 border-r border-[#dce6f1] text-slate-600 align-top text-[11px]">
-                                  {sub.date_range || sub.date || item.date || invoiceDate}
-                                </td>
+                              <tr key={sub.id || sIdx} className="bg-slate-50/60 hover:bg-slate-50/90 border-l-2 border-l-blue-400">
+                                {showDateCol && (
+                                  <td className="py-2.5 px-2 border-r border-[#dce6f1] text-slate-600 align-top text-[11px] whitespace-nowrap">
+                                    {sub.date_range || sub.date || item.date || invoiceDate}
+                                  </td>
+                                )}
                                 <td className="py-2.5 px-3 border-r border-[#dce6f1] text-slate-900 align-top">
-                                  <div className="pl-3 flex items-start gap-1.5">
-                                    <span className="text-slate-400 font-mono text-sm leading-none shrink-0 mt-0.5">└──</span>
-                                    <div>
-                                      <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
-                                        <span>{sub.title || sub.activity || sub.name || "Additional Service"}</span>
-                                        {(sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid" ? (
-                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold">
-                                            Paid
+                                  <div className="pl-2 space-y-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-blue-500 font-mono text-xs leading-none shrink-0">└──</span>
+                                      <span className="font-bold text-slate-900 text-xs">{sub.title || sub.activity || sub.name || "Additional Service"}</span>
+                                      {isSubPaid ? (
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold">
+                                          Paid
+                                        </span>
+                                      ) : (
+                                        <>
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
+                                            Unpaid
                                           </span>
-                                        ) : (
-                                          <>
-                                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
-                                              Unpaid
-                                            </span>
-                                            {sub.billing_frequency && sub.billing_frequency !== "One-Time" && sub.billing_frequency !== "none" ? (
-                                              subProration.isProrated || sub.is_prorated || sub.badge === "Prorated" ? (
-                                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                                  Prorated
-                                                </span>
-                                              ) : (
-                                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                                  Recurring
-                                                </span>
-                                              )
-                                            ) : (
-                                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300">
-                                                One-Time
+                                          {sub.billing_frequency && sub.billing_frequency !== "One-Time" && sub.billing_frequency !== "none" ? (
+                                            subProration.isProrated ? (
+                                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                                Prorated
                                               </span>
-                                            )}
-                                          </>
-                                        )}
-                                        {sub.is_reference_only && (
-                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                                            Ref Only
-                                          </span>
-                                        )}
-                                      </div>
-                                      {sub.full_recurring_label && (
-                                        <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                          {sub.full_recurring_label}
-                                        </div>
+                                            ) : (
+                                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                Recurring
+                                              </span>
+                                            )
+                                          ) : (
+                                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300">
+                                              One-Time
+                                            </span>
+                                          )}
+                                        </>
+                                      )}
+                                      {sub.is_reference_only && (
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                          Ref Only
+                                        </span>
                                       )}
                                     </div>
+                                    {sub.description && (
+                                      <div className="pl-4 text-slate-700 text-[11px] whitespace-pre-line leading-relaxed">{sub.description}</div>
+                                    )}
+                                    {/* Frequency, Chargeable period, Start Billing note */}
+                                    {((sub.billing_frequency || item.billing_frequency) || (sub.term !== undefined || item.term !== undefined) || (sub.billing_start_date || item.billing_start_date)) && (
+                                      <div className="pl-4 text-[10.5px] text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-0.5">
+                                        {(sub.billing_frequency || item.billing_frequency) && (sub.billing_frequency || item.billing_frequency) !== "—" && (
+                                          <span>
+                                            <strong className="font-semibold text-slate-800">Frequency:</strong> {sub.billing_frequency || item.billing_frequency}
+                                          </span>
+                                        )}
+                                        {((sub.term !== undefined && sub.term !== null && String(sub.term).trim() !== "") || (item.term !== undefined && item.term !== null && String(item.term).trim() !== "")) && (
+                                          <>
+                                            {(sub.billing_frequency || item.billing_frequency) && (sub.billing_frequency || item.billing_frequency) !== "—" && <span className="text-slate-400">•</span>}
+                                            <span>
+                                              <strong className="font-semibold text-slate-800">Chargeable period:</strong> {getChargeablePeriodLabel(sub.term ?? item.term, sub.billing_frequency || item.billing_frequency)}
+                                            </span>
+                                          </>
+                                        )}
+                                        {(sub.billing_start_date || item.billing_start_date) && (sub.billing_start_date || item.billing_start_date) !== "—" && (
+                                          <>
+                                            <span className="text-slate-400">•</span>
+                                            <span>
+                                              <strong className="font-semibold text-slate-800">Start Billing:</strong> {sub.billing_start_date || item.billing_start_date}
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                    {!isSubPaid && subProration.isProrated && subProration.proratedNote && (
+                                      <div className="pl-4 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] text-amber-800 font-medium mt-0.5">
+                                        <span>ℹ️ {subProration.proratedNote}</span>
+                                      </div>
+                                    )}
+                                    {sub.service_period && (
+                                      <div className="pl-4 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-indigo-600 font-medium pt-0.5 leading-snug">
+                                        <span className="inline-flex items-center gap-1 shrink-0">
+                                          <CalendarIcon className="w-3 h-3 shrink-0" />
+                                          <span>Service Period: {sub.service_period}</span>
+                                        </span>
+                                        {sub.next_billing_date && (
+                                          <span className="text-muted-foreground whitespace-nowrap">• Next Billing Date: {sub.next_billing_date}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                    {!isSubPaid && subProration.isProrated && activeFormula && (
+                                      <div className="pl-4 text-[10px] text-blue-600 italic font-mono mt-0.5 tracking-tight break-words">
+                                        Formula: {activeFormula}
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
-                                <td className="py-2.5 px-3 border-r border-[#dce6f1] text-slate-700 whitespace-pre-line align-top leading-relaxed text-[11px]">
-                                  <div>{sub.description || "—"}</div>
-                                </td>
-                                <td className="py-2.5 px-3 text-center border-r border-[#dce6f1] font-mono text-slate-800 align-top">
-                                  {sub.quantity !== "" && sub.quantity !== undefined ? sub.quantity : 1}
-                                </td>
-                                <td className="py-2.5 px-3 text-right border-r border-[#dce6f1] font-mono text-slate-800 align-top">
-                                  ${(Number(sub.unit_price) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                                <td className="py-2.5 px-3 text-right font-mono text-slate-900 font-bold align-top">
+                                {showUnitPriceCol && (
+                                  <td className="py-2.5 px-2 text-right border-r border-[#dce6f1] font-mono text-slate-800 align-top text-xs whitespace-nowrap">
+                                    ${(Number(sub.unit_price) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                )}
+                                {showCurrencyCol && (
+                                  <td className="py-2.5 px-1 text-center border-r border-[#dce6f1] text-slate-700 align-top text-xs whitespace-nowrap">
+                                    {sub.currency || item.currency || currency || "USD"}
+                                  </td>
+                                )}
+                                {showQtyCol && (
+                                  <td className="py-2.5 px-1 text-center border-r border-[#dce6f1] font-mono text-slate-800 align-top text-xs whitespace-nowrap">
+                                    {sub.quantity !== "" && sub.quantity !== undefined ? sub.quantity : 1}
+                                  </td>
+                                )}
+                                {showDiscountCol && (
+                                  <td className="py-2.5 px-1.5 text-center border-r border-[#dce6f1] font-mono text-slate-700 align-top text-xs whitespace-nowrap">
+                                    {sub.unit_discount ? `${sub.unit_discount}${sub.discount_type || "%"}` : "0%"}
+                                  </td>
+                                )}
+                                {showTaxCol && (
+                                  <td className="py-2.5 px-1 text-center border-r border-[#dce6f1] font-mono text-slate-700 align-top text-xs whitespace-nowrap">
+                                    {sub.tax_rate !== "" && sub.tax_rate !== undefined && Number(sub.tax_rate) > 0 ? `${sub.tax_rate}%` : "0%"}
+                                  </td>
+                                )}
+                                <td className="py-2.5 px-2.5 text-right font-mono text-slate-900 font-bold align-top text-xs whitespace-nowrap">
                                   {sub.is_reference_only ? (
                                     <span className="text-[10px] text-slate-500 font-normal italic">
                                       Ref: ${(Number(sub.reference_amount ?? sub.charge ?? sub.total ?? 0)).toFixed(2)}
                                     </span>
                                   ) : (
-                                    `$${(Number(sub.total ?? sub.charge ?? 0)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                    `$${subProration.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                   )}
                                 </td>
                               </tr>
@@ -3832,13 +4850,13 @@ export default function GenerateInvoicePage() {
           {(layoutStyle === "interlinkone" || layoutStyle === "classic") && (
             <div className="p-6 sm:p-10 print:p-4 space-y-6 print:space-y-3 bg-white text-slate-900 print:text-[11px]">
               {/* Header: Logo (Left with HIPAA badge), Address (Middle), Invoice Title (Right) */}
-              <div className="grid grid-cols-12 gap-4 items-start pb-2">
+              <div className="grid grid-cols-12 gap-4 items-center pb-2">
                 {/* Logo interlinkONE (Original image from attachments) */}
                 <div className="col-span-12 sm:col-span-5 flex items-center">
                   <img
                     src="/interlinkone_logo.png"
                     alt="interlinkONE"
-                    className="h-10 sm:h-12 w-auto object-contain select-none"
+                    className="h-14 sm:h-16 lg:h-18 w-auto max-w-[280px] object-contain select-none"
                   />
                 </div>
 
@@ -3920,24 +4938,42 @@ export default function GenerateInvoicePage() {
                 </table>
               </div>
 
-              {/* Line Items Table (6 Columns: DATE, ACTIVITY, DESCRIPTION, QTY, RATE, AMOUNT) */}
-              <div className="overflow-hidden border border-[#d4f1ee] rounded-xs">
-                <table className="w-full text-xs text-left border-collapse">
+              {/* Line Items Table (Dynamic Columns - hides non-filled / 0 / null columns) */}
+              <div className="overflow-x-auto border border-[#d4f1ee] rounded-xs w-full">
+                <table
+                  className="w-full text-xs text-left border-collapse"
+                  style={{ minWidth: visibleColumnCount >= 8 ? "850px" : "100%", tableLayout: "auto" }}
+                >
                   <thead>
                     <tr
-                      className="text-[11px] font-bold uppercase tracking-wider text-slate-800 border-b border-[#b2e8e2]"
+                      className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-wider text-[#006666] border-b border-[#b2e8e2]"
                       style={{ backgroundColor: "#d4f1ee" }}
                     >
-                      <th className="py-1.5 px-3 border-r border-[#b2e8e2] w-[14%]">DATE</th>
-                      <th className="py-1.5 px-3 border-r border-[#b2e8e2] w-[22%]">ACTIVITY</th>
-                      <th className="py-1.5 px-3 border-r border-[#b2e8e2] w-[32%]">DESCRIPTION</th>
-                      <th className="py-1.5 px-3 text-center border-r border-[#b2e8e2] w-[8%]">QTY</th>
-                      <th className="py-1.5 px-3 text-right border-r border-[#b2e8e2] w-[12%]">RATE</th>
-                      <th className="py-1.5 px-3 text-right w-[12%]">AMOUNT</th>
+                      {showDateCol && (
+                        <th className="py-2 px-2 border-r border-[#b2e8e2] text-left w-[85px] min-w-[85px]">DATE</th>
+                      )}
+                      <th className="py-2 px-3 border-r border-[#b2e8e2] text-left min-w-[200px]">ACTIVITY / ITEM &amp; DESCRIPTION</th>
+                      {showUnitPriceCol && (
+                        <th className="py-2 px-2 border-r border-[#b2e8e2] text-right w-[80px] min-w-[80px]">UNIT PRICE</th>
+                      )}
+                      {showCurrencyCol && (
+                        <th className="py-2 px-1 border-r border-[#b2e8e2] text-center w-[55px] min-w-[55px]">CURRENCY</th>
+                      )}
+                      {showQtyCol && (
+                        <th className="py-2 px-1 border-r border-[#b2e8e2] text-center w-[40px] min-w-[40px]">QTY</th>
+                      )}
+                      {showDiscountCol && (
+                        <th className="py-2 px-1.5 border-r border-[#b2e8e2] text-center w-[75px] min-w-[75px]">UNIT DISC</th>
+                      )}
+                      {showTaxCol && (
+                        <th className="py-2 px-1 border-r border-[#b2e8e2] text-center w-[45px] min-w-[45px]">TAX</th>
+                      )}
+                      <th className="py-2 px-2.5 text-right w-[90px] min-w-[90px]">NET PRICE</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#d4f1ee]">
                     {lineItems.map((item, idx) => {
+                      const isItemPaid = (item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid";
                       const parentProration = computeItemProration(
                         item.quantity,
                         item.unit_price,
@@ -3945,63 +4981,138 @@ export default function GenerateInvoicePage() {
                         item.discount_type,
                         item.billing_frequency,
                         item.billing_start_date,
-                        item.tax_rate
+                        item.tax_rate,
+                        item.term,
+                        isItemPaid
                       );
 
                       return (
                         <Fragment key={idx}>
                           {/* Parent Activity / Item Row */}
                           <tr className="bg-white hover:bg-teal-50/20">
-                            <td className="py-2.5 px-3 border-r border-[#d4f1ee] text-slate-700 align-top">
-                              {item.date || invoiceDate}
-                            </td>
-                            <td className="py-2.5 px-3 border-r border-[#d4f1ee] font-bold text-slate-900 align-top">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span>{item.activity || item.name || `Item ${idx + 1}`}</span>
-                                {(item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid" ? (
-                                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold">
-                                    Paid
-                                  </span>
-                                ) : (
-                                  <>
-                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
-                                      Unpaid
+                            {showDateCol && (
+                              <td className="py-2.5 px-2 border-r border-[#d4f1ee] text-slate-700 align-top text-[11px] whitespace-nowrap">
+                                {item.date || invoiceDate}
+                              </td>
+                            )}
+                            <td className="py-2.5 px-3 border-r border-[#d4f1ee] text-slate-900 align-top">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-slate-900 text-xs">{item.activity || item.name || `Item ${idx + 1}`}</span>
+                                  {isItemPaid ? (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold">
+                                      Paid
                                     </span>
-                                    {item.billing_frequency && item.billing_frequency !== "One-Time" && item.billing_frequency !== "none" ? (
-                                      parentProration.isProrated || item.is_prorated || item.badge === "Prorated" ? (
-                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
-                                          Prorated
-                                        </span>
+                                  ) : (
+                                    <>
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
+                                        Unpaid
+                                      </span>
+                                      {item.billing_frequency && item.billing_frequency !== "One-Time" && item.billing_frequency !== "none" ? (
+                                        parentProration.isProrated || item.is_prorated || item.badge === "Prorated" ? (
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
+                                            Prorated
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+                                            Recurring
+                                          </span>
+                                        )
                                       ) : (
-                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
-                                          Recurring
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300 font-medium">
+                                          One-Time
                                         </span>
-                                      )
-                                    ) : (
-                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300 font-medium">
-                                        One-Time
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                                {item.description && (
+                                  <div className="text-slate-700 text-[11px] whitespace-pre-line leading-relaxed">{item.description}</div>
+                                )}
+                                {/* Frequency, Chargeable period, Start Billing note */}
+                                {(item.billing_frequency || (item.term !== undefined && item.term !== null && String(item.term).trim() !== "") || item.billing_start_date) && (
+                                  <div className="text-[10.5px] text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-0.5">
+                                    {item.billing_frequency && item.billing_frequency !== "—" && (
+                                      <span>
+                                        <strong className="font-semibold text-teal-900">Frequency:</strong> {item.billing_frequency}
                                       </span>
                                     )}
-                                  </>
+                                    {item.term !== undefined && item.term !== null && String(item.term).trim() !== "" && (
+                                      <>
+                                        {item.billing_frequency && item.billing_frequency !== "—" && <span className="text-teal-400">•</span>}
+                                        <span>
+                                          <strong className="font-semibold text-teal-900">Chargeable period:</strong> {getChargeablePeriodLabel(item.term, item.billing_frequency)}
+                                        </span>
+                                      </>
+                                    )}
+                                    {item.billing_start_date && item.billing_start_date !== "—" && (
+                                      <>
+                                        {((item.billing_frequency && item.billing_frequency !== "—") || (item.term !== undefined && item.term !== null && String(item.term).trim() !== "")) && (
+                                          <span className="text-teal-400">•</span>
+                                        )}
+                                        <span>
+                                          <strong className="font-semibold text-teal-900">Start Billing:</strong> {item.billing_start_date}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                                {!isItemPaid && parentProration.isProrated && parentProration.proratedNote && (
+                                  <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] text-teal-900 font-medium mt-0.5">
+                                    <span>ℹ️ {parentProration.proratedNote}</span>
+                                  </div>
+                                )}
+                                {item.service_period && (
+                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-teal-700 font-medium pt-0.5 leading-snug">
+                                    <span className="inline-flex items-center gap-1 shrink-0">
+                                      <CalendarIcon className="w-3 h-3 shrink-0" />
+                                      <span>Service Period: {item.service_period}</span>
+                                    </span>
+                                    {item.next_billing_date && (
+                                      <span className="text-muted-foreground whitespace-nowrap">• Next Billing Date: {item.next_billing_date}</span>
+                                    )}
+                                  </div>
+                                )}
+                                {!isItemPaid && parentProration.isProrated && parentProration.formulaString && (
+                                  <div className="text-[10px] text-teal-800 italic font-mono mt-0.5 tracking-tight break-words">
+                                    Formula: {parentProration.formulaString}
+                                  </div>
                                 )}
                               </div>
                             </td>
-                            <td className="py-2.5 px-3 border-r border-[#d4f1ee] text-slate-800 whitespace-pre-line align-top leading-relaxed text-[11px]">
-                              <div>{item.description || "—"}</div>
-                            </td>
-                            <td className="py-2.5 px-3 text-center border-r border-[#d4f1ee] font-mono text-slate-800 align-top">
-                              {item.quantity !== "" && item.quantity !== undefined ? item.quantity : 1}
-                            </td>
-                            <td className="py-2.5 px-3 text-right border-r border-[#d4f1ee] font-mono text-slate-800 align-top">
-                              ${(Number(item.unit_price) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            <td className="py-2.5 px-3 text-right font-mono text-slate-900 font-semibold align-top">
-                              ${(Number(item.total) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {showUnitPriceCol && (
+                              <td className="py-2.5 px-2 text-right border-r border-[#d4f1ee] font-mono text-slate-800 align-top text-xs whitespace-nowrap">
+                                ${(Number(item.unit_price) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            )}
+                            {showCurrencyCol && (
+                              <td className="py-2.5 px-1 text-center border-r border-[#d4f1ee] text-slate-700 align-top text-xs whitespace-nowrap">
+                                {item.currency || currency || "USD"}
+                              </td>
+                            )}
+                            {showQtyCol && (
+                              <td className="py-2.5 px-1 text-center border-r border-[#d4f1ee] font-mono text-slate-800 align-top text-xs whitespace-nowrap">
+                                {item.quantity !== "" && item.quantity !== undefined ? item.quantity : 1}
+                              </td>
+                            )}
+                            {showDiscountCol && (
+                              <td className="py-2.5 px-1.5 text-center border-r border-[#d4f1ee] font-mono text-slate-700 align-top text-xs whitespace-nowrap">
+                                {item.unit_discount ? `${item.unit_discount}${item.discount_type || "%"}` : "0%"}
+                              </td>
+                            )}
+                            {showTaxCol && (
+                              <td className="py-2.5 px-1 text-center border-r border-[#d4f1ee] font-mono text-slate-700 align-top text-xs whitespace-nowrap">
+                                {item.tax_rate !== "" && item.tax_rate !== undefined && Number(item.tax_rate) > 0 ? `${item.tax_rate}%` : "0%"}
+                              </td>
+                            )}
+                            <td className="py-2.5 px-2.5 text-right font-mono text-slate-900 font-bold align-top text-xs whitespace-nowrap">
+                              ${parentProration.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                           </tr>
 
                           {/* Indented Child Sub-items / Prorated Charges under this parent */}
                           {item.sub_items && item.sub_items.map((sub, sIdx) => {
+                            const isSubPaid = (sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid";
                             const subProration = computeItemProration(
                               sub.quantity,
                               sub.unit_price,
@@ -4009,76 +5120,140 @@ export default function GenerateInvoicePage() {
                               sub.discount_type,
                               sub.billing_frequency,
                               sub.billing_start_date,
-                              sub.tax_rate
+                              sub.tax_rate,
+                              sub.term,
+                              isSubPaid
                             );
+                            const activeFormula = subProration.formulaString || sub.calculation;
 
                             return (
-                              <tr key={sub.id || sIdx} className="bg-teal-50/40 hover:bg-teal-50/70">
-                                <td className="py-2.5 px-3 border-r border-[#d4f1ee] text-slate-600 align-top text-[11px]">
-                                  {sub.date_range || sub.date || item.date || invoiceDate}
-                                </td>
+                              <tr key={sub.id || sIdx} className="bg-teal-50/30 hover:bg-teal-50/60 border-l-2 border-l-[#008080]">
+                                {showDateCol && (
+                                  <td className="py-2.5 px-2 border-r border-[#d4f1ee] text-slate-600 align-top text-[11px] whitespace-nowrap">
+                                    {sub.date_range || sub.date || item.date || invoiceDate}
+                                  </td>
+                                )}
                                 <td className="py-2.5 px-3 border-r border-[#d4f1ee] text-slate-900 align-top">
-                                  <div className="pl-3 flex items-start gap-1.5">
-                                    <span className="text-teal-600 font-mono text-sm leading-none shrink-0 mt-0.5">└──</span>
-                                    <div>
-                                      <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
-                                        <span>{sub.title || sub.activity || sub.name || "Additional Service"}</span>
-                                        {(sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid" ? (
-                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold">
-                                            Paid
+                                  <div className="pl-2 space-y-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-teal-600 font-mono text-xs leading-none shrink-0">└──</span>
+                                      <span className="font-bold text-slate-900 text-xs">{sub.title || sub.activity || sub.name || "Additional Service"}</span>
+                                      {isSubPaid ? (
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold">
+                                          Paid
+                                        </span>
+                                      ) : (
+                                        <>
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
+                                            Unpaid
                                           </span>
-                                        ) : (
-                                          <>
-                                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-300 font-bold">
-                                              Unpaid
-                                            </span>
-                                            {sub.billing_frequency && sub.billing_frequency !== "One-Time" && sub.billing_frequency !== "none" ? (
-                                              subProration.isProrated || sub.is_prorated || sub.badge === "Prorated" ? (
-                                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                                  Prorated
-                                                </span>
-                                              ) : (
-                                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                                  Recurring
-                                                </span>
-                                              )
-                                            ) : (
-                                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300">
-                                                One-Time
+                                          {sub.billing_frequency && sub.billing_frequency !== "One-Time" && sub.billing_frequency !== "none" ? (
+                                            subProration.isProrated ? (
+                                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                                Prorated
                                               </span>
-                                            )}
-                                          </>
-                                        )}
-                                        {sub.is_reference_only && (
-                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                                            Ref Only
-                                          </span>
-                                        )}
-                                      </div>
-                                      {sub.full_recurring_label && (
-                                        <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                          {sub.full_recurring_label}
-                                        </div>
+                                            ) : (
+                                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                Recurring
+                                              </span>
+                                            )
+                                          ) : (
+                                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-300">
+                                              One-Time
+                                            </span>
+                                          )}
+                                        </>
+                                      )}
+                                      {sub.is_reference_only && (
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                          Ref Only
+                                        </span>
                                       )}
                                     </div>
+                                    {sub.description && (
+                                      <div className="pl-4 text-slate-700 text-[11px] whitespace-pre-line leading-relaxed">{sub.description}</div>
+                                    )}
+                                    {/* Frequency, Chargeable period, Start Billing note */}
+                                    {((sub.billing_frequency || item.billing_frequency) || (sub.term !== undefined || item.term !== undefined) || (sub.billing_start_date || item.billing_start_date)) && (
+                                      <div className="pl-4 text-[10.5px] text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-0.5">
+                                        {(sub.billing_frequency || item.billing_frequency) && (sub.billing_frequency || item.billing_frequency) !== "—" && (
+                                          <span>
+                                            <strong className="font-semibold text-teal-900">Frequency:</strong> {sub.billing_frequency || item.billing_frequency}
+                                          </span>
+                                        )}
+                                        {((sub.term !== undefined && sub.term !== null && String(sub.term).trim() !== "") || (item.term !== undefined && item.term !== null && String(item.term).trim() !== "")) && (
+                                          <>
+                                            {(sub.billing_frequency || item.billing_frequency) && (sub.billing_frequency || item.billing_frequency) !== "—" && <span className="text-teal-400">•</span>}
+                                            <span>
+                                              <strong className="font-semibold text-teal-900">Chargeable period:</strong> {getChargeablePeriodLabel(sub.term ?? item.term, sub.billing_frequency || item.billing_frequency)}
+                                            </span>
+                                          </>
+                                        )}
+                                        {(sub.billing_start_date || item.billing_start_date) && (sub.billing_start_date || item.billing_start_date) !== "—" && (
+                                          <>
+                                            <span className="text-teal-400">•</span>
+                                            <span>
+                                              <strong className="font-semibold text-teal-900">Start Billing:</strong> {sub.billing_start_date || item.billing_start_date}
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                    {!isSubPaid && subProration.isProrated && subProration.proratedNote && (
+                                      <div className="pl-4 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[10px] text-teal-900 font-medium mt-0.5">
+                                        <span>ℹ️ {subProration.proratedNote}</span>
+                                      </div>
+                                    )}
+                                    {sub.service_period && (
+                                      <div className="pl-4 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-teal-700 font-medium pt-0.5 leading-snug">
+                                        <span className="inline-flex items-center gap-1 shrink-0">
+                                          <CalendarIcon className="w-3 h-3 shrink-0" />
+                                          <span>Service Period: {sub.service_period}</span>
+                                        </span>
+                                        {sub.next_billing_date && (
+                                          <span className="text-muted-foreground whitespace-nowrap">• Next Billing Date: {sub.next_billing_date}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                    {!isSubPaid && subProration.isProrated && activeFormula && (
+                                      <div className="pl-4 text-[10px] text-teal-800 italic font-mono mt-0.5 tracking-tight break-words">
+                                        Formula: {activeFormula}
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
-                                <td className="py-2.5 px-3 border-r border-[#d4f1ee] text-slate-700 whitespace-pre-line align-top leading-relaxed text-[11px]">
-                                  <div>{sub.description || "—"}</div>
-                                </td>
-                                <td className="py-2.5 px-3 text-center border-r border-[#d4f1ee] font-mono text-slate-800 align-top">
-                                  {sub.quantity !== "" && sub.quantity !== undefined ? sub.quantity : 1}
-                                </td>
-                                <td className="py-2.5 px-3 text-right border-r border-[#d4f1ee] font-mono text-slate-800 align-top">
-                                  ${(Number(sub.unit_price) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                                <td className="py-2.5 px-3 text-right font-mono text-slate-900 font-bold align-top">
+                                {showUnitPriceCol && (
+                                  <td className="py-2.5 px-2 text-right border-r border-[#d4f1ee] font-mono text-slate-800 align-top text-xs whitespace-nowrap">
+                                    ${(Number(sub.unit_price) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                )}
+                                {showCurrencyCol && (
+                                  <td className="py-2.5 px-1 text-center border-r border-[#d4f1ee] text-slate-700 align-top text-xs whitespace-nowrap">
+                                    {sub.currency || item.currency || currency || "USD"}
+                                  </td>
+                                )}
+                                {showQtyCol && (
+                                  <td className="py-2.5 px-1 text-center border-r border-[#d4f1ee] font-mono text-slate-800 align-top text-xs whitespace-nowrap">
+                                    {sub.quantity !== "" && sub.quantity !== undefined ? sub.quantity : 1}
+                                  </td>
+                                )}
+                                {showDiscountCol && (
+                                  <td className="py-2.5 px-1.5 text-center border-r border-[#d4f1ee] font-mono text-slate-700 align-top text-xs whitespace-nowrap">
+                                    {sub.unit_discount ? `${sub.unit_discount}${sub.discount_type || "%"}` : "0%"}
+                                  </td>
+                                )}
+                                {showTaxCol && (
+                                  <td className="py-2.5 px-1 text-center border-r border-[#d4f1ee] font-mono text-slate-700 align-top text-xs whitespace-nowrap">
+                                    {sub.tax_rate !== "" && sub.tax_rate !== undefined && Number(sub.tax_rate) > 0 ? `${sub.tax_rate}%` : "0%"}
+                                  </td>
+                                )}
+                                <td className="py-2.5 px-2.5 text-right font-mono text-slate-900 font-bold align-top text-xs whitespace-nowrap">
                                   {sub.is_reference_only ? (
                                     <span className="text-[10px] text-slate-500 font-normal italic">
                                       Ref: ${(Number(sub.reference_amount ?? sub.charge ?? sub.total ?? 0)).toFixed(2)}
                                     </span>
                                   ) : (
-                                    `$${(Number(sub.total ?? sub.charge ?? 0)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                    `$${subProration.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                   )}
                                 </td>
                               </tr>
@@ -4765,6 +5940,152 @@ export default function GenerateInvoicePage() {
         </DialogContent>
       </Dialog>
 
+
+      {/* ── Record Payment Modal ── */}
+      <Dialog open={isRecordPaymentOpen} onOpenChange={setIsRecordPaymentOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-emerald-600" />
+              <span>Record Payment for {invoiceNumber}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Record an incoming customer payment. The balance due, workflow status, and immutable audit logs will update immediately.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>Payment Amount ({currency}) <span className="text-red-500">*</span></span>
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    Due: ${calculatedTotals.effectiveBalanceDue.toFixed(2)}
+                  </span>
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                    $
+                  </span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={paymentAmountInput}
+                    onChange={(e) => setPaymentAmountInput(e.target.value)}
+                    placeholder="0.00"
+                    className="text-xs font-mono pl-6 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">
+                  Payment Method <span className="text-red-500">*</span>
+                </Label>
+                <Select value={paymentMethodInput} onValueChange={setPaymentMethodInput}>
+                  <SelectTrigger className="text-xs h-9">
+                    <SelectValue placeholder="Select Method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="WIRE" className="text-xs font-medium">Bank Wire Transfer</SelectItem>
+                    <SelectItem value="ACH" className="text-xs font-medium">ACH / Direct Debit</SelectItem>
+                    <SelectItem value="CHECK" className="text-xs font-medium">Paper Check</SelectItem>
+                    <SelectItem value="CARD" className="text-xs font-medium">Credit / Debit Card</SelectItem>
+                    <SelectItem value="OTHER" className="text-xs font-medium">Other / Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">
+                  Payment Date <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="date"
+                  value={paymentDateInput}
+                  onChange={(e) => setPaymentDateInput(e.target.value)}
+                  className="text-xs font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">
+                  Reference / Check #
+                </Label>
+                <Input
+                  type="text"
+                  value={paymentRefInput}
+                  onChange={(e) => setPaymentRefInput(e.target.value)}
+                  placeholder="e.g. WIRE-884920 or CHK #4021"
+                  className="text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">
+                Category (GL Code / Account)
+              </Label>
+              <GLCodeAutocomplete
+                value={paymentGLCodeInput}
+                onChange={setPaymentGLCodeInput}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">
+                Class / Cost Center
+              </Label>
+              <ClassAutocomplete
+                value={paymentClassInput}
+                onChange={setPaymentClassInput}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">
+                Internal Settlement Notes
+              </Label>
+              <Textarea
+                rows={2}
+                value={paymentNotesInput}
+                onChange={(e) => setPaymentNotesInput(e.target.value)}
+                placeholder="Add optional notes, receipt breakdown, bank memo..."
+                className="text-xs resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsRecordPaymentOpen(false)}
+              className="text-xs cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleConfirmRecordPayment}
+              disabled={isPaymentSubmitting || !paymentAmountInput || Number(paymentAmountInput) <= 0}
+              className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold cursor-pointer"
+            >
+              {isPaymentSubmitting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Check className="w-3.5 h-3.5" />
+              )}
+              <span>Record Payment</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── 5. MANUAL OVERRIDE MODAL ─────────────────────────────────── */}
       <OverridePriceModal
