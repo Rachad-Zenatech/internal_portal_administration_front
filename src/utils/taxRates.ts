@@ -499,3 +499,108 @@ export function calculateEstimatedTax(
   const estimatedAmount = Math.round(subtotal * estimate.rateDecimal * 100) / 100;
   return { estimatedAmount, estimate };
 }
+
+
+export interface TaxEstimationOptions {
+  shippingAddress?: string | null;
+  vendorAddress?: string | null;
+  vendorName?: string | null;
+  knownVendorLocations?: Record<string, { address?: string }>;
+  currency?: string;
+}
+
+export interface PriorityTaxEstimate extends TaxEstimate {
+  sourcing: "DESTINATION" | "ORIGIN" | "FALLBACK";
+  sourcingLabel: string;
+  matchedText: string;
+}
+
+/**
+ * Priority-Based Tax Estimator
+ *
+ * Sourcing Logic:
+ * 1. PRIORITY 1: Shipping Address (Destination-based sourcing)
+ *    If a delivery address is provided, taxes are calculated from the delivery location
+ *    because vendors and carriers legally invoice sales tax based on the delivery destination.
+ *
+ * 2. PRIORITY 2: Vendor Location / State (Origin-based sourcing)
+ *    If no delivery address is entered (e.g. in-store pickup, digital license, or bill-only),
+ *    auto-detects the tax from the Vendor's registered address, quote header address, or vendor name.
+ *
+ * 3. ALWAYS EDITABLE:
+ *    The returned estimate serves as the starting set point with a 1-click apply action,
+ *    while leaving the tax fee input completely editable to match vendor quotes/invoices penny-for-penny.
+ */
+export function detectTaxWithPriority(options: TaxEstimationOptions): PriorityTaxEstimate | null {
+  const {
+    shippingAddress,
+    vendorAddress,
+    vendorName,
+    knownVendorLocations = {},
+    currency = "USD",
+  } = options;
+
+  // 1. PRIORITY 1: Check Shipping / Delivery Address (Destination)
+  const trimmedShipping = (shippingAddress || "").trim();
+  if (trimmedShipping) {
+    const destEstimate = detectTaxFromAddress(trimmedShipping, currency);
+    if (destEstimate && destEstimate.confidence !== "FALLBACK") {
+      return {
+        ...destEstimate,
+        sourcing: "DESTINATION",
+        sourcingLabel: "Delivery Location (Destination)",
+        matchedText: trimmedShipping,
+        explanation: `Destination Sourcing (Shipping Address): ${destEstimate.explanation}`,
+      };
+    }
+  }
+
+  // 2. PRIORITY 2: Check Vendor Location / State (Origin)
+  let vendorLoc = (vendorAddress || "").trim();
+
+  // If vendor address not directly provided, search known vendor directory by name
+  if (!vendorLoc && vendorName) {
+    const rawName = vendorName.trim();
+    if (knownVendorLocations[rawName]?.address) {
+      vendorLoc = knownVendorLocations[rawName].address || "";
+    } else {
+      const match = Object.entries(knownVendorLocations).find(
+        ([k]) => k.toLowerCase() === rawName.toLowerCase()
+      );
+      if (match && match[1]?.address) {
+        vendorLoc = match[1].address;
+      }
+    }
+  }
+
+  // If still no vendor address, check if vendor name itself contains location info (e.g. "Amazon.ca", "Best Buy - Austin, TX")
+  const targetVendorText = vendorLoc || (vendorName || "").trim();
+  if (targetVendorText) {
+    const originEstimate = detectTaxFromAddress(targetVendorText, currency);
+    if (originEstimate && originEstimate.confidence !== "FALLBACK") {
+      const displayName = vendorName ? vendorName.trim() : targetVendorText;
+      return {
+        ...originEstimate,
+        sourcing: "ORIGIN",
+        sourcingLabel: `Vendor Location: ${displayName}`,
+        matchedText: targetVendorText,
+        explanation: `Origin Sourcing (Vendor: ${displayName}): ${originEstimate.explanation}`,
+      };
+    }
+  }
+
+  // 3. Fallback: If shipping address had text but only matched currency fallback
+  if (trimmedShipping) {
+    const destFallback = detectTaxFromAddress(trimmedShipping, currency);
+    if (destFallback) {
+      return {
+        ...destFallback,
+        sourcing: "FALLBACK",
+        sourcingLabel: "Estimated Currency Rate",
+        matchedText: trimmedShipping,
+      };
+    }
+  }
+
+  return null;
+}

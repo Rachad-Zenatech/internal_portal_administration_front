@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useUpdateRequest, useUsersList, useRolesList } from "@/hooks/usePurchasing";
+import { useUpdateRequest, useUsersList, useRolesList , useVendorDirectory
+} from "@/hooks/usePurchasing";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 import { useAuth } from "@/lib/AuthContext";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
@@ -30,7 +31,7 @@ import { WireBankingFields } from "./WireBankingFields";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { calculateInstallmentsCount } from "./recurringScheduleUtils";
 import { parseRequestStatus } from "@/lib/requestStatus";
-import { detectTaxFromAddress } from "@/utils/taxRates";
+import { detectTaxWithPriority } from "@/utils/taxRates";
 import { ShippingDeliveryAddressField } from "./ShippingDeliveryAddressField";
 
 
@@ -521,9 +522,36 @@ export function EditRequestDialog({
     return (Number(formData.unit_price) || 0) * (Number(formData.quantity) || 1) || (Number(formData.amount) || 0);
   }, [itemMode, itemsSubtotal, formData.unit_price, formData.quantity, formData.amount]);
 
+  const { data: vendorDirectory = {} } = useVendorDirectory();
+
+  const effectiveVendorName = useMemo(() => {
+    if (formData.request_type === "ACCOUNTS_PAYABLE") return apWireForm.vendor || "";
+    if (wireTransfer?.vendor) return wireTransfer.vendor;
+    if (request?.quote_data?.vendor?.name) return request.quote_data.vendor.name;
+    if (request?.product_info?.vendor && request.product_info.vendor !== "N/A") return request.product_info.vendor;
+    if (formData.title?.includes(" - ")) {
+      const candidate = formData.title.split(" - ")[0].trim();
+      if (candidate.length > 1 && candidate.length < 50) return candidate;
+    }
+    return "";
+  }, [formData.request_type, apWireForm.vendor, wireTransfer, request, formData.title]);
+
+  const effectiveVendorAddress = useMemo(() => {
+    if (formData.request_type === "ACCOUNTS_PAYABLE") return apWireForm.vendor_address || "";
+    if (wireTransfer?.vendor_address) return wireTransfer.vendor_address;
+    if (request?.quote_data?.vendor?.address) return request.quote_data.vendor.address;
+    return "";
+  }, [formData.request_type, apWireForm.vendor_address, wireTransfer, request]);
+
   const taxEstimate = useMemo(() => {
-    return detectTaxFromAddress(formData.shipping_address || "", request?.currency || "USD");
-  }, [formData.shipping_address, request?.currency]);
+    return detectTaxWithPriority({
+      shippingAddress: formData.shipping_address || "",
+      vendorAddress: effectiveVendorAddress,
+      vendorName: effectiveVendorName,
+      knownVendorLocations: vendorDirectory,
+      currency: request?.currency || "USD",
+    });
+  }, [formData.shipping_address, effectiveVendorAddress, effectiveVendorName, vendorDirectory, request?.currency]);
 
   const estimatedTaxAmount = useMemo(() => {
     if (!taxEstimate || currentSubtotal <= 0) return 0;
@@ -532,13 +560,14 @@ export function EditRequestDialog({
 
   const prevEstimatedAddrRef = useRef<string>("");
   useEffect(() => {
-    if (formData.shipping_address && formData.shipping_address !== prevEstimatedAddrRef.current) {
-      prevEstimatedAddrRef.current = formData.shipping_address;
+    const locKey = `${formData.shipping_address || ""}|${effectiveVendorAddress || ""}|${effectiveVendorName || ""}`;
+    if (locKey && locKey !== prevEstimatedAddrRef.current) {
+      prevEstimatedAddrRef.current = locKey;
       if (taxEstimate && currentSubtotal > 0 && taxFee === 0) {
         setTaxFee(estimatedTaxAmount);
       }
     }
-  }, [formData.shipping_address, taxEstimate, currentSubtotal, taxFee, estimatedTaxAmount]);
+  }, [formData.shipping_address, effectiveVendorAddress, effectiveVendorName, taxEstimate, currentSubtotal, taxFee, estimatedTaxAmount]);
 
   const calculatedAmount = useMemo(() => {
     if (itemMode === "MULTIPLE") {
@@ -1128,6 +1157,9 @@ export function EditRequestDialog({
                       toast.info(`Set estimated tax (${taxEstimate.ratePercent}%): $${formatMoney(amt)}`);
                     }
                   }}
+                  vendorName={effectiveVendorName}
+                  vendorAddress={effectiveVendorAddress}
+                  knownVendorLocations={vendorDirectory}
                   idPrefix="edit"
                 />
               )}

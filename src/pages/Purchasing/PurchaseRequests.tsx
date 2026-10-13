@@ -83,6 +83,7 @@ import {
   useUsersList,
   useRolesList,
   useExtractQuote,
+  useVendorDirectory,
 } from "@/hooks/usePurchasing";
 import {
   RequestStatus,
@@ -103,7 +104,7 @@ import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { calculateInstallmentsCount } from "./recurringScheduleUtils";
 import { parseRequestStatus } from "@/lib/requestStatus";
-import { detectTaxFromAddress } from "@/utils/taxRates";
+import { detectTaxWithPriority } from "@/utils/taxRates";
 import { ShippingDeliveryAddressField } from "./ShippingDeliveryAddressField";
 import {
   STATUS_FILTER_OPTIONS,
@@ -681,9 +682,35 @@ export function PurchaseRequests() {
     return (Number(form.unit_price) || 0) * (Number(form.quantity) || 1) || (Number(form.amount) || 0);
   }, [itemMode, itemsSubtotal, form.unit_price, form.quantity, form.amount]);
 
+  const { data: vendorDirectory = {} } = useVendorDirectory();
+
+  const effectiveVendorName = useMemo(() => {
+    if (form.request_type === "ACCOUNTS_PAYABLE") return apWireForm.vendor || "";
+    if (quoteExtraction?.extraction?.vendor?.name) return quoteExtraction.extraction.vendor.name;
+    if (typeof quoteExtraction?.extraction?.vendor === "string") return quoteExtraction.extraction.vendor;
+    if (extractedProductInfo?.vendor && extractedProductInfo.vendor !== "N/A") return extractedProductInfo.vendor;
+    if (form.title?.includes(" - ")) {
+      const candidate = form.title.split(" - ")[0].trim();
+      if (candidate.length > 1 && candidate.length < 50) return candidate;
+    }
+    return "";
+  }, [form.request_type, apWireForm.vendor, quoteExtraction, extractedProductInfo, form.title]);
+
+  const effectiveVendorAddress = useMemo(() => {
+    if (form.request_type === "ACCOUNTS_PAYABLE") return apWireForm.vendor_address || "";
+    if (quoteExtraction?.extraction?.vendor?.address) return quoteExtraction.extraction.vendor.address;
+    return "";
+  }, [form.request_type, apWireForm.vendor_address, quoteExtraction]);
+
   const taxEstimate = useMemo(() => {
-    return detectTaxFromAddress(form.shipping_address || "", form.currency || "USD");
-  }, [form.shipping_address, form.currency]);
+    return detectTaxWithPriority({
+      shippingAddress: form.shipping_address || "",
+      vendorAddress: effectiveVendorAddress,
+      vendorName: effectiveVendorName,
+      knownVendorLocations: vendorDirectory,
+      currency: form.currency || "USD",
+    });
+  }, [form.shipping_address, effectiveVendorAddress, effectiveVendorName, vendorDirectory, form.currency]);
 
   const estimatedTaxAmount = useMemo(() => {
     if (!taxEstimate || currentSubtotal <= 0) return 0;
@@ -692,13 +719,14 @@ export function PurchaseRequests() {
 
   const prevEstimatedAddrRef = useRef<string>("");
   useEffect(() => {
-    if (form.shipping_address && form.shipping_address !== prevEstimatedAddrRef.current) {
-      prevEstimatedAddrRef.current = form.shipping_address;
+    const locKey = `${form.shipping_address || ""}|${effectiveVendorAddress || ""}|${effectiveVendorName || ""}`;
+    if (locKey && locKey !== prevEstimatedAddrRef.current) {
+      prevEstimatedAddrRef.current = locKey;
       if (taxEstimate && currentSubtotal > 0 && taxFee === 0) {
         setTaxFee(estimatedTaxAmount);
       }
     }
-  }, [form.shipping_address, taxEstimate, currentSubtotal, taxFee, estimatedTaxAmount]);
+  }, [form.shipping_address, effectiveVendorAddress, effectiveVendorName, taxEstimate, currentSubtotal, taxFee, estimatedTaxAmount]);
 
   const totalCalculatedAmount = useMemo(() => {
     if (itemMode === "MULTIPLE") {
@@ -1918,6 +1946,9 @@ export function PurchaseRequests() {
                       toast.info(`Set estimated tax (${taxEstimate.ratePercent}%): $${formatMoney(amt)}`);
                     }
                   }}
+                  vendorName={effectiveVendorName}
+                  vendorAddress={effectiveVendorAddress}
+                  knownVendorLocations={vendorDirectory}
                   idPrefix="create"
                 />
               )}

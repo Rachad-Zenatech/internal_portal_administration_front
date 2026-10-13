@@ -30,7 +30,8 @@ import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
 import { WireBankingFields } from "./WireBankingFields";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { calculateInstallmentsCount } from "./recurringScheduleUtils";
-import { useUpdateRequest, useUsersList, useRolesList, useUploadAttachments, useDeleteAttachment } from "@/hooks/usePurchasing";
+import { useUpdateRequest, useUsersList, useRolesList, useUploadAttachments, useDeleteAttachment , useVendorDirectory
+} from "@/hooks/usePurchasing";
 import { useAuth } from "@/lib/AuthContext";
 import { ShippingDeliveryAddressField } from "./ShippingDeliveryAddressField";
 import { resolveUserDepartment } from "@/lib/userDepartment";
@@ -103,6 +104,7 @@ export function EditCombinedRequestDialog({
   const updateMutation = useUpdateRequest();
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
+  const { data: vendorDirectory = {} } = useVendorDirectory();
 
   const isCompleted =
     request?.status === RequestStatus.Completed ||
@@ -1385,6 +1387,9 @@ export function EditCombinedRequestDialog({
                     lastUsedAddress={lastUsedAddress}
                     currency={reqCurrency || "USD"}
                     disabled={isOverviewLocked}
+                    vendorName={poVendor || invVendor || wireTransfer?.vendor || ""}
+                    vendorAddress={wireTransfer?.vendor_address || ""}
+                    knownVendorLocations={vendorDirectory}
                     idPrefix="combined"
                   />
                 )}

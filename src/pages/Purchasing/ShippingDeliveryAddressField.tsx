@@ -7,12 +7,12 @@ import {
   Phone,
   Clock,
   Globe,
-  Sparkles,
   Building,
+  Building2,
   Mail,
   SlidersHorizontal,
 } from "lucide-react";
-import { detectTaxFromAddress } from "@/utils/taxRates";
+import { detectTaxWithPriority, type PriorityTaxEstimate } from "@/utils/taxRates";
 import { formatMoney } from "./purchasingMeta";
 
 interface ShippingDeliveryAddressFieldProps {
@@ -29,6 +29,9 @@ interface ShippingDeliveryAddressFieldProps {
   disabled?: boolean;
   idPrefix?: string;
   className?: string;
+  vendorName?: string;
+  vendorAddress?: string;
+  knownVendorLocations?: Record<string, { address?: string }>;
 }
 
 /**
@@ -174,6 +177,9 @@ export function ShippingDeliveryAddressField({
   disabled = false,
   idPrefix = "shipping",
   className = "",
+  vendorName = "",
+  vendorAddress = "",
+  knownVendorLocations = {},
 }: ShippingDeliveryAddressFieldProps) {
   // All 250 Countries from country-state-city
   const allCountries: ICountry[] = useMemo(() => {
@@ -305,10 +311,16 @@ export function ShippingDeliveryAddressField({
     setSelectedCityName(parsed.cityName);
   };
 
-  // Auto-detect Country / State / Tax from current address string
-  const taxEstimate = useMemo(() => {
-    return detectTaxFromAddress(shippingAddress || "", currency);
-  }, [shippingAddress, currency]);
+  // Priority-based tax detection: 1. Shipping Address (Destination), 2. Vendor Location (Origin)
+  const taxEstimate: PriorityTaxEstimate | null = useMemo(() => {
+    return detectTaxWithPriority({
+      shippingAddress,
+      vendorAddress,
+      vendorName,
+      knownVendorLocations,
+      currency,
+    });
+  }, [shippingAddress, vendorAddress, vendorName, knownVendorLocations, currency]);
 
   const estimatedTaxAmount = useMemo(() => {
     if (!taxEstimate || subtotal <= 0) return 0;
@@ -598,25 +610,41 @@ export function ShippingDeliveryAddressField({
         </div>
       )}
 
-      {/* Auto Tax Estimation Badge & Quick Set */}
+      {/* Auto Tax Estimation Badge & Quick Set (Priority: 1. Delivery, 2. Vendor) */}
       {taxEstimate && (
-        <div className="p-2 rounded-lg bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-center justify-between text-xs text-blue-900 dark:text-blue-200">
-          <div className="flex items-center gap-1.5 truncate">
-            <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-            <span className="font-semibold">{taxEstimate.regionName}:</span>
-            <span className="truncate">
-              {taxEstimate.ratePercent}% {taxEstimate.taxType}
-            </span>
+        <div className="p-2.5 rounded-lg bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-center justify-between text-xs text-blue-900 dark:text-blue-200">
+          <div className="flex items-center gap-2 truncate">
+            {taxEstimate.sourcing === "DESTINATION" ? (
+              <MapPin className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            ) : (
+              <Building2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            )}
+            <div className="truncate min-w-0">
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="font-semibold text-slate-900 dark:text-zinc-100 truncate">
+                  {taxEstimate.sourcing === "DESTINATION" ? "Est. Delivery Tax" : "Est. Vendor Tax"} ({taxEstimate.regionName}):
+                </span>
+                <span className="font-medium text-blue-700 dark:text-blue-300 shrink-0">
+                  {taxEstimate.ratePercent}% {taxEstimate.taxType}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+                {taxEstimate.sourcing === "DESTINATION"
+                  ? "Destination-Based: based on delivery shipping address"
+                  : `Origin-Based: based on vendor location (${taxEstimate.sourcingLabel})`}
+              </p>
+            </div>
           </div>
           {onApplyEstimatedTax && estimatedTaxAmount > 0 && !disabled && (
             <button
               type="button"
               onClick={() => onApplyEstimatedTax(estimatedTaxAmount)}
-              className={`text-[11px] font-semibold px-2 py-0.5 rounded transition-colors shrink-0 ml-2 cursor-pointer ${
+              className={`text-[11px] font-semibold px-2.5 py-1 rounded-md transition-colors shrink-0 ml-2 cursor-pointer shadow-xs ${
                 currentTaxFee === estimatedTaxAmount
                   ? "bg-blue-600 text-white dark:bg-blue-500"
                   : "bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-900/60 dark:hover:bg-blue-800 dark:text-blue-200"
               }`}
+              title="Click to apply starting set point (field remains editable)"
             >
               {currentTaxFee === estimatedTaxAmount
                 ? "✓ Applied"
