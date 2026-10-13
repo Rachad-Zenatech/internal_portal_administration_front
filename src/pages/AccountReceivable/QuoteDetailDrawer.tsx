@@ -11,6 +11,7 @@ import {
   Link as LinkIcon,
   Plus,
   Receipt,
+  RefreshCw,
   RotateCcw,
   Send,
   ShieldX,
@@ -38,6 +39,7 @@ import type {
 } from "../../services/arQuoteService";
 import { SendQuoteModal } from "./SendQuoteModal";
 import { QuoteStepper } from "./QuoteStepper";
+import { calculateRowPricing } from "./lineItemPricingUtils";
 
 interface QuoteDetailDrawerProps {
   quote: ARQuote | null;
@@ -178,6 +180,60 @@ export function QuoteDetailDrawer({
   const isDraft = quote.publication_state === "DRAFT" && !isSuperseded;
   const hasInvoice = !!quote.invoice_id;
   const isPaid = quote.payment_status === "PAID";
+  const isRenewal = (quote as any).quote_type === "RENEWAL" || !!(quote as any).source_invoice_id || !!(quote as any).source_invoice_number || quote.line_items?.some((li: any) => li.is_renewal || li.badge === "Renewal");
+
+  const effectiveSubtotal = (() => {
+    if (!quote.line_items || quote.line_items.length === 0) {
+      return Number(quote.subtotal || 0);
+    }
+    const sum = quote.line_items.reduce((acc: number, item: any) => {
+      const isLineRenewal = isRenewal || !!item.is_renewal || item.badge === "Renewal";
+      const pricing = calculateRowPricing({
+        quantity: item.quantity !== undefined && item.quantity !== null && item.quantity !== "" ? item.quantity : 1,
+        unit_price: item.price !== undefined && item.price !== null && item.price !== "" ? item.price : (item.unit_price || 0),
+        unit_discount: item.unit_discount ?? 0,
+        discount_type: item.discount_type || "%",
+        billing_frequency: item.billing_frequency || item.billing_type || "",
+        term: item.term ?? 1,
+        billing_start_date: item.billing_start_date || item.service_period_start || "",
+        tax_rate: item.tax_rate ?? 0,
+        is_renewal: isLineRenewal,
+        is_prorated: isLineRenewal ? false : item.is_prorated,
+        quote_type: quote.quote_type || (isRenewal ? "RENEWAL" : "STANDARD"),
+      });
+      const lineSub = isLineRenewal ? pricing.amount : (Number(item.subtotal) || pricing.amount);
+      return acc + lineSub;
+    }, 0);
+    return sum > 0 ? sum : Number(quote.subtotal || 0);
+  })();
+
+  const effectiveTax = (() => {
+    if (!quote.line_items || quote.line_items.length === 0) {
+      return Number(quote.tax || 0);
+    }
+    const sumTax = quote.line_items.reduce((acc: number, item: any) => {
+      const isLineRenewal = isRenewal || !!item.is_renewal || item.badge === "Renewal";
+      const pricing = calculateRowPricing({
+        quantity: item.quantity !== undefined && item.quantity !== null && item.quantity !== "" ? item.quantity : 1,
+        unit_price: item.price !== undefined && item.price !== null && item.price !== "" ? item.price : (item.unit_price || 0),
+        unit_discount: item.unit_discount ?? 0,
+        discount_type: item.discount_type || "%",
+        billing_frequency: item.billing_frequency || item.billing_type || "",
+        term: item.term ?? 1,
+        billing_start_date: item.billing_start_date || item.service_period_start || "",
+        tax_rate: item.tax_rate ?? 0,
+        is_renewal: isLineRenewal,
+        is_prorated: isLineRenewal ? false : item.is_prorated,
+        quote_type: quote.quote_type || (isRenewal ? "RENEWAL" : "STANDARD"),
+      });
+      const rate = Number(item.tax_rate || 0);
+      return acc + (rate > 0 ? (pricing.amount * rate) / 100 : 0);
+    }, 0);
+    return sumTax > 0 ? Math.round(sumTax * 100) / 100 : Number(quote.tax || 0);
+  })();
+
+  const effectiveDiscount = Number(quote.discount || 0);
+  const effectiveTotal = Math.max(0, Math.round((effectiveSubtotal - effectiveDiscount + effectiveTax) * 100) / 100);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
@@ -191,6 +247,12 @@ export function QuoteDetailDrawer({
                 <Badge variant="outline" className="font-mono text-xs">
                   v{quote.current_version}
                 </Badge>
+                {isRenewal && (
+                  <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 text-[10px] font-semibold gap-1 px-1.5 py-0.5">
+                    <RefreshCw className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>Renewal</span>
+                  </Badge>
+                )}
               </h2>
               {isSuperseded ? (
                 <Badge className="bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-xs font-semibold">
@@ -442,15 +504,22 @@ export function QuoteDetailDrawer({
                 <span>Line Items ({quote.line_items.length})</span>
               </span>
               <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
-                ${Number(quote.total_amount).toFixed(2)} {quote.currency}
+                ${effectiveTotal.toFixed(2)} {quote.currency}
               </span>
             </div>
 
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {quote.line_items.map((item, idx) => (
                 <div key={idx} className="py-2 flex items-start justify-between gap-2">
-                  <div>
-                    <strong className="text-slate-800 dark:text-zinc-200">{item.name}</strong>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <strong className="text-slate-800 dark:text-zinc-200">{item.name}</strong>
+                      {item.billing_frequency && (
+                        <Badge variant="outline" className="text-[9.5px] px-1.5 py-0 font-medium">
+                          {item.billing_frequency}
+                        </Badge>
+                      )}
+                    </div>
                     {item.description && <p className="text-[10px] text-slate-400">{item.description}</p>}
                   </div>
                   <div className="text-right font-mono">
@@ -462,9 +531,9 @@ export function QuoteDetailDrawer({
             </div>
 
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[11px] text-slate-500">
-              <span>Subtotal: ${Number(quote.subtotal).toFixed(2)}</span>
-              <span>Discount: -${Number(quote.discount || 0).toFixed(2)}</span>
-              <span>Tax: +${Number(quote.tax || 0).toFixed(2)}</span>
+              <span>Subtotal: ${effectiveSubtotal.toFixed(2)}</span>
+              <span>Discount: -${effectiveDiscount.toFixed(2)}</span>
+              <span>Tax: +${effectiveTax.toFixed(2)}</span>
             </div>
           </div>
 

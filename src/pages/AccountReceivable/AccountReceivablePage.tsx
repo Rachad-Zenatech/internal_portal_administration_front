@@ -12,6 +12,7 @@ import {
   Eye,
   FileCheck2,
   FileText,
+  Loader2,
   Mail,
   MapPin,
   PenTool,
@@ -21,6 +22,7 @@ import {
   RefreshCw,
   Search,
   Send,
+  Sparkles,
   Trash2,
   TrendingUp,
   Users,
@@ -60,6 +62,7 @@ import { SendQuoteModal } from "./SendQuoteModal";
 import { GLCodeAutocomplete } from "../Purchasing/GLCodeAutocomplete";
 import { ClassAutocomplete } from "../Purchasing/ClassAutocomplete";
 import { useNotificationStream } from "@/hooks/useNotifications";
+import { calculateRowPricing } from "./lineItemPricingUtils";
 
 export type ARTab =
   | "overview"
@@ -201,6 +204,23 @@ export default function AccountReceivablePage() {
     },
   });
 
+  // Generate Renewal Quote Mutation
+  const generateRenewalQuoteMutation = useMutation({
+    mutationFn: (invoiceId: string) => arInvoiceService.generateRenewalQuote(invoiceId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["ar-quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-quote-summary"] });
+      setBannerSuccess(`Generated Renewal Quote #${result.quote_number}! Redirecting to quotation...`);
+      setTimeout(() => {
+        navigate(`/account-receivable/quotes/${encodeURIComponent(result.quote_id)}`);
+      }, 600);
+    },
+    onError: (err: any) => {
+      alert(err?.response?.data?.detail || err?.message || "Failed to generate renewal quote");
+    },
+  });
+
   // Send Invoice Email Mutation
   const sendInvoiceEmailMutation = useMutation({
     mutationFn: async () => {
@@ -302,6 +322,145 @@ export default function AccountReceivablePage() {
       return next;
     });
   };
+
+  // Accordion state for Customer Invoices grouping (Default: collapsed)
+  const [expandedCustomerInvoiceKeys, setExpandedCustomerInvoiceKeys] = useState<Set<string>>(new Set());
+
+  const toggleCustomerInvoiceExpanded = (customerKey: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setExpandedCustomerInvoiceKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(customerKey)) {
+        next.delete(customerKey);
+      } else {
+        next.add(customerKey);
+      }
+      return next;
+    });
+  };
+
+  const handleExpandAllInvoiceCustomers = (keys: string[]) => {
+    setExpandedCustomerInvoiceKeys(new Set(keys));
+  };
+
+  const handleCollapseAllInvoiceCustomers = () => {
+    setExpandedCustomerInvoiceKeys(new Set());
+  };
+
+  interface CustomerInvoiceGroup {
+    customerKey: string;
+    customerId?: string;
+    customerName: string;
+    invoices: GeneratedInvoiceSummary[];
+    totalInvoiced: number;
+    totalBalanceDue: number;
+    earliestDueDate?: string;
+    hasOverdue: boolean;
+  }
+
+  // Group invoices by A/R customer and sort invoices by due date ascending
+  const customerInvoiceGroups = useMemo<CustomerInvoiceGroup[]>(() => {
+    const groupsMap = new Map<string, CustomerInvoiceGroup>();
+
+    const parseDueDateEpoch = (dStr?: string): number => {
+      if (!dStr) return Number.MAX_SAFE_INTEGER;
+      try {
+        const parts = dStr.split("/");
+        if (parts.length === 3) {
+          const month = parseInt(parts[0], 10) - 1;
+          const day = parseInt(parts[1], 10);
+          const year = parseInt(parts[2], 10);
+          return new Date(year, month, day).getTime();
+        }
+        const t = new Date(dStr).getTime();
+        if (!isNaN(t)) return t;
+      } catch {
+        // fallback
+      }
+      return Number.MAX_SAFE_INTEGER;
+    };
+
+    invoices.forEach((inv) => {
+      const rawCustName = (inv.customer_name || inv.bill_to_name || "Direct Client").trim();
+      const custKey = (inv.customer_id || rawCustName || "UNKNOWN").toLowerCase();
+
+      if (!groupsMap.has(custKey)) {
+        groupsMap.set(custKey, {
+          customerKey: custKey,
+          customerId: inv.customer_id,
+          customerName: rawCustName,
+          invoices: [],
+          totalInvoiced: 0,
+          totalBalanceDue: 0,
+          hasOverdue: false,
+        });
+      }
+
+      const grp = groupsMap.get(custKey)!;
+      grp.invoices.push(inv);
+      grp.totalInvoiced += Number(inv.total_amount) || 0;
+      const balance = Number(inv.balance_due !== undefined ? inv.balance_due : (inv.status?.toUpperCase().startsWith("PAID") ? 0 : inv.total_amount)) || 0;
+      grp.totalBalanceDue += balance;
+      if ((inv.status || "").toUpperCase() === "OVERDUE") {
+        grp.hasOverdue = true;
+      }
+    });
+
+    const result: CustomerInvoiceGroup[] = Array.from(groupsMap.values());
+
+    // Sort invoices inside each customer group by due date ascending (earliest due date first)
+    result.forEach((grp) => {
+      grp.invoices.sort((a, b) => {
+        const timeA = parseDueDateEpoch(a.due_date);
+        const timeB = parseDueDateEpoch(b.due_date);
+        if (timeA !== timeB) return timeA - timeB;
+        return parseDueDateEpoch(b.invoice_date) - parseDueDateEpoch(a.invoice_date);
+      });
+
+      const firstWithDueDate = grp.invoices.find((i) => !!i.due_date);
+      grp.earliestDueDate = firstWithDueDate?.due_date;
+    });
+
+    // Sort customer groups alphabetically by customer name
+    result.sort((a, b) => a.customerName.localeCompare(b.customerName));
+
+    return result;
+  }, [invoices]);
+
+  // Filter customer invoice groups by search term and status filter
+  const filteredCustomerInvoiceGroups = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    return customerInvoiceGroups
+      .map((grp) => {
+        const matchCustomer = !term || grp.customerName.toLowerCase().includes(term);
+        const matchingInvoices = grp.invoices.filter((inv) => {
+          const matchTerm =
+            !term ||
+            matchCustomer ||
+            inv.invoice_number.toLowerCase().includes(term) ||
+            (inv.customer_name && inv.customer_name.toLowerCase().includes(term)) ||
+            (inv.due_date && inv.due_date.toLowerCase().includes(term)) ||
+            (inv.status && inv.status.toLowerCase().includes(term));
+
+          if (!matchTerm) return false;
+          if (statusFilter === "all") return true;
+          if (statusFilter === "paid") return (inv.status || "").toUpperCase().startsWith("PAID");
+          if (statusFilter === "unpaid") return !(inv.status || "").toUpperCase().startsWith("PAID");
+          if (statusFilter === "overdue") return (inv.status || "").toUpperCase() === "OVERDUE";
+          if (statusFilter === "draft") return (inv.status || "").toUpperCase() === "DRAFT";
+          return true;
+        });
+
+        if (matchingInvoices.length > 0) {
+          return {
+            ...grp,
+            invoices: matchingInvoices,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as CustomerInvoiceGroup[];
+  }, [customerInvoiceGroups, searchTerm, statusFilter]);
 
   interface QuoteGroupItem {
     head: ARQuote;
@@ -439,9 +598,8 @@ export default function AccountReceivablePage() {
     (inv) => !inv.status || !(inv.status.toUpperCase().startsWith("PAID"))
   );
 
-  interface CompletedRecord {
+  interface CompletedInvoiceRecord {
     id: string;
-    type: "INVOICE" | "QUOTE";
     number: string;
     customer_name: string;
     contact_person: string;
@@ -450,24 +608,28 @@ export default function AccountReceivablePage() {
     status: string;
     date: string;
     viewUrl: string;
+    is_recurring?: boolean;
   }
 
-  const completedRecords = useMemo<CompletedRecord[]>(() => {
-    const list: CompletedRecord[] = [];
-    const linkedQuoteIds = new Set<string>();
+  const completedRecords = useMemo<CompletedInvoiceRecord[]>(() => {
+    const list: CompletedInvoiceRecord[] = [];
 
-    // 1. Fully paid invoices
-    invoices.forEach((inv) => {
+    // Only fully paid & completed invoices
+    invoices.forEach((inv: any) => {
       const isPaid =
         (inv.status || "").toUpperCase().startsWith("PAID") ||
+        (inv.status || "").toUpperCase().includes("COMPLETED") ||
         (Number(inv.balance_due) === 0 && Number(inv.total_amount) > 0 && Number(inv.amount_paid) > 0);
       if (isPaid) {
-        if (inv.quote_id) {
-          linkedQuoteIds.add(String(inv.quote_id));
-        }
+        const hasRecItems = inv.items?.some((it: any) => {
+          const freq = (it.billing_frequency || it.billing_type || "").toLowerCase();
+          const badge = (it.badge || "").toLowerCase();
+          return freq.includes("month") || freq.includes("annual") || freq.includes("semi") || freq.includes("quarter") || badge.includes("recurring") || badge.includes("prorated");
+        });
+        const isRec = inv.is_recurring || hasRecItems || false;
+
         list.push({
           id: inv.id,
-          type: "INVOICE",
           number: inv.invoice_number,
           customer_name: inv.customer_name || "—",
           contact_person: inv.bill_to_name || "—",
@@ -476,31 +638,13 @@ export default function AccountReceivablePage() {
           status: inv.status || "PAID",
           date: inv.invoice_date || "",
           viewUrl: `/account-receivable/generate?invoiceId=${encodeURIComponent(inv.id)}`,
-        });
-      }
-    });
-
-    // 2. Fully paid quotes that aren't already represented by an invoice
-    quotes.forEach((q) => {
-      const isPaid = (q.payment_status || "").toUpperCase().startsWith("PAID");
-      if (isPaid && !linkedQuoteIds.has(q.id)) {
-        list.push({
-          id: q.id,
-          type: "QUOTE",
-          number: q.quote_number,
-          customer_name: q.customer_name || "—",
-          contact_person: q.signer_name || "—",
-          paid_amount: Number(q.paid_amount || q.total_amount || 0),
-          currency: q.currency || "USD",
-          status: q.payment_status || "PAID",
-          date: q.quote_date || "",
-          viewUrl: `/account-receivable/quotes/${q.id}`,
+          is_recurring: isRec,
         });
       }
     });
 
     return list;
-  }, [invoices, quotes]);
+  }, [invoices]);
 
   return (
     <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 p-4 sm:p-6 lg:p-8">
@@ -926,6 +1070,34 @@ export default function AccountReceivablePage() {
                         const isSuperseded = q.publication_state === "DISABLED" || q.customer_response_state === "SUPERSEDED" || !!q.superseded_by_id;
                         const hasRevisions = group.revisions.length > 0;
                         const isExpanded = expandedQuoteIds.has(q.id);
+                        const isRenewal = (q as any).quote_type === "RENEWAL" || !!(q as any).source_invoice_id || !!(q as any).source_invoice_number || (q as any).line_items?.some((li: any) => li.is_renewal || li.badge === "Renewal");
+
+                        const getEffectiveQuoteTotal = (quoteItem: any) => {
+                          const isRen = quoteItem.quote_type === "RENEWAL" || !!quoteItem.source_invoice_id || !!quoteItem.source_invoice_number || quoteItem.line_items?.some((li: any) => li.is_renewal || li.badge === "Renewal");
+                          if (isRen && quoteItem.line_items && quoteItem.line_items.length > 0) {
+                            const sumLines = quoteItem.line_items.reduce((acc: number, li: any) => {
+                              const p = calculateRowPricing({
+                                quantity: li.quantity ?? 1,
+                                unit_price: li.price ?? li.unit_price ?? 0,
+                                unit_discount: li.unit_discount ?? 0,
+                                discount_type: li.discount_type || "%",
+                                billing_frequency: li.billing_frequency || li.billing_type || "",
+                                term: li.term ?? 1,
+                                billing_start_date: li.billing_start_date || li.service_period_start || "",
+                                tax_rate: li.tax_rate ?? 0,
+                                is_renewal: true,
+                                is_prorated: false,
+                                quote_type: "RENEWAL",
+                              });
+                              return acc + (li.is_renewal ? p.amount : (Number(li.subtotal) || p.amount));
+                            }, 0);
+                            if (sumLines > 0) {
+                              const disc = Number(quoteItem.discount || 0);
+                              return Math.max(0, sumLines - disc);
+                            }
+                          }
+                          return Number(quoteItem.total_amount || 0);
+                        };
 
                         return (
                           <Fragment key={q.id}>
@@ -936,7 +1108,7 @@ export default function AccountReceivablePage() {
                               } ${isExpanded ? "bg-slate-50/50 dark:bg-slate-800/30" : ""}`}
                             >
                               <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
                                   {hasRevisions ? (
                                     <button
                                       type="button"
@@ -953,6 +1125,12 @@ export default function AccountReceivablePage() {
                                   <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/60">
                                     v{q.current_version}
                                   </span>
+                                  {isRenewal && (
+                                    <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 text-[10px] font-semibold px-1.5 py-0.5 gap-1 shrink-0">
+                                      <RefreshCw className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400" />
+                                      <span>Renewal</span>
+                                    </Badge>
+                                  )}
                                   {hasRevisions && (
                                     <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-slate-500 bg-white dark:bg-slate-800 border-slate-200">
                                       +{group.revisions.length} rev{group.revisions.length > 1 ? "s" : ""}
@@ -965,7 +1143,7 @@ export default function AccountReceivablePage() {
                                 <span className="text-[10px] text-slate-400">{q.customer_email || "No email"}</span>
                               </td>
                               <td className="py-3.5 px-4 text-right font-mono font-semibold text-slate-900 dark:text-white">
-                                ${Number(q.total_amount).toFixed(2)} {q.currency}
+                                ${getEffectiveQuoteTotal(q).toFixed(2)} {q.currency}
                               </td>
                               <td className="py-3.5 px-4">
                                 {isSuperseded ? (
@@ -1051,19 +1229,27 @@ export default function AccountReceivablePage() {
 
                             {/* Expandable Sub-items for Previous Revisions */}
                             {isExpanded &&
-                              group.revisions.map((rev) => (
+                              group.revisions.map((rev) => {
+                                const isRevRenewal = (rev as any).quote_type === "RENEWAL" || !!(rev as any).source_invoice_id || (rev as any).line_items?.some((li: any) => li.is_renewal || li.badge === "Renewal");
+                                return (
                                 <tr
                                   key={rev.id}
                                   onClick={() => navigate(`/account-receivable/quotes/${rev.id}`)}
                                   className="bg-amber-50/20 dark:bg-amber-950/10 hover:bg-amber-100/30 dark:hover:bg-amber-900/20 cursor-pointer transition-colors text-slate-600 dark:text-slate-400 border-l-4 border-l-amber-500"
                                 >
                                   <td className="py-2.5 px-4 font-mono">
-                                    <div className="flex items-center gap-2 pl-7">
+                                    <div className="flex items-center gap-2 pl-7 flex-wrap">
                                       <CornerDownRight className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                                       <span className="text-slate-700 dark:text-slate-300 font-medium">{rev.quote_number}</span>
                                       <Badge className="bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-[9px] px-1.5 py-0">
                                         v{rev.current_version}
                                       </Badge>
+                                      {isRevRenewal && (
+                                        <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 text-[9px] px-1 py-0 font-semibold gap-1">
+                                          <RefreshCw className="w-2 h-2 text-indigo-600" />
+                                          <span>Renewal</span>
+                                        </Badge>
+                                      )}
                                       <span className="text-[10px] text-slate-400 font-sans italic">Previous Version</span>
                                     </div>
                                   </td>
@@ -1071,7 +1257,7 @@ export default function AccountReceivablePage() {
                                     <span className="text-slate-700 dark:text-slate-300">{rev.customer_name || "Direct Client"}</span>
                                   </td>
                                   <td className="py-2.5 px-4 text-right font-mono font-medium text-slate-700 dark:text-slate-300">
-                                    ${Number(rev.total_amount).toFixed(2)} {rev.currency}
+                                    ${getEffectiveQuoteTotal(rev).toFixed(2)} {rev.currency}
                                   </td>
                                   <td className="py-2.5 px-4">
                                     <Badge className="bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 text-[10px] border border-slate-200 dark:border-slate-700">
@@ -1104,7 +1290,8 @@ export default function AccountReceivablePage() {
                                     </div>
                                   </td>
                                 </tr>
-                              ))}
+                                );
+                              })}
                           </Fragment>
                         );
                       })
@@ -1312,48 +1499,94 @@ export default function AccountReceivablePage() {
           </div>
         )}
 
-        {/* TAB 4: INVOICES */}
+        {/* TAB 4: INVOICES (Grouped by A/R Customer Accordion, Default Collapsed, Sorted by Due Date) */}
         {activeTab === "invoices" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Receipt className="w-4 h-4 text-indigo-600" />
-                  <span>Generated Invoices &amp; Accounts Receivable</span>
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Click any invoice to edit line items, print/download PDF, or send email statements via SendGrid.
-                </p>
+            {/* Filter, Search & Bulk Accordion Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="ar-invoices-search"
+                  name="invoicesSearch"
+                  aria-label="Search invoices by customer, number, or due date"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search customer, invoice #, due date..."
+                  className="pl-9 h-8 text-xs bg-slate-50 dark:bg-slate-800/60"
+                />
               </div>
-              <Button
-                onClick={() => navigate("/account-receivable/generate")}
-                className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Generate New Invoice</span>
-              </Button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-between sm:justify-end">
+                <select
+                  id="ar-invoices-status-filter"
+                  name="invoicesStatusFilter"
+                  aria-label="Filter invoices by status"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="h-8 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="unpaid">Open / Unpaid</option>
+                  <option value="paid">Paid in Full</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="draft">Drafts</option>
+                </select>
+
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleExpandAllInvoiceCustomers(filteredCustomerInvoiceGroups.map((g) => g.customerKey))}
+                    className="h-7 text-[11px] px-2.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 cursor-pointer"
+                    title="Expand all customer invoice accordions"
+                  >
+                    Expand All
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCollapseAllInvoiceCustomers}
+                    className="h-7 text-[11px] px-2.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 cursor-pointer"
+                    title="Collapse all customer invoice accordions"
+                  >
+                    Collapse All
+                  </Button>
+                </div>
+
+                <Button
+                  onClick={() => navigate("/account-receivable/generate")}
+                  size="sm"
+                  className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs cursor-pointer h-8"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>New Invoice</span>
+                </Button>
+              </div>
             </div>
 
+            {/* Invoices Grouped Accordion Table */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 font-bold border-b border-slate-200/80">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 font-bold border-b border-slate-200/80 dark:border-slate-800 text-[11px] uppercase tracking-wider">
                     <tr>
-                      <th className="py-3 px-4">Invoice #</th>
-                      <th className="py-3 px-4">Customer</th>
-                      <th className="py-3 px-4">Date</th>
-                      <th className="py-3 px-4">Due Date</th>
-                      <th className="py-3 px-4 text-right">Total Amount</th>
-                      <th className="py-3 px-4 text-right">Balance Due</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 w-[240px] min-w-[220px]">A/R Customer &amp; Invoice #</th>
+                      <th className="py-3 px-4 w-[110px]">Issued Date</th>
+                      <th className="py-3 px-4 w-[140px]">Due Date</th>
+                      <th className="py-3 px-4 text-right w-[120px]">Total Amount</th>
+                      <th className="py-3 px-4 text-right w-[120px]">Balance Due</th>
+                      <th className="py-3 px-4 w-[110px]">Status</th>
+                      <th className="py-3 px-4 text-right w-[140px]">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {invoices.length === 0 ? (
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-[12px]">
+                    {filteredCustomerInvoiceGroups.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-12 text-center text-slate-400">
-                          <p className="mb-3">No generated invoices archived yet.</p>
+                        <td colSpan={7} className="py-12 text-center text-slate-400">
+                          <p className="mb-3">No generated invoices found matching your criteria.</p>
                           <Button
                             onClick={() => navigate("/account-receivable/generate")}
                             size="sm"
@@ -1365,78 +1598,207 @@ export default function AccountReceivablePage() {
                         </td>
                       </tr>
                     ) : (
-                      invoices.map((inv) => (
-                        <tr
-                          key={inv.id}
-                          onClick={() => navigate(`/account-receivable/generate?invoiceId=${encodeURIComponent(inv.id)}`)}
-                          className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
-                        >
-                          <td className="py-3.5 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                            {inv.invoice_number}
-                          </td>
-                          <td className="py-3.5 px-4 font-semibold text-slate-800 dark:text-zinc-200">
-                            {inv.customer_name}
-                          </td>
-                          <td className="py-3.5 px-4 text-slate-500 font-mono">{inv.invoice_date}</td>
-                          <td className="py-3.5 px-4 text-slate-500 font-mono">{inv.due_date || "—"}</td>
-                          <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
-                            ${Number(inv.total_amount).toFixed(2)} {inv.currency || "USD"}
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-mono font-bold">
-                            <span className={Number(inv.balance_due !== undefined ? inv.balance_due : (inv.status?.toUpperCase().startsWith("PAID") ? 0 : inv.total_amount)) === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
-                              ${Number(inv.balance_due !== undefined ? inv.balance_due : (inv.status?.toUpperCase().startsWith("PAID") ? 0 : inv.total_amount)).toFixed(2)} {inv.currency || "USD"}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <Badge
-                              className={
-                                (inv.status || "").toUpperCase() === "PAID (PRORATED)"
-                                  ? "bg-teal-50 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 border-teal-300 dark:border-teal-700 text-[10px] font-semibold"
-                                  : (inv.status || "").toUpperCase() === "PAID"
-                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[10px]"
-                                  : (inv.status || "").toUpperCase() === "DRAFT"
-                                  ? "bg-slate-100 text-slate-700 border-slate-300 text-[10px]"
-                                  : (inv.status || "").toUpperCase() === "OVERDUE"
-                                  ? "bg-rose-50 text-rose-700 border-rose-200 text-[10px]"
-                                  : (inv.status || "").toUpperCase() === "VOID" || (inv.status || "").toUpperCase() === "CANCELLED"
-                                  ? "bg-zinc-100 text-zinc-500 border-zinc-200 text-[10px]"
-                                  : "bg-blue-50 text-blue-700 border-blue-200 text-[10px]"
-                              }
-                            >
-                              {inv.status || "ISSUED"}
-                            </Badge>
-                          </td>
-                          <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-1.5">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenSendInvoiceEmail(inv)}
-                                className="h-7 text-xs rounded-lg gap-1 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border-indigo-200 cursor-pointer"
-                              >
-                                <Mail className="w-3 h-3" />
-                                <span>Send Email</span>
-                              </Button>
+                      filteredCustomerInvoiceGroups.map((group) => {
+                        const isExpanded = expandedCustomerInvoiceKeys.has(group.customerKey);
 
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm(`Are you sure you want to delete invoice ${inv.invoice_number}? This action cannot be undone.`)) {
-                                    deleteInvoiceMutation.mutate(inv.id);
+                        return (
+                          <Fragment key={group.customerKey}>
+                            {/* ── Parent Accordion Header Row: A/R Customer ── */}
+                            <tr
+                              onClick={(e) => toggleCustomerInvoiceExpanded(group.customerKey, e)}
+                              className={`transition-colors cursor-pointer select-none border-t border-slate-200/70 dark:border-slate-800 ${
+                                isExpanded
+                                  ? "bg-indigo-50/60 dark:bg-indigo-950/30 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                                  : "bg-slate-50/70 dark:bg-slate-800/30 hover:bg-slate-100/70 dark:hover:bg-slate-800/60"
+                              }`}
+                            >
+                              <td colSpan={3} className="py-3 px-4 font-bold text-slate-900 dark:text-zinc-100">
+                                <div className="flex items-center gap-2.5 flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => toggleCustomerInvoiceExpanded(group.customerKey, e)}
+                                    className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                                    title={isExpanded ? "Collapse invoices" : "Expand invoices"}
+                                  >
+                                    <ChevronRight
+                                      className={`w-4 h-4 transition-transform duration-200 ${
+                                        isExpanded ? "rotate-90 text-indigo-600 dark:text-indigo-400" : "text-slate-400"
+                                      }`}
+                                    />
+                                  </button>
+
+                                  <div className="flex items-center gap-1.5">
+                                    <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                                      {group.customerName}
+                                    </span>
+                                  </div>
+
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[10.5px] px-2 py-0.5 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 font-semibold shadow-2xs"
+                                  >
+                                    {group.invoices.length} {group.invoices.length === 1 ? "Invoice" : "Invoices"}
+                                  </Badge>
+
+                                  {group.hasOverdue && (
+                                    <Badge className="text-[10px] px-2 py-0.5 bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 font-bold">
+                                      Overdue Notice
+                                    </Badge>
+                                  )}
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                <span className="text-xs">${group.totalInvoiced.toFixed(2)}</span>
+                              </td>
+
+                              <td className="py-3 px-4 text-right font-mono font-bold">
+                                <span
+                                  className={
+                                    group.totalBalanceDue === 0
+                                      ? "text-emerald-600 dark:text-emerald-400 text-xs"
+                                      : "text-amber-600 dark:text-amber-400 text-xs"
                                   }
-                                }}
-                                disabled={deleteInvoiceMutation.isPending}
-                                className="h-7 w-7 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer"
-                                title="Delete invoice"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                                >
+                                  ${group.totalBalanceDue.toFixed(2)}
+                                </span>
+                              </td>
+
+                              <td colSpan={2} className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  {group.earliestDueDate && (
+                                    <span className="text-[11px] text-muted-foreground font-mono hidden md:inline">
+                                      Earliest Due: <strong>{group.earliestDueDate}</strong>
+                                    </span>
+                                  )}
+                                  <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                    {isExpanded ? "Hide Invoices ▴" : "View Invoices ▾"}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* ── Collapsible Child Rows: Invoices Sorted by Due Date ── */}
+                            {isExpanded &&
+                              group.invoices.map((inv) => (
+                                <tr
+                                  key={inv.id}
+                                  onClick={() =>
+                                    navigate(`/account-receivable/generate?invoiceId=${encodeURIComponent(inv.id)}`)
+                                  }
+                                  className="hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 cursor-pointer transition-colors bg-white dark:bg-slate-900"
+                                >
+                                  <td className="py-3 px-4 pl-10 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                                    <div className="flex items-center gap-2">
+                                      <CornerDownRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                      <span className="hover:underline">{inv.invoice_number}</span>
+                                    </div>
+                                  </td>
+
+                                  <td className="py-3 px-4 text-slate-500 font-mono">{inv.invoice_date}</td>
+
+                                  <td className="py-3 px-4 font-mono font-semibold">
+                                    <span
+                                      className={
+                                        (inv.status || "").toUpperCase() === "OVERDUE"
+                                          ? "text-rose-600 dark:text-rose-400 font-bold"
+                                          : "text-slate-700 dark:text-slate-300"
+                                      }
+                                    >
+                                      {inv.due_date || "—"}
+                                    </span>
+                                  </td>
+
+                                  <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                    ${Number(inv.total_amount).toFixed(2)} {inv.currency || "USD"}
+                                  </td>
+
+                                  <td className="py-3 px-4 text-right font-mono font-bold">
+                                    <span
+                                      className={
+                                        Number(
+                                          inv.balance_due !== undefined
+                                            ? inv.balance_due
+                                            : inv.status?.toUpperCase().startsWith("PAID")
+                                            ? 0
+                                            : inv.total_amount
+                                        ) === 0
+                                          ? "text-emerald-600 dark:text-emerald-400"
+                                          : "text-amber-600 dark:text-amber-400"
+                                      }
+                                    >
+                                      $
+                                      {Number(
+                                        inv.balance_due !== undefined
+                                          ? inv.balance_due
+                                          : inv.status?.toUpperCase().startsWith("PAID")
+                                          ? 0
+                                          : inv.total_amount
+                                      ).toFixed(2)}{" "}
+                                      {inv.currency || "USD"}
+                                    </span>
+                                  </td>
+
+                                  <td className="py-3 px-4">
+                                    <Badge
+                                      className={
+                                        (inv.status || "").toUpperCase() === "PAID (PRORATED)"
+                                          ? "bg-teal-50 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 border-teal-300 dark:border-teal-700 text-[10px] font-semibold"
+                                          : (inv.status || "").toUpperCase() === "PAID"
+                                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[10px]"
+                                          : (inv.status || "").toUpperCase() === "DRAFT"
+                                          ? "bg-slate-100 text-slate-700 border-slate-300 text-[10px]"
+                                          : (inv.status || "").toUpperCase() === "OVERDUE"
+                                          ? "bg-rose-50 text-rose-700 border-rose-200 text-[10px]"
+                                          : (inv.status || "").toUpperCase() === "VOID" ||
+                                            (inv.status || "").toUpperCase() === "CANCELLED"
+                                          ? "bg-zinc-100 text-zinc-500 border-zinc-200 text-[10px]"
+                                          : "bg-blue-50 text-blue-700 border-blue-200 text-[10px]"
+                                      }
+                                    >
+                                      {inv.status || "ISSUED"}
+                                    </Badge>
+                                  </td>
+
+                                  <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleOpenSendInvoiceEmail(inv)}
+                                        className="h-7 text-xs rounded-lg gap-1 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border-indigo-200 cursor-pointer"
+                                      >
+                                        <Mail className="w-3 h-3" />
+                                        <span>Send Email</span>
+                                      </Button>
+
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (
+                                            window.confirm(
+                                              `Are you sure you want to delete invoice ${inv.invoice_number}? This action cannot be undone.`
+                                            )
+                                          ) {
+                                            deleteInvoiceMutation.mutate(inv.id);
+                                          }
+                                        }}
+                                        disabled={deleteInvoiceMutation.isPending}
+                                        className="h-7 w-7 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer"
+                                        title="Delete invoice"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                          </Fragment>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -1510,10 +1872,9 @@ export default function AccountReceivablePage() {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 font-bold border-b border-slate-200/80">
                     <tr>
-                      <th className="py-3 px-4">Type</th>
-                      <th className="py-3 px-4">Invoice / Quote #</th>
+                      <th className="py-3 px-4">Invoice #</th>
                       <th className="py-3 px-4">Customer</th>
-                      <th className="py-3 px-4">Signer / Contact</th>
+                      <th className="py-3 px-4">Bill To / Contact</th>
                       <th className="py-3 px-4 text-right">Paid Amount</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4 text-right">Actions</th>
@@ -1522,8 +1883,8 @@ export default function AccountReceivablePage() {
                   <tbody className="divide-y divide-slate-100">
                     {completedRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-slate-400">
-                          No completed &amp; fully paid records yet.
+                        <td colSpan={6} className="py-12 text-center text-slate-400">
+                          No completed &amp; fully paid invoices yet.
                         </td>
                       </tr>
                     ) : (
@@ -1533,18 +1894,6 @@ export default function AccountReceivablePage() {
                           onClick={() => navigate(item.viewUrl)}
                           className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
                         >
-                          <td className="py-3 px-4">
-                            <Badge
-                              variant="outline"
-                              className={
-                                item.type === "INVOICE"
-                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 text-[10px]"
-                                  : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 text-[10px]"
-                              }
-                            >
-                              {item.type === "INVOICE" ? "Invoice" : "Quote"}
-                            </Badge>
-                          </td>
                           <td className="py-3 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
                             {item.number}
                           </td>
@@ -1559,15 +1908,34 @@ export default function AccountReceivablePage() {
                             </Badge>
                           </td>
                           <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(item.viewUrl)}
-                              className="h-7 text-xs gap-1 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                              <span>Details</span>
-                            </Button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              {item.is_recurring && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => generateRenewalQuoteMutation.mutate(item.id)}
+                                  disabled={generateRenewalQuoteMutation.isPending}
+                                  className="h-7 text-xs gap-1 border-indigo-200 text-indigo-700 bg-indigo-50/70 hover:bg-indigo-100 dark:border-indigo-800 dark:text-indigo-300 dark:bg-indigo-950/40 cursor-pointer font-semibold"
+                                  title="Generate full-term renewal quote consolidating base products and active add-ons"
+                                >
+                                  {generateRenewalQuoteMutation.isPending && (generateRenewalQuoteMutation.variables as any) === item.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                                  ) : (
+                                    <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                                  )}
+                                  <span>Generate Next Quote</span>
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(item.viewUrl)}
+                                className="h-7 text-xs gap-1 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                                <span>Details</span>
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))

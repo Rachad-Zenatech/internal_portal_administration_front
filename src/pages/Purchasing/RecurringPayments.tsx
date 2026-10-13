@@ -1085,9 +1085,8 @@ export default function RecurringPayments() {
         }
       }
       if (cardFilter === "ALL") {
-        // "All Subscriptions" tab: strictly show standard recurring subscriptions (exclude M&A)
+        // "All Subscriptions" tab: includes all active recurring subscriptions and M&A scheduled payments
         if (isRejected) return false;
-        if (isMaTransaction(r)) return false;
       } else if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
         // "M&A Scheduled" tab: strictly show M&A transactions
         if (isRejected) return false;
@@ -1158,13 +1157,11 @@ export default function RecurringPayments() {
 
   // Summary statistics
   const stats = useMemo(() => {
-    const nonMaRequests = requests.filter((r) => !isMaTransaction(r));
     const maRequests = requests.filter(isMaTransaction);
 
     const activeAll = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
-    const activeSubs = nonMaRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
 
-    const total = activeSubs.length; // "All Subscriptions" card count
+    const total = activeAll.length; // "All Subscriptions" card count
     const maScheduled = maRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected).length; // "M&A Scheduled" card count
     const dueSoon = requests.filter(isDueSoon).length; // "Due in 7 Days"
     const waitingReview = activeAll.filter(
@@ -1180,7 +1177,7 @@ export default function RecurringPayments() {
       (r) => parseRequestStatus(r.status) === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID"
     ).length; // "Completed"
     const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length; // "Rejected"
-    const totalAmount = activeSubs.reduce((sum, r) => sum + (r.amount || 0), 0);
+    const totalAmount = activeAll.reduce((sum, r) => sum + (r.amount || 0), 0);
     return { total, maScheduled, dueSoon, waitingReview, reviewed, onHold, completed, rejected, totalAmount };
   }, [requests]);
 

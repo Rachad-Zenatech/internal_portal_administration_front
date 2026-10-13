@@ -7,8 +7,11 @@ export interface RowPricingResult {
   formulaString: string;      // detailed human-readable formula
   isProrated: boolean;        // true if proration factor < 0.999
   badge: string;              // "Prorated" | "Recurring" | "One-Time"
-  prorationRatio: number;     // e.g. 0.85
+  prorationRatio: number;     // e.g. 0.25
   termCount: number;          // term multiplier used (>= 1)
+  remainingMonths?: number;   // e.g. 3
+  totalMonths?: number;       // e.g. 12
+  proratedNote?: string;      // e.g. "Prorated (3 months left): $300.00"
 }
 
 export function calculateRowPricing(params: {
@@ -20,8 +23,12 @@ export function calculateRowPricing(params: {
   term?: string | number;
   billing_start_date?: string;
   tax_rate?: string | number;
+  is_paid?: boolean;
+  is_renewal?: boolean;
+  is_prorated?: boolean;
+  quote_type?: string;
 }): RowPricingResult {
-  const qty = params.quantity === "" || params.quantity === undefined ? 1 : Math.max(0, Number(params.quantity) || 0);
+  const qty = params.quantity === "" || params.quantity === undefined ? 1 : Math.max(1, Number(params.quantity) || 1);
   const price = params.unit_price === "" || params.unit_price === undefined ? 0 : Math.max(0, Number(params.unit_price) || 0);
   const grossBase = qty * price;
 
@@ -35,12 +42,17 @@ export function calculateRowPricing(params: {
   discAmt = Math.min(grossBase, Math.max(0, discAmt));
   const afterDisc = Math.max(0, grossBase - discAmt);
 
-  const rawTerm = params.term === "" || params.term === undefined ? 0 : Number(params.term) || 0;
-  const termCount = rawTerm > 0 ? rawTerm : 1;
+  const rawTerm = params.term === "" || params.term === undefined ? 1 : Math.max(1, Number(params.term) || 1);
+  const termCount = rawTerm;
 
   const freq = (params.billing_frequency || "").trim().toLowerCase();
-  const rawStartDate = (params.billing_start_date || "").trim();
   const taxRate = params.tax_rate === "" || params.tax_rate === undefined ? 0 : Number(params.tax_rate) || 0;
+  const isPaid = !!params.is_paid;
+  const isRenewal = !!params.is_renewal || (params.quote_type || "").toUpperCase() === "RENEWAL";
+  const explicitProrated = params.is_prorated;
+  const startD = parseDateOnly(params.billing_start_date);
+  const now = new Date();
+  const isFutureYear = startD ? startD.getFullYear() > now.getFullYear() : false;
 
   // If frequency is empty or One-Time
   if (!freq || freq === "none" || freq === "one-time" || freq === "one time") {
@@ -63,68 +75,49 @@ export function calculateRowPricing(params: {
       taxAmount: taxAmt,
       formulaString,
       isProrated: false,
-      badge: "One-Time",
+      badge: isPaid ? "Paid" : isRenewal ? "Renewal" : "One-Time",
       prorationRatio: 1.0,
       termCount,
     };
   }
 
-  // Recurring frequency (Monthly, Quarterly, Semi-annually, Annually)
-  const now = new Date();
-  let start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  let isFullPeriod = false;
-
-  const startLower = rawStartDate.toLowerCase();
-  if (startLower === "first of next month") {
-    start = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    isFullPeriod = true;
-  } else if (startLower === "upon signing" || startLower === "immediate" || startLower === "at payment" || !rawStartDate) {
-    start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  } else {
-    // Check if it's a valid date string YYYY-MM-DD
-    const parsed = new Date(rawStartDate);
-    if (!isNaN(parsed.getTime())) {
-      start = parsed;
-    }
-  }
-
-  let totalDaysInPeriod = 365;
-  let remainingDays = 365;
+  // Recurring frequency: Month-based proration
+  let totalMonths = 12;
+  let remainingMonths = 12;
   let freqLabel = "/yr";
+  let isProrated = false;
 
-  if (freq.includes("semi")) {
-    totalDaysInPeriod = 182;
-    freqLabel = "/6-mo";
-    const endOfHalf = new Date(start.getFullYear(), start.getMonth() < 6 ? 5 : 11, start.getMonth() < 6 ? 30 : 31);
-    remainingDays = Math.max(1, Math.round((endOfHalf.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-    if (remainingDays > totalDaysInPeriod) remainingDays = totalDaysInPeriod;
-  } else if (freq.includes("annual") || freq.includes("year")) {
-    totalDaysInPeriod = 365;
+  if (freq.includes("annual") || freq.includes("year")) {
+    totalMonths = 12;
     freqLabel = "/yr";
-    const endOfYear = new Date(start.getFullYear(), 11, 31);
-    remainingDays = Math.max(1, Math.round((endOfYear.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-    if (remainingDays > totalDaysInPeriod) remainingDays = totalDaysInPeriod;
-  } else if (freq.includes("quarter")) {
-    totalDaysInPeriod = 91;
-    freqLabel = "/qtr";
-    const currentQ = Math.floor(start.getMonth() / 3);
-    const endOfQ = new Date(start.getFullYear(), (currentQ + 1) * 3, 0);
-    remainingDays = Math.max(1, Math.round((endOfQ.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-    if (remainingDays > totalDaysInPeriod) remainingDays = totalDaysInPeriod;
-  } else if (freq.includes("month")) {
-    const daysInCurrentMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
-    totalDaysInPeriod = daysInCurrentMonth;
-    freqLabel = "/mo";
-    if (isFullPeriod) {
-      remainingDays = totalDaysInPeriod;
+    if (isRenewal || explicitProrated === false || isFutureYear) {
+      // Annual renewals or future periods are full-term unprorated
+      remainingMonths = 12;
+      isProrated = false;
+    } else if (explicitProrated === true) {
+      remainingMonths = Math.max(1, 12 - now.getMonth());
+      isProrated = remainingMonths < 12;
     } else {
-      remainingDays = Math.max(1, daysInCurrentMonth - start.getDate() + 1);
+      // Default: Remaining months in current year (inclusive of starting or current month)
+      let startMonth = now.getMonth();
+      if (startD && startD.getFullYear() === now.getFullYear()) {
+        startMonth = startD.getMonth();
+      }
+      remainingMonths = Math.max(1, 12 - startMonth);
+      if (remainingMonths < 12) {
+        isProrated = true;
+      }
     }
+  } else if (freq.includes("month")) {
+    totalMonths = 1;
+    remainingMonths = 1;
+    freqLabel = "/mo";
+    isProrated = false;
   }
 
-  const ratio = isFullPeriod ? 1.0 : Math.min(1.0, Math.max(0.01, remainingDays / totalDaysInPeriod));
+  const ratio = isProrated ? Math.min(1.0, Math.max(0.01, remainingMonths / totalMonths)) : 1.0;
 
-  // Multi-term support: first period may be prorated, remaining (termCount - 1) periods are full
+  // Multi-term support: first period may be prorated by month, remaining (termCount - 1) periods are full
   let subtotalBeforeTax = 0;
   if (termCount > 1) {
     const firstPeriodBase = afterDisc * ratio;
@@ -139,8 +132,8 @@ export function calculateRowPricing(params: {
 
   const formulaParts: string[] = [];
   formulaParts.push(`${qty} × $${price.toFixed(2)}${freqLabel}`);
-  if (ratio < 0.999) {
-    formulaParts.push(`× (${remainingDays}/${totalDaysInPeriod}d prorated)`);
+  if (isProrated) {
+    formulaParts.push(`× (${remainingMonths}/${totalMonths} mo prorated)`);
   }
   if (termCount > 1) {
     formulaParts.push(`for ${termCount} terms`);
@@ -153,6 +146,10 @@ export function calculateRowPricing(params: {
   }
   const formulaString = `${formulaParts.join(" ")} = $${finalAmt.toFixed(2)}`;
 
+  const proratedNote = isProrated
+    ? `Prorated (${remainingMonths} ${remainingMonths === 1 ? "month" : "months"} left): $${finalAmt.toFixed(2)}`
+    : undefined;
+
   return {
     amount: finalAmt,
     subtotalBeforeTax,
@@ -160,9 +157,85 @@ export function calculateRowPricing(params: {
     discountAmount: discAmt * termCount,
     taxAmount: taxAmt,
     formulaString,
-    isProrated: ratio < 0.999,
-    badge: ratio < 0.999 ? "Prorated" : "Recurring",
+    isProrated,
+    badge: isPaid ? "Paid" : isRenewal ? "Renewal" : isProrated ? "Prorated" : "Recurring",
     prorationRatio: ratio,
     termCount,
+    remainingMonths,
+    totalMonths,
+    proratedNote,
   };
+}
+
+/**
+ * Parses a date string (YYYY-MM-DD, MM/DD/YYYY, MM / DD / YYYY) safely in local calendar time
+ * avoiding UTC off-by-one shifts.
+ */
+export function parseDateOnly(dateStr?: string | null): Date | null {
+  if (!dateStr) return null;
+  const clean = String(dateStr).split("T")[0].replace(/\s+/g, "");
+  const parts = clean.includes("-") ? clean.split("-") : clean.split("/");
+  if (parts.length === 3) {
+    let y: number, m: number, d: number;
+    if (parts[0].length === 4) {
+      // YYYY-MM-DD or YYYY/MM/DD
+      y = parseInt(parts[0], 10);
+      m = parseInt(parts[1], 10) - 1;
+      d = parseInt(parts[2], 10);
+    } else {
+      // MM/DD/YYYY or MM-DD-YYYY
+      m = parseInt(parts[0], 10) - 1;
+      d = parseInt(parts[1], 10);
+      y = parseInt(parts[2], 10);
+    }
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      return new Date(y, m, d);
+    }
+  }
+  const fallback = new Date(dateStr);
+  return isNaN(fallback.getTime()) ? null : fallback;
+}
+
+/**
+ * Formats a date string safely in local calendar time with the given format pattern.
+ */
+export function formatDateOnly(dateStr?: string | null, formatStr: string = "MM / dd / yyyy"): string {
+  const d = parseDateOnly(dateStr);
+  if (!d) return dateStr || "—";
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  const y = d.getFullYear();
+  const m = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+
+  if (formatStr === "MM / dd / yyyy") return `${m} / ${day} / ${y}`;
+  if (formatStr === "MM/dd/yyyy") return `${m}/${day}/${y}`;
+  if (formatStr === "yyyy-MM-dd") return `${y}-${m}-${day}`;
+  if (formatStr === "MMM d, yyyy") {
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${monthNames[d.getMonth()]} ${d.getDate()}, ${y}`;
+  }
+  if (formatStr === "MMMM d, yyyy") {
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    return `${monthNames[d.getMonth()]} ${d.getDate()}, ${y}`;
+  }
+  return `${m}/${day}/${y}`;
+}
+
+/**
+ * Normalizes arbitrary billing frequency string into standard values: "One-Time", "Monthly", "Annually"
+ */
+export function normalizeBillingFrequencyForSelect(freq?: string | null): string {
+  if (!freq) return "none";
+  const f = String(freq).trim().toLowerCase().replace("-", " ").replace("_", " ");
+  if (f === "none" || f === "") return "none";
+  if (f.includes("annu") || f.includes("year") || f.includes("12 month")) return "Annually";
+  if (f.includes("month") || f === "mo" || f.includes("semi") || f.includes("quarter")) return "Monthly";
+  if (f.includes("one time") || f.includes("onetime") || f.includes("once")) return "One-Time";
+  return "One-Time";
+}
+
+export function normalizeBillingFrequency(freq?: string | null): string {
+  if (!freq) return "One-Time";
+  const norm = normalizeBillingFrequencyForSelect(freq);
+  return norm === "none" ? "One-Time" : norm;
 }

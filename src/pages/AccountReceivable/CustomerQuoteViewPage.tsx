@@ -9,6 +9,7 @@ import {
   Paperclip,
   PenTool,
   QrCode,
+  RefreshCw,
   RotateCcw,
   ShieldCheck,
   Smartphone,
@@ -37,6 +38,7 @@ import type {
 } from "../../services/arQuoteService";
 import { QRCodeDisplay } from "../../components/common/QRCodeDisplay";
 import { QuoteNotesThread } from "./QuoteNotesThread";
+import { calculateRowPricing, formatDateOnly } from "./lineItemPricingUtils";
 
 export default function CustomerQuoteViewPage() {
   const { token } = useParams<{ token: string }>();
@@ -302,6 +304,60 @@ export default function CustomerQuoteViewPage() {
   const quote: ARQuote = quoteData.quote;
   const isAlreadySigned = quote.customer_response_state === "SIGNED" || signedSuccess;
   const isChangesPending = quote.customer_response_state === "CHANGES_REQUESTED";
+  const isRenewal = (quote as any).quote_type === "RENEWAL" || !!(quote as any).source_invoice_id || !!(quote as any).source_invoice_number || quote.line_items?.some((li: any) => li.is_renewal || li.badge === "Renewal");
+
+  const effectiveSubtotal = (() => {
+    if (!quote.line_items || quote.line_items.length === 0) {
+      return Number(quote.subtotal || 0);
+    }
+    const sum = quote.line_items.reduce((acc: number, item: any) => {
+      const isLineRenewal = isRenewal || !!item.is_renewal || item.badge === "Renewal";
+      const pricing = calculateRowPricing({
+        quantity: item.quantity !== undefined && item.quantity !== null && item.quantity !== "" ? item.quantity : 1,
+        unit_price: item.price !== undefined && item.price !== null && item.price !== "" ? item.price : (item.unit_price || 0),
+        unit_discount: item.unit_discount ?? 0,
+        discount_type: item.discount_type || "%",
+        billing_frequency: item.billing_frequency || item.billing_type || "",
+        term: item.term ?? 1,
+        billing_start_date: item.billing_start_date || item.service_period_start || "",
+        tax_rate: item.tax_rate ?? 0,
+        is_renewal: isLineRenewal,
+        is_prorated: isLineRenewal ? false : item.is_prorated,
+        quote_type: quote.quote_type || (isRenewal ? "RENEWAL" : "STANDARD"),
+      });
+      const lineSub = isLineRenewal ? pricing.amount : (Number(item.subtotal) || pricing.amount);
+      return acc + lineSub;
+    }, 0);
+    return sum > 0 ? sum : Number(quote.subtotal || 0);
+  })();
+
+  const effectiveTax = (() => {
+    if (!quote.line_items || quote.line_items.length === 0) {
+      return Number(quote.tax || 0);
+    }
+    const sumTax = quote.line_items.reduce((acc: number, item: any) => {
+      const isLineRenewal = isRenewal || !!item.is_renewal || item.badge === "Renewal";
+      const pricing = calculateRowPricing({
+        quantity: item.quantity !== undefined && item.quantity !== null && item.quantity !== "" ? item.quantity : 1,
+        unit_price: item.price !== undefined && item.price !== null && item.price !== "" ? item.price : (item.unit_price || 0),
+        unit_discount: item.unit_discount ?? 0,
+        discount_type: item.discount_type || "%",
+        billing_frequency: item.billing_frequency || item.billing_type || "",
+        term: item.term ?? 1,
+        billing_start_date: item.billing_start_date || item.service_period_start || "",
+        tax_rate: item.tax_rate ?? 0,
+        is_renewal: isLineRenewal,
+        is_prorated: isLineRenewal ? false : item.is_prorated,
+        quote_type: quote.quote_type || (isRenewal ? "RENEWAL" : "STANDARD"),
+      });
+      const rate = Number(item.tax_rate || 0);
+      return acc + (rate > 0 ? (pricing.amount * rate) / 100 : 0);
+    }, 0);
+    return sumTax > 0 ? Math.round(sumTax * 100) / 100 : Number(quote.tax || 0);
+  })();
+
+  const effectiveDiscount = Number(quote.discount || 0);
+  const effectiveTotal = Math.max(0, Math.round((effectiveSubtotal - effectiveDiscount + effectiveTax) * 100) / 100);
 
   return (
     <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 py-6 px-4 sm:px-6 lg:px-8 font-sans print:min-h-0 print:p-0 print:m-0 print:bg-white print:w-full">
@@ -317,11 +373,17 @@ export default function CustomerQuoteViewPage() {
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                    {quote.company_name} Formal Quotation
+                    {quote.company_name ? `${quote.company_name} Formal Quotation` : "Formal Quotation"}
                   </h1>
                   <Badge variant="outline" className="font-mono text-xs bg-amber-50 text-amber-700 border-amber-300">
                     {quote.quote_number} (v{quote.current_version})
                   </Badge>
+                  {isRenewal && (
+                    <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 text-xs font-semibold gap-1 px-2 py-0.5">
+                      <RefreshCw className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                      <span>Renewal Quote</span>
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
                   <span className="flex items-center gap-1.5">
@@ -440,14 +502,23 @@ export default function CustomerQuoteViewPage() {
 
         {/* Visual Document Layout (Matches clean paper document format) */}
         <div className="p-8 sm:p-14 bg-white text-slate-900 border border-slate-200 rounded-2xl shadow-sm font-sans text-sm space-y-8 min-h-[750px] print:border-none print:shadow-none print:rounded-none print:p-0 print:m-0 print:space-y-6 print:min-h-0 print:w-full">
-          {/* Brand Logo */}
-          {quote.logo_url && (
-            <div className="h-12 sm:h-14 max-w-[220px] flex items-center mb-6">
-              <img
-                src={quote.logo_url}
-                alt="Company Logo"
-                className="max-h-full max-w-full h-auto w-auto object-contain object-left"
-              />
+          {/* Brand Logo & Company Name */}
+          {(quote.logo_url || quote.company_name) && (
+            <div className="space-y-2 mb-6">
+              {quote.logo_url && (
+                <div className="h-20 sm:h-24 max-w-[340px] flex items-center">
+                  <img
+                    src={quote.logo_url}
+                    alt={quote.company_name || "Company Logo"}
+                    className="max-h-full max-w-full h-auto w-auto object-contain object-left"
+                  />
+                </div>
+              )}
+              {quote.company_name && (
+                <div className="text-base font-bold text-slate-900">
+                  {quote.company_name}
+                </div>
+              )}
             </div>
           )}
 
@@ -470,7 +541,7 @@ export default function CustomerQuoteViewPage() {
             <div className="space-y-1 text-slate-900">
               <div className="text-[14px] leading-snug">
                 <span className="font-bold">Date</span>{" "}
-                <span className="ml-1">{new Date(quote.quote_date).toLocaleDateString()}</span>
+                <span className="ml-1">{formatDateOnly(quote.quote_date, "MMM d, yyyy")}</span>
               </div>
               <div className="text-[14px] leading-snug">
                 <span className="font-bold">Quotation No.:</span>{" "}
@@ -478,7 +549,10 @@ export default function CustomerQuoteViewPage() {
               </div>
               <div className="text-[14px] leading-snug">
                 <span className="font-bold">Quote Validity:</span>{" "}
-                <span className="ml-1 italic text-slate-700">{quote.terms || `${quote.validity_days} days`}</span>
+                <span className="ml-1 italic text-slate-700">{quote.terms || `${quote.validity_days || 30} days`}</span>
+                {quote.valid_until && (
+                  <span className="ml-1 text-slate-500 text-xs">(Valid until {formatDateOnly(quote.valid_until, "MMM d, yyyy")})</span>
+                )}
               </div>
 
               {(quote.prepared_by_name || quote.prepared_by_email) && (
@@ -486,7 +560,7 @@ export default function CustomerQuoteViewPage() {
                   {quote.prepared_by_name && (
                     <div className="text-[14px] leading-snug">
                       <span className="font-bold">Prepared By:</span>{" "}
-                      <span className="ml-1">{quote.prepared_by_name}</span>
+                      <span className="ml-1 font-medium">{quote.prepared_by_name}</span>
                     </div>
                   )}
                   {quote.prepared_by_email && (
@@ -504,59 +578,109 @@ export default function CustomerQuoteViewPage() {
             <div className="overflow-hidden border-t border-b border-slate-200">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#f8f9fa] border-b border-slate-200 text-slate-900 text-[13px] font-bold">
-                    <th className="py-2.5 px-4 font-bold">Name</th>
-                    <th className="py-2.5 px-4 text-right font-bold w-28">Price</th>
-                    <th className="py-2.5 px-4 text-right font-bold w-20">QTY</th>
-                    <th className="py-2.5 px-4 text-right font-bold w-28">Subtotal</th>
+                  <tr className="bg-[#f8f9fa] border-b border-slate-200 text-slate-900 text-[12px] font-bold uppercase tracking-wider">
+                    <th className="py-2.5 px-4 font-bold text-left w-[40%]">Item &amp; Description</th>
+                    <th className="py-2.5 px-3 text-right font-bold w-[14%]">Unit Price</th>
+                    <th className="py-2.5 px-2 text-center font-bold w-[10%]">Currency</th>
+                    <th className="py-2.5 px-2 text-center font-bold w-[8%]">Qty</th>
+                    <th className="py-2.5 px-3 text-center font-bold w-[10%]">Discount</th>
+                    <th className="py-2.5 px-4 text-right font-bold w-[18%]">Net Price</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-[13.5px]">
-                  {quote.line_items.map((itm, i) => (
-                    <tr key={i} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-4">
-                        <div className="text-slate-900 font-medium">{itm.name || "—"}</div>
-                        {itm.description && (
-                          <div className="text-slate-500 text-[12px] mt-0.5 whitespace-pre-line leading-relaxed">
-                            {itm.description}
-                          </div>
-                        )}
-                        {(itm.billing_frequency || itm.term || itm.billing_start_date) && (
-                          <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-500">
-                            {itm.billing_frequency && (
-                              <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-medium text-slate-700 dark:text-zinc-300">
-                                {itm.billing_frequency}
-                              </span>
-                            )}
-                            {itm.term && (
-                              <span className="text-slate-500">
-                                • {itm.term} {Number(itm.term) === 1 ? "term" : "terms"}
-                              </span>
-                            )}
-                            {itm.billing_start_date && (
-                              <span className="text-slate-500">
-                                • Start: {itm.billing_start_date}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-right text-slate-900 font-normal">
-                        <div>${Number(itm.price || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                        {Number(itm.unit_discount || 0) > 0 && (
-                          <div className="text-[10.5px] text-emerald-600 font-normal">
-                            -{itm.unit_discount}{itm.discount_type === "$" ? "$" : "%"} off
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-right text-slate-900 font-normal">
-                        {itm.quantity}
-                      </td>
-                      <td className="py-3 px-4 text-right text-slate-900 font-normal">
-                        ${Number(itm.subtotal || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-slate-100 text-[13px]">
+                  {quote.line_items.map((itm: any, i: number) => {
+                    const isLineRenewal = isRenewal || !!itm.is_renewal || itm.badge === "Renewal";
+                    const pricing = calculateRowPricing({
+                      quantity: itm.quantity !== undefined && itm.quantity !== null && itm.quantity !== "" ? itm.quantity : 1,
+                      unit_price: itm.price !== undefined && itm.price !== null && itm.price !== "" ? itm.price : (itm.unit_price || 0),
+                      unit_discount: itm.unit_discount ?? 0,
+                      discount_type: itm.discount_type || "%",
+                      billing_frequency: itm.billing_frequency || itm.billing_type || "",
+                      term: itm.term ?? 1,
+                      billing_start_date: itm.billing_start_date || itm.service_period_start || "",
+                      tax_rate: itm.tax_rate ?? 0,
+                      is_renewal: isLineRenewal,
+                      is_prorated: isLineRenewal ? false : itm.is_prorated,
+                      quote_type: quote.quote_type || (isRenewal ? "RENEWAL" : "STANDARD"),
+                    });
+                    const formulaStr = isLineRenewal ? pricing.formulaString : (itm.calculation || pricing.formulaString);
+                    const displaySubtotal = isLineRenewal ? pricing.amount : (Number(itm.subtotal) || pricing.amount);
+
+                    return (
+                      <tr key={i} className="hover:bg-slate-50/50">
+                        <td className="py-3 px-4 align-top">
+                          <div className="text-slate-900 font-semibold">{itm.name || "—"}</div>
+                          {itm.description && (
+                            <div className="text-slate-500 text-[12px] mt-0.5 whitespace-pre-line leading-relaxed">
+                              {itm.description}
+                            </div>
+                          )}
+                          {pricing.isProrated && pricing.proratedNote && (
+                            <div className="text-[10.5px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded font-medium inline-flex items-center gap-1 mt-1">
+                              <span>ℹ️ {pricing.proratedNote}</span>
+                            </div>
+                          )}
+                          {isLineRenewal && (
+                            <div className="text-[10.5px] text-indigo-800 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded font-semibold inline-flex items-center gap-1 mt-1">
+                              <span>🔄 Annual Renewal Term (Full Price)</span>
+                            </div>
+                          )}
+                          {(itm.billing_frequency || itm.term || (itm.tax_rate !== "" && itm.tax_rate !== undefined && Number(itm.tax_rate) > 0)) && (
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[11px] text-slate-600">
+                              {itm.billing_frequency && (
+                                <span className="inline-flex items-center gap-1 font-medium">
+                                  <span className="text-slate-400 font-normal">Frequency:</span>
+                                  <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-semibold text-slate-700 dark:text-zinc-300 border border-slate-200 text-[10px]">
+                                    {itm.billing_frequency}
+                                  </span>
+                                </span>
+                              )}
+                              {itm.term && (
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="text-slate-400 font-normal">Term:</span>
+                                  <span className="font-medium text-slate-700">
+                                    {itm.term} {typeof itm.term === "number" || !isNaN(Number(itm.term)) ? (Number(itm.term) === 1 ? "month" : "months") : ""}
+                                  </span>
+                                </span>
+                              )}
+                              {itm.tax_rate !== "" && itm.tax_rate !== undefined && Number(itm.tax_rate) > 0 && (
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="text-slate-400 font-normal">Tax Rate:</span>
+                                  <span className="font-medium text-slate-700">{itm.tax_rate}%</span>
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {formulaStr && (
+                            <div className="mt-1 font-mono text-[10.5px] text-slate-500 bg-slate-100/80 px-2 py-0.5 rounded inline-block border border-slate-200">
+                              {formulaStr}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-right text-slate-900 font-mono align-top">
+                          ${Number(itm.price || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3 px-2 text-center text-slate-800 font-mono font-semibold align-top">
+                          {itm.currency || quote.currency || "USD"}
+                        </td>
+                        <td className="py-3 px-2 text-center text-slate-900 font-mono align-top">
+                          {itm.quantity !== "" && itm.quantity !== undefined ? itm.quantity : 1}
+                        </td>
+                        <td className="py-3 px-3 text-center align-top font-mono text-slate-800">
+                          {Number(itm.unit_discount || 0) > 0 ? (
+                            <span className="text-emerald-600 font-medium">
+                              {itm.unit_discount}{itm.discount_type === "$" ? "$" : "%"}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right text-slate-900 font-mono font-bold align-top">
+                          ${displaySubtotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -568,7 +692,7 @@ export default function CustomerQuoteViewPage() {
               <div className="flex justify-between items-center text-slate-800">
                 <span>Subtotal</span>
                 <span className="font-normal">
-                  ${Number(quote.subtotal).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${effectiveSubtotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="flex justify-between items-center text-slate-800">
@@ -586,7 +710,7 @@ export default function CustomerQuoteViewPage() {
               <div className="flex justify-between items-center text-slate-900 font-bold pt-1 border-t border-slate-200">
                 <span>Total</span>
                 <span>
-                  ${Number(quote.total_amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {quote.currency}
+                  ${effectiveTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {quote.currency}
                 </span>
               </div>
             </div>
@@ -600,9 +724,19 @@ export default function CustomerQuoteViewPage() {
               </p>
             )}
 
+            {quote.notes && (
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
+                <div className="font-semibold text-slate-900 mb-1">Notes &amp; Terms:</div>
+                <p className="whitespace-pre-line leading-relaxed">{quote.notes}</p>
+              </div>
+            )}
+
             <div className="space-y-2 pt-2">
               <div>Thank you,</div>
-              <div className="pt-1 font-medium text-slate-900">{quote.prepared_by_name}</div>
+              <div className="pt-1 font-medium text-slate-900">{quote.prepared_by_name || "Steve Rhode"}</div>
+              {quote.prepared_by_email && (
+                <div className="text-xs text-slate-500">{quote.prepared_by_email}</div>
+              )}
             </div>
 
             {/* Official Signature on Document (Printed with document) */}
@@ -621,7 +755,7 @@ export default function CustomerQuoteViewPage() {
                     </div>
                     {quote.signed_at && (
                       <div className="text-[11px] text-slate-500">
-                        Date: {new Date(quote.signed_at).toLocaleDateString()}
+                        Date: {formatDateOnly(quote.signed_at, "MMM d, yyyy")}
                       </div>
                     )}
                   </div>
