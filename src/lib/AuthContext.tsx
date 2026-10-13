@@ -9,6 +9,9 @@ export interface User {
   is_active?: boolean;
   department?: string;
   job_title?: string;
+  shipping_address?: string;
+  phone_number?: string;
+  saved_shipping_addresses?: string[];
 }
 
 export interface Role {

@@ -40,6 +40,8 @@ import {
   FolderKanban,
   CheckCircle2,
   Truck,
+  MapPin,
+  Phone,
   Plus,
   Pencil,
   Trash2,
@@ -1509,6 +1511,32 @@ export default function RequestDetail() {
 
                     <Field label="Requested Date" value={formatDate(request.request_date)} />
                     <Field label="Last Updated" value={formatDate(request.updated_at)} />
+                    {(request.shipping_address || request.phone_number) && (
+                      <>
+                        {request.shipping_address && (
+                          <Field
+                            label="Shipping Address"
+                            value={
+                              <span className="flex items-start gap-1.5 font-medium text-slate-800 dark:text-zinc-200">
+                                <MapPin className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                                <span>{request.shipping_address}</span>
+                              </span>
+                            }
+                          />
+                        )}
+                        {request.phone_number && (
+                          <Field
+                            label="Contact Phone"
+                            value={
+                              <span className="flex items-center gap-1.5 font-medium text-slate-800 dark:text-zinc-200">
+                                <Phone className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <span>{request.phone_number}</span>
+                              </span>
+                            }
+                          />
+                        )}
+                      </>
+                    )}
                     {isRecurring && (
                       <Field
                         label="Next Due Date"

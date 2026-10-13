@@ -136,6 +136,8 @@ export type PurchaseRequest = {
   request_type: RequestType;
   priority: Priority;
   status: RequestStatus;
+  shipping_address?: string | null;
+  phone_number?: string | null;
   item_mode?: ItemMode;
   sku?: string | null;
   hold_reason?: string | null;
@@ -332,6 +334,8 @@ export type RequestCreateInput = {
   department: string;
   request_type: RequestType;
   priority: Priority;
+  shipping_address?: string | null;
+  phone_number?: string | null;
   item_mode?: ItemMode;
   description?: string | null;
   assigned_user?: string | null;
