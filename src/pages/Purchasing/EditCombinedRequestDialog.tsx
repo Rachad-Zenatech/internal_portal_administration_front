@@ -31,6 +31,7 @@ import { WireBankingFields } from "./WireBankingFields";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { calculateInstallmentsCount } from "./recurringScheduleUtils";
 import { useUpdateRequest, useUsersList, useRolesList, useUploadAttachments, useDeleteAttachment } from "@/hooks/usePurchasing";
+import { useAuth } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 import * as purchasingService from "@/services/purchasingService";
 import { updateWireTransfer } from "@/services/purchasingService";
@@ -66,6 +67,9 @@ import {
   Landmark,
   Lock,
   Truck,
+  MapPin,
+  Phone,
+  Clock,
   CheckCircle2,
   FolderKanban,
   Eye,
@@ -133,6 +137,41 @@ export function EditCombinedRequestDialog({
   const [reqCurrency, setReqCurrency] = useState("USD");
   const [reqGlCode, setReqGlCode] = useState("");
   const [description, setDescription] = useState("");
+  const { user } = useAuth();
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+
+  const currentRequesterUser = useMemo(() => {
+    const q = (requester || "").toLowerCase().trim();
+    if (!q) return user;
+    return (
+      usersList.find(
+        (u: any) =>
+          (u.full_name && u.full_name.toLowerCase().trim() === q) ||
+          (u.email && u.email.toLowerCase().trim() === q)
+      ) || user
+    );
+  }, [requester, usersList, user]);
+
+  const allSavedAddresses = useMemo(() => {
+    const list: string[] = [];
+    if (currentRequesterUser) {
+      if ((currentRequesterUser as any).shipping_address) {
+        list.push((currentRequesterUser as any).shipping_address);
+      }
+      const rawSaved = (currentRequesterUser as any).saved_shipping_addresses;
+      if (Array.isArray(rawSaved)) {
+        rawSaved.forEach((a: any) => {
+          if (typeof a === "string" && a.trim() && !list.includes(a.trim())) {
+            list.push(a.trim());
+          }
+        });
+      }
+    }
+    return list;
+  }, [currentRequesterUser]);
+
+  const lastUsedAddress = allSavedAddresses[0] || "";
 
   // Single item specific fields
   const [sku, setSku] = useState("");
@@ -308,17 +347,17 @@ export function EditCombinedRequestDialog({
 
       setTitle(request?.title || (request as any)?.product_name || "");
       setRequester(request?.requester || "");
+      const matchedUser = usersList.find(
+        (u: any) =>
+          (request?.requester_id && u.id === request.requester_id) ||
+          (request?.requester && (u.full_name?.toLowerCase() === request.requester.toLowerCase() || u.email?.toLowerCase() === request.requester.toLowerCase()))
+      );
       let initialDept = request?.department || "";
       if (!initialDept || initialDept.toUpperCase() === "GENERAL") {
-        const matched = usersList.find(
-          (u: any) =>
-            (request?.requester_id && u.id === request.requester_id) ||
-            (request?.requester && (u.full_name?.toLowerCase() === request.requester.toLowerCase() || u.email?.toLowerCase() === request.requester.toLowerCase()))
-        );
-        if (matched) {
-          initialDept = (matched.department && matched.department.trim() && matched.department.toUpperCase() !== "REQUESTER")
-            ? matched.department.trim()
-            : resolveUserDepartment(matched, rolesList);
+        if (matchedUser) {
+          initialDept = (matchedUser.department && matchedUser.department.trim() && matchedUser.department.toUpperCase() !== "REQUESTER")
+            ? matchedUser.department.trim()
+            : resolveUserDepartment(matchedUser, rolesList);
         }
       }
       setDepartment(initialDept);
@@ -343,6 +382,8 @@ export function EditCombinedRequestDialog({
       setSchedDates(sDates);
       setItemUrl(request?.item_url || "");
       setReqCurrency(request?.currency || "USD");
+      setShippingAddress((request as any)?.shipping_address || (matchedUser as any)?.shipping_address || (user as any)?.shipping_address || "");
+      setPhoneNumber((request as any)?.phone_number || (matchedUser as any)?.phone_number || (user as any)?.phone_number || "");
       setReqGlCode(request?.gl_code || purchaseOrder?.gl_code || "");
       setDescription(request?.description || "");
 
@@ -882,6 +923,8 @@ export function EditCombinedRequestDialog({
       request_type: requestType,
       item_mode: itemMode,
       department: department.trim(),
+      shipping_address: shippingAddress || null,
+      phone_number: phoneNumber || null,
       priority,
       due_date: dueDate || (isSched ? effectiveStartDate : null),
       item_url: itemUrl.trim() || null,
@@ -1284,6 +1327,8 @@ export function EditCombinedRequestDialog({
                             onClick={() => {
                               setRequester(u.full_name || u.email);
                               if (userDept) setDepartment(userDept);
+                              if (u.shipping_address) setShippingAddress(u.shipping_address);
+                              if (u.phone_number) setPhoneNumber(u.phone_number);
                               setIsUserDropdownOpen(false);
                             }}
                           >
@@ -1329,6 +1374,108 @@ export function EditCombinedRequestDialog({
                     placeholder="Select existing project or type project name (e.g. Drone Project)..."
                   />
                 </div>
+
+                {/* Shipping & Delivery Information (Optional for Spend & Quote Requests) */}
+                {(requestType === "SPEND" || requestType === "QUOTE") && (
+                  <div className="md:col-span-3 p-3.5 rounded-xl bg-slate-50/80 dark:bg-zinc-900/40 border border-slate-200/80 dark:border-zinc-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Truck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-xs font-semibold text-slate-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Shipping &amp; Delivery Details
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-normal">Optional</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {/* Shipping Address with Autocomplete Suggestions */}
+                      <div className="space-y-1.5 relative">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1">
+                            <MapPin className="h-3 w-3 text-slate-500" />
+                            <span>Shipping Address</span>
+                          </label>
+                          {lastUsedAddress && shippingAddress !== lastUsedAddress && !isOverviewLocked && (
+                            <button
+                              type="button"
+                              onClick={() => setShippingAddress(lastUsedAddress)}
+                              className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                            >
+                              <Clock className="h-2.5 w-2.5" /> Use last address
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="relative">
+                          <Input
+                            list="edit-combined-saved-shipping-addresses-list"
+                            value={shippingAddress}
+                            disabled={isOverviewLocked}
+                            onChange={(e) => setShippingAddress(e.target.value)}
+                            placeholder="Enter delivery address, suite, city, state, zip..."
+                            className="h-9 text-xs pr-8 bg-white dark:bg-zinc-900"
+                          />
+                          {shippingAddress && !isOverviewLocked && (
+                            <button
+                              type="button"
+                              onClick={() => setShippingAddress("")}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                            >
+                              &times;
+                            </button>
+                          )}
+                          <datalist id="edit-combined-saved-shipping-addresses-list">
+                            {allSavedAddresses.map((addr, i) => (
+                              <option key={i} value={addr} />
+                            ))}
+                          </datalist>
+                        </div>
+
+                        {/* Quick suggestion pills if available */}
+                        {allSavedAddresses.length > 0 && !isOverviewLocked && (
+                          <div className="flex flex-wrap gap-1.5 pt-0.5">
+                            <span className="text-[10px] text-slate-400 self-center">Recent:</span>
+                            {allSavedAddresses.slice(0, 3).map((addr, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setShippingAddress(addr)}
+                                className={`text-[10px] px-2 py-0.5 rounded-md border text-left truncate max-w-[200px] transition-colors cursor-pointer ${
+                                  shippingAddress === addr
+                                    ? "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800"
+                                    : "bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700"
+                                }`}
+                                title={addr}
+                              >
+                                {addr}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Phone Number */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1">
+                          <Phone className="h-3 w-3 text-slate-500" />
+                          <span>Contact Phone Number</span>
+                        </label>
+                        <Input
+                          type="tel"
+                          value={phoneNumber}
+                          disabled={isOverviewLocked}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          placeholder="e.g. +1 (555) 019-2834"
+                          className="h-9 text-xs bg-white dark:bg-zinc-900"
+                        />
+                        <p className="text-[10px] text-slate-400 dark:text-zinc-500">
+                          Saved to your profile and used for carrier delivery updates.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Due Date (Exclusive to RECURRING or if already populated) */}
                 {(isRecurring || dueDate) && (
