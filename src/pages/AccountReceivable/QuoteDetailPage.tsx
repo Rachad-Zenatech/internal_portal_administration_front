@@ -20,6 +20,7 @@ import {
   Link as LinkIcon,
   PenTool,
   Receipt,
+  RefreshCw,
   RotateCcw,
   Send,
   ShieldAlert,
@@ -405,6 +406,60 @@ export default function QuoteDetailPage() {
   const isDraft = quote.publication_state === "DRAFT" && !isSuperseded;
   const hasInvoice = !!quote.invoice_id;
   const isPaid = quote.payment_status === "PAID";
+  const isRenewalQuote = quote.quote_type === "RENEWAL" || !!quote.source_invoice_id || !!quote.source_invoice_number || quote.line_items?.some((li: any) => li.is_renewal || li.badge === "Renewal");
+
+  const effectiveSubtotal = (() => {
+    if (!quote.line_items || quote.line_items.length === 0) {
+      return Number(quote.subtotal || 0);
+    }
+    const sum = quote.line_items.reduce((acc: number, item: any) => {
+      const isLineRenewal = isRenewalQuote || !!item.is_renewal || item.badge === "Renewal";
+      const pricing = calculateRowPricing({
+        quantity: item.quantity !== undefined && item.quantity !== null && item.quantity !== "" ? item.quantity : 1,
+        unit_price: item.price !== undefined && item.price !== null && item.price !== "" ? item.price : (item.unit_price || 0),
+        unit_discount: item.unit_discount ?? 0,
+        discount_type: item.discount_type || "%",
+        billing_frequency: item.billing_frequency || item.billing_type || "",
+        term: item.term ?? 1,
+        billing_start_date: item.billing_start_date || item.service_period_start || "",
+        tax_rate: item.tax_rate ?? 0,
+        is_renewal: isLineRenewal,
+        is_prorated: isLineRenewal ? false : item.is_prorated,
+        quote_type: quote.quote_type || (isRenewalQuote ? "RENEWAL" : "STANDARD"),
+      });
+      const lineSub = isLineRenewal ? pricing.amount : (Number(item.subtotal) || pricing.amount);
+      return acc + lineSub;
+    }, 0);
+    return sum > 0 ? sum : Number(quote.subtotal || 0);
+  })();
+
+  const effectiveTax = (() => {
+    if (!quote.line_items || quote.line_items.length === 0) {
+      return Number(quote.tax || 0);
+    }
+    const sumTax = quote.line_items.reduce((acc: number, item: any) => {
+      const isLineRenewal = isRenewalQuote || !!item.is_renewal || item.badge === "Renewal";
+      const pricing = calculateRowPricing({
+        quantity: item.quantity !== undefined && item.quantity !== null && item.quantity !== "" ? item.quantity : 1,
+        unit_price: item.price !== undefined && item.price !== null && item.price !== "" ? item.price : (item.unit_price || 0),
+        unit_discount: item.unit_discount ?? 0,
+        discount_type: item.discount_type || "%",
+        billing_frequency: item.billing_frequency || item.billing_type || "",
+        term: item.term ?? 1,
+        billing_start_date: item.billing_start_date || item.service_period_start || "",
+        tax_rate: item.tax_rate ?? 0,
+        is_renewal: isLineRenewal,
+        is_prorated: isLineRenewal ? false : item.is_prorated,
+        quote_type: quote.quote_type || (isRenewalQuote ? "RENEWAL" : "STANDARD"),
+      });
+      const rate = Number(item.tax_rate || 0);
+      return acc + (rate > 0 ? (pricing.amount * rate) / 100 : 0);
+    }, 0);
+    return sumTax > 0 ? Math.round(sumTax * 100) / 100 : Number(quote.tax || 0);
+  })();
+
+  const effectiveDiscount = Number(quote.discount || 0);
+  const effectiveTotal = Math.max(0, Math.round((effectiveSubtotal - effectiveDiscount + effectiveTax) * 100) / 100);
 
   return (
     <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6 print:min-h-0 print:p-0 print:m-0 print:bg-white print:w-full print:space-y-4">
@@ -447,6 +502,19 @@ export default function QuoteDetailPage() {
                 ? "Published"
                 : "Draft"}
             </Badge>
+
+            {isRenewalQuote && (
+              <Badge
+                variant="outline"
+                className="text-[10px] font-semibold bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 gap-1"
+              >
+                <RefreshCw className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Renewal Quotation</span>
+                {quote.source_invoice_number && (
+                  <span className="font-normal opacity-80">(From #{quote.source_invoice_number})</span>
+                )}
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -656,6 +724,15 @@ export default function QuoteDetailPage() {
               <Badge variant="outline" className="font-mono text-xs bg-slate-50 dark:bg-slate-800">
                 Revision v{quote.current_version}
               </Badge>
+              {isRenewalQuote && (
+                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 text-xs font-semibold gap-1 px-2 py-0.5">
+                  <RefreshCw className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                  <span>Renewal Quote</span>
+                  {quote.source_invoice_number && (
+                    <span className="font-normal opacity-80 text-[11px]">(From #{quote.source_invoice_number})</span>
+                  )}
+                </Badge>
+              )}
               {quote.parent_quote_id && (
                 <Badge
                   variant="outline"
@@ -719,7 +796,7 @@ export default function QuoteDetailPage() {
             <div>
               <div className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Total Value</div>
               <div className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white font-mono">
-                ${Number(quote.total_amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
+                ${effectiveTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
                 <span className="text-xs font-normal text-slate-500">{quote.currency}</span>
               </div>
             </div>
@@ -787,7 +864,7 @@ export default function QuoteDetailPage() {
                 </span>
               ) : isPaid ? (
                 <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  Payment of ${Number(quote.total_amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {quote.currency} has been settled.
+                  Payment of ${effectiveTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {quote.currency} has been settled.
                 </span>
               ) : hasInvoice ? (
                 <span>
@@ -1047,6 +1124,7 @@ export default function QuoteDetailPage() {
                     </tr>
                   ) : (
                     quote.line_items?.map((item: any, i: number) => {
+                      const isLineRenewal = isRenewalQuote || !!item.is_renewal || item.badge === "Renewal";
                       const pricing = calculateRowPricing({
                         quantity: item.quantity !== undefined && item.quantity !== null && item.quantity !== "" ? item.quantity : 1,
                         unit_price: item.price !== undefined && item.price !== null && item.price !== "" ? item.price : (item.unit_price || 0),
@@ -1054,11 +1132,14 @@ export default function QuoteDetailPage() {
                         discount_type: item.discount_type || "%",
                         billing_frequency: item.billing_frequency || item.billing_type || "",
                         term: item.term ?? 1,
-                        billing_start_date: item.billing_start_date || "",
+                        billing_start_date: item.billing_start_date || item.service_period_start || "",
                         tax_rate: item.tax_rate ?? 0,
+                        is_renewal: isLineRenewal,
+                        is_prorated: isLineRenewal ? false : item.is_prorated,
+                        quote_type: quote.quote_type || (isRenewalQuote ? "RENEWAL" : "STANDARD"),
                       });
-                      const formulaStr = item.calculation || pricing.formulaString;
-                      const displaySubtotal = Number(item.subtotal) || pricing.amount;
+                      const formulaStr = isLineRenewal ? pricing.formulaString : (item.calculation || pricing.formulaString);
+                      const displaySubtotal = isLineRenewal ? pricing.amount : (Number(item.subtotal) || pricing.amount);
 
                       return (
                         <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
@@ -1070,6 +1151,11 @@ export default function QuoteDetailPage() {
                             {pricing.isProrated && pricing.proratedNote && (
                               <div className="text-[10.5px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded font-medium inline-flex items-center gap-1 mt-1">
                                 <span>ℹ️ {pricing.proratedNote}</span>
+                              </div>
+                            )}
+                            {isLineRenewal && (
+                              <div className="text-[10.5px] text-indigo-800 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded font-semibold inline-flex items-center gap-1 mt-1">
+                                <span>🔄 Annual Renewal Term (Full Catalogue Price)</span>
                               </div>
                             )}
                             {(item.billing_frequency || item.term || (item.tax_rate !== "" && item.tax_rate !== undefined && Number(item.tax_rate) > 0) || item.status === "Paid" || item.service_status === "Paid" || isPaid) && (
@@ -1143,24 +1229,24 @@ export default function QuoteDetailPage() {
               <div className="w-64 space-y-2 text-xs">
                 <div className="flex justify-between text-slate-500">
                   <span>Subtotal</span>
-                  <span className="font-mono font-medium">${Number(quote.subtotal || 0).toFixed(2)}</span>
+                  <span className="font-mono font-medium">${effectiveSubtotal.toFixed(2)}</span>
                 </div>
-                {Number(quote.discount || 0) > 0 && (
+                {effectiveDiscount > 0 && (
                   <div className="flex justify-between text-emerald-600">
                     <span>Discount</span>
-                    <span className="font-mono">- ${Number(quote.discount).toFixed(2)}</span>
+                    <span className="font-mono">- ${effectiveDiscount.toFixed(2)}</span>
                   </div>
                 )}
-                {Number(quote.tax || 0) > 0 && (
+                {effectiveTax > 0 && (
                   <div className="flex justify-between text-slate-500">
                     <span>Tax</span>
-                    <span className="font-mono">+ ${Number(quote.tax).toFixed(2)}</span>
+                    <span className="font-mono">+ ${effectiveTax.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between font-bold text-sm text-slate-900 dark:text-white">
                   <span>Total</span>
                   <span className="font-mono text-amber-600 dark:text-amber-400">
-                    ${Number(quote.total_amount).toFixed(2)} {quote.currency}
+                    ${effectiveTotal.toFixed(2)} {quote.currency}
                   </span>
                 </div>
               </div>

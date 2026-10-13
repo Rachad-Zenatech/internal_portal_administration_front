@@ -13,6 +13,13 @@ export interface ARQuoteLineItem {
   billing_start_date?: string;
   tax_rate?: number | string;
   subtotal: number;
+  calculation?: string;
+  badge?: string;
+  is_prorated?: boolean;
+  is_renewal?: boolean;
+  service_period_start?: string;
+  service_period_end?: string;
+  service_period?: string;
 }
 
 export type PublicationState = "DRAFT" | "PUBLISHED" | "DISABLED";
@@ -22,6 +29,12 @@ export type PaymentStatus = "UNPAID" | "PARTIALLY_PAID" | "PAID";
 export interface ARQuote {
   id: string;
   quote_number: string;
+  quote_type?: "STANDARD" | "RENEWAL" | string;
+  source_invoice_id?: string;
+  source_invoice_number?: string;
+  service_period_start?: string;
+  service_period_end?: string;
+  service_period_label?: string;
   current_version: number;
   publication_state: PublicationState;
   customer_id?: string;

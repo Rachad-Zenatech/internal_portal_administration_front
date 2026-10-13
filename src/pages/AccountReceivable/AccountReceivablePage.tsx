@@ -62,6 +62,7 @@ import { SendQuoteModal } from "./SendQuoteModal";
 import { GLCodeAutocomplete } from "../Purchasing/GLCodeAutocomplete";
 import { ClassAutocomplete } from "../Purchasing/ClassAutocomplete";
 import { useNotificationStream } from "@/hooks/useNotifications";
+import { calculateRowPricing } from "./lineItemPricingUtils";
 
 export type ARTab =
   | "overview"
@@ -1069,6 +1070,34 @@ export default function AccountReceivablePage() {
                         const isSuperseded = q.publication_state === "DISABLED" || q.customer_response_state === "SUPERSEDED" || !!q.superseded_by_id;
                         const hasRevisions = group.revisions.length > 0;
                         const isExpanded = expandedQuoteIds.has(q.id);
+                        const isRenewal = (q as any).quote_type === "RENEWAL" || !!(q as any).source_invoice_id || !!(q as any).source_invoice_number || (q as any).line_items?.some((li: any) => li.is_renewal || li.badge === "Renewal");
+
+                        const getEffectiveQuoteTotal = (quoteItem: any) => {
+                          const isRen = quoteItem.quote_type === "RENEWAL" || !!quoteItem.source_invoice_id || !!quoteItem.source_invoice_number || quoteItem.line_items?.some((li: any) => li.is_renewal || li.badge === "Renewal");
+                          if (isRen && quoteItem.line_items && quoteItem.line_items.length > 0) {
+                            const sumLines = quoteItem.line_items.reduce((acc: number, li: any) => {
+                              const p = calculateRowPricing({
+                                quantity: li.quantity ?? 1,
+                                unit_price: li.price ?? li.unit_price ?? 0,
+                                unit_discount: li.unit_discount ?? 0,
+                                discount_type: li.discount_type || "%",
+                                billing_frequency: li.billing_frequency || li.billing_type || "",
+                                term: li.term ?? 1,
+                                billing_start_date: li.billing_start_date || li.service_period_start || "",
+                                tax_rate: li.tax_rate ?? 0,
+                                is_renewal: true,
+                                is_prorated: false,
+                                quote_type: "RENEWAL",
+                              });
+                              return acc + (li.is_renewal ? p.amount : (Number(li.subtotal) || p.amount));
+                            }, 0);
+                            if (sumLines > 0) {
+                              const disc = Number(quoteItem.discount || 0);
+                              return Math.max(0, sumLines - disc);
+                            }
+                          }
+                          return Number(quoteItem.total_amount || 0);
+                        };
 
                         return (
                           <Fragment key={q.id}>
@@ -1079,7 +1108,7 @@ export default function AccountReceivablePage() {
                               } ${isExpanded ? "bg-slate-50/50 dark:bg-slate-800/30" : ""}`}
                             >
                               <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
                                   {hasRevisions ? (
                                     <button
                                       type="button"
@@ -1096,6 +1125,12 @@ export default function AccountReceivablePage() {
                                   <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/60">
                                     v{q.current_version}
                                   </span>
+                                  {isRenewal && (
+                                    <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 text-[10px] font-semibold px-1.5 py-0.5 gap-1 shrink-0">
+                                      <RefreshCw className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400" />
+                                      <span>Renewal</span>
+                                    </Badge>
+                                  )}
                                   {hasRevisions && (
                                     <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-slate-500 bg-white dark:bg-slate-800 border-slate-200">
                                       +{group.revisions.length} rev{group.revisions.length > 1 ? "s" : ""}
@@ -1108,7 +1143,7 @@ export default function AccountReceivablePage() {
                                 <span className="text-[10px] text-slate-400">{q.customer_email || "No email"}</span>
                               </td>
                               <td className="py-3.5 px-4 text-right font-mono font-semibold text-slate-900 dark:text-white">
-                                ${Number(q.total_amount).toFixed(2)} {q.currency}
+                                ${getEffectiveQuoteTotal(q).toFixed(2)} {q.currency}
                               </td>
                               <td className="py-3.5 px-4">
                                 {isSuperseded ? (
@@ -1194,19 +1229,27 @@ export default function AccountReceivablePage() {
 
                             {/* Expandable Sub-items for Previous Revisions */}
                             {isExpanded &&
-                              group.revisions.map((rev) => (
+                              group.revisions.map((rev) => {
+                                const isRevRenewal = (rev as any).quote_type === "RENEWAL" || !!(rev as any).source_invoice_id || (rev as any).line_items?.some((li: any) => li.is_renewal || li.badge === "Renewal");
+                                return (
                                 <tr
                                   key={rev.id}
                                   onClick={() => navigate(`/account-receivable/quotes/${rev.id}`)}
                                   className="bg-amber-50/20 dark:bg-amber-950/10 hover:bg-amber-100/30 dark:hover:bg-amber-900/20 cursor-pointer transition-colors text-slate-600 dark:text-slate-400 border-l-4 border-l-amber-500"
                                 >
                                   <td className="py-2.5 px-4 font-mono">
-                                    <div className="flex items-center gap-2 pl-7">
+                                    <div className="flex items-center gap-2 pl-7 flex-wrap">
                                       <CornerDownRight className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                                       <span className="text-slate-700 dark:text-slate-300 font-medium">{rev.quote_number}</span>
                                       <Badge className="bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-[9px] px-1.5 py-0">
                                         v{rev.current_version}
                                       </Badge>
+                                      {isRevRenewal && (
+                                        <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 text-[9px] px-1 py-0 font-semibold gap-1">
+                                          <RefreshCw className="w-2 h-2 text-indigo-600" />
+                                          <span>Renewal</span>
+                                        </Badge>
+                                      )}
                                       <span className="text-[10px] text-slate-400 font-sans italic">Previous Version</span>
                                     </div>
                                   </td>
@@ -1214,7 +1257,7 @@ export default function AccountReceivablePage() {
                                     <span className="text-slate-700 dark:text-slate-300">{rev.customer_name || "Direct Client"}</span>
                                   </td>
                                   <td className="py-2.5 px-4 text-right font-mono font-medium text-slate-700 dark:text-slate-300">
-                                    ${Number(rev.total_amount).toFixed(2)} {rev.currency}
+                                    ${getEffectiveQuoteTotal(rev).toFixed(2)} {rev.currency}
                                   </td>
                                   <td className="py-2.5 px-4">
                                     <Badge className="bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 text-[10px] border border-slate-200 dark:border-slate-700">
@@ -1247,7 +1290,8 @@ export default function AccountReceivablePage() {
                                     </div>
                                   </td>
                                 </tr>
-                              ))}
+                                );
+                              })}
                           </Fragment>
                         );
                       })

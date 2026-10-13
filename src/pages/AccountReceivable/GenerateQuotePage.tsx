@@ -69,6 +69,9 @@ export interface QuoteLineItem {
   tax_rate: number | string;
   subtotal: number;
   calculation?: string;
+  is_renewal?: boolean;
+  is_prorated?: boolean;
+  badge?: string;
 }
 
 export const createEmptyQuoteLineItem = (): QuoteLineItem => ({
@@ -118,6 +121,10 @@ export default function GenerateQuotePage() {
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [quoteValidity, setQuoteValidity] = useState<number | string>(30);
   const [currency, setCurrency] = useState("USD");
+  const [quoteType, setQuoteType] = useState<string>("STANDARD");
+  const [sourceInvoiceNumber, setSourceInvoiceNumber] = useState<string>("");
+  const [sourceInvoiceId, setSourceInvoiceId] = useState<string>("");
+  const [servicePeriodLabel, setServicePeriodLabel] = useState<string>("");
 
   // Prepared By / Issuer Details
   const [preparedByName, setPreparedByName] = useState(currentUser?.full_name || "Steve Rhode");
@@ -189,14 +196,21 @@ export default function GenerateQuotePage() {
           setTax(q.tax !== undefined && q.tax !== null ? q.tax : 0);
           if (q.currency) setCurrency(q.currency);
           if (q.notes) setNotes(q.notes);
+          if (q.quote_type) setQuoteType(q.quote_type);
+          if (q.source_invoice_number) setSourceInvoiceNumber(q.source_invoice_number);
+          if (q.source_invoice_id) setSourceInvoiceId(q.source_invoice_id);
+          if (q.service_period_label) setServicePeriodLabel(q.service_period_label);
 
           if (q.quote_date) {
             setQuoteDate(formatDateOnly(q.quote_date, "MM / dd / yyyy"));
           }
 
           if (q.line_items && q.line_items.length > 0) {
+            const isRenewalQuote = (q.quote_type || "").toUpperCase() === "RENEWAL";
             setLineItems(
               q.line_items.map((li: any) => {
+                const isLineRenewal = isRenewalQuote || !!li.is_renewal || li.badge === "Renewal";
+                const isLineProrated = isLineRenewal ? false : li.is_prorated;
                 const pricing = calculateRowPricing({
                   quantity: li.quantity !== undefined && li.quantity !== null && li.quantity !== "" ? li.quantity : 1,
                   unit_price: li.price !== undefined && li.price !== null && li.price !== "" ? li.price : (li.unit_price || 0),
@@ -204,8 +218,11 @@ export default function GenerateQuotePage() {
                   discount_type: li.discount_type || "%",
                   billing_frequency: li.billing_frequency || li.billing_type || "",
                   term: li.term !== undefined && li.term !== null && li.term !== "" ? li.term : 1,
-                  billing_start_date: li.billing_start_date || "",
+                  billing_start_date: li.billing_start_date || li.service_period_start || "",
                   tax_rate: li.tax_rate !== undefined && li.tax_rate !== null ? li.tax_rate : 0,
+                  is_renewal: isLineRenewal,
+                  is_prorated: isLineProrated,
+                  quote_type: q.quote_type || "STANDARD",
                 });
                 return {
                   name: li.name || li.activity || "",
@@ -217,10 +234,13 @@ export default function GenerateQuotePage() {
                   discount_type: li.discount_type || "%",
                   billing_frequency: li.billing_frequency || li.billing_type || "",
                   term: li.term !== undefined && li.term !== null && li.term !== "" ? li.term : 1,
-                  billing_start_date: li.billing_start_date || "",
+                  billing_start_date: li.billing_start_date || li.service_period_start || "",
                   tax_rate: li.tax_rate !== undefined && li.tax_rate !== null ? li.tax_rate : "",
                   subtotal: li.subtotal !== undefined ? Number(li.subtotal) : pricing.amount,
                   calculation: li.calculation || pricing.formulaString,
+                  is_renewal: isLineRenewal,
+                  is_prorated: isLineProrated,
+                  badge: pricing.badge,
                 };
               })
             );
@@ -427,6 +447,7 @@ export default function GenerateQuotePage() {
         }
         item.calculation = `Manual Override: $${(Number(item.subtotal) || 0).toFixed(2)}`;
       } else {
+        const isLineRenewal = quoteType === "RENEWAL" || !!item.is_renewal;
         const pricing = calculateRowPricing({
           quantity: item.quantity,
           unit_price: item.price,
@@ -434,11 +455,18 @@ export default function GenerateQuotePage() {
           discount_type: item.discount_type,
           billing_frequency: item.billing_frequency,
           term: item.term,
+          billing_start_date: item.billing_start_date,
           tax_rate: item.tax_rate,
+          is_renewal: isLineRenewal,
+          is_prorated: isLineRenewal ? false : item.is_prorated,
+          quote_type: quoteType,
         });
 
         item.subtotal = pricing.amount;
         item.calculation = pricing.formulaString;
+        item.is_renewal = isLineRenewal;
+        item.is_prorated = pricing.isProrated;
+        item.badge = pricing.badge;
       }
 
       next[index] = item;
@@ -492,6 +520,10 @@ export default function GenerateQuotePage() {
         notes: notes || undefined,
         terms: `${Number(quoteValidity) || 30} days`,
         validity_days: Number(quoteValidity) || 30,
+        quote_type: quoteType,
+        source_invoice_id: sourceInvoiceId || undefined,
+        source_invoice_number: sourceInvoiceNumber || undefined,
+        service_period_label: servicePeriodLabel || undefined,
       });
 
       setQuoteId(res.id);
@@ -542,6 +574,10 @@ export default function GenerateQuotePage() {
         notes: notes || undefined,
         terms: `${Number(quoteValidity) || 30} days`,
         validity_days: Number(quoteValidity) || 30,
+        quote_type: quoteType,
+        source_invoice_id: sourceInvoiceId || undefined,
+        source_invoice_number: sourceInvoiceNumber || undefined,
+        service_period_label: servicePeriodLabel || undefined,
       });
 
       setQuoteId(res.id);
@@ -666,6 +702,20 @@ export default function GenerateQuotePage() {
           ) : (
             <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 text-[10px] h-6">
               Draft
+            </Badge>
+          )}
+
+          {quoteType === "RENEWAL" && (
+            <Badge
+              variant="outline"
+              className="text-xs px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 gap-1.5 font-semibold"
+            >
+              <span>🔄 Renewal Quotation</span>
+              {sourceInvoiceNumber && (
+                <span className="text-[10px] font-normal text-indigo-600/80 dark:text-indigo-400">
+                  (From #{sourceInvoiceNumber})
+                </span>
+              )}
             </Badge>
           )}
         </div>
@@ -964,6 +1014,23 @@ export default function GenerateQuotePage() {
                 />
               </div>
 
+              {quoteType === "RENEWAL" && (
+                <div className="flex items-center gap-2 text-[13px]">
+                  <span className="font-bold w-32 shrink-0 text-indigo-700">Quote Type:</span>
+                  <div className="flex-1 flex items-center gap-2 flex-wrap">
+                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 border border-indigo-200 text-indigo-800 inline-flex items-center gap-1">
+                      <span>🔄 Renewal Quote</span>
+                      {sourceInvoiceNumber && <span className="font-normal">(From Inv #{sourceInvoiceNumber})</span>}
+                    </span>
+                    {servicePeriodLabel && (
+                      <span className="text-[11.5px] text-slate-600 font-medium">
+                        Period: {servicePeriodLabel}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 text-[14px]">
                 <Label htmlFor="quote-validity-field" className="font-bold w-32 shrink-0 text-[14px]">Quote Validity:</Label>
                 <div className="flex items-center gap-1.5 flex-1">
@@ -1078,6 +1145,7 @@ export default function GenerateQuotePage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-[12.5px]">
                   {lineItems.map((itm, i) => {
+                    const isLineRenewal = quoteType === "RENEWAL" || !!itm.is_renewal;
                     const rowPricing = calculateRowPricing({
                       quantity: itm.quantity,
                       unit_price: itm.price,
@@ -1085,7 +1153,11 @@ export default function GenerateQuotePage() {
                       discount_type: itm.discount_type,
                       billing_frequency: itm.billing_frequency,
                       term: itm.term,
+                      billing_start_date: itm.billing_start_date,
                       tax_rate: itm.tax_rate,
+                      is_renewal: isLineRenewal,
+                      is_prorated: isLineRenewal ? false : itm.is_prorated,
+                      quote_type: quoteType,
                     });
 
                     return (
@@ -1111,6 +1183,11 @@ export default function GenerateQuotePage() {
                           {rowPricing.isProrated && rowPricing.proratedNote && (
                             <div className="text-[10.5px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded font-medium inline-flex items-center gap-1 mt-0.5">
                               <span>ℹ️ {rowPricing.proratedNote}</span>
+                            </div>
+                          )}
+                          {isLineRenewal && (
+                            <div className="text-[10.5px] text-indigo-800 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded font-semibold inline-flex items-center gap-1 mt-0.5">
+                              <span>🔄 Annual Renewal Term (Full Catalogue Price)</span>
                             </div>
                           )}
                           {itm.calculation && (
@@ -1281,6 +1358,7 @@ export default function GenerateQuotePage() {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {lineItems.map((itm, i) => {
+                  const isLineRenewal = quoteType === "RENEWAL" || !!itm.is_renewal;
                   const printPricing = calculateRowPricing({
                     quantity: itm.quantity,
                     unit_price: itm.price,
@@ -1288,7 +1366,11 @@ export default function GenerateQuotePage() {
                     discount_type: itm.discount_type,
                     billing_frequency: itm.billing_frequency,
                     term: itm.term,
+                    billing_start_date: itm.billing_start_date,
                     tax_rate: itm.tax_rate,
+                    is_renewal: isLineRenewal,
+                    is_prorated: isLineRenewal ? false : itm.is_prorated,
+                    quote_type: quoteType,
                   });
 
                   return (

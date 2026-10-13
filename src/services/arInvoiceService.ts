@@ -567,7 +567,11 @@ export const arInvoiceService = {
 
 export interface ARDueDateReminderSettings {
   enabled: boolean;
-  days_threshold: number;
+  days_threshold?: number;
+  monthly_enabled?: boolean;
+  monthly_days_threshold?: number;
+  annual_enabled?: boolean;
+  annual_days_threshold?: number;
   notify_customer_email: boolean;
   notify_in_app: boolean;
   sender_email: string;

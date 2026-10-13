@@ -114,6 +114,10 @@ export default function GlobalSettingsDialog({
   const [arReminderForm, setArReminderForm] = useState<ARDueDateReminderSettings>({
     enabled: true,
     days_threshold: 7,
+    monthly_enabled: true,
+    monthly_days_threshold: 7,
+    annual_enabled: true,
+    annual_days_threshold: 60,
     notify_customer_email: true,
     notify_in_app: true,
     sender_email: "accounting@paceplus.com",
@@ -127,6 +131,10 @@ export default function GlobalSettingsDialog({
       setArReminderForm({
         enabled: arReminderSettings.enabled ?? true,
         days_threshold: arReminderSettings.days_threshold ?? 7,
+        monthly_enabled: arReminderSettings.monthly_enabled ?? true,
+        monthly_days_threshold: arReminderSettings.monthly_days_threshold ?? (arReminderSettings.days_threshold ?? 7),
+        annual_enabled: arReminderSettings.annual_enabled ?? true,
+        annual_days_threshold: arReminderSettings.annual_days_threshold ?? 60,
         notify_customer_email: arReminderSettings.notify_customer_email ?? true,
         notify_in_app: arReminderSettings.notify_in_app ?? true,
         sender_email: arReminderSettings.sender_email || "accounting@paceplus.com",
@@ -150,13 +158,15 @@ export default function GlobalSettingsDialog({
   });
 
   const testTriggerArReminderMutation = useMutation({
-    mutationFn: (days?: number) =>
-      arInvoiceService.triggerDueDateRemindersTest(days),
+    mutationFn: (days?: number | void) =>
+      arInvoiceService.triggerDueDateRemindersTest(typeof days === "number" ? days : undefined),
     onSuccess: (res: any) => {
-      const count = res?.reminders_sent ?? 0;
-      const checked = res?.invoices_checked ?? 0;
+      const count = res?.sent_count ?? res?.reminders_sent ?? 0;
+      const checked = res?.processed_count ?? res?.invoices_checked ?? 0;
       if (count === 0) {
-        toast.info(`Scanned ${checked} open invoice(s) due within ${arReminderForm.days_threshold} days: No pending reminder notices required.`);
+        toast.info(
+          `Scanned ${checked} open invoice(s) (Monthly: ${arReminderForm.monthly_days_threshold ?? 7}d, Annual: ${arReminderForm.annual_days_threshold ?? 60}d): No pending reminder notices required.`
+        );
       } else {
         toast.success(`Dispatched payment due reminders for ${count} invoice(s) across ${checked} open invoice(s)!`);
       }
@@ -783,74 +793,183 @@ export default function GlobalSettingsDialog({
                 />
               </div>
 
+              {/* Reminder Thresholds: Monthly & Annually separated */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-blue-500" />
-                    Reminder Threshold (Days Before Due)
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={1}
-                      max={90}
-                      value={arReminderForm.days_threshold}
-                      onChange={(e) =>
-                        setArReminderForm({ ...arReminderForm, days_threshold: parseInt(e.target.value) || 7 })
-                      }
-                      className="h-10 font-bold text-sm w-28 bg-slate-50/50 dark:bg-zinc-900/50"
-                    />
-                    <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">Days Before Due Date</span>
+                {/* Monthly Reminder Option */}
+                <div
+                  className={`p-4 rounded-xl border transition-all ${
+                    (arReminderForm.monthly_enabled ?? true)
+                      ? "border-blue-200/80 dark:border-blue-900/50 bg-blue-50/25 dark:bg-blue-950/20"
+                      : "border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/20 opacity-70"
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-2.5 border-b border-blue-100 dark:border-blue-950/60">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-blue-500" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
+                        Monthly Reminder
+                      </span>
+                    </div>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={arReminderForm.monthly_enabled ?? true}
+                        onChange={(e) =>
+                          setArReminderForm({ ...arReminderForm, monthly_enabled: e.target.checked })
+                        }
+                        className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className="text-[11px] font-semibold text-muted-foreground">Enabled</span>
+                    </label>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {[3, 5, 7, 10, 14, 30].map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => setArReminderForm({ ...arReminderForm, days_threshold: d })}
-                        className={`text-[11px] px-2 py-0.5 rounded border transition-all cursor-pointer ${
-                          arReminderForm.days_threshold === d
-                            ? "bg-blue-600 text-white border-blue-700 font-bold"
-                            : "bg-slate-100 dark:bg-zinc-800 text-muted-foreground hover:text-foreground border-slate-200 dark:border-zinc-700"
-                        }`}
-                      >
-                        {d} days {d === 7 ? "(Default: 7 Days)" : ""}
-                      </button>
-                    ))}
+
+                  <div className="pt-2.5 space-y-2">
+                    <p className="text-[11px] text-muted-foreground">
+                      Advance notice threshold for monthly recurring invoices and standard billings.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={90}
+                        value={arReminderForm.monthly_days_threshold ?? 7}
+                        onChange={(e) =>
+                          setArReminderForm({
+                            ...arReminderForm,
+                            monthly_days_threshold: parseInt(e.target.value) || 7,
+                            days_threshold: parseInt(e.target.value) || 7,
+                          })
+                        }
+                        className="h-9 font-bold text-sm w-24 bg-white dark:bg-zinc-900"
+                      />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">Days Before Due Date</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {[3, 5, 7, 10, 14, 30].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() =>
+                            setArReminderForm({
+                              ...arReminderForm,
+                              monthly_days_threshold: d,
+                              days_threshold: d,
+                            })
+                          }
+                          className={`text-[11px] px-2 py-0.5 rounded border transition-all cursor-pointer ${
+                            (arReminderForm.monthly_days_threshold ?? 7) === d
+                              ? "bg-blue-600 text-white border-blue-700 font-bold shadow-xs"
+                              : "bg-white dark:bg-zinc-800 text-muted-foreground hover:text-foreground border-slate-200 dark:border-zinc-700"
+                          }`}
+                        >
+                          {d} days {d === 7 ? "(Default: 7 Days)" : ""}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5 text-blue-500" />
-                    Channels &amp; Delivery Methods
-                  </Label>
-                  <div className="space-y-2 pt-1">
-                    <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-900/50 cursor-pointer">
+                {/* Annually Reminder Option */}
+                <div
+                  className={`p-4 rounded-xl border transition-all ${
+                    (arReminderForm.annual_enabled ?? true)
+                      ? "border-indigo-200/80 dark:border-indigo-900/50 bg-indigo-50/25 dark:bg-indigo-950/20"
+                      : "border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/20 opacity-70"
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-2.5 border-b border-indigo-100 dark:border-indigo-950/60">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-indigo-500" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
+                        Annually Reminder
+                      </span>
+                    </div>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={arReminderForm.notify_customer_email}
-                        onChange={(e) => setArReminderForm({ ...arReminderForm, notify_customer_email: e.target.checked })}
-                        className="h-4 w-4 rounded text-blue-600"
+                        checked={arReminderForm.annual_enabled ?? true}
+                        onChange={(e) =>
+                          setArReminderForm({ ...arReminderForm, annual_enabled: e.target.checked })
+                        }
+                        className="h-4 w-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       />
-                      <div className="text-xs">
-                        <span className="font-semibold block">Send Customer Email</span>
-                        <span className="text-[11px] text-muted-foreground">Emails the primary billing contact email on the invoice</span>
-                      </div>
-                    </label>
-                    <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-900/50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={arReminderForm.notify_in_app}
-                        onChange={(e) => setArReminderForm({ ...arReminderForm, notify_in_app: e.target.checked })}
-                        className="h-4 w-4 rounded text-blue-600"
-                      />
-                      <div className="text-xs">
-                        <span className="font-semibold block">In-App Notification Stream</span>
-                        <span className="text-[11px] text-muted-foreground">Broadcasts real-time portal notification banner &amp; event</span>
-                      </div>
+                      <span className="text-[11px] font-semibold text-muted-foreground">Enabled</span>
                     </label>
                   </div>
+
+                  <div className="pt-2.5 space-y-2">
+                    <p className="text-[11px] text-muted-foreground">
+                      Advance notice threshold for annual contracts, yearly subscriptions & renewals.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={180}
+                        value={arReminderForm.annual_days_threshold ?? 60}
+                        onChange={(e) =>
+                          setArReminderForm({
+                            ...arReminderForm,
+                            annual_days_threshold: parseInt(e.target.value) || 60,
+                          })
+                        }
+                        className="h-9 font-bold text-sm w-24 bg-white dark:bg-zinc-900"
+                      />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">Days Before Due Date</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {[14, 30, 45, 60, 90].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() =>
+                            setArReminderForm({ ...arReminderForm, annual_days_threshold: d })
+                          }
+                          className={`text-[11px] px-2 py-0.5 rounded border transition-all cursor-pointer ${
+                            (arReminderForm.annual_days_threshold ?? 60) === d
+                              ? "bg-indigo-600 text-white border-indigo-700 font-bold shadow-xs"
+                              : "bg-white dark:bg-zinc-800 text-muted-foreground hover:text-foreground border-slate-200 dark:border-zinc-700"
+                          }`}
+                        >
+                          {d} days {d === 60 ? "(Default: 60 Days)" : ""}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Channels & Delivery Methods */}
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/20 space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-blue-500" />
+                  Channels &amp; Delivery Methods
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <label className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-900/50 cursor-pointer bg-white dark:bg-zinc-900/40">
+                    <input
+                      type="checkbox"
+                      checked={arReminderForm.notify_customer_email}
+                      onChange={(e) => setArReminderForm({ ...arReminderForm, notify_customer_email: e.target.checked })}
+                      className="h-4 w-4 rounded text-blue-600"
+                    />
+                    <div className="text-xs">
+                      <span className="font-semibold block">Send Customer Email</span>
+                      <span className="text-[11px] text-muted-foreground">Emails the primary billing contact email on the invoice</span>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-900/50 cursor-pointer bg-white dark:bg-zinc-900/40">
+                    <input
+                      type="checkbox"
+                      checked={arReminderForm.notify_in_app}
+                      onChange={(e) => setArReminderForm({ ...arReminderForm, notify_in_app: e.target.checked })}
+                      className="h-4 w-4 rounded text-blue-600"
+                    />
+                    <div className="text-xs">
+                      <span className="font-semibold block">In-App Notification Stream</span>
+                      <span className="text-[11px] text-muted-foreground">Broadcasts real-time portal notification banner &amp; event</span>
+                    </div>
+                  </label>
                 </div>
               </div>
 
@@ -914,7 +1033,7 @@ export default function GlobalSettingsDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => testTriggerArReminderMutation.mutate(arReminderForm.days_threshold)}
+                  onClick={() => testTriggerArReminderMutation.mutate()}
                   disabled={testTriggerArReminderMutation.isPending}
                   className="text-xs gap-1.5 text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-800 dark:hover:bg-blue-950/50 cursor-pointer"
                 >

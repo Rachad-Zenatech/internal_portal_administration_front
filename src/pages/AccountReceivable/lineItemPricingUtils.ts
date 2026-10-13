@@ -24,6 +24,9 @@ export function calculateRowPricing(params: {
   billing_start_date?: string;
   tax_rate?: string | number;
   is_paid?: boolean;
+  is_renewal?: boolean;
+  is_prorated?: boolean;
+  quote_type?: string;
 }): RowPricingResult {
   const qty = params.quantity === "" || params.quantity === undefined ? 1 : Math.max(1, Number(params.quantity) || 1);
   const price = params.unit_price === "" || params.unit_price === undefined ? 0 : Math.max(0, Number(params.unit_price) || 0);
@@ -45,6 +48,11 @@ export function calculateRowPricing(params: {
   const freq = (params.billing_frequency || "").trim().toLowerCase();
   const taxRate = params.tax_rate === "" || params.tax_rate === undefined ? 0 : Number(params.tax_rate) || 0;
   const isPaid = !!params.is_paid;
+  const isRenewal = !!params.is_renewal || (params.quote_type || "").toUpperCase() === "RENEWAL";
+  const explicitProrated = params.is_prorated;
+  const startD = parseDateOnly(params.billing_start_date);
+  const now = new Date();
+  const isFutureYear = startD ? startD.getFullYear() > now.getFullYear() : false;
 
   // If frequency is empty or One-Time
   if (!freq || freq === "none" || freq === "one-time" || freq === "one time") {
@@ -67,14 +75,13 @@ export function calculateRowPricing(params: {
       taxAmount: taxAmt,
       formulaString,
       isProrated: false,
-      badge: isPaid ? "Paid" : "One-Time",
+      badge: isPaid ? "Paid" : isRenewal ? "Renewal" : "One-Time",
       prorationRatio: 1.0,
       termCount,
     };
   }
 
   // Recurring frequency: Month-based proration
-  const now = new Date();
   let totalMonths = 12;
   let remainingMonths = 12;
   let freqLabel = "/yr";
@@ -83,11 +90,23 @@ export function calculateRowPricing(params: {
   if (freq.includes("annual") || freq.includes("year")) {
     totalMonths = 12;
     freqLabel = "/yr";
-    // Remaining months in current year (inclusive of current month)
-    // e.g. January (0) -> 12 months, October (9) -> 3 months (Oct, Nov, Dec)
-    remainingMonths = Math.max(1, 12 - now.getMonth());
-    if (remainingMonths < 12) {
-      isProrated = true;
+    if (isRenewal || explicitProrated === false || isFutureYear) {
+      // Annual renewals or future periods are full-term unprorated
+      remainingMonths = 12;
+      isProrated = false;
+    } else if (explicitProrated === true) {
+      remainingMonths = Math.max(1, 12 - now.getMonth());
+      isProrated = remainingMonths < 12;
+    } else {
+      // Default: Remaining months in current year (inclusive of starting or current month)
+      let startMonth = now.getMonth();
+      if (startD && startD.getFullYear() === now.getFullYear()) {
+        startMonth = startD.getMonth();
+      }
+      remainingMonths = Math.max(1, 12 - startMonth);
+      if (remainingMonths < 12) {
+        isProrated = true;
+      }
     }
   } else if (freq.includes("month")) {
     totalMonths = 1;
@@ -139,7 +158,7 @@ export function calculateRowPricing(params: {
     taxAmount: taxAmt,
     formulaString,
     isProrated,
-    badge: isPaid ? "Paid" : isProrated ? "Prorated" : "Recurring",
+    badge: isPaid ? "Paid" : isRenewal ? "Renewal" : isProrated ? "Prorated" : "Recurring",
     prorationRatio: ratio,
     termCount,
     remainingMonths,
