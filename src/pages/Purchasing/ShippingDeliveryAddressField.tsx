@@ -364,7 +364,7 @@ export function ShippingDeliveryAddressField({
               value={shippingAddress}
               disabled={disabled}
               onChange={(e) => onShippingAddressChange(e.target.value)}
-              placeholder="e.g. 6950 Tenth Line West, Mississauga, ON L5N 6Y1, Canada"
+              placeholder="e.g. 100 Main Street, Suite 400, Austin, TX 78701, United States"
               className="h-8.5 text-xs bg-white dark:bg-zinc-900"
             />
           </div>
@@ -398,7 +398,7 @@ export function ShippingDeliveryAddressField({
                 value={streetAddress}
                 disabled={disabled}
                 onChange={(e) => handleStreetChange(e.target.value)}
-                placeholder="e.g. 6950 Tenth Line West, Apt 4B"
+                placeholder="e.g. 100 Main Street, Suite 400"
                 className="h-8.5 text-xs bg-white dark:bg-zinc-900"
               />
             </div>
@@ -413,7 +413,7 @@ export function ShippingDeliveryAddressField({
                 value={postalCode}
                 disabled={disabled}
                 onChange={(e) => handlePostalChange(e.target.value)}
-                placeholder="e.g. L5N 6Y1 or 32801"
+                placeholder="e.g. 90210 or M5V 2T6"
                 className="h-8.5 text-xs bg-white dark:bg-zinc-900 uppercase"
               />
             </div>

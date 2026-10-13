@@ -321,6 +321,21 @@ export function useKnownVendors() {
   });
 }
 
+export function useVendorDirectory() {
+  return useQuery({
+    queryKey: ["purchasing_vendor_directory"],
+    queryFn: async () => {
+      try {
+        const data = await apiClient.get<Record<string, { address?: string }>>("/api/purchasing/vendors/directory");
+        return data || {};
+      } catch {
+        return {};
+      }
+    },
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useProjectGroupsDetailed() {
   return useQuery({
     queryKey: [...keys.projects(), "detailed"],
