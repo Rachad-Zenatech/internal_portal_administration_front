@@ -494,6 +494,7 @@ export interface QuickBooksPreviewPart {
 
 export interface QuickBooksPreviewItem {
   request_id: number;
+  inv_id?: number | null;
   id?: string | number;
   workflow_id?: string;
   is_ar?: boolean;

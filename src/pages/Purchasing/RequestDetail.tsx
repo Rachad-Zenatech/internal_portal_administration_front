@@ -1524,6 +1524,16 @@ export default function RequestDetail() {
 
                     <Field label="Requested Date" value={formatDate(request.request_date)} />
                     <Field label="Last Updated" value={formatDate(request.updated_at)} />
+                    {(data?.wire_transfer || (request as any)?.wire_transfer || request.request_type === "ACCOUNTS_PAYABLE" || (request as any)?.payment_type) && (
+                      <Field
+                        label="Payment Type"
+                        value={
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200">
+                            {data?.wire_transfer?.category || (data?.wire_transfer as any)?.payment_type || (request as any)?.wire_transfer?.category || (request as any)?.payment_type || "Others"}
+                          </span>
+                        }
+                      />
+                    )}
                     {(request.shipping_address || request.phone_number) && (
                       <>
                         {request.shipping_address && (
@@ -1598,9 +1608,20 @@ export default function RequestDetail() {
                         value={
                           (data?.purchase_order?.payment_method || (request as any)?.payment_method)
                             ? renderPaymentMethodBadge(data?.purchase_order?.payment_method || (request as any)?.payment_method)
-                            : "—"
+                            : (data?.wire_transfer ? renderPaymentMethodBadge("WIRE") : "—")
                         }
                       />
+
+                      {(data?.wire_transfer || (request as any)?.wire_transfer || request.request_type === "ACCOUNTS_PAYABLE" || (request as any)?.payment_type) && (
+                        <Field
+                          label="Payment Type"
+                          value={
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200">
+                              {data?.wire_transfer?.category || (data?.wire_transfer as any)?.payment_type || (request as any)?.wire_transfer?.category || (request as any)?.payment_type || "Others"}
+                            </span>
+                          }
+                        />
+                      )}
 
                       <Field
                         label="Bank Account"
@@ -2386,6 +2407,14 @@ export default function RequestDetail() {
                       <Field label="Due Date" value={formatDate(data.wire_transfer.due_date)} />
                       <Field label="Pay Date (Terms)" value={data.wire_transfer.pay_date || "—"} />
                       <Field label="Pay From" value={data.wire_transfer.pay_from || "—"} />
+                      <Field
+                        label="Payment Type"
+                        value={
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200">
+                            {data.wire_transfer.category || (data.wire_transfer as any).payment_type || "Others"}
+                          </span>
+                        }
+                      />
                       <Field label="Vendor" value={data.wire_transfer.vendor || "—"} />
                       <Field label="New Vendor?" value={data.wire_transfer.is_new_vendor ? "Yes" : "No"} />
                       <Field label="Invoice #" value={data.wire_transfer.invoice_number || "—"} />
@@ -4034,6 +4063,10 @@ export default function RequestDetail() {
             request={data?.request || null}
             open={isScheduleLedgerOpen}
             onOpenChange={setIsScheduleLedgerOpen}
+            onEditWireInfo={() => {
+              setIsScheduleLedgerOpen(false);
+              setIsEditWireOpen(true);
+            }}
           />
 
           <ManualPriceDialog

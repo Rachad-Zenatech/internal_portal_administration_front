@@ -222,6 +222,7 @@ export function EditCombinedRequestDialog({
     aba: wireTransfer?.aba || "",
     region: wireTransfer?.region || "",
     contact_name_china: wireTransfer?.contact_name_china || "",
+    category: wireTransfer?.category || "Others",
   }));
 
   // User dropdown state for Requester
@@ -460,6 +461,7 @@ export function EditCombinedRequestDialog({
           aba: wireTransfer.aba || "",
           region: wireTransfer.region || "",
           contact_name_china: wireTransfer.contact_name_china || "",
+          category: wireTransfer.category || "Others",
         });
       }
 
@@ -1264,7 +1266,7 @@ export function EditCombinedRequestDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="SPEND">General Purchasing (Spend)</SelectItem>
-                      <SelectItem value="ACCOUNTS_PAYABLE">Accounts Payable (Wire/Check)</SelectItem>
+                      <SelectItem value="ACCOUNTS_PAYABLE">Wire Transfer (Wire/Check)</SelectItem>
                       <SelectItem value="RECURRING">Recurring Payments (Subscriptions)</SelectItem>
                       <SelectItem value="SCHEDULED_PAYMENT">Scheduled Payments (Milestones)</SelectItem>
                       <SelectItem value="ADMIN">Admin Purchasing</SelectItem>

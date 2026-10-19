@@ -245,8 +245,8 @@ export function formatActivityValue(val: string | null | undefined): string {
 export const REQUEST_TYPE_LABEL: Record<string, string> = {
   SPEND: "Spend",
   QUOTE: "Quote",
-  ACCOUNTS_PAYABLE: "Accounts Payable",
-  "ACCOUNTS PAYABLE": "Accounts Payable",
+  ACCOUNTS_PAYABLE: "Wire Transfer",
+  "ACCOUNTS PAYABLE": "Wire Transfer",
   ADMIN: "Admin",
   RECURRING: "Recurring Payment",
   SCHEDULED_PAYMENT: "Scheduled Payment",

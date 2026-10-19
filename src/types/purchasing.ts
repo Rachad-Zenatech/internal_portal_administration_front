@@ -463,6 +463,8 @@ export type WireTransferInput = {
   aba?: string | null;
   region?: string | null;
   contact_name_china?: string | null;
+  category?: "Rent" | "Note" | "Others" | string | null;
+  payment_type?: "Rent" | "Note" | "Others" | string | null;
 };
 
 export type WireTransfer = WireTransferInput & {

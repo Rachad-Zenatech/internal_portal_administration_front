@@ -332,6 +332,13 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                   <DetailField label="Requester" value={task.requester_name || task.requester} icon={User} />
                   <DetailField label="Department" value={task.department} icon={Building2} />
                   <DetailField label="Type" value={formatRequestType(task.category || task.request_type)} icon={Layers} />
+                  {(task.wire_transfer?.category || (task as any)?.payment_type || task.request_type === "ACCOUNTS_PAYABLE") && (
+                    <DetailField
+                      label="Payment Type"
+                      value={task.wire_transfer?.category || (task as any)?.payment_type || "Others"}
+                      badge
+                    />
+                  )}
                   {!isRecurring && (
                     <DetailField
                       label="Configuration"

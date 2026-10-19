@@ -37,6 +37,7 @@ import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
 import { CountryAutocomplete } from "./CountryAutocomplete";
 import {
   getCountryBankingSpec,
+  getRequest,
   type CountryBankingSpec,
 } from "@/services/purchasingService";
 import type {
@@ -316,10 +317,43 @@ export function WireTransferDialog({
     bic: "",
     region: "",
     contact_name_china: "",
+    category: initialData?.category || "Others",
   });
 
+  const [fetchedWireData, setFetchedWireData] = useState<WireTransferInput | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setFetchedWireData(null);
+      return;
+    }
+
+    const directData = initialData || (request as any)?.wire_transfer;
+    if (directData) {
+      setFetchedWireData(directData);
+      return;
+    }
+
+    if (request?.id) {
+      getRequest(request.id)
+        .then((fullReq) => {
+          if (fullReq?.wire_transfer) {
+            setFetchedWireData(fullReq.wire_transfer);
+          }
+        })
+        .catch((err) => {
+          console.warn("Could not fetch wire info for request:", err);
+        });
+    }
+  }, [open, initialData, request?.id, (request as any)?.wire_transfer]);
+
   // Apply country spec dynamically
-  const applyCountryIntelligence = (countryName: string, specData?: CountryBankingSpec | null) => {
+  const applyCountryIntelligence = (
+    countryName: string,
+    specData?: CountryBankingSpec | null,
+    dataOverride?: WireTransferInput
+  ) => {
+    const currentData = dataOverride || form;
     if (specData) {
       setCountrySpec(specData);
       const reqs = new Set<string>(["bank_country"]);
@@ -337,11 +371,11 @@ export function WireTransferDialog({
 
       // Include existing populated fields
       BANK_DETAILS_CATALOG.forEach((f) => {
-        const val = form[f.id as keyof WireTransferInput];
+        const val = currentData[f.id as keyof WireTransferInput];
         if (val && String(val).trim()) bSet.add(f.id);
       });
       CLEARING_CODES_CATALOG.forEach((f) => {
-        const val = form[f.id as keyof WireTransferInput];
+        const val = currentData[f.id as keyof WireTransferInput];
         if (val && String(val).trim()) cSet.add(f.id);
       });
 
@@ -356,11 +390,11 @@ export function WireTransferDialog({
       const cSet = new Set(local.clearingFields);
 
       BANK_DETAILS_CATALOG.forEach((f) => {
-        const val = form[f.id as keyof WireTransferInput];
+        const val = currentData[f.id as keyof WireTransferInput];
         if (val && String(val).trim()) bSet.add(f.id);
       });
       CLEARING_CODES_CATALOG.forEach((f) => {
-        const val = form[f.id as keyof WireTransferInput];
+        const val = currentData[f.id as keyof WireTransferInput];
         if (val && String(val).trim()) cSet.add(f.id);
       });
 
@@ -369,18 +403,22 @@ export function WireTransferDialog({
     }
   };
 
-  const handleCountryChange = (countryName: string) => {
+  const handleCountryChange = (
+    countryName: string,
+    _countryCode?: string,
+    dataOverride?: WireTransferInput
+  ) => {
     setForm((prev) => ({ ...prev, bank_country: countryName }));
     setValidationErrors((prev) => ({ ...prev, bank_country: false }));
 
     // Apply immediate local heuristics for instant responsiveness
-    applyCountryIntelligence(countryName, null);
+    applyCountryIntelligence(countryName, null, dataOverride);
 
     // Call schwifty backend endpoint
     getCountryBankingSpec(countryName)
       .then((spec) => {
         if (spec && spec.code) {
-          applyCountryIntelligence(countryName, spec);
+          applyCountryIntelligence(countryName, spec, dataOverride);
         }
       })
       .catch((err) => {
@@ -395,57 +433,71 @@ export function WireTransferDialog({
     }
   }, [achSameAsWire, form.routing_wire]);
 
+  const isEffectiveEditMode =
+    isEditMode ||
+    Boolean(initialData) ||
+    Boolean((request as any)?.wire_transfer) ||
+    Boolean(fetchedWireData);
+
   useEffect(() => {
     if (open) {
       const nextTab = defaultTab === "international" ? "banking" : (defaultTab || normalizedTabs[0] || "general");
       setActiveTab(nextTab);
       setValidationErrors({});
 
-      if (initialData) {
-        const initialCountry = initialData.bank_country || "United States";
+      const effectiveData = initialData || (request as any)?.wire_transfer || fetchedWireData;
+
+      const normalizeDateStr = (d?: string | null) => {
+        if (!d || d === "null" || d === "undefined") return "";
+        return String(d).split("T")[0];
+      };
+
+      if (effectiveData) {
+        const initialCountry = effectiveData.bank_country || "United States";
         const isSame =
-          Boolean(initialData.routing_wire) &&
-          initialData.routing_wire === initialData.routing_ach;
+          Boolean(effectiveData.routing_wire) &&
+          effectiveData.routing_wire === effectiveData.routing_ach;
         setAchSameAsWire(isSame);
 
-        setForm({
-          entered_by: initialData.entered_by || "",
-          entered_by_user_id: initialData.entered_by_user_id || undefined,
-          entry_date: initialData.entry_date || todayStr,
-          due_date: initialData.due_date || "",
-          payment_date: initialData.payment_date || todayStr,
-          vendor: initialData.vendor || fallbackVendor,
-          is_new_vendor: !!initialData.is_new_vendor,
-          pay_date: initialData.pay_date || "Same Day",
-          amount: initialData.amount || purchaseOrder?.amount || request.amount || undefined,
-          currency: initialData.currency || purchaseOrder?.currency || request.currency || "USD",
-          pay_from: initialData.pay_from || "",
-          invoice_number: initialData.invoice_number || "",
-          comments: initialData.comments || "",
-          vendor_address: initialData.vendor_address || "",
-          vendor_email: initialData.vendor_email || "",
-          bank_name: initialData.bank_name || "",
-          tax_id: initialData.tax_id || "",
+        const mappedForm: WireTransferInput = {
+          entered_by: effectiveData.entered_by || "",
+          entered_by_user_id: effectiveData.entered_by_user_id || undefined,
+          entry_date: normalizeDateStr(effectiveData.entry_date) || todayStr,
+          due_date: normalizeDateStr(effectiveData.due_date || request.due_date),
+          payment_date: normalizeDateStr(effectiveData.payment_date) || todayStr,
+          vendor: effectiveData.vendor || fallbackVendor,
+          is_new_vendor: !!effectiveData.is_new_vendor,
+          pay_date: effectiveData.pay_date || "Same Day",
+          amount: effectiveData.amount != null ? Number(effectiveData.amount) : (purchaseOrder?.amount || request.amount || undefined),
+          currency: effectiveData.currency || purchaseOrder?.currency || request.currency || "USD",
+          pay_from: effectiveData.pay_from || "",
+          invoice_number: effectiveData.invoice_number || "",
+          comments: effectiveData.comments || (request.title ? `Payment for ${request.title}` : ""),
+          vendor_address: effectiveData.vendor_address || "",
+          vendor_email: effectiveData.vendor_email || "",
+          bank_name: effectiveData.bank_name || "",
+          tax_id: effectiveData.tax_id || "",
           bank_country: initialCountry,
-          routing_wire: initialData.routing_wire || "",
-          routing_ach: initialData.routing_ach || "",
-          bank_account_number: initialData.bank_account_number || "",
-          swift_code: initialData.swift_code || initialData.bic || "",
-          sort_code: initialData.sort_code || "",
-          transit_code_ca: initialData.transit_code_ca || "",
-          institution_code: initialData.institution_code || "",
-          branch_code: initialData.branch_code || "",
-          bsb_australia: initialData.bsb_australia || "",
-          clearing_code: initialData.clearing_code || "",
-          bank_code: initialData.bank_code || "",
-          iban: initialData.iban || "",
-          bic: initialData.bic || initialData.swift_code || "",
-          region: initialData.region || "",
-          contact_name_china: initialData.contact_name_china || "",
-        });
+          routing_wire: effectiveData.routing_wire || "",
+          routing_ach: effectiveData.routing_ach || "",
+          bank_account_number: effectiveData.bank_account_number || "",
+          swift_code: effectiveData.swift_code || effectiveData.bic || "",
+          sort_code: effectiveData.sort_code || "",
+          transit_code_ca: effectiveData.transit_code_ca || "",
+          institution_code: effectiveData.institution_code || "",
+          branch_code: effectiveData.branch_code || "",
+          bsb_australia: effectiveData.bsb_australia || "",
+          clearing_code: effectiveData.clearing_code || "",
+          bank_code: effectiveData.bank_code || "",
+          iban: effectiveData.iban || "",
+          bic: effectiveData.bic || effectiveData.swift_code || "",
+          region: effectiveData.region || "",
+          contact_name_china: effectiveData.contact_name_china || "",
+          category: effectiveData.category || (effectiveData as any).payment_type || "Others",
+        };
 
-        // Trigger intelligence for initial country
-        handleCountryChange(initialCountry);
+        setForm(mappedForm);
+        handleCountryChange(initialCountry, undefined, mappedForm);
       } else {
         const defaultCountry = "United States";
         setForm((prev) => ({
@@ -460,7 +512,7 @@ export function WireTransferDialog({
         handleCountryChange(defaultCountry);
       }
     }
-  }, [open, request, purchaseOrder, todayStr, initialData, defaultTab, normalizedTabs, fallbackVendor]);
+  }, [open, request, purchaseOrder, todayStr, initialData, fetchedWireData, defaultTab, normalizedTabs, fallbackVendor]);
 
   const cleanDate = (d?: string | null) => {
     if (!d || d.trim() === "" || d === "null" || d === "undefined") return undefined;
@@ -579,11 +631,11 @@ export function WireTransferDialog({
                   </div>
                   <div className="min-w-0">
                     <DialogTitle className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 truncate flex items-center gap-2">
-                      <span>{title || (isEditMode ? "Edit Wire Transfer" : "Wire Transfer Information")}</span>
+                      <span>{title || (isEffectiveEditMode ? "Edit Wire Transfer" : "Wire Transfer Information")}</span>
                       <span className="text-muted-foreground font-normal text-sm">· Request #{request.id}</span>
                     </DialogTitle>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {isEditMode
+                      {isEffectiveEditMode
                         ? "Update wire payment instructions, routing, and beneficiary clearing details."
                         : "Complete the wire transfer and clearing details according to the beneficiary bank jurisdiction."}
                     </p>
@@ -1548,7 +1600,7 @@ export function WireTransferDialog({
                     className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-all rounded-lg flex items-center gap-2"
                   >
                     <SendHorizontal className="h-4 w-4" />
-                    {submitLabel || (isEditMode ? "Save Changes" : "Confirm Wire & Mark Purchased")}
+                    {submitLabel || (isEffectiveEditMode ? "Save Changes" : "Confirm Wire & Mark Purchased")}
                   </Button>
                 </div>
               </DialogFooter>

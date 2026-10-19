@@ -249,6 +249,7 @@ const EMPTY_WIRE_FORM: WireTransferInput = {
   pay_from: "",
   invoice_number: "",
   comments: "",
+  category: "Others",
   vendor_address: "",
   bank_address: "",
   vendor_email: "",
@@ -926,7 +927,7 @@ export function PurchaseRequests() {
             <HelpIcon text="Manage and create purchase requests. Displays current review status and routing info." />
           </div>
           <p className="text-xs text-slate-500 dark:text-zinc-400">
-            Capture, review, approve and track purchasing &amp; accounts payable requests.
+            Capture, review, approve and track purchasing &amp; wire transfer requests.
           </p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -1064,7 +1065,7 @@ export function PurchaseRequests() {
               <SelectItem value="SPEND">Spend Request</SelectItem>
               <SelectItem value="QUOTE">Quote Request</SelectItem>
               <SelectItem value="ADMIN">Admin Triage</SelectItem>
-              <SelectItem value="ACCOUNTS_PAYABLE">Accounts Payable</SelectItem>
+              <SelectItem value="ACCOUNTS_PAYABLE">Wire Transfer</SelectItem>
             </SelectContent>
           </Select>
 
@@ -1275,7 +1276,7 @@ export function PurchaseRequests() {
                 {form.request_type === "RECURRING"
                   ? "New Recurring / Subscription Payment"
                   : form.request_type === "ACCOUNTS_PAYABLE"
-                  ? "New Accounts Payable Request"
+                  ? "New Wire Transfer Request"
                   : "New Purchase Request"}
               </span>
               {form.request_type !== "ACCOUNTS_PAYABLE" && form.request_type !== "RECURRING" && itemMode === "MULTIPLE" && (
@@ -1297,7 +1298,7 @@ export function PurchaseRequests() {
                   { value: "SPEND", label: "Spend Request", icon: ShoppingCart, desc: "Purchases, parts & hardware" },
                   { value: "QUOTE", label: "Quote Request", icon: FileSpreadsheet, desc: "Estimates & RFQs" },
                   { value: "ADMIN", label: "Admin Triage", icon: FileText, desc: "Administrative & general" },
-                  { value: "ACCOUNTS_PAYABLE", label: "Accounts Payable", icon: Landmark, desc: "Vendor invoices & wire payments" },
+                  { value: "ACCOUNTS_PAYABLE", label: "Wire Transfer", icon: Landmark, desc: "Vendor invoices & wire payments" },
                 ].map((opt) => {
                   const isSelected = form.request_type === opt.value;
                   return (

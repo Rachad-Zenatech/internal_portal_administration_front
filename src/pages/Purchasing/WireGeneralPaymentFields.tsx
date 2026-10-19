@@ -10,7 +10,15 @@ import {
   FileText,
   Calendar,
   Clock,
+  Tag,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   getAPUsers,
   getTreasuryUsers,
@@ -211,7 +219,7 @@ export function WireGeneralPaymentFields({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           {/* Entered By */}
           <div className="relative space-y-1.5">
             <div className="h-5 flex items-center justify-between">
@@ -305,6 +313,53 @@ export function WireGeneralPaymentFields({
                 validationErrors.entry_date ? "border-red-500 focus-visible:ring-red-500" : ""
               }`}
             />
+          </div>
+
+          {/* Payment Type Dropdown */}
+          <div className="space-y-1.5">
+            <div className="h-5 flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5 text-slate-400" />
+                <span>Payment Type <span className="text-red-500">*</span></span>
+              </label>
+              {validationErrors.category && (
+                <span className="text-[10px] text-red-500 font-medium flex items-center gap-0.5">
+                  <AlertCircle className="w-3 h-3" /> Required
+                </span>
+              )}
+            </div>
+            <Select
+              value={form.category || "Others"}
+              onValueChange={(val) => {
+                setForm((prev) => ({ ...prev, category: val }));
+                onClearValidationError?.("category");
+              }}
+              disabled={isSubmitting}
+            >
+              <SelectTrigger
+                className={`h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50 font-medium ${
+                  validationErrors.category ? "border-red-500 focus-visible:ring-red-500" : ""
+                }`}
+              >
+                <SelectValue placeholder="Select payment type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Rent">Rent</SelectItem>
+                <SelectItem value="Note">Note</SelectItem>
+                <SelectItem value="Others">Others</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] font-medium leading-tight">
+              {(form.category === "Rent" || form.category === "Note") ? (
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  Marked as Purchasing Expenses
+                </span>
+              ) : (
+                <span className="text-blue-600 dark:text-blue-400">
+                  Marked as Bills
+                </span>
+              )}
+            </p>
           </div>
         </div>
       </div>
