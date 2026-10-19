@@ -88,7 +88,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
-import { deletePurchaseRequest, updateWireTransfer as updateWireTransferApi } from "@/services/purchasingService";
+import { deletePurchaseRequest, getRequest, updateWireTransfer as updateWireTransferApi } from "@/services/purchasingService";
 import {
   formatRemainingDuration,
   calculateInstallmentsCount,
@@ -324,6 +324,24 @@ export default function RecurringPayments() {
     isProjected?: boolean;
     isPaid?: boolean;
   } | null>(null);
+
+  const handleOpenWireModal = async (req: PurchaseRequest, directWire?: any) => {
+    const existingWire = directWire || (req as any)?.wire_transfer;
+    if (existingWire) {
+      setWireModalRequest({ ...req, wire_transfer: existingWire } as any);
+      return;
+    }
+    try {
+      const fullReq = await getRequest(req.id);
+      if (fullReq?.wire_transfer) {
+        setWireModalRequest({ ...req, wire_transfer: fullReq.wire_transfer } as any);
+        return;
+      }
+    } catch (err) {
+      console.warn("Could not fetch full wire info for request:", err);
+    }
+    setWireModalRequest(req);
+  };
 
   const handleSaveWire = async (data: WireTransferInput) => {
     if (!wireModalRequest) return;
@@ -1875,7 +1893,7 @@ export default function RecurringPayments() {
                             title="Edit Wire Info / Banking Details"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setWireModalRequest(req);
+                              handleOpenWireModal(req);
                             }}
                           >
                             <Landmark size={14} />
@@ -2955,10 +2973,10 @@ export default function RecurringPayments() {
           setScheduleModalRequest(null);
           handleOpenEdit(req);
         } : undefined}
-        onEditWireInfo={canManageRecurring ? (req) => {
+        onEditWireInfo={(req) => {
           setScheduleModalRequest(null);
-          setWireModalRequest(req);
-        } : undefined}
+          handleOpenWireModal(req, (req as any)?.wire_transfer);
+        }}
       />
 
       {/* Wire Transfer Dialog (Edit / Record Wire Info for Scheduled Payment) */}
@@ -2969,6 +2987,8 @@ export default function RecurringPayments() {
           request={wireModalRequest}
           initialData={(wireModalRequest as any)?.wire_transfer}
           isEditMode={Boolean((wireModalRequest as any)?.wire_transfer)}
+          title="Edit Wire Transfer"
+          submitLabel="Save Changes"
           isSubmitting={isUpdatingWire}
           onConfirm={handleSaveWire}
         />

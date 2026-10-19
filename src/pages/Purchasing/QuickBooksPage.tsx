@@ -350,6 +350,7 @@ export default function QuickBooksPage() {
     if (!previewData?.items) return [];
     return previewData.items.filter((item) => {
       if (isMaItem(item)) return true;
+      if (item.transaction_category === "BILL") return false;
       return item.transaction_category === "EXPENSE" || !item.is_recurring;
     });
   }, [previewData]);
@@ -358,6 +359,7 @@ export default function QuickBooksPage() {
     if (!previewData?.items) return [];
     return previewData.items.filter((item) => {
       if (isMaItem(item)) return false;
+      if (item.transaction_category === "EXPENSE") return false;
       return item.transaction_category === "BILL" || Boolean(item.is_recurring);
     });
   }, [previewData]);
@@ -514,7 +516,7 @@ export default function QuickBooksPage() {
     setSyncingSingleId(item.request_id);
     const isAr = Boolean(item.is_ar || item.type === "ar_invoice" || stagingTab === "ar_invoices");
     const isMa = !isAr && isMaItem(item);
-    const isBill = !isAr && !isMa && (item.transaction_category === "BILL" || Boolean(item.is_recurring));
+    const isBill = !isAr && !isMa && (item.transaction_category === "BILL" || (Boolean(item.is_recurring) && item.transaction_category !== "EXPENSE"));
 
     try {
       if (isAr) {
@@ -541,7 +543,7 @@ export default function QuickBooksPage() {
     setDeletingId(item.request_id);
     const isAr = Boolean(item.is_ar || item.type === "ar_invoice" || stagingTab === "ar_invoices");
     const isMa = !isAr && isMaItem(item);
-    const isBill = !isAr && (item.transaction_category === "BILL" || (!isMa && Boolean(item.is_recurring)));
+    const isBill = !isAr && (item.transaction_category === "BILL" || (!isMa && Boolean(item.is_recurring) && item.transaction_category !== "EXPENSE"));
 
     try {
       if (isAr) {
@@ -1253,7 +1255,7 @@ export default function QuickBooksPage() {
                   </p>
                 </div>
               ) : (
-                <Table className="text-xs">
+                <Table key={`qbo-staging-table-${stagingTab}`} className="text-xs min-w-[1240px]">
                   <TableHeader className="bg-muted/50 border-b border-border/80">
                     <TableRow className="hover:bg-transparent">
                       <TableHead
@@ -1285,11 +1287,11 @@ export default function QuickBooksPage() {
                         {stagingTab === "ar_invoices" ? "A/R GL Account" : "Expense Account (GL)"}
                       </TableHead>
                       {stagingTab === "expenses" ? (
-                        <TableHead className="w-40 font-bold text-foreground">Payment Account</TableHead>
+                        <TableHead className="w-44 font-bold text-foreground">Payment Account</TableHead>
                       ) : stagingTab === "bills" ? (
-                        <TableHead className="w-36 font-bold text-foreground">Location</TableHead>
+                        <TableHead className="w-44 font-bold text-foreground">Location</TableHead>
                       ) : (
-                        <TableHead className="w-40 font-bold text-foreground">Bank Account / Method</TableHead>
+                        <TableHead className="w-44 font-bold text-foreground">Bank Account / Method</TableHead>
                       )}
                       <TableHead className="min-w-[200px] font-bold text-foreground">
                         {stagingTab === "expenses" ? "Line Item / Product" : stagingTab === "bills" ? "Line Item / Description" : "Matched Invoices & Bank Ref"}
@@ -1299,19 +1301,20 @@ export default function QuickBooksPage() {
                       <TableHead className="w-32 text-right font-bold text-foreground pr-4">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    {filteredItems.map((item) => {
+                  <TableBody key={`qbo-staging-body-${stagingTab}`}>
+                    {filteredItems.map((item, idx) => {
                       const isSelected = currentTabSelectedIds.includes(item.request_id);
                       const isReady = item.readiness === "READY" || item.readiness === "READY_WITH_NOTES";
                       const isSynced = item.readiness === "ALREADY_SYNCED" || item.is_already_synced;
                       const isCurrentlySyncing = syncingSingleId === item.request_id;
                       const isAr = Boolean(item.is_ar || item.type === "ar_invoice" || stagingTab === "ar_invoices");
                       const isMa = !isAr && isMaItem(item);
-                      const isBillRow = !isAr && !isMa && (item.transaction_category === "BILL" || Boolean(item.is_recurring));
+                      const isBillRow = !isAr && !isMa && (item.transaction_category === "BILL" || (Boolean(item.is_recurring) && item.transaction_category !== "EXPENSE"));
+                      const rowKey = `row-${stagingTab}-${item.request_id}-${item.inv_id ?? ""}-${item.doc_number ?? ""}-${item.workflow_id ?? item.id ?? ""}-${idx}`;
 
                       return (
                         <TableRow
-                          key={`${item.request_id}-${item.payment_date || item.doc_number || item.workflow_id || "row"}`}
+                          key={rowKey}
                           onClick={() => {
                             setInspectorItem(item);
                             setIsInspectorOpen(true);
@@ -1326,7 +1329,7 @@ export default function QuickBooksPage() {
                             }`}
                         >
                           <TableCell
-                            className="px-3 cursor-pointer select-none"
+                            className="w-10 px-3 cursor-pointer select-none"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleToggleSelect(item.request_id);
@@ -1340,11 +1343,11 @@ export default function QuickBooksPage() {
                           </TableCell>
 
                           {/* Request ID + Tags */}
-                          <TableCell className="font-semibold" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="w-28 font-semibold" onClick={(e) => e.stopPropagation()}>
                             <div className="space-y-1">
                               {isAr ? (
                                 <Link
-                                  to={`/account-receivable`}
+                                   to={`/account-receivable`}
                                   className="inline-flex items-center gap-1 font-mono text-xs text-teal-600 dark:text-teal-400 hover:underline"
                                 >
                                   <span>{item.ref_no ? `AR-#${item.ref_no}` : `AR-#${String(item.workflow_id || item.id || item.request_id).slice(0, 8)}`}</span>
@@ -1380,19 +1383,19 @@ export default function QuickBooksPage() {
                           </TableCell>
 
                           {/* Txn / Bill / Deposit Date */}
-                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                          <TableCell className="w-24 text-muted-foreground whitespace-nowrap">
                             {item.payment_date || item.doc_number}
                           </TableCell>
 
                           {/* Due Date (for Bills) */}
                           {stagingTab === "bills" && (
-                            <TableCell className="text-muted-foreground whitespace-nowrap font-medium">
+                            <TableCell className="w-24 text-muted-foreground whitespace-nowrap font-medium">
                               {item.due_date || item.payment_date}
                             </TableCell>
                           )}
 
                           {/* Vendor or Customer */}
-                          <TableCell>
+                          <TableCell className="w-48">
                             <div className="space-y-1">
                               <div className="font-semibold text-foreground flex items-center gap-1.5 truncate max-w-[180px]">
                                 <Building2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -1411,7 +1414,7 @@ export default function QuickBooksPage() {
                           </TableCell>
 
                           {/* Expense / A/R GL Account */}
-                          <TableCell>
+                          <TableCell className="w-52">
                             <div className="space-y-1">
                               <div className="font-medium text-foreground truncate max-w-[200px] flex items-center gap-1.5">
                                 <Tag className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -1439,7 +1442,7 @@ export default function QuickBooksPage() {
 
                           {/* Payment Account (Expenses) or Location (Bills) or Bank Account (A/R) */}
                           {stagingTab === "expenses" ? (
-                            <TableCell>
+                            <TableCell className="w-44">
                               <div className="space-y-1">
                                 <div className="text-muted-foreground truncate max-w-[160px] flex items-center gap-1.5">
                                   <CreditCard className="h-3.5 w-3.5 flex-shrink-0" />
@@ -1451,9 +1454,9 @@ export default function QuickBooksPage() {
                               </div>
                             </TableCell>
                           ) : stagingTab === "bills" ? (
-                            <TableCell>
+                            <TableCell className="w-44">
                               <div className="space-y-1">
-                                <div className="text-foreground truncate max-w-[140px] flex items-center gap-1.5 font-medium">
+                                <div className="text-foreground truncate max-w-[160px] flex items-center gap-1.5 font-medium">
                                   <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                                   <span className="truncate">{item.location || item.from_location || "HQ"}</span>
                                 </div>
@@ -1463,7 +1466,7 @@ export default function QuickBooksPage() {
                               </div>
                             </TableCell>
                           ) : (
-                            <TableCell>
+                            <TableCell className="w-44">
                               <div className="space-y-1">
                                 <div className="text-foreground truncate max-w-[160px] flex items-center gap-1.5 font-medium">
                                   <Banknote className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -1477,7 +1480,7 @@ export default function QuickBooksPage() {
                           )}
 
                           {/* Product / Invoices Description */}
-                          <TableCell>
+                          <TableCell className="min-w-[200px]">
                             <div className="max-w-[260px] space-y-1">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="font-semibold text-foreground line-clamp-1">{item.product_name || "Transaction Item"}</span>
@@ -1515,12 +1518,12 @@ export default function QuickBooksPage() {
                           </TableCell>
 
                           {/* Amount */}
-                          <TableCell className="text-right font-mono font-bold text-foreground">
+                          <TableCell className="w-28 text-right font-mono font-bold text-foreground">
                             {item.formatted_amount || `$${item.amount?.toFixed(2)}`}
                           </TableCell>
 
                           {/* Pre-Flight Status */}
-                          <TableCell>
+                          <TableCell className="w-36">
                             {isReady ? (
                               <Badge className="text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 gap-1">
                                 <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
@@ -1540,7 +1543,7 @@ export default function QuickBooksPage() {
                           </TableCell>
 
                           {/* Actions */}
-                          <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="w-32 text-right pr-4" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1.5">
                               <Button
                                 variant="ghost"

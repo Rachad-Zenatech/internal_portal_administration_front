@@ -100,8 +100,8 @@ export default function Sidebar({
       return (purchasingSummary.my_approvals_count ?? 0) > 0 || !!notifMap["MY_APPROVALS"] || (actionCounts["MY_APPROVALS"] ?? 0) > 0 || (unreadNotifs["MY_APPROVALS"] ?? 0) > 0;
     }
 
-    // Accounts Payable
-    if (path === "/purchasing/invoices" || itemLabel === "Accounts Payable") {
+    // Accounts Payable / Wire Transfer
+    if (path === "/purchasing/invoices" || itemLabel === "Accounts Payable" || itemLabel === "Wire Transfer") {
       return !!notifMap["INVOICES"] || !!notifMap["WAITING_PAYMENT"] || (actionCounts["INVOICES"] ?? 0) > 0 || (actionCounts["WAITING_PAYMENT"] ?? 0) > 0;
     }
 
@@ -427,7 +427,7 @@ export default function Sidebar({
                         </div>
                       </div>
                     )}
-                    {isOpen && item.label === "Accounts Payable" && hasActionWaiting(item.path || "", item.label) && (
+                    {isOpen && (item.label === "Accounts Payable" || item.label === "Wire Transfer") && hasActionWaiting(item.path || "", item.label) && (
                       <span
                         className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-red-600 text-white text-[10px] font-black shadow-xs animate-pulse ring-2 ring-red-500/30 ml-auto mr-1.5 flex-shrink-0"
                         title="Action / Notification waiting for you"

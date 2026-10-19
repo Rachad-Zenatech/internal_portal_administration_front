@@ -249,6 +249,7 @@ export function EditRequestDialog({
     aba: wireTransfer?.aba || "",
     region: wireTransfer?.region || "",
     contact_name_china: wireTransfer?.contact_name_china || "",
+    category: wireTransfer?.category || "Others",
   }));
 
 
@@ -396,6 +397,7 @@ export function EditRequestDialog({
         aba: wireTransfer?.aba || request?.wire_transfer?.aba || "",
         region: wireTransfer?.region || request?.wire_transfer?.region || "",
         contact_name_china: wireTransfer?.contact_name_china || request?.wire_transfer?.contact_name_china || "",
+        category: wireTransfer?.category || request?.wire_transfer?.category || "Others",
       };
       setApWireForm(initialWt);
 
@@ -653,7 +655,7 @@ export function EditRequestDialog({
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span>{formData.request_type === "RECURRING" ? "Edit Recurring Payment Request" : formData.request_type === "ACCOUNTS_PAYABLE" ? "Edit Accounts Payable Request" : "Edit Purchase Request"} #{request?.id}</span>
+              <span>{formData.request_type === "RECURRING" ? "Edit Recurring Payment Request" : formData.request_type === "ACCOUNTS_PAYABLE" ? "Edit Wire Transfer Request" : "Edit Purchase Request"} #{request?.id}</span>
               {itemMode === "MULTIPLE" && formData.request_type !== "RECURRING" && (
                 <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border-indigo-200">
                   <FileText className="h-3 w-3 mr-1" /> Multi-Part Quote
@@ -674,7 +676,7 @@ export function EditRequestDialog({
                   { value: "RECURRING", label: "Recurring", icon: Clock, desc: "Scheduled cycles" },
                   { value: "QUOTE", label: "Quote Request", icon: FileSpreadsheet, desc: "Estimates & RFQs" },
                   { value: "ADMIN", label: "Admin Triage", icon: FileText, desc: "Administrative & misc" },
-                  { value: "ACCOUNTS_PAYABLE", label: "Accounts Payable", icon: Landmark, desc: "Vendor invoices & wires" },
+                  { value: "ACCOUNTS_PAYABLE", label: "Wire Transfer", icon: Landmark, desc: "Vendor invoices & wires" },
                 ].map((opt) => {
                   const isSelected = formData.request_type === opt.value;
                   return (

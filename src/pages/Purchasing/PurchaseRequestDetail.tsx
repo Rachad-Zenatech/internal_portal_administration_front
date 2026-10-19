@@ -1355,12 +1355,18 @@ export default function PurchaseRequestDetail() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+              <div className="grid grid-cols-1 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
                 <div className="p-3.5 flex justify-between gap-2">
                   <span className="text-muted-foreground font-medium">Type</span>
                   <Badge variant="outline" className="text-[11px] bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold py-0">
                     Recurring
                   </Badge>
+                </div>
+                <div className="p-3.5 flex justify-between items-center gap-2">
+                  <span className="text-muted-foreground font-medium">Payment Type</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200">
+                    {requestDetail?.wire_transfer?.category || (requestDetail?.wire_transfer as any)?.payment_type || (request as any)?.wire_transfer?.category || (request as any)?.payment_type || "Others"}
+                  </span>
                 </div>
                 <div className="p-3.5 flex justify-between items-center gap-2">
                   <span className="text-muted-foreground font-medium">Priority</span>
@@ -1373,7 +1379,7 @@ export default function PurchaseRequestDetail() {
                 <div className="p-3.5 flex justify-between gap-2">
                   <span className="text-muted-foreground font-medium">Payment Method</span>
                   <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    {invoice?.payment_status ? "Direct Billing / Auto-Debit" : "—"}
+                    {(requestDetail?.wire_transfer || (request as any)?.wire_transfer) ? "Wire Transfer" : (invoice?.payment_status ? "Direct Billing / Auto-Debit" : "—")}
                   </span>
                 </div>
               </div>
@@ -1523,6 +1529,14 @@ export default function PurchaseRequestDetail() {
                       <div className="space-y-1">
                         <span className="text-muted-foreground font-medium text-xs block">Pay From</span>
                         <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{wt.pay_from || "—"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground font-medium text-xs block">Payment Type</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200">
+                            {wt.category || (wt as any).payment_type || "Others"}
+                          </span>
+                        </span>
                       </div>
                       <div className="space-y-1">
                         <span className="text-muted-foreground font-medium text-xs block">Vendor</span>
@@ -2997,6 +3011,10 @@ export default function PurchaseRequestDetail() {
         onEditRequest={() => {
           setIsScheduleLedgerOpen(false);
           handleOpenEdit();
+        }}
+        onEditWireInfo={() => {
+          setIsScheduleLedgerOpen(false);
+          setIsEditWireOpen(true);
         }}
       />
 

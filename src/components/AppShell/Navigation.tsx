@@ -73,7 +73,7 @@ export const navigation = [
     ],
   },
   {
-    label: "Accounts Payable",
+    label: "Wire Transfer",
     path: "/purchasing/invoices",
     icon: ReceiptText,
     section: "MAIN",

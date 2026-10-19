@@ -42,7 +42,7 @@ export default function Invoices() {
       const res = await api.get<any>(`/tasks?status=${filter}`);
       setTasks(res.items || []);
     } catch (e: any) {
-      toast.error("Failed to load Accounts Payable tasks");
+      toast.error("Failed to load Wire Transfer tasks");
     } finally {
       setIsLoading(false);
     }
@@ -73,11 +73,11 @@ export default function Invoices() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Accounts Payable</h2>
-            <HelpIcon text="Track, record, and pay vendor invoices generated through the purchasing workflow." />
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Wire Transfer</h2>
+            <HelpIcon text="Track, record, and pay vendor invoices and wire transfers generated through the purchasing workflow." />
           </div>
           <p className="text-sm text-slate-500 dark:text-zinc-400">
-            Invoices awaiting payment. Outstanding balance: <span className="font-semibold text-slate-900 dark:text-zinc-100">{formatMoney(outstanding)}</span>
+            Wire transfers &amp; invoices awaiting payment. Outstanding balance: <span className="font-semibold text-slate-900 dark:text-zinc-100">{formatMoney(outstanding)}</span>
           </p>
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
