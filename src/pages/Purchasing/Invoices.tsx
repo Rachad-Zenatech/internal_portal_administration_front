@@ -44,9 +44,10 @@ import {
   X,
   AlertTriangle,
   Layers,
+  Calendar,
 } from "lucide-react";
 import { apiClient as api } from "@/services/apiClient";
-import { getStatusBadge, getStatusLabel, formatDate, formatMoney, formatRequestType } from "./purchasingMeta";
+import { getStatusBadge, getStatusLabel, formatDate, formatMoney } from "./purchasingMeta";
 import { RequestStatus } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
 
@@ -57,8 +58,68 @@ export default function Invoices() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [wireFilter, setWireFilter] = useState<string>("ALL");
+  const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [quickFilter, setQuickFilter] = useState<"ALL" | "DUE_TODAY" | "PENDING" | "OVERDUE">("ALL");
   const [selectedWireTask, setSelectedWireTask] = useState<any | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const isWireTransfer = (task: any) => {
+    const cat = String(task.category || task.request_type || "").toUpperCase();
+    return (
+      cat === "ACCOUNTS_PAYABLE" ||
+      cat === "WIRE_TRANSFER" ||
+      cat === "WIRE" ||
+      cat === "AP" ||
+      !!task.wire_transfer
+    );
+  };
+
+  const isScheduledPayment = (task: any) => {
+    const cat = String(task.category || task.request_type || "").toUpperCase();
+    return (
+      cat === "SCHEDULED_PAYMENT" ||
+      cat === "RECURRING" ||
+      !!task.recurring_schedule
+    );
+  };
+
+  const isDueToday = (dueDateStr: string | null | undefined, status: string) => {
+    if (!dueDateStr) return false;
+    const parsed = parseRequestStatus(status);
+    if (parsed === RequestStatus.Completed || parsed === RequestStatus.Rejected) {
+      return false;
+    }
+    const cleanDate = String(dueDateStr).split("T")[0];
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    const todayStr = `${y}-${m}-${d}`;
+    return cleanDate === todayStr;
+  };
+
+  const isOverdue = (dueDateStr: string | null | undefined, status: string) => {
+    if (!dueDateStr) return false;
+    const parsed = parseRequestStatus(status);
+    if (parsed === RequestStatus.Completed || parsed === RequestStatus.Rejected) {
+      return false;
+    }
+    const cleanDate = String(dueDateStr).split("T")[0];
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    const todayStr = `${y}-${m}-${d}`;
+    return cleanDate < todayStr;
+  };
+
+  const isPendingPayment = (status: string) => {
+    const parsed = parseRequestStatus(status);
+    return (
+      parsed === RequestStatus.WaitingPayment ||
+      parsed === RequestStatus.InvoiceReceived
+    );
+  };
 
   const fetchTasks = async () => {
     setIsLoading(true);
@@ -121,34 +182,31 @@ export default function Invoices() {
     toast.success("Full wire transfer details copied to clipboard");
   };
 
-  const isOverdue = (dueDate: string | null, status: string) => {
-    if (!dueDate) return false;
-    const parsed = parseRequestStatus(status);
-    if (parsed === RequestStatus.Completed || parsed === RequestStatus.Rejected) {
-      return false;
-    }
-    return new Date(dueDate).getTime() < Date.now();
-  };
+  // Quick filter counts calculated across eligible dataset
+  const quickFilterCounts = useMemo(() => {
+    const eligibleTasks = tasks.filter((t) => isWireTransfer(t) || isScheduledPayment(t));
+    return {
+      all: eligibleTasks.length,
+      dueToday: eligibleTasks.filter((t) => isDueToday(t.due_date, t.status)).length,
+      pending: eligibleTasks.filter((t) => isPendingPayment(t.status)).length,
+      overdue: eligibleTasks.filter((t) => isOverdue(t.due_date, t.status)).length,
+    };
+  }, [tasks]);
 
-  // KPI Calculations across entire dataset
+  // KPI Calculations across eligible dataset (Wire Transfer & Scheduled Payment only)
   const metrics = useMemo(() => {
-    const totalCount = tasks.length;
-    const totalVolume = tasks.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    const eligibleTasks = tasks.filter((t) => isWireTransfer(t) || isScheduledPayment(t));
+    const totalCount = eligibleTasks.length;
+    const totalVolume = eligibleTasks.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-    const pendingTasks = tasks.filter((t) => {
-      const parsed = parseRequestStatus(t.status);
-      return (
-        parsed === RequestStatus.WaitingPayment ||
-        parsed === RequestStatus.InvoiceReceived
-      );
-    });
+    const pendingTasks = eligibleTasks.filter((t) => isPendingPayment(t.status));
     const pendingAmount = pendingTasks.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-    const wireTasks = tasks.filter((t) => !!t.wire_transfer);
+    const wireTasks = eligibleTasks.filter((t) => !!t.wire_transfer);
     const wireCount = wireTasks.length;
     const wirePercent = totalCount > 0 ? Math.round((wireCount / totalCount) * 100) : 0;
 
-    const overdueTasks = tasks.filter((t) => isOverdue(t.due_date, t.status));
+    const overdueTasks = eligibleTasks.filter((t) => isOverdue(t.due_date, t.status));
     const overdueCount = overdueTasks.length;
     const overdueAmount = overdueTasks.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
@@ -164,9 +222,20 @@ export default function Invoices() {
     };
   }, [tasks]);
 
-  // Filtered tasks based on search, status, and wire details
+  // Filtered tasks based on search, status, wire details, and request type
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
+      // Must strictly be a wire transfer type or scheduled payment request
+      const isWire = isWireTransfer(task);
+      const isSched = isScheduledPayment(task);
+      if (!isWire && !isSched) {
+        return false;
+      }
+
+      // Request Type filter
+      if (typeFilter === "WIRE" && !isWire) return false;
+      if (typeFilter === "SCHEDULED" && !isSched) return false;
+
       // Status filter
       if (statusFilter !== "ALL") {
         const parsed = parseRequestStatus(task.status);
@@ -214,16 +283,34 @@ export default function Invoices() {
         }
       }
 
+      // Quick Urgency Filter (Due on Today / Pending Payment / Overdue payment)
+      if (quickFilter === "DUE_TODAY" && !isDueToday(task.due_date, task.status)) {
+        return false;
+      }
+      if (quickFilter === "PENDING" && !isPendingPayment(task.status)) {
+        return false;
+      }
+      if (quickFilter === "OVERDUE" && !isOverdue(task.due_date, task.status)) {
+        return false;
+      }
+
       return true;
     });
-  }, [tasks, statusFilter, wireFilter, searchQuery]);
+  }, [tasks, typeFilter, statusFilter, wireFilter, quickFilter, searchQuery]);
 
-  const hasActiveFilters = searchQuery.trim() !== "" || statusFilter !== "ALL" || wireFilter !== "ALL";
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    statusFilter !== "ALL" ||
+    wireFilter !== "ALL" ||
+    typeFilter !== "ALL" ||
+    quickFilter !== "ALL";
 
   const clearFilters = () => {
     setSearchQuery("");
     setStatusFilter("ALL");
     setWireFilter("ALL");
+    setTypeFilter("ALL");
+    setQuickFilter("ALL");
   };
 
   return (
@@ -285,7 +372,7 @@ export default function Invoices() {
             </span>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
-            All active wire transfers &amp; AP records
+            All active wire transfers &amp; scheduled payments
           </p>
         </Card>
 
@@ -396,9 +483,21 @@ export default function Invoices() {
               )}
             </div>
 
+            {/* Request Type Filter */}
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-full sm:w-48 h-9 text-xs font-medium">
+                <SelectValue placeholder="Request Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Types (Wire & Scheduled)</SelectItem>
+                <SelectItem value="WIRE">Wire Transfer</SelectItem>
+                <SelectItem value="SCHEDULED">Schedule Payment</SelectItem>
+              </SelectContent>
+            </Select>
+
             {/* Status Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48 h-9 text-xs font-medium">
+              <SelectTrigger className="w-full sm:w-44 h-9 text-xs font-medium">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -413,7 +512,7 @@ export default function Invoices() {
 
             {/* Wire Details Filter */}
             <Select value={wireFilter} onValueChange={setWireFilter}>
-              <SelectTrigger className="w-full sm:w-44 h-9 text-xs font-medium">
+              <SelectTrigger className="w-full sm:w-40 h-9 text-xs font-medium">
                 <SelectValue placeholder="Wire Details" />
               </SelectTrigger>
               <SelectContent>
@@ -440,6 +539,222 @@ export default function Invoices() {
                 Reset Filters
               </Button>
             )}
+          </div>
+        </div>
+
+        {/* ── Bottom of Search Bar: Quick Urgency Filter Buttons (Super User-Friendly for Elderly / Clear Plain Language) ── */}
+        <div className="pt-3 border-t border-slate-100 dark:border-zinc-800/80 flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+            <span className="font-bold text-slate-700 dark:text-zinc-200 tracking-wide flex items-center gap-1.5">
+              <span>Quick Urgency Filter:</span>
+              <span className="font-normal text-muted-foreground text-[11px]">
+                Click any button to view matching payments immediately
+              </span>
+            </span>
+            {quickFilter !== "ALL" && (
+              <button
+                type="button"
+                onClick={() => setQuickFilter("ALL")}
+                className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline text-xs flex items-center gap-1 w-fit"
+              >
+                <span>Reset to All Payments</span>
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            {/* 1. All Payments */}
+            <button
+              type="button"
+              onClick={() => setQuickFilter("ALL")}
+              aria-pressed={quickFilter === "ALL"}
+              className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer text-left select-none ${
+                quickFilter === "ALL"
+                  ? "bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100 ring-2 ring-slate-400/30"
+                  : "bg-slate-50/70 hover:bg-slate-100/90 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={`p-2 rounded-lg shrink-0 ${
+                    quickFilter === "ALL"
+                      ? "bg-white/20 text-white dark:bg-zinc-900/20 dark:text-zinc-900"
+                      : "bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 shadow-2xs"
+                  }`}
+                >
+                  <Layers className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-bold flex items-center gap-1.5 leading-tight truncate">
+                    <span>All Payments</span>
+                    {quickFilter === "ALL" && <Check className="h-3.5 w-3.5 shrink-0" />}
+                  </div>
+                  <div
+                    className={`text-[11px] truncate ${
+                      quickFilter === "ALL"
+                        ? "text-slate-200 dark:text-zinc-600"
+                        : "text-slate-500 dark:text-zinc-400"
+                    }`}
+                  >
+                    All active records
+                  </div>
+                </div>
+              </div>
+              <span
+                className={`ml-2 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono shrink-0 ${
+                  quickFilter === "ALL"
+                    ? "bg-white/20 text-white dark:bg-zinc-900/20 dark:text-zinc-900"
+                    : "bg-slate-200/80 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300"
+                }`}
+              >
+                {quickFilterCounts.all}
+              </span>
+            </button>
+
+            {/* 2. Due on Today */}
+            <button
+              type="button"
+              onClick={() => setQuickFilter(quickFilter === "DUE_TODAY" ? "ALL" : "DUE_TODAY")}
+              aria-pressed={quickFilter === "DUE_TODAY"}
+              className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer text-left select-none ${
+                quickFilter === "DUE_TODAY"
+                  ? "bg-amber-600 text-white border-amber-600 shadow-sm ring-2 ring-amber-400/40"
+                  : "bg-amber-50/60 hover:bg-amber-100/80 dark:bg-amber-950/20 dark:hover:bg-amber-950/40 border-amber-200 dark:border-amber-900/50 text-amber-950 dark:text-amber-200"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={`p-2 rounded-lg shrink-0 ${
+                    quickFilter === "DUE_TODAY"
+                      ? "bg-white/20 text-white"
+                      : "bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 shadow-2xs"
+                  }`}
+                >
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-bold flex items-center gap-1.5 leading-tight truncate">
+                    <span>Due on Today</span>
+                    {quickFilter === "DUE_TODAY" && <Check className="h-3.5 w-3.5 shrink-0" />}
+                  </div>
+                  <div
+                    className={`text-[11px] truncate ${
+                      quickFilter === "DUE_TODAY"
+                        ? "text-amber-100"
+                        : "text-amber-700/80 dark:text-amber-400"
+                    }`}
+                  >
+                    Must pay by today
+                  </div>
+                </div>
+              </div>
+              <span
+                className={`ml-2 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono shrink-0 ${
+                  quickFilter === "DUE_TODAY"
+                    ? "bg-white/20 text-white"
+                    : "bg-amber-200/80 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200"
+                }`}
+              >
+                {quickFilterCounts.dueToday}
+              </span>
+            </button>
+
+            {/* 3. Pending Payment */}
+            <button
+              type="button"
+              onClick={() => setQuickFilter(quickFilter === "PENDING" ? "ALL" : "PENDING")}
+              aria-pressed={quickFilter === "PENDING"}
+              className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer text-left select-none ${
+                quickFilter === "PENDING"
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-400/40"
+                  : "bg-indigo-50/60 hover:bg-indigo-100/80 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/40 border-indigo-200 dark:border-indigo-900/50 text-indigo-950 dark:text-indigo-200"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={`p-2 rounded-lg shrink-0 ${
+                    quickFilter === "PENDING"
+                      ? "bg-white/20 text-white"
+                      : "bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 shadow-2xs"
+                  }`}
+                >
+                  <Clock className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-bold flex items-center gap-1.5 leading-tight truncate">
+                    <span>Pending Payment</span>
+                    {quickFilter === "PENDING" && <Check className="h-3.5 w-3.5 shrink-0" />}
+                  </div>
+                  <div
+                    className={`text-[11px] truncate ${
+                      quickFilter === "PENDING"
+                        ? "text-indigo-100"
+                        : "text-indigo-700/80 dark:text-indigo-400"
+                    }`}
+                  >
+                    Awaiting AP settlement
+                  </div>
+                </div>
+              </div>
+              <span
+                className={`ml-2 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono shrink-0 ${
+                  quickFilter === "PENDING"
+                    ? "bg-white/20 text-white"
+                    : "bg-indigo-200/80 dark:bg-indigo-900/60 text-indigo-900 dark:text-indigo-200"
+                }`}
+              >
+                {quickFilterCounts.pending}
+              </span>
+            </button>
+
+            {/* 4. Overdue Payment */}
+            <button
+              type="button"
+              onClick={() => setQuickFilter(quickFilter === "OVERDUE" ? "ALL" : "OVERDUE")}
+              aria-pressed={quickFilter === "OVERDUE"}
+              className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer text-left select-none ${
+                quickFilter === "OVERDUE"
+                  ? "bg-red-600 text-white border-red-600 shadow-sm ring-2 ring-red-400/40"
+                  : "bg-red-50/60 hover:bg-red-100/80 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-red-200 dark:border-red-900/50 text-red-950 dark:text-red-200"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={`p-2 rounded-lg shrink-0 ${
+                    quickFilter === "OVERDUE"
+                      ? "bg-white/20 text-white"
+                      : "bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 shadow-2xs"
+                  }`}
+                >
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-bold flex items-center gap-1.5 leading-tight truncate">
+                    <span>Overdue Payment</span>
+                    {quickFilter === "OVERDUE" && <Check className="h-3.5 w-3.5 shrink-0" />}
+                  </div>
+                  <div
+                    className={`text-[11px] truncate ${
+                      quickFilter === "OVERDUE"
+                        ? "text-red-100"
+                        : "text-red-700/80 dark:text-red-400"
+                    }`}
+                  >
+                    Past payment deadline
+                  </div>
+                </div>
+              </div>
+              <span
+                className={`ml-2 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono shrink-0 ${
+                  quickFilter === "OVERDUE"
+                    ? "bg-white/20 text-white"
+                    : "bg-red-200/80 dark:bg-red-900/60 text-red-900 dark:text-red-200"
+                }`}
+              >
+                {quickFilterCounts.overdue}
+              </span>
+            </button>
           </div>
         </div>
       </Card>
@@ -473,6 +788,7 @@ export default function Invoices() {
               ) : filteredTasks.length ? (
                 filteredTasks.map((task) => {
                   const overdue = isOverdue(task.due_date, task.status);
+                  const dueToday = isDueToday(task.due_date, task.status);
                   const wt = task.wire_transfer;
                   const hasWire = !!wt;
 
@@ -502,8 +818,17 @@ export default function Invoices() {
                                 <span className="truncate max-w-[160px]">{wt?.vendor || task.vendor}</span>
                               </span>
                             )}
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
-                              {formatRequestType(task.category || task.request_type || wt?.category || "Request")}
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] px-1.5 py-0 font-medium ${
+                                isScheduledPayment(task) && !isWireTransfer(task)
+                                  ? "bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                                  : "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800"
+                              }`}
+                            >
+                              {isScheduledPayment(task) && !isWireTransfer(task)
+                                ? "Scheduled Payment"
+                                : "Wire Transfer"}
                             </Badge>
                           </div>
                         </div>
@@ -594,12 +919,26 @@ export default function Invoices() {
 
                       {/* Due Date */}
                       <TableCell className="text-xs">
-                        <div className="flex flex-col">
-                          <span className={overdue ? "text-red-600 font-semibold" : "text-slate-700 dark:text-zinc-300"}>
+                        <div className="flex flex-col gap-0.5">
+                          <span
+                            className={
+                              dueToday
+                                ? "text-amber-700 dark:text-amber-400 font-bold"
+                                : overdue
+                                ? "text-red-600 font-semibold"
+                                : "text-slate-700 dark:text-zinc-300"
+                            }
+                          >
                             {formatDate(task.due_date || task.goods_received_at) || "—"}
                           </span>
+                          {dueToday && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800 w-fit">
+                              <Calendar className="h-2.5 w-2.5" />
+                              Due Today
+                            </span>
+                          )}
                           {overdue && (
-                            <span className="text-[10px] font-semibold text-red-600 flex items-center gap-0.5">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-800 w-fit">
                               <Clock className="h-2.5 w-2.5" />
                               Overdue
                             </span>
