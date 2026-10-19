@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useUpdateRequest, useUsersList, useRolesList } from "@/hooks/usePurchasing";
+import { useUpdateRequest, useUsersList, useRolesList , useVendorDirectory
+} from "@/hooks/usePurchasing";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 import { useAuth } from "@/lib/AuthContext";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
@@ -30,6 +31,8 @@ import { WireBankingFields } from "./WireBankingFields";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { calculateInstallmentsCount } from "./recurringScheduleUtils";
 import { parseRequestStatus } from "@/lib/requestStatus";
+import { detectTaxWithPriority } from "@/utils/taxRates";
+import { ShippingDeliveryAddressField } from "./ShippingDeliveryAddressField";
 
 
 function RequesterAutocomplete({
@@ -188,6 +191,8 @@ export function EditRequestDialog({
     request_type: "",
     priority: "",
     department: "",
+    shipping_address: "",
+    phone_number: "",
     item_url: "",
     unit_price: "",
     quantity: "1",
@@ -197,6 +202,38 @@ export function EditRequestDialog({
     due_date: "",
     project_name: "",
   });
+
+  const currentRequesterUser = useMemo(() => {
+    const q = (formData.requester || "").toLowerCase().trim();
+    if (!q) return user;
+    return (
+      usersList.find(
+        (u) =>
+          (u.full_name && u.full_name.toLowerCase().trim() === q) ||
+          (u.email && u.email.toLowerCase().trim() === q)
+      ) || user
+    );
+  }, [formData.requester, usersList, user]);
+
+  const allSavedAddresses = useMemo(() => {
+    const list: string[] = [];
+    if (currentRequesterUser) {
+      if ((currentRequesterUser as any).shipping_address) {
+        list.push((currentRequesterUser as any).shipping_address);
+      }
+      const rawSaved = (currentRequesterUser as any).saved_shipping_addresses;
+      if (Array.isArray(rawSaved)) {
+        rawSaved.forEach((a) => {
+          if (typeof a === "string" && a.trim() && !list.includes(a.trim())) {
+            list.push(a.trim());
+          }
+        });
+      }
+    }
+    return list;
+  }, [currentRequesterUser]);
+
+  const lastUsedAddress = allSavedAddresses[0] || "";
 
   const [items, setItems] = useState<PurchaseRequestItem[]>([]);
   const [shippingFee, setShippingFee] = useState<number>(0);
@@ -295,6 +332,8 @@ export function EditRequestDialog({
         request_type: request.request_type || "SPEND",
         priority: request.priority || "MEDIUM",
         department: dept,
+        shipping_address: (request as any).shipping_address || matched?.shipping_address || (user as any)?.shipping_address || "",
+        phone_number: (request as any).phone_number || matched?.phone_number || (user as any)?.phone_number || "",
         item_url: request.item_url || "",
         unit_price: upriceVal ? upriceVal.toString() : "",
         quantity: qtyVal ? qtyVal.toString() : "1",
@@ -480,6 +519,58 @@ export function EditRequestDialog({
     return items.reduce((sum, itm) => sum + (Number(itm.total) || 0), 0);
   }, [items]);
 
+  const currentSubtotal = useMemo(() => {
+    if (itemMode === "MULTIPLE") return itemsSubtotal;
+    return (Number(formData.unit_price) || 0) * (Number(formData.quantity) || 1) || (Number(formData.amount) || 0);
+  }, [itemMode, itemsSubtotal, formData.unit_price, formData.quantity, formData.amount]);
+
+  const { data: vendorDirectory = {} } = useVendorDirectory();
+
+  const effectiveVendorName = useMemo(() => {
+    if (formData.request_type === "ACCOUNTS_PAYABLE") return apWireForm.vendor || "";
+    if (wireTransfer?.vendor) return wireTransfer.vendor;
+    if (request?.quote_data?.vendor?.name) return request.quote_data.vendor.name;
+    if (request?.product_info?.vendor && request.product_info.vendor !== "N/A") return request.product_info.vendor;
+    if (formData.title?.includes(" - ")) {
+      const candidate = formData.title.split(" - ")[0].trim();
+      if (candidate.length > 1 && candidate.length < 50) return candidate;
+    }
+    return "";
+  }, [formData.request_type, apWireForm.vendor, wireTransfer, request, formData.title]);
+
+  const effectiveVendorAddress = useMemo(() => {
+    if (formData.request_type === "ACCOUNTS_PAYABLE") return apWireForm.vendor_address || "";
+    if (wireTransfer?.vendor_address) return wireTransfer.vendor_address;
+    if (request?.quote_data?.vendor?.address) return request.quote_data.vendor.address;
+    return "";
+  }, [formData.request_type, apWireForm.vendor_address, wireTransfer, request]);
+
+  const taxEstimate = useMemo(() => {
+    return detectTaxWithPriority({
+      shippingAddress: formData.shipping_address || "",
+      vendorAddress: effectiveVendorAddress,
+      vendorName: effectiveVendorName,
+      knownVendorLocations: vendorDirectory,
+      currency: request?.currency || "USD",
+    });
+  }, [formData.shipping_address, effectiveVendorAddress, effectiveVendorName, vendorDirectory, request?.currency]);
+
+  const estimatedTaxAmount = useMemo(() => {
+    if (!taxEstimate || currentSubtotal <= 0) return 0;
+    return Math.round(currentSubtotal * taxEstimate.rateDecimal * 100) / 100;
+  }, [taxEstimate, currentSubtotal]);
+
+  const prevEstimatedAddrRef = useRef<string>("");
+  useEffect(() => {
+    const locKey = `${formData.shipping_address || ""}|${effectiveVendorAddress || ""}|${effectiveVendorName || ""}`;
+    if (locKey && locKey !== prevEstimatedAddrRef.current) {
+      prevEstimatedAddrRef.current = locKey;
+      if (taxEstimate && currentSubtotal > 0 && taxFee === 0) {
+        setTaxFee(estimatedTaxAmount);
+      }
+    }
+  }, [formData.shipping_address, effectiveVendorAddress, effectiveVendorName, taxEstimate, currentSubtotal, taxFee, estimatedTaxAmount]);
+
   const calculatedAmount = useMemo(() => {
     if (itemMode === "MULTIPLE") {
       const total = itemsSubtotal + Number(shippingFee || 0) + Number(taxFee || 0) - Number(discountFee || 0);
@@ -521,6 +612,8 @@ export function EditRequestDialog({
         priority: formData.priority,
         requester: formData.requester,
         department: formData.department,
+        shipping_address: formData.shipping_address || null,
+        phone_number: formData.phone_number || null,
         item_mode: itemMode,
         gl_code: formData.gl_code || null,
         due_date: formData.due_date || null,
@@ -976,15 +1069,24 @@ export function EditRequestDialog({
                     const dept = (matched?.department && matched.department.trim() && matched.department.toUpperCase() !== "REQUESTER")
                       ? matched.department.trim()
                       : (matched ? resolveUserDepartment(matched, rolesList) : "");
-                    setFormData((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
+                    setFormData((prev) => ({
+                      ...prev,
+                      requester: val,
+                      department: dept || prev.department,
+                      shipping_address: matched?.shipping_address !== undefined ? (matched.shipping_address || "") : prev.shipping_address,
+                      phone_number: matched?.phone_number !== undefined ? (matched.phone_number || "") : prev.phone_number,
+                    }));
                   }}
                   onSelectUser={(selectedUser) => {
                     const dept = (selectedUser?.department && selectedUser.department.trim() && selectedUser.department.toUpperCase() !== "REQUESTER")
                       ? selectedUser.department.trim()
                       : resolveUserDepartment(selectedUser, rolesList);
-                    if (dept) {
-                      setFormData((prev) => ({ ...prev, department: dept }));
-                    }
+                    setFormData((prev) => ({
+                      ...prev,
+                      department: dept || prev.department,
+                      shipping_address: selectedUser?.shipping_address !== undefined ? (selectedUser.shipping_address || "") : prev.shipping_address,
+                      phone_number: selectedUser?.phone_number !== undefined ? (selectedUser.phone_number || "") : prev.phone_number,
+                    }));
                   }}
                   users={usersList}
                   roles={rolesList}
@@ -1038,6 +1140,31 @@ export function EditRequestDialog({
                   placeholder="Select existing project or type project name (e.g. Drone Project)..."
                 />
               </div>
+
+              {/* Shipping & Delivery Information (Optional for Spend & Quote Requests) */}
+              {(formData.request_type === "SPEND" || formData.request_type === "QUOTE") && (
+                <ShippingDeliveryAddressField
+                  shippingAddress={formData.shipping_address || ""}
+                  onShippingAddressChange={(val) => setFormData((p) => ({ ...p, shipping_address: val }))}
+                  phoneNumber={formData.phone_number || ""}
+                  onPhoneNumberChange={(val) => setFormData((p) => ({ ...p, phone_number: val }))}
+                  allSavedAddresses={allSavedAddresses}
+                  lastUsedAddress={lastUsedAddress}
+                  currency={request?.currency || "USD"}
+                  subtotal={currentSubtotal}
+                  currentTaxFee={taxFee}
+                  onApplyEstimatedTax={(amt) => {
+                    setTaxFee(amt);
+                    if (taxEstimate) {
+                      toast.info(`Set estimated tax (${taxEstimate.ratePercent}%): $${formatMoney(amt)}`);
+                    }
+                  }}
+                  vendorName={effectiveVendorName}
+                  vendorAddress={effectiveVendorAddress}
+                  knownVendorLocations={vendorDirectory}
+                  idPrefix="edit"
+                />
+              )}
             </div>
 
             {/* 5. Conditional Type Fields: ACCOUNTS_PAYABLE vs RECURRING vs SINGLE ITEM */}

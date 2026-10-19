@@ -16,6 +16,7 @@ import { PaymentMethodSelect } from "./PaymentMethodSelect";
 import { ManualPriceDialog } from "./ManualPriceDialog";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { updateRequest } from "@/services/purchasingService";
+import { getApiErrorStatus } from "@/services/helper";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { VendorAutocomplete } from "./VendorAutocomplete";
 import { useState, useEffect, useRef } from "react";
@@ -40,6 +41,8 @@ import {
   FolderKanban,
   CheckCircle2,
   Truck,
+  MapPin,
+  Phone,
   Plus,
   Pencil,
   Trash2,
@@ -161,7 +164,7 @@ export default function RequestDetail() {
   };
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data, isLoading, isError, refetch } = usePurchaseRequest(id);
+  const { data, isLoading, isError, error, refetch } = usePurchaseRequest(id);
   const [isManualPriceOpen, setIsManualPriceOpen] = useState(false);
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [quickProjectValue, setQuickProjectValue] = useState("");
@@ -404,12 +407,24 @@ export default function RequestDetail() {
     return <div className="p-8 text-sm text-muted-foreground">Loading request...</div>;
   }
   if (isError || !data) {
+    const status = getApiErrorStatus(error);
+    const message =
+      status === 401 ? "Your session has expired. Redirecting to login..." :
+      status === 403 ? "You don't have permission to view this request." :
+      status === 404 || !isError ? "Request not found." :
+      "Could not load this request. Please try again.";
+    const canRetry = isError && status !== 401 && status !== 403 && status !== 404;
     return (
       <div className="p-8">
         <Button variant="outline" onClick={() => navigate(backUrl)}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
-        <p className="mt-4 text-sm text-red-600">Request not found.</p>
+        <p className="mt-4 text-sm text-red-600">{message}</p>
+        {canRetry && (
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
+            Retry
+          </Button>
+        )}
       </div>
     );
   }
@@ -1518,6 +1533,32 @@ export default function RequestDetail() {
                           </span>
                         }
                       />
+                    )}
+                    {(request.shipping_address || request.phone_number) && (
+                      <>
+                        {request.shipping_address && (
+                          <Field
+                            label="Shipping Address"
+                            value={
+                              <span className="flex items-start gap-1.5 font-medium text-slate-800 dark:text-zinc-200">
+                                <MapPin className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                                <span>{request.shipping_address}</span>
+                              </span>
+                            }
+                          />
+                        )}
+                        {request.phone_number && (
+                          <Field
+                            label="Contact Phone"
+                            value={
+                              <span className="flex items-center gap-1.5 font-medium text-slate-800 dark:text-zinc-200">
+                                <Phone className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <span>{request.phone_number}</span>
+                              </span>
+                            }
+                          />
+                        )}
+                      </>
                     )}
                     {isRecurring && (
                       <Field

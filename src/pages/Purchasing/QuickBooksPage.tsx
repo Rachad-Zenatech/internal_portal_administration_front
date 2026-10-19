@@ -35,6 +35,7 @@ import {
   MapPin,
   Sparkles,
   Banknote,
+  Landmark,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -171,7 +172,7 @@ export default function QuickBooksPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [requestTypeFilter, setRequestTypeFilter] = useState<string>("ALL");
-  const [stagingTab, setStagingTab] = useState<"expenses" | "bills" | "ar_invoices">("expenses");
+  const [stagingTab, setStagingTab] = useState<"expenses" | "ma_payments" | "bills" | "ar_invoices">("expenses");
   const [previewData, setPreviewData] = useState<QuickBooksPreviewResponse | null>(null);
   const [arPreviewData, setArPreviewData] = useState<QuickBooksPreviewResponse | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
@@ -191,7 +192,12 @@ export default function QuickBooksPage() {
       return [
         { id: "ALL", label: "All Types" },
         { id: "PURCHASE", label: "Purchasing Requests" },
-        { id: "MA", label: "M&A Purchases" },
+      ];
+    }
+    if (stagingTab === "ma_payments") {
+      return [
+        { id: "ALL", label: "All M&A" },
+        { id: "MA", label: "Scheduled M&A Deals" },
       ];
     }
     if (stagingTab === "bills") {
@@ -345,13 +351,20 @@ export default function QuickBooksPage() {
     }
   }, []);
 
-  // Partition all staged items into Expenses, Bills, and A/R Invoices
+  // Partition all staged items into Expenses, M&A Scheduled Payments, Bills, and A/R Invoices
   const allExpenses = useMemo(() => {
     if (!previewData?.items) return [];
     return previewData.items.filter((item) => {
-      if (isMaItem(item)) return true;
+      if (isMaItem(item)) return false;
       if (item.transaction_category === "BILL") return false;
       return item.transaction_category === "EXPENSE" || !item.is_recurring;
+    });
+  }, [previewData]);
+
+  const allMaPayments = useMemo(() => {
+    if (!previewData?.items) return [];
+    return previewData.items.filter((item) => {
+      return isMaItem(item);
     });
   }, [previewData]);
 
@@ -368,9 +381,11 @@ export default function QuickBooksPage() {
     return arPreviewData?.items || [];
   }, [arPreviewData]);
 
-  // Filtered items based on active sub-tab (Expenses vs Bills vs A/R Invoices)
+  // Filtered items based on active sub-tab (Expenses vs M&A Payments vs Bills vs A/R Invoices)
   const currentTabRawItems = stagingTab === "expenses"
     ? allExpenses
+    : stagingTab === "ma_payments"
+    ? allMaPayments
     : stagingTab === "bills"
     ? allBills
     : allARInvoices;
@@ -467,20 +482,21 @@ export default function QuickBooksPage() {
   // Batch Sync (Routes dynamically for Expenses vs Bills vs A/R Invoices)
   const handleBatchSync = async () => {
     if (currentTabSelectedIds.length === 0) {
-      const tabName = stagingTab === "expenses" ? "expense" : stagingTab === "bills" ? "bill" : "A/R invoice";
+      const tabName = stagingTab === "expenses" ? "expense" : stagingTab === "ma_payments" ? "M&A scheduled payment" : stagingTab === "bills" ? "bill" : "A/R invoice";
       toast.error(`Please select at least one ${tabName} to sync`);
       return;
     }
 
     setIsSyncing(true);
     try {
-      if (stagingTab === "expenses") {
+      if (stagingTab === "expenses" || stagingTab === "ma_payments") {
         const res = await syncQuickBooksBatch(currentTabSelectedIds);
+        const label = stagingTab === "ma_payments" ? "M&A scheduled payment(s)" : "expense(s)";
         if (res.synced > 0) {
-          toast.success(`Successfully synchronized ${res.synced} expense(s) to QuickBooks Online!`);
+          toast.success(`Successfully synchronized ${res.synced} ${label} to QuickBooks Online!`);
         }
         if (res.failed > 0) {
-          toast.error(`${res.failed} expense(s) failed to sync. Inspect payloads for details.`);
+          toast.error(`${res.failed} ${label} failed to sync. Inspect payloads for details.`);
         }
       } else if (stagingTab === "bills") {
         const res = await syncQuickBooksBillsBatch(currentTabSelectedIds);
@@ -669,6 +685,10 @@ export default function QuickBooksPage() {
   const expensesAmount = allExpenses.reduce((sum, item) => sum + (item.amount || 0), 0);
   const formattedExpensesAmount = `$${expensesAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  const maCount = allMaPayments.length;
+  const maAmount = allMaPayments.reduce((sum, item) => sum + (item.amount || 0), 0);
+  const formattedMaAmount = `$${maAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const billsCount = allBills.length;
   const billsAmount = allBills.reduce((sum, item) => sum + (item.amount || 0), 0);
   const formattedBillsAmount = `$${billsAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -676,8 +696,6 @@ export default function QuickBooksPage() {
   const arCount = allARInvoices.length;
   const arAmount = allARInvoices.reduce((sum, item) => sum + (item.amount || 0), 0);
   const formattedARAmount = `$${arAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-  const maCount = (previewData?.items || []).filter((i) => Boolean(i.is_ma || i.type === "m&a" || i.source_portal === "m7a" || i.source_portal === "m&a")).length;
 
   const currentTabSelectedTotalAmount = useMemo(() => {
     const sum = filteredItems
@@ -782,21 +800,36 @@ export default function QuickBooksPage() {
           <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform" />
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-1.5">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">QBO Expenses</p>
-                {maCount > 0 && (
-                  <Badge variant="outline" className="text-[9px] px-1 py-0 bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200">
-                    {maCount} M&amp;A
-                  </Badge>
-                )}
-              </div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">QBO Expenses</p>
               <h3 className="text-2xl font-bold text-foreground mt-1">{formattedExpensesAmount}</h3>
               <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                <span className="font-semibold text-foreground">{expensesCount}</span> purchases &amp; M&amp;A
+                <span className="font-semibold text-foreground">{expensesCount}</span> purchasing requests
               </p>
             </div>
             <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20 shadow-2xs">
               <CreditCard className="h-5 w-5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* M&A Scheduled Payments Card */}
+        <Card
+          onClick={() => setStagingTab("ma_payments")}
+          className={`border-border/70 shadow-2xs bg-card/60 backdrop-blur-xs relative overflow-hidden group hover:border-purple-500/50 transition-all cursor-pointer ${
+            stagingTab === "ma_payments" ? "ring-2 ring-purple-500/40 border-purple-500/60 bg-purple-50/10" : ""
+          }`}
+        >
+          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform" />
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">M&amp;A Scheduled</p>
+              <h3 className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">{formattedMaAmount}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                <span className="font-semibold text-foreground">{maCount}</span> scheduled deals &amp; wires
+              </p>
+            </div>
+            <div className="h-11 w-11 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-500/20 shadow-2xs">
+              <Landmark className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
@@ -874,7 +907,7 @@ export default function QuickBooksPage() {
                 {currentTabSelectedTotalAmount}
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {currentTabSelectedIds.length} item(s) in {stagingTab === "expenses" ? "Expenses" : stagingTab === "bills" ? "Bills" : "A/R Invoices"}
+                {currentTabSelectedIds.length} item(s) in {stagingTab === "expenses" ? "Expenses" : stagingTab === "ma_payments" ? "M&A Payments" : stagingTab === "bills" ? "Bills" : "A/R Invoices"}
               </p>
             </div>
             <div className="h-11 w-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20 shadow-2xs">
@@ -930,11 +963,29 @@ export default function QuickBooksPage() {
                 }`}
               >
                 <CreditCard className="h-3.5 w-3.5" />
-                <span>Expenses (Standard &amp; M&amp;A)</span>
+                <span>Purchasing Expenses</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                   stagingTab === "expenses" ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
                 }`}>
                   {expensesCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStagingTab("ma_payments")}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
+                  stagingTab === "ma_payments"
+                    ? "bg-purple-600 text-white shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                <Landmark className="h-3.5 w-3.5" />
+                <span>M&amp;A Scheduled Payments</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  stagingTab === "ma_payments" ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                }`}>
+                  {maCount}
                 </span>
               </button>
 
@@ -979,6 +1030,8 @@ export default function QuickBooksPage() {
               Sync Target: <strong className="text-foreground">
                 {stagingTab === "expenses"
                   ? "QuickBooks Online > Expenses (Purchase)"
+                  : stagingTab === "ma_payments"
+                  ? "QuickBooks Online > M&A Scheduled Payments (Purchase)"
                   : stagingTab === "bills"
                   ? "QuickBooks Online > Bills (Bill)"
                   : "QuickBooks Online > Invoices & Payments (Cash Application)"}
@@ -994,7 +1047,7 @@ export default function QuickBooksPage() {
                 <div className="relative min-w-[200px] max-w-xs flex-1">
                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder={`Search ${stagingTab === "expenses" ? "expenses, M&A" : stagingTab === "bills" ? "recurring bills" : "A/R cash apps"}, customer, vendor, account...`}
+                    placeholder={`Search ${stagingTab === "expenses" ? "expenses" : stagingTab === "ma_payments" ? "M&A scheduled payments" : stagingTab === "bills" ? "recurring bills" : "A/R cash apps"}, customer, vendor, account...`}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="h-8.5 text-xs pl-8 bg-background/80"
@@ -1126,6 +1179,8 @@ export default function QuickBooksPage() {
             <div className={`flex items-center justify-between gap-4 p-3 rounded-xl text-white shadow-md border animate-in slide-in-from-top duration-200 ${
               stagingTab === "expenses"
                 ? "bg-gradient-to-r from-emerald-900/90 to-slate-900 border-emerald-500/30"
+                : stagingTab === "ma_payments"
+                ? "bg-gradient-to-r from-purple-900/90 to-slate-900 border-purple-500/30"
                 : stagingTab === "bills"
                 ? "bg-gradient-to-r from-blue-900/90 to-slate-900 border-blue-500/30"
                 : "bg-gradient-to-r from-teal-900/90 to-slate-900 border-teal-500/30"
@@ -1134,6 +1189,8 @@ export default function QuickBooksPage() {
                 <div className={`h-7 w-7 rounded-lg flex items-center justify-center font-bold text-xs border ${
                   stagingTab === "expenses"
                     ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                    : stagingTab === "ma_payments"
+                    ? "bg-purple-500/20 text-purple-400 border-purple-500/30"
                     : stagingTab === "bills"
                     ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
                     : "bg-teal-500/20 text-teal-400 border-teal-500/30"
@@ -1143,9 +1200,23 @@ export default function QuickBooksPage() {
                 <div className="text-xs">
                   <span className="font-bold">
                     {currentTabSelectedIds.length}{" "}
-                    {stagingTab === "expenses" ? "expense(s)" : stagingTab === "bills" ? "bill(s)" : "A/R invoice(s)"} selected
+                    {stagingTab === "expenses"
+                      ? "expense(s)"
+                      : stagingTab === "ma_payments"
+                      ? "M&A scheduled payment(s)"
+                      : stagingTab === "bills"
+                      ? "bill(s)"
+                      : "A/R invoice(s)"} selected
                   </span>
-                  <span className={`${stagingTab === "expenses" ? "text-emerald-300" : stagingTab === "bills" ? "text-blue-300" : "text-teal-300"} ml-2 font-mono font-semibold`}>
+                  <span className={`${
+                    stagingTab === "expenses"
+                      ? "text-emerald-300"
+                      : stagingTab === "ma_payments"
+                      ? "text-purple-300"
+                      : stagingTab === "bills"
+                      ? "text-blue-300"
+                      : "text-teal-300"
+                  } ml-2 font-mono font-semibold`}>
                     Total: {currentTabSelectedTotalAmount}
                   </span>
                 </div>
@@ -1203,6 +1274,8 @@ export default function QuickBooksPage() {
                   className={`h-7.5 text-xs font-semibold gap-1.5 text-white shadow-xs ${
                     stagingTab === "expenses"
                       ? "bg-emerald-600 hover:bg-emerald-500"
+                      : stagingTab === "ma_payments"
+                      ? "bg-purple-600 hover:bg-purple-500"
                       : stagingTab === "bills"
                       ? "bg-blue-600 hover:bg-blue-500"
                       : "bg-teal-600 hover:bg-teal-500"
@@ -1213,7 +1286,13 @@ export default function QuickBooksPage() {
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       <span>
                         Syncing to QuickBooks{" "}
-                        {stagingTab === "expenses" ? "Expenses" : stagingTab === "bills" ? "Bills" : "A/R Invoices"}...
+                        {stagingTab === "expenses"
+                          ? "Expenses"
+                          : stagingTab === "ma_payments"
+                          ? "M&A Expenses"
+                          : stagingTab === "bills"
+                          ? "Bills"
+                          : "A/R Invoices"}...
                       </span>
                     </>
                   ) : (
@@ -1221,7 +1300,13 @@ export default function QuickBooksPage() {
                       <Zap className="h-3.5 w-3.5" />
                       <span>
                         Sync Selected ({currentTabSelectedIds.length}) to QuickBooks{" "}
-                        {stagingTab === "expenses" ? "Expenses" : stagingTab === "bills" ? "Bills" : "A/R Invoices"}
+                        {stagingTab === "expenses"
+                          ? "Expenses"
+                          : stagingTab === "ma_payments"
+                          ? "M&A Expenses"
+                          : stagingTab === "bills"
+                          ? "Bills"
+                          : "A/R Invoices"}
                       </span>
                     </>
                   )}
@@ -1244,11 +1329,21 @@ export default function QuickBooksPage() {
                     <CheckCircle2 className="h-6 w-6 opacity-60" />
                   </div>
                   <h4 className="text-sm font-semibold text-foreground">
-                    No matching staged {stagingTab === "expenses" ? "expenses" : stagingTab === "bills" ? "bills" : "A/R invoices"} found
+                    No matching staged {
+                      stagingTab === "expenses"
+                        ? "purchasing expenses"
+                        : stagingTab === "ma_payments"
+                        ? "M&A scheduled payments"
+                        : stagingTab === "bills"
+                        ? "bills"
+                        : "A/R invoices"
+                    } found
                   </h4>
                   <p className="text-xs text-muted-foreground max-w-md mx-auto">
                     {stagingTab === "expenses"
-                      ? "Standard purchases and M&A scheduled payments with status 'Ordered / Purchased' are staged here for QuickBooks Expenses."
+                      ? "Standard procurement and spend requests with status 'Ordered / Purchased' are staged here for QuickBooks Expenses."
+                      : stagingTab === "ma_payments"
+                      ? "M&A scheduled deal payments and wire settlements with status 'Ordered / Purchased' are staged here."
                       : stagingTab === "bills"
                       ? "Recurring vendor payments with status 'Ordered / Purchased' are staged here for QuickBooks Bills."
                       : "Reconciled A/R cash applications are staged here for QuickBooks Invoices & Payments."}
@@ -1272,10 +1367,20 @@ export default function QuickBooksPage() {
                         />
                       </TableHead>
                       <TableHead className="w-28 font-bold text-foreground">
-                        {stagingTab === "expenses" ? "Request #" : stagingTab === "bills" ? "Bill / Rec #" : "AR Ref #"}
+                        {stagingTab === "expenses"
+                          ? "Request #"
+                          : stagingTab === "ma_payments"
+                          ? "M&A Deal #"
+                          : stagingTab === "bills"
+                          ? "Bill / Rec #"
+                          : "AR Ref #"}
                       </TableHead>
                       <TableHead className="w-24 font-bold text-foreground">
-                        {stagingTab === "expenses" ? "Date" : stagingTab === "bills" ? "Bill Date" : "Deposit Date"}
+                        {stagingTab === "expenses" || stagingTab === "ma_payments"
+                          ? "Date"
+                          : stagingTab === "bills"
+                          ? "Bill Date"
+                          : "Deposit Date"}
                       </TableHead>
                       {stagingTab === "bills" && (
                         <TableHead className="w-24 font-bold text-foreground">Due Date</TableHead>
@@ -1286,7 +1391,7 @@ export default function QuickBooksPage() {
                       <TableHead className="w-52 font-bold text-foreground">
                         {stagingTab === "ar_invoices" ? "A/R GL Account" : "Expense Account (GL)"}
                       </TableHead>
-                      {stagingTab === "expenses" ? (
+                      {stagingTab === "expenses" || stagingTab === "ma_payments" ? (
                         <TableHead className="w-44 font-bold text-foreground">Payment Account</TableHead>
                       ) : stagingTab === "bills" ? (
                         <TableHead className="w-44 font-bold text-foreground">Location</TableHead>
@@ -1294,7 +1399,13 @@ export default function QuickBooksPage() {
                         <TableHead className="w-44 font-bold text-foreground">Bank Account / Method</TableHead>
                       )}
                       <TableHead className="min-w-[200px] font-bold text-foreground">
-                        {stagingTab === "expenses" ? "Line Item / Product" : stagingTab === "bills" ? "Line Item / Description" : "Matched Invoices & Bank Ref"}
+                        {stagingTab === "expenses"
+                          ? "Line Item / Product"
+                          : stagingTab === "ma_payments"
+                          ? "M&A Deal / Payment Schedule"
+                          : stagingTab === "bills"
+                          ? "Line Item / Description"
+                          : "Matched Invoices & Bank Ref"}
                       </TableHead>
                       <TableHead className="w-28 text-right font-bold text-foreground">Amount (USD)</TableHead>
                       <TableHead className="w-36 font-bold text-foreground">Pre-Flight Status</TableHead>
@@ -1322,6 +1433,8 @@ export default function QuickBooksPage() {
                           className={`transition-colors border-b border-border/50 cursor-pointer ${isSelected
                               ? stagingTab === "expenses"
                                 ? "bg-emerald-50/40 dark:bg-emerald-950/15"
+                                : stagingTab === "ma_payments"
+                                ? "bg-purple-50/40 dark:bg-purple-950/15"
                                 : stagingTab === "bills"
                                 ? "bg-blue-50/40 dark:bg-blue-950/15"
                                 : "bg-teal-50/40 dark:bg-teal-950/15"
@@ -1440,16 +1553,24 @@ export default function QuickBooksPage() {
                             </div>
                           </TableCell>
 
-                          {/* Payment Account (Expenses) or Location (Bills) or Bank Account (A/R) */}
-                          {stagingTab === "expenses" ? (
+                          {/* Payment Account (Expenses & M&A) or Location (Bills) or Bank Account (A/R) */}
+                          {stagingTab === "expenses" || stagingTab === "ma_payments" ? (
                             <TableCell className="w-44">
                               <div className="space-y-1">
                                 <div className="text-muted-foreground truncate max-w-[160px] flex items-center gap-1.5">
-                                  <CreditCard className="h-3.5 w-3.5 flex-shrink-0" />
-                                  <span className="truncate">{item.payment_account_resolution?.name || "Business Credit Card"}</span>
+                                  {stagingTab === "ma_payments" ? (
+                                    <Landmark className="h-3.5 w-3.5 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                                  ) : (
+                                    <CreditCard className="h-3.5 w-3.5 flex-shrink-0" />
+                                  )}
+                                  <span className="truncate">{item.payment_account_resolution?.name || (stagingTab === "ma_payments" ? "Operating Wire Account" : "Business Credit Card")}</span>
                                 </div>
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
-                                  {item.payment_method || "Credit Card"}
+                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-mono ${
+                                  stagingTab === "ma_payments"
+                                    ? "bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200"
+                                    : ""
+                                }`}>
+                                  {item.payment_method || (stagingTab === "ma_payments" ? "Wire Transfer" : "Credit Card")}
                                 </Badge>
                               </div>
                             </TableCell>

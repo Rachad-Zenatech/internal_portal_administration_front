@@ -30,7 +30,10 @@ import { WireGeneralPaymentFields } from "./WireGeneralPaymentFields";
 import { WireBankingFields } from "./WireBankingFields";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { calculateInstallmentsCount } from "./recurringScheduleUtils";
-import { useUpdateRequest, useUsersList, useRolesList, useUploadAttachments, useDeleteAttachment } from "@/hooks/usePurchasing";
+import { useUpdateRequest, useUsersList, useRolesList, useUploadAttachments, useDeleteAttachment , useVendorDirectory
+} from "@/hooks/usePurchasing";
+import { useAuth } from "@/lib/AuthContext";
+import { ShippingDeliveryAddressField } from "./ShippingDeliveryAddressField";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 import * as purchasingService from "@/services/purchasingService";
 import { updateWireTransfer } from "@/services/purchasingService";
@@ -101,6 +104,7 @@ export function EditCombinedRequestDialog({
   const updateMutation = useUpdateRequest();
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
+  const { data: vendorDirectory = {} } = useVendorDirectory();
 
   const isCompleted =
     request?.status === RequestStatus.Completed ||
@@ -133,6 +137,41 @@ export function EditCombinedRequestDialog({
   const [reqCurrency, setReqCurrency] = useState("USD");
   const [reqGlCode, setReqGlCode] = useState("");
   const [description, setDescription] = useState("");
+  const { user } = useAuth();
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+
+  const currentRequesterUser = useMemo(() => {
+    const q = (requester || "").toLowerCase().trim();
+    if (!q) return user;
+    return (
+      usersList.find(
+        (u: any) =>
+          (u.full_name && u.full_name.toLowerCase().trim() === q) ||
+          (u.email && u.email.toLowerCase().trim() === q)
+      ) || user
+    );
+  }, [requester, usersList, user]);
+
+  const allSavedAddresses = useMemo(() => {
+    const list: string[] = [];
+    if (currentRequesterUser) {
+      if ((currentRequesterUser as any).shipping_address) {
+        list.push((currentRequesterUser as any).shipping_address);
+      }
+      const rawSaved = (currentRequesterUser as any).saved_shipping_addresses;
+      if (Array.isArray(rawSaved)) {
+        rawSaved.forEach((a: any) => {
+          if (typeof a === "string" && a.trim() && !list.includes(a.trim())) {
+            list.push(a.trim());
+          }
+        });
+      }
+    }
+    return list;
+  }, [currentRequesterUser]);
+
+  const lastUsedAddress = allSavedAddresses[0] || "";
 
   // Single item specific fields
   const [sku, setSku] = useState("");
@@ -309,17 +348,17 @@ export function EditCombinedRequestDialog({
 
       setTitle(request?.title || (request as any)?.product_name || "");
       setRequester(request?.requester || "");
+      const matchedUser = usersList.find(
+        (u: any) =>
+          (request?.requester_id && u.id === request.requester_id) ||
+          (request?.requester && (u.full_name?.toLowerCase() === request.requester.toLowerCase() || u.email?.toLowerCase() === request.requester.toLowerCase()))
+      );
       let initialDept = request?.department || "";
       if (!initialDept || initialDept.toUpperCase() === "GENERAL") {
-        const matched = usersList.find(
-          (u: any) =>
-            (request?.requester_id && u.id === request.requester_id) ||
-            (request?.requester && (u.full_name?.toLowerCase() === request.requester.toLowerCase() || u.email?.toLowerCase() === request.requester.toLowerCase()))
-        );
-        if (matched) {
-          initialDept = (matched.department && matched.department.trim() && matched.department.toUpperCase() !== "REQUESTER")
-            ? matched.department.trim()
-            : resolveUserDepartment(matched, rolesList);
+        if (matchedUser) {
+          initialDept = (matchedUser.department && matchedUser.department.trim() && matchedUser.department.toUpperCase() !== "REQUESTER")
+            ? matchedUser.department.trim()
+            : resolveUserDepartment(matchedUser, rolesList);
         }
       }
       setDepartment(initialDept);
@@ -344,6 +383,8 @@ export function EditCombinedRequestDialog({
       setSchedDates(sDates);
       setItemUrl(request?.item_url || "");
       setReqCurrency(request?.currency || "USD");
+      setShippingAddress((request as any)?.shipping_address || (matchedUser as any)?.shipping_address || (user as any)?.shipping_address || "");
+      setPhoneNumber((request as any)?.phone_number || (matchedUser as any)?.phone_number || (user as any)?.phone_number || "");
       setReqGlCode(request?.gl_code || purchaseOrder?.gl_code || "");
       setDescription(request?.description || "");
 
@@ -884,6 +925,8 @@ export function EditCombinedRequestDialog({
       request_type: requestType,
       item_mode: itemMode,
       department: department.trim(),
+      shipping_address: shippingAddress || null,
+      phone_number: phoneNumber || null,
       priority,
       due_date: dueDate || (isSched ? effectiveStartDate : null),
       item_url: itemUrl.trim() || null,
@@ -1286,6 +1329,8 @@ export function EditCombinedRequestDialog({
                             onClick={() => {
                               setRequester(u.full_name || u.email);
                               if (userDept) setDepartment(userDept);
+                              if (u.shipping_address) setShippingAddress(u.shipping_address);
+                              if (u.phone_number) setPhoneNumber(u.phone_number);
                               setIsUserDropdownOpen(false);
                             }}
                           >
@@ -1331,6 +1376,25 @@ export function EditCombinedRequestDialog({
                     placeholder="Select existing project or type project name (e.g. Drone Project)..."
                   />
                 </div>
+
+                {/* Shipping & Delivery Information (Optional for Spend & Quote Requests) */}
+                {(requestType === "SPEND" || requestType === "QUOTE") && (
+                  <ShippingDeliveryAddressField
+                    className="md:col-span-3"
+                    shippingAddress={shippingAddress}
+                    onShippingAddressChange={setShippingAddress}
+                    phoneNumber={phoneNumber}
+                    onPhoneNumberChange={setPhoneNumber}
+                    allSavedAddresses={allSavedAddresses}
+                    lastUsedAddress={lastUsedAddress}
+                    currency={reqCurrency || "USD"}
+                    disabled={isOverviewLocked}
+                    vendorName={poVendor || invVendor || wireTransfer?.vendor || ""}
+                    vendorAddress={wireTransfer?.vendor_address || ""}
+                    knownVendorLocations={vendorDirectory}
+                    idPrefix="combined"
+                  />
+                )}
 
                 {/* Due Date (Exclusive to RECURRING or if already populated) */}
                 {(isRecurring || dueDate) && (

@@ -83,6 +83,7 @@ import {
   useUsersList,
   useRolesList,
   useExtractQuote,
+  useVendorDirectory,
 } from "@/hooks/usePurchasing";
 import {
   RequestStatus,
@@ -103,6 +104,8 @@ import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
 import { calculateInstallmentsCount } from "./recurringScheduleUtils";
 import { parseRequestStatus } from "@/lib/requestStatus";
+import { detectTaxWithPriority } from "@/utils/taxRates";
+import { ShippingDeliveryAddressField } from "./ShippingDeliveryAddressField";
 import {
   STATUS_FILTER_OPTIONS,
   getStatusBadge,
@@ -279,6 +282,8 @@ const EMPTY_FORM: RequestCreateInput = {
   department: "",
   request_type: "SPEND",
   priority: "MEDIUM",
+  shipping_address: "",
+  phone_number: "",
   item_mode: "SINGLE",
   description: "",
   item_url: "",
@@ -299,6 +304,7 @@ export function PurchaseRequests() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [convertingRequest, setConvertingRequest] = useState<PurchaseRequest | null>(null);
   const [itemMode, setItemMode] = useState<ItemMode>("SINGLE");
+
   const [form, setForm] = useState<RequestCreateInput>(EMPTY_FORM);
   const [apWireForm, setApWireForm] = useState<WireTransferInput>(EMPTY_WIRE_FORM);
 
@@ -409,6 +415,38 @@ export function PurchaseRequests() {
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
 
+  const currentRequesterUser = useMemo(() => {
+    const q = (form.requester || "").toLowerCase().trim();
+    if (!q) return user;
+    return (
+      usersList.find(
+        (u) =>
+          (u.full_name && u.full_name.toLowerCase().trim() === q) ||
+          (u.email && u.email.toLowerCase().trim() === q)
+      ) || user
+    );
+  }, [form.requester, usersList, user]);
+
+  const allSavedAddresses = useMemo(() => {
+    const list: string[] = [];
+    if (currentRequesterUser) {
+      if ((currentRequesterUser as any).shipping_address) {
+        list.push((currentRequesterUser as any).shipping_address);
+      }
+      const rawSaved = (currentRequesterUser as any).saved_shipping_addresses;
+      if (Array.isArray(rawSaved)) {
+        rawSaved.forEach((a) => {
+          if (typeof a === "string" && a.trim() && !list.includes(a.trim())) {
+            list.push(a.trim());
+          }
+        });
+      }
+    }
+    return list;
+  }, [currentRequesterUser]);
+
+  const lastUsedAddress = allSavedAddresses[0] || "";
+
   const statusFilter = searchParams.get("status") || "OPEN";
   const typeFilter = searchParams.get("request_type") || "ALL";
   const projectFilter = searchParams.get("project") || "ALL";
@@ -491,12 +529,16 @@ export function PurchaseRequests() {
       : (resolveUserDepartment({ ...user, roles }, effectiveRoles) || (user?.department && user.department.toUpperCase() !== "REQUESTER" ? user.department : "") || "");
 
     const todayIso = new Date().toISOString().split("T")[0];
+    const initialShippingAddress = matchedUser?.shipping_address || (user as any)?.shipping_address || "";
+    const initialPhoneNumber = matchedUser?.phone_number || (user as any)?.phone_number || "";
 
     setForm({
       ...EMPTY_FORM,
       request_type: initialType,
       requester: defaultRequester,
       department: defaultDept || "",
+      shipping_address: initialShippingAddress,
+      phone_number: initialPhoneNumber,
       due_date: initialType === "RECURRING" ? todayIso : "",
     });
     setApWireForm({
@@ -635,6 +677,57 @@ export function PurchaseRequests() {
   const itemsSubtotal = useMemo(() => {
     return quoteItems.reduce((acc, itm) => acc + (Number(itm.total) || 0), 0);
   }, [quoteItems]);
+
+  const currentSubtotal = useMemo(() => {
+    if (itemMode === "MULTIPLE") return itemsSubtotal;
+    return (Number(form.unit_price) || 0) * (Number(form.quantity) || 1) || (Number(form.amount) || 0);
+  }, [itemMode, itemsSubtotal, form.unit_price, form.quantity, form.amount]);
+
+  const { data: vendorDirectory = {} } = useVendorDirectory();
+
+  const effectiveVendorName = useMemo(() => {
+    if (form.request_type === "ACCOUNTS_PAYABLE") return apWireForm.vendor || "";
+    if (quoteExtraction?.extraction?.vendor?.name) return quoteExtraction.extraction.vendor.name;
+    if (typeof quoteExtraction?.extraction?.vendor === "string") return quoteExtraction.extraction.vendor;
+    if (extractedProductInfo?.vendor && extractedProductInfo.vendor !== "N/A") return extractedProductInfo.vendor;
+    if (form.title?.includes(" - ")) {
+      const candidate = form.title.split(" - ")[0].trim();
+      if (candidate.length > 1 && candidate.length < 50) return candidate;
+    }
+    return "";
+  }, [form.request_type, apWireForm.vendor, quoteExtraction, extractedProductInfo, form.title]);
+
+  const effectiveVendorAddress = useMemo(() => {
+    if (form.request_type === "ACCOUNTS_PAYABLE") return apWireForm.vendor_address || "";
+    if (quoteExtraction?.extraction?.vendor?.address) return quoteExtraction.extraction.vendor.address;
+    return "";
+  }, [form.request_type, apWireForm.vendor_address, quoteExtraction]);
+
+  const taxEstimate = useMemo(() => {
+    return detectTaxWithPriority({
+      shippingAddress: form.shipping_address || "",
+      vendorAddress: effectiveVendorAddress,
+      vendorName: effectiveVendorName,
+      knownVendorLocations: vendorDirectory,
+      currency: form.currency || "USD",
+    });
+  }, [form.shipping_address, effectiveVendorAddress, effectiveVendorName, vendorDirectory, form.currency]);
+
+  const estimatedTaxAmount = useMemo(() => {
+    if (!taxEstimate || currentSubtotal <= 0) return 0;
+    return Math.round(currentSubtotal * taxEstimate.rateDecimal * 100) / 100;
+  }, [taxEstimate, currentSubtotal]);
+
+  const prevEstimatedAddrRef = useRef<string>("");
+  useEffect(() => {
+    const locKey = `${form.shipping_address || ""}|${effectiveVendorAddress || ""}|${effectiveVendorName || ""}`;
+    if (locKey && locKey !== prevEstimatedAddrRef.current) {
+      prevEstimatedAddrRef.current = locKey;
+      if (taxEstimate && currentSubtotal > 0 && taxFee === 0) {
+        setTaxFee(estimatedTaxAmount);
+      }
+    }
+  }, [form.shipping_address, effectiveVendorAddress, effectiveVendorName, taxEstimate, currentSubtotal, taxFee, estimatedTaxAmount]);
 
   const totalCalculatedAmount = useMemo(() => {
     if (itemMode === "MULTIPLE") {
@@ -1763,15 +1856,24 @@ export function PurchaseRequests() {
                     const dept = (matched?.department && matched.department.trim() && matched.department.toUpperCase() !== "REQUESTER")
                       ? matched.department.trim()
                       : (matched ? resolveUserDepartment(matched, rolesList) : "");
-                    setForm((prev) => ({ ...prev, requester: val, department: dept || prev.department }));
+                    setForm((prev) => ({
+                      ...prev,
+                      requester: val,
+                      department: dept || prev.department,
+                      shipping_address: matched?.shipping_address !== undefined ? (matched.shipping_address || "") : prev.shipping_address,
+                      phone_number: matched?.phone_number !== undefined ? (matched.phone_number || "") : prev.phone_number,
+                    }));
                   }}
                   onSelectUser={(selectedUser) => {
                     const dept = (selectedUser?.department && selectedUser.department.trim() && selectedUser.department.toUpperCase() !== "REQUESTER")
                       ? selectedUser.department.trim()
                       : resolveUserDepartment(selectedUser, rolesList);
-                    if (dept) {
-                      setForm((prev) => ({ ...prev, department: dept }));
-                    }
+                    setForm((prev) => ({
+                      ...prev,
+                      department: dept || prev.department,
+                      shipping_address: selectedUser?.shipping_address !== undefined ? (selectedUser.shipping_address || "") : prev.shipping_address,
+                      phone_number: selectedUser?.phone_number !== undefined ? (selectedUser.phone_number || "") : prev.phone_number,
+                    }));
                   }}
                   users={usersList}
                   roles={rolesList}
@@ -1826,6 +1928,31 @@ export function PurchaseRequests() {
                   placeholder="Select existing project or type project name (e.g. Drone Project)..."
                 />
               </div>
+
+              {/* Shipping & Delivery Information (Optional for Spend & Quote Requests) */}
+              {(form.request_type === "SPEND" || form.request_type === "QUOTE") && (
+                <ShippingDeliveryAddressField
+                  shippingAddress={form.shipping_address || ""}
+                  onShippingAddressChange={(val) => setForm((p) => ({ ...p, shipping_address: val }))}
+                  phoneNumber={form.phone_number || ""}
+                  onPhoneNumberChange={(val) => setForm((p) => ({ ...p, phone_number: val }))}
+                  allSavedAddresses={allSavedAddresses}
+                  lastUsedAddress={lastUsedAddress}
+                  currency={form.currency || "USD"}
+                  subtotal={currentSubtotal}
+                  currentTaxFee={taxFee}
+                  onApplyEstimatedTax={(amt) => {
+                    setTaxFee(amt);
+                    if (taxEstimate) {
+                      toast.info(`Set estimated tax (${taxEstimate.ratePercent}%): $${formatMoney(amt)}`);
+                    }
+                  }}
+                  vendorName={effectiveVendorName}
+                  vendorAddress={effectiveVendorAddress}
+                  knownVendorLocations={vendorDirectory}
+                  idPrefix="create"
+                />
+              )}
             </div>
 
             {/* 5. Accounts Payable Wire Transfer Information */}
