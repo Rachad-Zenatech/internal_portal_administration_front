@@ -22,7 +22,7 @@ import { VendorAutocomplete } from "./VendorAutocomplete";
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import HelpIcon from "@/components/ui/HelpIcon";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -56,6 +56,7 @@ import {
   Eye,
   UserCheck,
   Repeat,
+  MessageSquare,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -64,6 +65,7 @@ import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
 import PurchaseRequestDetail from "./PurchaseRequestDetail";
 import { FilePreviewModal, type PreviewFileTarget } from "./FilePreviewModal";
 import { ChangeLevel1ApproverModal } from "./ChangeLevel1ApproverModal";
+import { RequestMessageThread } from "./RequestMessageThread";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -330,7 +332,17 @@ export default function RequestDetail() {
   const [isActivityLogsOpen, setIsActivityLogsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isConvertToRecurringOpen, setIsConvertToRecurringOpen] = useState(false);
-  const [activeDetailTab, setActiveDetailTab] = useState<string>("overview");
+  const [searchParams] = useSearchParams();
+  const [activeDetailTab, setActiveDetailTab] = useState<string>(() => {
+    return searchParams.get("tab") === "messages" ? "messages" : "overview";
+  });
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "messages") {
+      setActiveDetailTab("messages");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (user?.id) {
@@ -1080,6 +1092,21 @@ export default function RequestDetail() {
             </Button>
           )}
 
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setActiveDetailTab("messages")}
+            className="h-8 text-xs font-medium gap-1.5 border-sky-300 dark:border-sky-800 text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/40 shadow-xs"
+          >
+            <MessageSquare className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+            <span>Message Thread</span>
+            {data?.messages && data.messages.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-bold bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
+                {data.messages.length}
+              </Badge>
+            )}
+          </Button>
+
           {canEditRequest && (
             <Button
               variant="outline"
@@ -1368,6 +1395,19 @@ export default function RequestDetail() {
                 >
                   <FileText className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                   <span>Request Overview</span>
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="messages"
+                  className="text-xs px-3.5 h-8 gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs font-medium"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+                  <span>Messages &amp; Thread</span>
+                  {data?.messages && data.messages.length > 0 && (
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                      {data.messages.length}
+                    </span>
+                  )}
                 </TabsTrigger>
 
                 {hasItemsTab && (
@@ -2782,6 +2822,11 @@ export default function RequestDetail() {
                 </Card>
               </TabsContent>
             )}
+
+            {/* TAB: Message Thread & Inquiries */}
+            <TabsContent value="messages" className="m-0 focus-visible:outline-none space-y-6">
+              <RequestMessageThread data={data} refetch={refetch} />
+            </TabsContent>
           </Tabs>
         </div>
 
@@ -2833,13 +2878,23 @@ export default function RequestDetail() {
           <Card className="border border-slate-200 dark:border-zinc-800 shadow-xs">
             <Tabs defaultValue="approvals" className="w-full">
               <CardHeader className="pb-0 pt-3 px-4 border-b border-border/40">
-                <TabsList className="h-8 p-0.5 bg-muted/60 w-full grid grid-cols-2">
+                <TabsList className="h-8 p-0.5 bg-muted/60 w-full grid grid-cols-3">
                   <TabsTrigger value="approvals" className="text-xs px-2.5 h-7 gap-1.5 data-[state=active]:shadow-xs">
                     <Stamp className="h-3.5 w-3.5" />
                     <span>Approvals</span>
                     {approvals.length > 0 && (
                       <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
                         {approvals.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+
+                  <TabsTrigger value="messages" className="text-xs px-2.5 h-7 gap-1.5 data-[state=active]:shadow-xs">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span>Messages</span>
+                    {data.messages && data.messages.length > 0 && (
+                      <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300">
+                        {data.messages.length}
                       </span>
                     )}
                   </TabsTrigger>
@@ -3018,6 +3073,48 @@ export default function RequestDetail() {
                       </div>
                     )}
                   </div>
+                </TabsContent>
+
+                {/* Messages Sidebar Tab */}
+                <TabsContent value="messages" className="m-0 space-y-3">
+                  <div className="flex items-center justify-between pb-1 border-b">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Thread Messages ({data.messages?.length || 0})
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveDetailTab("messages")}
+                      className="text-xs h-6 px-1.5 text-sky-600 hover:text-sky-700"
+                    >
+                      Open Thread &rarr;
+                    </Button>
+                  </div>
+                  {(!data.messages || data.messages.length === 0) ? (
+                    <div className="text-center py-6 px-2 text-xs text-muted-foreground">
+                      <MessageSquare className="h-5 w-5 mx-auto mb-1.5 opacity-50" />
+                      No messages yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                      {data.messages.slice(-3).map((m) => (
+                        <div key={m.id} className="p-2.5 rounded-lg border bg-muted/40 text-xs space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-900 dark:text-zinc-100">{m.sender_name}</span>
+                            <span className="text-[10px] text-muted-foreground">{formatDate(m.created_at)}</span>
+                          </div>
+                          <p className="line-clamp-2 text-slate-600 dark:text-zinc-400">{m.message_text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => setActiveDetailTab("messages")}
+                    className="w-full text-xs h-7 bg-sky-600 hover:bg-sky-700 text-white"
+                  >
+                    View / Send Messages
+                  </Button>
                 </TabsContent>
 
                 {/* Attachments Tab */}

@@ -13,6 +13,8 @@ import type {
   RequestDetail,
   TransitionInput,
   WireTransferInput,
+  RequestMessageItem,
+  RequestMessageCreate,
 } from "@/types/purchasing";
 
 const BASE = "/api/purchasing";
@@ -59,6 +61,14 @@ export function listMyApprovals(status?: string) {
 
 export function getRequest(id: string) {
   return apiClient.get<RequestDetail>(`${BASE}/requests/${id}`);
+}
+
+export function getRequestMessages(id: string) {
+  return apiClient.get<RequestMessageItem[]>(`${BASE}/requests/${id}/messages`);
+}
+
+export function postRequestMessage(id: string, payload: RequestMessageCreate) {
+  return apiClient.post<RequestMessageItem>(`${BASE}/requests/${id}/messages`, payload);
 }
 
 export interface ApproverCandidateUser {

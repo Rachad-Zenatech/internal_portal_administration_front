@@ -282,6 +282,28 @@ export type AttachmentInfo = {
   uploader_name?: string | null;
 };
 
+export type RequestMessageItem = {
+  id: number;
+  request_id: string;
+  sender_id?: string | null;
+  sender_name: string;
+  sender_email?: string | null;
+  sender_role?: string | null;
+  message_type: 'REQUEST_INFO' | 'REPLY' | 'GENERAL' | string;
+  subject?: string | null;
+  message_text: string;
+  recipient_emails: string[];
+  email_sent: boolean;
+  created_at: string;
+};
+
+export type RequestMessageCreate = {
+  message_text: string;
+  message_type?: string;
+  subject?: string;
+  notify_email?: boolean;
+};
+
 export type RequestDetail = {
   request: PurchaseRequest;
   purchase_order: PurchaseOrder | null;
@@ -294,6 +316,7 @@ export type RequestDetail = {
   ordered_date: string | null;
   attachments: AttachmentInfo[];
   history: TaskHistoryItem[];
+  messages?: RequestMessageItem[];
 };
 
 export type PurchasingSummary = {
