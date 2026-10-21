@@ -112,11 +112,15 @@ export function reassignLevel1Approver(requestId: string, approverId: string, re
   });
 }
 
-export async function extractQuote(file: File) {
+export async function extractQuote(file: File, requestId?: string) {
   const optimizedFile = await compressAttachmentBeforeUpload(file);
   const formData = new FormData();
   formData.append("file", optimizedFile);
-  return apiClient.post<any>(`${BASE}/quotes/extract`, formData, {
+  if (requestId) {
+    formData.append("request_id", requestId);
+  }
+  const url = requestId ? `${BASE}/quotes/extract?request_id=${encodeURIComponent(requestId)}` : `${BASE}/quotes/extract`;
+  return apiClient.post<any>(url, formData, {
     actionLabel: "Extracting Multi-Part Quote",
     actionSubtitle: "Analyzing PDF layout, OCR text, and extracting line items...",
   });

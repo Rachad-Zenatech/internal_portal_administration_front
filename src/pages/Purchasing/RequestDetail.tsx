@@ -57,6 +57,7 @@ import {
   UserCheck,
   Repeat,
   MessageSquare,
+  Loader2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -104,6 +105,7 @@ import {
   useDeleteAttachment,
   useUpdateReviewStatus,
   useUpdateWireTransfer,
+  useExtractQuote,
 } from "@/hooks/usePurchasing";
 import * as purchasingService from "@/services/purchasingService";
 import { EditCombinedRequestDialog } from "./EditCombinedRequestDialog";
@@ -192,6 +194,8 @@ export default function RequestDetail() {
   const uploadAttachments = useUploadAttachments(id ?? "");
   const deleteAttachment = useDeleteAttachment(id ?? "");
   const reviewMutation = useUpdateReviewStatus();
+  const extractQuoteMutation = useExtractQuote();
+  const quoteDetailFileInputRef = useRef<HTMLInputElement>(null);
 
   const [previewTarget, setPreviewTarget] = useState<PreviewFileTarget | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -1994,6 +1998,40 @@ export default function RequestDetail() {
                         <span className="font-semibold text-base">Items &amp; Parts Breakdown ({(request.items?.length || request.quote_data?.items?.length || 0)})</span>
                       </div>
                       <div className="flex items-center gap-2">
+                        {canEditRequest && (
+                          <>
+                            <input
+                              type="file"
+                              ref={quoteDetailFileInputRef}
+                              accept=".pdf"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  toast.info("Extracting and saving quote PDF to request...");
+                                  await extractQuoteMutation.mutateAsync({ file, requestId: request.id });
+                                  toast.success("Quote PDF uploaded, extracted, and saved to request!");
+                                  refetch?.();
+                                } catch (err: any) {
+                                  toast.error(err?.message || "Failed to extract and save quote PDF");
+                                } finally {
+                                  if (quoteDetailFileInputRef.current) quoteDetailFileInputRef.current.value = "";
+                                }
+                              }}
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={extractQuoteMutation.isPending}
+                              onClick={() => quoteDetailFileInputRef.current?.click()}
+                              className="h-7 text-xs px-2.5 gap-1.5 border-dashed border-indigo-300 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 cursor-pointer"
+                            >
+                              {extractQuoteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                              <span>{extractQuoteMutation.isPending ? "Saving Quote..." : "Upload Quote PDF"}</span>
+                            </Button>
+                          </>
+                        )}
                         <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 font-mono text-xs font-semibold">
                           {isForeignQuote
                             ? `Currency: ${quoteNativeCurrency} (Converted @ 1 ${quoteNativeCurrency} = $${quoteExchangeRate} USD)`

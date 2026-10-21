@@ -878,8 +878,8 @@ export function PurchaseRequests() {
           : undefined,
         recurring_schedule: recurringScheduleObj,
         items: (isAP || isRecurring) ? undefined : finalItems,
-        quote_file_id: undefined,
-        quote_data: (isAP || isRecurring) ? undefined : (quoteExtraction?.extraction || undefined),
+        quote_file_id: quoteExtraction?.file_id || undefined,
+        quote_data: (isAP || isRecurring) ? undefined : (quoteExtraction ? { ...quoteExtraction.extraction, file_id: quoteExtraction.file_id } : undefined),
         wire_transfer: isAP ? {
           ...apWireForm,
           amount: Number(apWireForm.amount) || 0,
@@ -888,7 +888,7 @@ export function PurchaseRequests() {
       };
 
       const detail = await createMutation.mutateAsync(payload);
-      if (quoteFile) {
+      if (quoteFile && !quoteExtraction?.file_id) {
         try {
           await uploadAttachments(detail.request.id, [quoteFile]);
         } catch (attErr) {

@@ -259,7 +259,12 @@ export const usePurchaseRequest = useRequestDetail;
 
 export function useExtractQuote() {
   return useMutation({
-    mutationFn: (file: File) => purchasing.extractQuote(file),
+    mutationFn: (args: File | { file: File; requestId?: string }) => {
+      if (args instanceof File) {
+        return purchasing.extractQuote(args);
+      }
+      return purchasing.extractQuote(args.file, args.requestId);
+    },
   });
 }
 
