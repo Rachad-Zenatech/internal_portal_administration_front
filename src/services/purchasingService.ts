@@ -105,6 +105,12 @@ export function getLevel1Candidates(requestId: string) {
   return apiClient.get<Level1CandidatesResponse>(`${BASE}/requests/${requestId}/level-1-candidates`);
 }
 
+export function redirectToVanessa(requestId: string, reason?: string) {
+  return apiClient.post<RequestDetail>(`${BASE}/requests/${requestId}/redirect-to-vanessa`, {
+    reason,
+  });
+}
+
 export function reassignLevel1Approver(requestId: string, approverId: string, reason?: string) {
   return apiClient.post<RequestDetail>(`${BASE}/requests/${requestId}/reassign-level1-approver`, {
     approver_id: approverId,

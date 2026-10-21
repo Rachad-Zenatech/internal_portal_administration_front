@@ -394,3 +394,19 @@ export function useDeleteProjectGroup() {
     },
   });
 }
+
+export function useRedirectToVanessa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, reason }: { requestId: string; reason?: string }) =>
+      purchasing.redirectToVanessa(requestId, reason),
+    onSuccess: (_, { requestId }) => {
+      qc.invalidateQueries({ queryKey: keys.request(requestId) });
+      qc.invalidateQueries({ queryKey: keys.all });
+      toast.success('Level 2 approval redirected to Vanessa Fernandes');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to redirect approval to Vanessa');
+    },
+  });
+}

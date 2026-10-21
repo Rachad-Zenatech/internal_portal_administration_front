@@ -58,6 +58,7 @@ import {
   Repeat,
   MessageSquare,
   Loader2,
+  Forward,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -106,6 +107,7 @@ import {
   useUpdateReviewStatus,
   useUpdateWireTransfer,
   useExtractQuote,
+  useRedirectToVanessa,
 } from "@/hooks/usePurchasing";
 import * as purchasingService from "@/services/purchasingService";
 import { EditCombinedRequestDialog } from "./EditCombinedRequestDialog";
@@ -336,7 +338,16 @@ export default function RequestDetail() {
   const [isActivityLogsOpen, setIsActivityLogsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isConvertToRecurringOpen, setIsConvertToRecurringOpen] = useState(false);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [isRedirectVanessaDialogOpen, setIsRedirectVanessaDialogOpen] = useState(false);
+  const [vanessaRedirectReason, setVanessaRedirectReason] = useState("");
+  const redirectToVanessaMutation = useRedirectToVanessa();
+
+  useEffect(() => {
+    if (searchParams.get("redirect_to") === "vanessa") {
+      setIsRedirectVanessaDialogOpen(true);
+    }
+  }, [searchParams]);
   const [activeDetailTab, setActiveDetailTab] = useState<string>(() => {
     return searchParams.get("tab") === "messages" ? "messages" : "overview";
   });
@@ -822,7 +833,7 @@ export default function RequestDetail() {
   const pInfo = request.product_info;
   const pVendor = (pInfo?.vendor || "").toLowerCase();
   const isCaVendor = pVendor.includes(".ca") || pVendor.includes("amazon.ca") || (request.item_url || "").toLowerCase().includes("amazon.ca");
-  
+
   let crawledOrigPrice: number | null = null;
   let crawledOrigCurr: string | null = null;
 
@@ -1859,8 +1870,8 @@ export default function RequestDetail() {
                           <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
                             <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Cycle Progress</div>
                             <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                              {request.recurring_schedule?.total_installments 
-                                ? `${request.recurring_schedule?.completed_installments || 0} / ${request.recurring_schedule?.total_installments} Cycles` 
+                              {request.recurring_schedule?.total_installments
+                                ? `${request.recurring_schedule?.completed_installments || 0} / ${request.recurring_schedule?.total_installments} Cycles`
                                 : `${request.recurring_schedule?.completed_installments || 0} Cycles Settled`}
                             </div>
                             {request.recurring_schedule?.total_installments ? (
@@ -1888,10 +1899,10 @@ export default function RequestDetail() {
                               {request.recurring_schedule?.total_amount || request.recurring_schedule?.total_installments ? "Total Commitment" : "Cycle Commitment"}
                             </div>
                             <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                              {request.recurring_schedule?.total_amount 
-                                ? formatMoney(request.recurring_schedule.total_amount) 
-                                : request.recurring_schedule?.total_installments 
-                                ? formatMoney((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * request.recurring_schedule.total_installments) 
+                              {request.recurring_schedule?.total_amount
+                                ? formatMoney(request.recurring_schedule.total_amount)
+                                : request.recurring_schedule?.total_installments
+                                ? formatMoney((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * request.recurring_schedule.total_installments)
                                 : `${formatMoney(request.recurring_schedule?.amount_per_cycle || request.amount || 0)} / cycle`}
                             </div>
                           </div>
@@ -4194,7 +4205,74 @@ export default function RequestDetail() {
 
       {id && (
         <>
-          <ScheduleBreakdownModal
+
+      {/* Redirect to Vanessa Fernandes Dialog */}
+      <Dialog open={isRedirectVanessaDialogOpen} onOpenChange={setIsRedirectVanessaDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-200">
+              <Forward className="h-5 w-5 text-purple-600" />
+              Redirect Level 2 Approval to Vanessa
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600 dark:text-zinc-400 mt-1">
+              This assigns Level 2 Company Approval for Request #{request?.id} directly to <strong>Vanessa Fernandes</strong> and sends her an immediate approval notification email.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-xs font-medium text-slate-700 dark:text-zinc-300">
+                Reason / Note for Vanessa (Optional)
+              </label>
+              <Textarea
+                value={vanessaRedirectReason}
+                onChange={(e) => setVanessaRedirectReason(e.target.value)}
+                placeholder="e.g., Hi Vanessa, please review and approve this requisition on Shaun's behalf."
+                rows={3}
+                className="mt-1 text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsRedirectVanessaDialogOpen(false)}
+              disabled={redirectToVanessaMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+              disabled={redirectToVanessaMutation.isPending}
+              onClick={async () => {
+                if (!id) return;
+                try {
+                  await redirectToVanessaMutation.mutateAsync({
+                    requestId: id,
+                    reason: vanessaRedirectReason.trim() || undefined,
+                  });
+                  setIsRedirectVanessaDialogOpen(false);
+                  setVanessaRedirectReason("");
+                  if (searchParams.get("redirect_to")) {
+                    const next = new URLSearchParams(searchParams);
+                    next.delete("redirect_to");
+                    setSearchParams(next, { replace: true });
+                  }
+                } catch {
+                  // handled by onError
+                }
+              }}
+            >
+              {redirectToVanessaMutation.isPending ? "Redirecting..." : "Confirm Redirect"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ScheduleBreakdownModal
             request={data?.request || null}
             open={isScheduleLedgerOpen}
             onOpenChange={setIsScheduleLedgerOpen}
