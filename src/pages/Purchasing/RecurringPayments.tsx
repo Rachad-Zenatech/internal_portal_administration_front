@@ -3,6 +3,7 @@ import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import PrioritySelector from "./PrioritySelector";
 import LocationAutocomplete from "./LocationAutocomplete";
+import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
@@ -475,6 +476,7 @@ export default function RecurringPayments() {
     class: "",
     location: "",
     amount: "",
+    currency: "USD",
     due_date: initialSchedule.start_date,
     description: "",
     item_url: "",
@@ -496,6 +498,7 @@ export default function RecurringPayments() {
     class: "",
     location: "",
     amount: "",
+    currency: "USD",
     due_date: "",
     description: "",
     item_url: "",
@@ -531,6 +534,7 @@ export default function RecurringPayments() {
       class: "",
       location: "",
       amount: "",
+      currency: "USD",
       due_date: todayIso,
       description: "",
       item_url: "",
@@ -574,6 +578,7 @@ export default function RecurringPayments() {
         class: "",
         location: "",
         amount: "",
+        currency: "USD",
         due_date: todayIso,
         description: "",
         item_url: "",
@@ -685,6 +690,7 @@ export default function RecurringPayments() {
       class: reqClass,
       location: reqLoc,
       amount: req.amount ? req.amount.toString() : "",
+      currency: (req.currency || "USD").toUpperCase(),
       due_date: req.due_date ? req.due_date.split("T")[0] : "",
       description: req.description || "",
       item_url: req.item_url || "",
@@ -750,12 +756,12 @@ export default function RecurringPayments() {
         return;
       }
       if (customSum <= 0 && baseAmt <= 0) {
-        toast.error("Please enter an amount for the installment dates (greater than $0.00)");
+        toast.error("Please enter an amount for the installment dates (greater than 0.00)");
         return;
       }
     } else {
       if (baseAmt <= 0) {
-        toast.error("Please enter a valid amount greater than $0.00");
+        toast.error("Please enter a valid amount greater than 0.00");
         return;
       }
     }
@@ -790,6 +796,7 @@ export default function RecurringPayments() {
           department: newForm.class || newForm.department,
           request_type: "SCHEDULED_PAYMENT",
           priority: newForm.priority,
+          currency: (newForm.currency || "USD").toUpperCase(),
           amount: cycleAmt,
           unit_price: cycleAmt,
           quantity: 1,
@@ -832,6 +839,7 @@ export default function RecurringPayments() {
       department: newForm.class || newForm.department,
       request_type: isSched ? "SCHEDULED_PAYMENT" : "RECURRING",
       priority: newForm.priority,
+      currency: (newForm.currency || "USD").toUpperCase(),
       amount: amt,
       unit_price: amt,
       quantity: 1,
@@ -901,12 +909,12 @@ export default function RecurringPayments() {
         return;
       }
       if (customSum <= 0 && baseAmt <= 0) {
-        toast.error("Please enter an amount for the installment dates (greater than $0.00)");
+        toast.error("Please enter an amount for the installment dates (greater than 0.00)");
         return;
       }
     } else {
       if (baseAmt <= 0) {
-        toast.error("Please enter a valid amount greater than $0.00");
+        toast.error("Please enter a valid amount greater than 0.00");
         return;
       }
     }
@@ -944,6 +952,7 @@ export default function RecurringPayments() {
             requester: editForm.requester,
             department: editForm.class || editForm.department,
             priority: editForm.priority,
+            currency: (editForm.currency || "USD").toUpperCase(),
             amount: cycleAmt,
             unit_price: cycleAmt,
             quantity: 1,
@@ -989,6 +998,7 @@ export default function RecurringPayments() {
         requester: editForm.requester,
         department: editForm.class || editForm.department,
         priority: editForm.priority,
+        currency: (editForm.currency || "USD").toUpperCase(),
         amount: amt,
         unit_price: amt,
         quantity: 1,
@@ -2426,11 +2436,11 @@ export default function RecurringPayments() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                        Amount (USD) <span className="text-red-500">*</span>
+                        Amount ({newForm.currency || "USD"}) <span className="text-red-500">*</span>
                       </label>
                       {newForm.is_scheduled && newForm.frequency === "CUSTOM" && (
                         <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
@@ -2444,7 +2454,7 @@ export default function RecurringPayments() {
                       )}
                     </div>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">{newForm.currency || "USD"}</span>
                       <Input
                         type="number"
                         step="0.01"
@@ -2458,10 +2468,20 @@ export default function RecurringPayments() {
                           setNewForm({ ...newForm, amount: e.target.value })
                         }
                         disabled={newForm.is_scheduled && newForm.frequency === "CUSTOM"}
-                        className="h-10 text-sm font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                        className="h-10 text-sm font-mono pl-12 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                         required={!(newForm.is_scheduled && newForm.frequency === "CUSTOM")}
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Currency <span className="text-red-500">*</span>
+                    </label>
+                    <CurrencyAutocomplete
+                      value={newForm.currency || "USD"}
+                      onChange={(code) => setNewForm((prev) => ({ ...prev, currency: (code || "USD").toUpperCase() }))}
+                    />
                   </div>
 
                   <div className="space-y-1.5">
@@ -2640,6 +2660,7 @@ export default function RecurringPayments() {
                   scheduleDates={newForm.schedule_dates}
                   onScheduleDatesChange={(dates) => setNewForm((p) => ({ ...p, schedule_dates: dates }))}
                   baseAmount={parseFloat(newForm.amount) || 0}
+                  currency={newForm.currency || "USD"}
                 />
               </div>
             </div>
@@ -2702,11 +2723,11 @@ export default function RecurringPayments() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                          Amount (USD) <span className="text-red-500">*</span>
+                          Amount ({editForm.currency || "USD"}) <span className="text-red-500">*</span>
                         </label>
                         {editForm.is_scheduled && editForm.frequency === "CUSTOM" && (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
@@ -2720,7 +2741,7 @@ export default function RecurringPayments() {
                         )}
                       </div>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">{editForm.currency || "USD"}</span>
                         <Input
                           type="number"
                           step="0.01"
@@ -2734,10 +2755,20 @@ export default function RecurringPayments() {
                             setEditForm({ ...editForm, amount: e.target.value })
                           }
                           disabled={editForm.is_scheduled && editForm.frequency === "CUSTOM"}
-                          className="h-10 text-sm font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                          className="h-10 text-sm font-mono pl-12 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                           required={!(editForm.is_scheduled && editForm.frequency === "CUSTOM")}
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Currency <span className="text-red-500">*</span>
+                      </label>
+                      <CurrencyAutocomplete
+                        value={editForm.currency || "USD"}
+                        onChange={(code) => setEditForm((prev) => ({ ...prev, currency: (code || "USD").toUpperCase() }))}
+                      />
                     </div>
 
                     <div className="space-y-1.5">
@@ -2916,6 +2947,7 @@ export default function RecurringPayments() {
                     scheduleDates={editForm.schedule_dates}
                     onScheduleDatesChange={(dates) => setEditForm((p) => ({ ...p, schedule_dates: dates }))}
                     baseAmount={parseFloat(editForm.amount) || 0}
+                    currency={editForm.currency || "USD"}
                   />
                 </div>
               </div>

@@ -242,6 +242,8 @@ export type Invoice = {
   interest?: number | null;
   principal_paid?: number | null;
   balance?: number | null;
+  currency?: string | null;
+  actual_cost_after_tax?: number | null;
   created_at: string;
   items?: InvoiceItemDetail[];
 };
@@ -423,6 +425,8 @@ export type InvoiceInput = {
   principal_paid?: number | string | null;
   balance?: number | string | null;
   remaining_balance?: number | string | null;
+  currency?: string | null;
+  actual_cost_after_tax?: number | null;
   items?: InvoiceItemInput[];
 };
 

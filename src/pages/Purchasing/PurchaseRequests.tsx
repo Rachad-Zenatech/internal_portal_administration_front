@@ -2096,13 +2096,21 @@ export function PurchaseRequests() {
             {/* 6b. Recurring & Subscription Specific Fields */}
             {form.request_type === "RECURRING" && (
               <div className="space-y-4 pt-1">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Currency</label>
+                    <CurrencyAutocomplete
+                      value={form.currency || "USD"}
+                      onChange={(curr) => setForm((prev) => ({ ...prev, currency: curr }))}
+                    />
+                  </div>
+
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                      Amount (USD) <span className="text-red-500">*</span>
+                      Amount ({form.currency || "USD"}) <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">{form.currency || "USD"}</span>
                       <Input
                         type="number"
                         step="0.01"
@@ -2118,7 +2126,7 @@ export function PurchaseRequests() {
                           setForm((prev) => ({ ...prev, amount: val, unit_price: val }));
                         }}
                         disabled={isScheduled && schedFrequency === "CUSTOM"}
-                        className="h-9 text-xs font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                        className="h-9 text-xs font-mono pl-12 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                         required={!(isScheduled && schedFrequency === "CUSTOM")}
                       />
                     </div>

@@ -107,6 +107,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 
 export default function PurchaseRequestDetail() {
   const { id } = useParams<{ id: string }>();
@@ -152,6 +153,7 @@ export default function PurchaseRequestDetail() {
     class: "",
     location: "",
     amount: "",
+    currency: "USD",
     due_date: "",
     description: "",
     gl_code: "",
@@ -180,6 +182,7 @@ export default function PurchaseRequestDetail() {
     interest: "",
     principal_paid: "",
     balance: "",
+    actual_cost_after_tax: "",
   });
 
   const isScheduledPayment =
@@ -251,6 +254,7 @@ export default function PurchaseRequestDetail() {
       class: reqClass,
       location: reqLoc,
       amount: request.amount ? request.amount.toString() : "",
+      currency: request.currency || "USD",
       due_date: request.due_date ? request.due_date.split("T")[0] : "",
       description: request.description || "",
       gl_code: request.gl_code || "",
@@ -465,6 +469,7 @@ export default function PurchaseRequestDetail() {
           location: editForm.location || null,
           request_type: (isSched || request?.request_type === "SCHEDULED_PAYMENT") ? "SCHEDULED_PAYMENT" : (request?.request_type || "RECURRING"),
           priority: editForm.priority,
+          currency: editForm.currency || "USD",
           amount: cycleAmt,
           unit_price: cycleAmt,
           quantity: 1,
@@ -509,6 +514,7 @@ export default function PurchaseRequestDetail() {
       location: editForm.location || null,
       request_type: (isSched || request?.request_type === "SCHEDULED_PAYMENT") ? "SCHEDULED_PAYMENT" : (request?.request_type || "RECURRING"),
       priority: editForm.priority,
+      currency: editForm.currency || "USD",
       amount: amt,
       unit_price: amt,
       quantity: 1,
@@ -578,6 +584,8 @@ export default function PurchaseRequestDetail() {
         interest: invoiceForm.interest && invoiceForm.interest.trim() !== "" ? parseFloat(invoiceForm.interest.replace("$", "").replace(",", "")) : null,
         principal_paid: invoiceForm.principal_paid && invoiceForm.principal_paid.trim() !== "" ? parseFloat(invoiceForm.principal_paid.replace("$", "").replace(",", "")) : null,
         balance: invoiceForm.balance && invoiceForm.balance.trim() !== "" ? parseFloat(invoiceForm.balance.replace("$", "").replace(",", "")) : null,
+        currency: request?.currency || "USD",
+        actual_cost_after_tax: invoiceForm.actual_cost_after_tax.trim() !== "" ? parseFloat(invoiceForm.actual_cost_after_tax) : null,
       },
       {
         onSuccess: () => {
@@ -721,6 +729,7 @@ export default function PurchaseRequestDetail() {
       interest: rawInterest,
       principal_paid: rawPrincipal,
       balance: rawBalance,
+      actual_cost_after_tax: "",
     });
     setInvoiceFiles([]);
     setIsRecordInvoiceOpen(true);
@@ -1888,7 +1897,12 @@ export default function PurchaseRequestDetail() {
                                 {renderCategoryBadge(inv.gl_code || (inv as any)?.category || request.gl_code, glCodes)}
                               </TableCell>
                               <TableCell className="text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap py-2.5">
-                                {formatMoney(inv.amount)}
+                                {formatMoney(inv.amount, inv.currency || request.currency || "USD")}
+                                {inv.actual_cost_after_tax != null && (
+                                  <div className="text-[10px] font-normal text-slate-500 dark:text-zinc-400">
+                                    After tax: {formatMoney(inv.actual_cost_after_tax, inv.currency || request.currency || "USD")}
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell className="text-center py-2.5">
                                 <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-semibold py-0 whitespace-nowrap">
@@ -1921,7 +1935,12 @@ export default function PurchaseRequestDetail() {
                                         <span className="font-mono text-slate-400 font-normal">ID #{inv.id}</span>
                                       </div>
                                       <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                                        {formatMoney(inv.amount)}
+                                        {formatMoney(inv.amount, inv.currency || request.currency || "USD")}
+                                        {inv.actual_cost_after_tax != null && (
+                                          <span className="ml-2 text-xs font-normal text-slate-500 dark:text-zinc-400">
+                                            (after tax {formatMoney(inv.actual_cost_after_tax, inv.currency || request.currency || "USD")})
+                                          </span>
+                                        )}
                                       </span>
                                     </div>
 
@@ -2490,11 +2509,11 @@ export default function PurchaseRequestDetail() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                          Amount (USD) <span className="text-red-500">*</span>
+                          Amount ({editForm.currency || "USD"}) <span className="text-red-500">*</span>
                         </label>
                         {editForm.is_scheduled && editForm.frequency === "CUSTOM" ? (
                           <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
@@ -2507,7 +2526,7 @@ export default function PurchaseRequestDetail() {
                         ) : null}
                       </div>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">{editForm.currency || "USD"}</span>
                         <Input
                           type="number"
                           step="0.01"
@@ -2518,10 +2537,18 @@ export default function PurchaseRequestDetail() {
                           }
                           onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
                           disabled={editForm.is_scheduled && editForm.frequency === "CUSTOM"}
-                          className="h-10 text-sm font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                          className="h-10 text-sm font-mono pl-12 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                           required={!(editForm.is_scheduled && editForm.frequency === "CUSTOM")}
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Currency</label>
+                      <CurrencyAutocomplete
+                        value={editForm.currency || "USD"}
+                        onChange={(code) => setEditForm((prev) => ({ ...prev, currency: (code || "USD").toUpperCase() }))}
+                      />
                     </div>
 
                     <div className="space-y-1.5">
@@ -2657,6 +2684,7 @@ export default function PurchaseRequestDetail() {
                 {/* Right Column: Schedule Dates Builder */}
                 <div className="lg:col-span-6 flex flex-col h-full">
                   <ScheduleDatesBuilder
+                    currency={editForm.currency || "USD"}
                     isScheduled={editForm.is_scheduled}
                     onIsScheduledChange={(val) => setEditForm((p) => ({ ...p, is_scheduled: val }))}
                     frequency={editForm.frequency}
@@ -2720,7 +2748,7 @@ export default function PurchaseRequestDetail() {
               <div className="grid grid-cols-2 gap-3.5">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                    Amount (USD) <span className="text-red-500">*</span>
+                    Amount ({request?.currency || "USD"}) <span className="text-red-500">*</span>
                   </label>
                   <Input
                     type="number"
@@ -2740,6 +2768,21 @@ export default function PurchaseRequestDetail() {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Actual Cost After Tax ({request?.currency || "USD"})
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={invoiceForm.actual_cost_after_tax}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, actual_cost_after_tax: e.target.value })}
+                  placeholder="Total actually paid, including tax"
+                  className="font-mono"
+                />
               </div>
 
               <div className="space-y-1.5">
