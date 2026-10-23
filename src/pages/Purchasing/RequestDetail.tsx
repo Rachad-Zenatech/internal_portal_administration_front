@@ -150,7 +150,7 @@ import {
   formatRequestType,
   formatActivityAction,
   formatActivityValue,
-  TAX_RATE,
+  resolveTaxRate,
 } from "./purchasingMeta";
 
 type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "hold" | "complete";
@@ -871,6 +871,16 @@ export default function RequestDetail() {
     crawledOrigCurr.toUpperCase() !== (request.currency || "USD").toUpperCase()
   );
 
+  // After-tax total: the actual cost recorded at payment wins; otherwise estimate from the regional rate
+  const reqTax = resolveTaxRate({
+    shippingAddress: purchase_order?.shipped_to_location || (request as any).shipped_to_location || (request as any).shipping_address,
+    vendorAddress: request.quote_data?.vendor?.address,
+    vendorName: purchase_order?.vendor || request.quote_data?.vendor?.name,
+    currency: hasCrawledForeignPrice ? crawledOrigCurr : request.currency,
+  });
+  const actualCostInvoice = (data?.invoices || []).find((i) => i.actual_cost_after_tax != null)
+    || (inv?.actual_cost_after_tax != null ? inv : null);
+
   const recalculatePoUsdTotal = (items: any[], shippingFeeNative: number, rate: number) => {
     const sumNative = items.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
     const subtotalUsd = Math.round(sumNative * rate * 100) / 100;
@@ -882,6 +892,12 @@ export default function RequestDetail() {
   // po.amount is persisted in USD; review fields display and accept the selected item currency
   const poUsdToNative = (usd: number) => (poFxRate > 0 ? Math.round((usd / poFxRate) * 100) / 100 : usd);
   const poNativeToUsd = (native: number) => Math.round(native * poFxRate * 100) / 100;
+  const poTax = resolveTaxRate({
+    shippingAddress: po.shipped_to_location,
+    vendorAddress: request.quote_data?.vendor?.address,
+    vendorName: po.vendor,
+    currency: poItemCurrency,
+  });
 
   const handlePoItemCurrencyChange = async (newCurr: string) => {
     const targetCurr = (newCurr || "USD").toUpperCase();
@@ -1774,8 +1790,9 @@ export default function RequestDetail() {
                                 {formatMoney(
                                   request.recurring_schedule?.amount_per_cycle ||
                                   request.amount ||
-                                  0
-                                )} {request.currency || "USD"}
+                                  0,
+                                  request.currency || "USD"
+                                )}
                               </span>
                             }
                           />
@@ -1793,8 +1810,9 @@ export default function RequestDetail() {
                               <span className="font-bold text-emerald-600 dark:text-emerald-400">
                                 {formatMoney(
                                   request.recurring_schedule?.total_amount ||
-                                  ((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24))
-                                )} {request.currency || "USD"}
+                                  ((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24)),
+                                  request.currency || "USD"
+                                )}
                               </span>
                             }
                           />
@@ -1806,11 +1824,11 @@ export default function RequestDetail() {
                             value={
                               <span className="font-semibold text-slate-900 dark:text-zinc-100">
                                 {hasCrawledForeignPrice
-                                  ? `${formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1))} ${crawledOrigCurr}`
-                                  : `${formatMoney(request.amount ?? 0)} ${request.currency || "USD"}`}
+                                  ? formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1), crawledOrigCurr || "USD")
+                                  : formatMoney(request.amount ?? 0, request.currency || "USD")}
                                 {hasCrawledForeignPrice && (
                                   <span className="text-slate-500 text-xs ml-1.5 font-normal">
-                                    ({formatMoney(request.amount ?? 0)} {request.currency || "USD"})
+                                    ({formatMoney(request.amount ?? 0, request.currency || "USD")})
                                   </span>
                                 )}
                               </span>
@@ -1818,18 +1836,24 @@ export default function RequestDetail() {
                           />
 
                           <Field
-                            label="Total (After-Tax · 13% HST)"
+                            label={actualCostInvoice ? "Total (After-Tax · Actual)" : `Total (After-Tax · ${reqTax.label})`}
                             value={
-                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                {hasCrawledForeignPrice
-                                  ? `${formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1) * (1 + TAX_RATE))} ${crawledOrigCurr}`
-                                  : `${formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} ${request.currency || "USD"}`}
-                                {hasCrawledForeignPrice && (
-                                  <span className="text-slate-500 text-xs ml-1.5 font-normal">
-                                    ({formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} {request.currency || "USD"})
-                                  </span>
-                                )}
-                              </span>
+                              actualCostInvoice ? (
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                  {formatMoney(actualCostInvoice.actual_cost_after_tax, actualCostInvoice.currency || request.currency || "USD")}
+                                </span>
+                              ) : (
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                  {hasCrawledForeignPrice
+                                    ? formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1) * (1 + reqTax.rate), crawledOrigCurr || "USD")
+                                    : formatMoney((request.amount ?? 0) * (1 + reqTax.rate), request.currency || "USD")}
+                                  {hasCrawledForeignPrice && (
+                                    <span className="text-slate-500 text-xs ml-1.5 font-normal">
+                                      ({formatMoney((request.amount ?? 0) * (1 + reqTax.rate), request.currency || "USD")})
+                                    </span>
+                                  )}
+                                </span>
+                              )
                             }
                           />
                         </>
@@ -3410,19 +3434,19 @@ export default function RequestDetail() {
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium">Total After-Tax ({poItemCurrency})</label>
+                        <label className="text-xs font-medium">Total After-Tax ({poItemCurrency} · {poTax.label})</label>
                         {poItemCurrency !== "USD" && (
-                          <span className="text-[10px] text-slate-400 font-mono">≈ ${(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100).toFixed(2)} USD</span>
+                          <span className="text-[10px] text-slate-400 font-mono">≈ ${(Math.round(po.amount * (1 + poTax.rate) * 100) / 100).toFixed(2)} USD</span>
                         )}
                       </div>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={String(Math.round(poUsdToNative(po.amount) * (1 + TAX_RATE) * 100) / 100)}
+                        value={String(Math.round(poUsdToNative(po.amount) * (1 + poTax.rate) * 100) / 100)}
                         onChange={(e) => {
                           const afterTax = Math.max(0, Number(e.target.value) || 0);
-                          const preTax = Math.round((afterTax / (1 + TAX_RATE)) * 100) / 100;
+                          const preTax = Math.round((afterTax / (1 + poTax.rate)) * 100) / 100;
                           setPo((prev) => ({ ...prev, amount: poNativeToUsd(preTax), currency: "USD" }));
                         }}
                         className="font-semibold font-mono bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400"
@@ -3511,19 +3535,19 @@ export default function RequestDetail() {
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium">Total After-Tax ({poItemCurrency})</label>
+                        <label className="text-xs font-medium">Total After-Tax ({poItemCurrency} · {poTax.label})</label>
                         {poItemCurrency !== "USD" && (
-                          <span className="text-[10px] text-slate-400 font-mono">≈ ${(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100).toFixed(2)} USD</span>
+                          <span className="text-[10px] text-slate-400 font-mono">≈ ${(Math.round(po.amount * (1 + poTax.rate) * 100) / 100).toFixed(2)} USD</span>
                         )}
                       </div>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={String(Math.round(poUsdToNative(po.amount) * (1 + TAX_RATE) * 100) / 100)}
+                        value={String(Math.round(poUsdToNative(po.amount) * (1 + poTax.rate) * 100) / 100)}
                         onChange={(e) => {
                           const afterTax = Math.max(0, Number(e.target.value) || 0);
-                          const preTax = Math.round((afterTax / (1 + TAX_RATE)) * 100) / 100;
+                          const preTax = Math.round((afterTax / (1 + poTax.rate)) * 100) / 100;
                           setPo((prev) => ({ ...prev, amount: poNativeToUsd(preTax), currency: "USD" }));
                         }}
                         className="font-semibold font-mono bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400"

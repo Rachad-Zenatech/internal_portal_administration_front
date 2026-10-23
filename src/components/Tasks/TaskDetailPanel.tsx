@@ -26,7 +26,7 @@ import {
   getStatusBadge,
   getStatusLabel,
   PRIORITY_BADGE,
-  TAX_RATE,
+  resolveTaxRate,
   formatDate,
   formatRequestType,
   formatActivityAction,
@@ -227,7 +227,13 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
   const totalAmount = Number(task.amount || 0);
   const unitPrice = Number(task.unit_price || 0);
   const quantity = Number(task.quantity || 1);
-  const afterTaxAmount = totalAmount * (1 + TAX_RATE);
+  const taskTax = resolveTaxRate({
+    shippingAddress: task.purchase_order?.shipped_to_location || task.shipping_address,
+    vendorAddress: parsedQuoteData?.vendor?.address,
+    vendorName: task.purchase_order?.vendor || parsedQuoteData?.vendor?.name || parsedProductInfo?.vendor,
+    currency: task.currency,
+  });
+  const afterTaxAmount = totalAmount * (1 + taskTax.rate);
 
   const rawItems = (task.items && task.items.length > 0)
     ? task.items
@@ -286,7 +292,11 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                   ${totalAmount.toFixed(2)} <span className="text-xs font-normal text-muted-foreground">{task.currency || "USD"}</span>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Est. After-Tax: <span className="font-semibold text-slate-700 dark:text-slate-300">${afterTaxAmount.toFixed(2)}</span>
+                  {task.invoice?.actual_cost_after_tax != null ? (
+                    <>Actual After-Tax: <span className="font-semibold text-slate-700 dark:text-slate-300">{Number(task.invoice.actual_cost_after_tax).toFixed(2)} {task.invoice.currency || task.currency || "USD"}</span></>
+                  ) : (
+                    <>Est. After-Tax ({taskTax.label}): <span className="font-semibold text-slate-700 dark:text-slate-300">{afterTaxAmount.toFixed(2)} {task.currency || "USD"}</span></>
+                  )}
                 </div>
               </div>
             </div>

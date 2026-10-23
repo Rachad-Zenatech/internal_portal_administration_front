@@ -2,6 +2,7 @@
 import { RequestStatus } from "@/types/purchasing";
 import type { PaymentStatus, Priority, WorkflowAction } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
+import { detectTaxWithPriority, CURRENCY_FALLBACK_RATES } from "@/utils/taxRates";
 
 // Keyed by RequestStatus rather than string, so adding a state to the union turns
 // a missing label or badge into a compile error instead of a blank chip. Legacy
@@ -195,6 +196,35 @@ export function formatMoney(val: number | null | undefined, currency: string = "
 
 
 export const TAX_RATE = 0.08;
+
+export type ResolvedTaxRate = { rate: number; label: string };
+
+/**
+ * Estimated tax rate for a request: delivery address first, then vendor location,
+ * then the currency's country average; TAX_RATE only when nothing matches.
+ */
+export function resolveTaxRate(opts: {
+  shippingAddress?: string | null;
+  vendorAddress?: string | null;
+  vendorName?: string | null;
+  currency?: string | null;
+}): ResolvedTaxRate {
+  const currency = (opts.currency || "USD").toUpperCase();
+  try {
+    const est = detectTaxWithPriority({
+      shippingAddress: opts.shippingAddress,
+      vendorAddress: opts.vendorAddress,
+      vendorName: opts.vendorName,
+      currency,
+    });
+    if (est) return { rate: est.rateDecimal, label: `${est.ratePercent}% ${est.taxType}` };
+  } catch {
+    // fall through to currency / default estimate
+  }
+  const fallback = currency !== "USD" ? CURRENCY_FALLBACK_RATES[currency] : undefined;
+  if (fallback) return { rate: fallback.ratePercent / 100, label: `${fallback.ratePercent}% ${fallback.taxType} est.` };
+  return { rate: TAX_RATE, label: `${Math.round(TAX_RATE * 10000) / 100}% est.` };
+}
 
 export function formatActivityAction(action: string | null | undefined): string {
   if (!action) return "Activity";
