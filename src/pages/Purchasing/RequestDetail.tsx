@@ -711,6 +711,17 @@ export default function RequestDetail() {
         expected_delivery_date: purchase_order?.expected_delivery_date || "",
         item_url: purchase_order?.item_url || request.item_url || "",
       });
+
+      // Quote has a foreign currency but no stored conversion rate: fetch a live rate so USD totals are correct
+      if (isForeign && !Number(quoteConv?.exchange_rate)) {
+        purchasingService.getExchangeRate(quoteCurr, "USD")
+          .then((res: any) => {
+            const rate = Number(res?.exchange_rate) || 1.0;
+            setPoFxRate(rate);
+            setPo((prev) => ({ ...prev, amount: Math.round(totalNative * rate * 100) / 100, currency: "USD" }));
+          })
+          .catch((err: any) => toast.error(`Failed to fetch exchange rate for ${quoteCurr}: ${err?.message || "Unknown error"}`));
+      }
     }
     if (meta.form === "approval") {
       const effectiveAmount = Number(data?.request?.amount || data?.purchase_order?.amount || data?.invoice?.amount || 0);
@@ -867,6 +878,10 @@ export default function RequestDetail() {
     const totalUsd = Math.round((subtotalUsd + shippingUsd) * 100) / 100;
     return { sumNative, subtotalUsd, shippingUsd, totalUsd };
   };
+
+  // po.amount is persisted in USD; review fields display and accept the selected item currency
+  const poUsdToNative = (usd: number) => (poFxRate > 0 ? Math.round((usd / poFxRate) * 100) / 100 : usd);
+  const poNativeToUsd = (native: number) => Math.round(native * poFxRate * 100) / 100;
 
   const handlePoItemCurrencyChange = async (newCurr: string) => {
     const targetCurr = (newCurr || "USD").toUpperCase();
@@ -1790,10 +1805,12 @@ export default function RequestDetail() {
                             label="Total"
                             value={
                               <span className="font-semibold text-slate-900 dark:text-zinc-100">
-                                {formatMoney(request.amount ?? 0)} {request.currency || "USD"}
+                                {hasCrawledForeignPrice
+                                  ? `${formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1))} ${crawledOrigCurr}`
+                                  : `${formatMoney(request.amount ?? 0)} ${request.currency || "USD"}`}
                                 {hasCrawledForeignPrice && (
                                   <span className="text-slate-500 text-xs ml-1.5 font-normal">
-                                    ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1))} {crawledOrigCurr})
+                                    ({formatMoney(request.amount ?? 0)} {request.currency || "USD"})
                                   </span>
                                 )}
                               </span>
@@ -1804,10 +1821,12 @@ export default function RequestDetail() {
                             label="Total (After-Tax · 13% HST)"
                             value={
                               <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                {formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} {request.currency || "USD"}
+                                {hasCrawledForeignPrice
+                                  ? `${formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1) * (1 + TAX_RATE))} ${crawledOrigCurr}`
+                                  : `${formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} ${request.currency || "USD"}`}
                                 {hasCrawledForeignPrice && (
                                   <span className="text-slate-500 text-xs ml-1.5 font-normal">
-                                    ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1) * (1 + TAX_RATE))} {crawledOrigCurr})
+                                    ({formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} {request.currency || "USD"})
                                   </span>
                                 )}
                               </span>
@@ -3371,30 +3390,40 @@ export default function RequestDetail() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total Pre-Tax (USD)</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium">Total Pre-Tax ({poItemCurrency})</label>
+                        {poItemCurrency !== "USD" && (
+                          <span className="text-[10px] text-slate-400 font-mono">≈ ${po.amount.toFixed(2)} USD</span>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={String(po.amount)}
+                        value={String(poUsdToNative(po.amount))}
                         onChange={(e) => {
                           const amt = Math.max(0, Number(e.target.value) || 0);
-                          setPo((prev) => ({ ...prev, amount: amt, currency: "USD" }));
+                          setPo((prev) => ({ ...prev, amount: poNativeToUsd(amt), currency: "USD" }));
                         }}
                         className="font-mono bg-white dark:bg-zinc-900 font-semibold"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total After-Tax (USD)</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium">Total After-Tax ({poItemCurrency})</label>
+                        {poItemCurrency !== "USD" && (
+                          <span className="text-[10px] text-slate-400 font-mono">≈ ${(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100).toFixed(2)} USD</span>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={String(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100)}
+                        value={String(Math.round(poUsdToNative(po.amount) * (1 + TAX_RATE) * 100) / 100)}
                         onChange={(e) => {
                           const afterTax = Math.max(0, Number(e.target.value) || 0);
                           const preTax = Math.round((afterTax / (1 + TAX_RATE)) * 100) / 100;
-                          setPo((prev) => ({ ...prev, amount: preTax, currency: "USD" }));
+                          setPo((prev) => ({ ...prev, amount: poNativeToUsd(preTax), currency: "USD" }));
                         }}
                         className="font-semibold font-mono bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400"
                       />
@@ -3412,7 +3441,7 @@ export default function RequestDetail() {
                           </span>
                         </div>
                         <span className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
-                          Item prices in {poItemCurrency} automatically convert to USD totals
+                          Amounts shown in {poItemCurrency}; USD equivalents are used for approvals
                         </span>
                       </div>
                     )}
@@ -3421,16 +3450,16 @@ export default function RequestDetail() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium">Items Subtotal (USD)</label>
+                        <label className="text-xs font-medium">Items Subtotal ({poItemCurrency})</label>
                         {poItemCurrency !== "USD" && (
                           <span className="text-[10px] text-slate-400 font-mono">
-                            {poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {poItemCurrency}
+                            ≈ ${(Math.round(poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0) * poFxRate * 100) / 100).toFixed(2)} USD
                           </span>
                         )}
                       </div>
                       <Input
                         type="text"
-                        value={`$${(Math.round(poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0) * poFxRate * 100) / 100).toFixed(2)}`}
+                        value={(Math.round(poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0) * 100) / 100).toFixed(2)}
                         disabled
                         className="font-mono bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold"
                       />
@@ -3439,7 +3468,7 @@ export default function RequestDetail() {
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-medium flex items-center gap-1">
                           <Truck className="h-3.5 w-3.5 text-indigo-500" />
-                          <span>Shipping Fee {poItemCurrency !== "USD" ? `(${poItemCurrency})` : "(USD)"}</span>
+                          <span>Shipping Fee ({poItemCurrency})</span>
                         </label>
                         {poItemCurrency !== "USD" && (
                           <span className="text-[10px] text-slate-400 font-mono">
@@ -3462,30 +3491,40 @@ export default function RequestDetail() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total Pre-Tax (USD)</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium">Total Pre-Tax ({poItemCurrency})</label>
+                        {poItemCurrency !== "USD" && (
+                          <span className="text-[10px] text-slate-400 font-mono">≈ ${po.amount.toFixed(2)} USD</span>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={String(po.amount)}
+                        value={String(poUsdToNative(po.amount))}
                         onChange={(e) => {
                           const amt = Math.max(0, Number(e.target.value) || 0);
-                          setPo((prev) => ({ ...prev, amount: amt, currency: "USD" }));
+                          setPo((prev) => ({ ...prev, amount: poNativeToUsd(amt), currency: "USD" }));
                         }}
                         className="font-mono bg-white dark:bg-zinc-900 font-semibold"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total After-Tax (USD)</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium">Total After-Tax ({poItemCurrency})</label>
+                        {poItemCurrency !== "USD" && (
+                          <span className="text-[10px] text-slate-400 font-mono">≈ ${(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100).toFixed(2)} USD</span>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={String(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100)}
+                        value={String(Math.round(poUsdToNative(po.amount) * (1 + TAX_RATE) * 100) / 100)}
                         onChange={(e) => {
                           const afterTax = Math.max(0, Number(e.target.value) || 0);
                           const preTax = Math.round((afterTax / (1 + TAX_RATE)) * 100) / 100;
-                          setPo((prev) => ({ ...prev, amount: preTax, currency: "USD" }));
+                          setPo((prev) => ({ ...prev, amount: poNativeToUsd(preTax), currency: "USD" }));
                         }}
                         className="font-semibold font-mono bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400"
                       />
@@ -3503,7 +3542,7 @@ export default function RequestDetail() {
                           </span>
                         </div>
                         <span className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
-                          Table items in {poItemCurrency} automatically convert to USD totals
+                          Amounts shown in {poItemCurrency}; USD equivalents are used for approvals
                         </span>
                       </div>
                     )}
