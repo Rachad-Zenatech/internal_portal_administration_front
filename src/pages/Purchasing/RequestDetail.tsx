@@ -430,6 +430,14 @@ export default function RequestDetail() {
     if (activeDetailTab === "recurring" && !hasRecurringTab) setActiveDetailTab("overview");
   }, [activeDetailTab, hasItemsTab, hasPoTab, hasInvoiceTab, hasWireTab, hasRecurringTab]);
 
+  // A deleted request's notifications are removed server-side on the 404; refresh so they disappear here too
+  const isRequestGone = isError && getApiErrorStatus(error) === 404;
+  useEffect(() => {
+    if (isRequestGone) {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    }
+  }, [isRequestGone, queryClient]);
+
   if (isLoading) {
     return <div className="p-8 text-sm text-muted-foreground">Loading request...</div>;
   }
