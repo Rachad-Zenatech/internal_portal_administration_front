@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Package, Check, Plus, Loader2, ChevronsUpDown, RefreshCw, X } from "lucide-react";
-import { useCompanyProducts } from "@/hooks/useMasterTables";
+import { useMasterProducts, useCompanyBrands } from "@/hooks/useMasterTables";
 import type { MasterProductItem } from "@/services/masterTablesService";
 
 interface ProductServiceAutocompleteProps {
@@ -15,6 +15,7 @@ interface ProductServiceAutocompleteProps {
   className?: string;
   id?: string;
   name?: string;
+  /** HubSpot id, CUST- id or name of the customer; products are limited to the customer's brands. */
   companyId?: string | null;
 }
 
@@ -38,9 +39,16 @@ export function ProductServiceAutocomplete({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Directly uses GET /api/companies/{companyId}/products with include_general=false when companyId is provided
-  const { data, isLoading, refetch } = useCompanyProducts(companyId, "", true, false);
-  const products = data?.items || [];
+  const { data, isLoading, refetch } = useMasterProducts("", true);
+  const { data: brandData } = useCompanyBrands(companyId);
+  const companyBrands = brandData?.brands;
+  const products = useMemo(() => {
+    const all = data?.items || [];
+    // A company without brands set in HubSpot keeps the full catalog.
+    if (!companyBrands || companyBrands.length === 0) return all;
+    const allowed = new Set(companyBrands.map((b) => b.toLowerCase()));
+    return all.filter((p) => p.brands && allowed.has(p.brands.toLowerCase()));
+  }, [data, companyBrands]);
 
   useEffect(() => {
     setInputValue(value || "");
@@ -266,9 +274,9 @@ export function ProductServiceAutocomplete({
             <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-zinc-200">
               <Package className="w-3.5 h-3.5 text-amber-500" />
               <span>Products & Services ({filteredProducts.length})</span>
-              {companyId && (
+              {companyBrands && companyBrands.length > 0 && (
                 <span className="text-[9.5px] px-1.5 py-0.2 rounded font-medium bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300">
-                  {filteredProducts[0]?.company_name || "Company Filtered"}
+                  {companyBrands.join(", ")}
                 </span>
               )}
             </span>
@@ -315,12 +323,12 @@ export function ProductServiceAutocomplete({
                           ({p.sku})
                         </span>
                       )}
-                      {p.company_name && (
+                      {p.brands && (
                         <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
-                          {p.company_name}
+                          {p.brands}
                         </span>
                       )}
-                      {p.source === "hubspot" && !p.company_name && (
+                      {p.source === "hubspot" && !p.brands && (
                         <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300">
                           HubSpot
                         </span>

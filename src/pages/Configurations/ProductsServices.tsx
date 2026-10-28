@@ -70,7 +70,7 @@ import { toast } from "sonner";
 
 export default function ProductsServices() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterCompany, setFilterCompany] = useState<string>("ALL");
+  const [filterBrand, setFilterBrand] = useState<string>("ALL");
   const [filterSource, setFilterSource] = useState<"ALL" | "hubspot" | "manual">("ALL");
   const [filterActive, setFilterActive] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
 
@@ -100,8 +100,7 @@ export default function ProductsServices() {
     tax_rate: 0,
     product_type: "Service",
     is_active: true,
-    company_name: "",
-    hubspot_company_id: "",
+    brands: "",
   });
 
   // Delete Dialog State
@@ -116,10 +115,10 @@ export default function ProductsServices() {
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [customApiKey, setCustomApiKey] = useState("");
 
-  const uniqueCompanies = useMemo(() => {
+  const uniqueBrands = useMemo(() => {
     const set = new Set<string>();
     products.forEach((p) => {
-      if (p.company_name) set.add(p.company_name);
+      if (p.brands) set.add(p.brands);
     });
     return Array.from(set).sort();
   }, [products]);
@@ -131,13 +130,13 @@ export default function ProductsServices() {
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.raw_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (item.company_name && item.company_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.brands && item.brands.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      const matchCompany =
-        filterCompany === "ALL" ||
-        (filterCompany === "NONE" && !item.company_name) ||
-        item.company_name === filterCompany;
+      const matchBrand =
+        filterBrand === "ALL" ||
+        (filterBrand === "NONE" && !item.brands) ||
+        item.brands === filterBrand;
 
       const matchSource =
         filterSource === "ALL" ||
@@ -149,9 +148,9 @@ export default function ProductsServices() {
         (filterActive === "ACTIVE" && item.is_active) ||
         (filterActive === "INACTIVE" && !item.is_active);
 
-      return matchSearch && matchCompany && matchSource && matchActive;
+      return matchSearch && matchBrand && matchSource && matchActive;
     });
-  }, [products, searchTerm, filterCompany, filterSource, filterActive]);
+  }, [products, searchTerm, filterBrand, filterSource, filterActive]);
 
   const hubspotCount = useMemo(() => products.filter((p) => p.source === "hubspot").length, [products]);
   const activeCount = useMemo(() => products.filter((p) => p.is_active).length, [products]);
@@ -169,8 +168,7 @@ export default function ProductsServices() {
       tax_rate: 0,
       product_type: "Service",
       is_active: true,
-      company_name: "",
-      hubspot_company_id: "",
+      brands: "",
     });
     setIsDialogOpen(true);
   };
@@ -188,8 +186,7 @@ export default function ProductsServices() {
       tax_rate: item.tax_rate || 0,
       product_type: item.product_type || "Service",
       is_active: item.is_active,
-      company_name: item.company_name || "",
-      hubspot_company_id: item.hubspot_company_id || "",
+      brands: item.brands || "",
     });
     setIsDialogOpen(true);
   };
@@ -392,16 +389,16 @@ export default function ProductsServices() {
 
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <Select
-              value={filterCompany}
-              onValueChange={(val: string) => setFilterCompany(val)}
+              value={filterBrand}
+              onValueChange={(val: string) => setFilterBrand(val)}
             >
               <SelectTrigger className="h-9 w-[160px] text-xs">
-                <SelectValue placeholder="Company" />
+                <SelectValue placeholder="Brand" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All Companies</SelectItem>
-                <SelectItem value="NONE">General (No Company)</SelectItem>
-                {uniqueCompanies.map((c) => (
+                <SelectItem value="ALL">All Brands</SelectItem>
+                <SelectItem value="NONE">No Brand</SelectItem>
+                {uniqueBrands.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>
@@ -437,13 +434,13 @@ export default function ProductsServices() {
               </SelectContent>
             </Select>
 
-            {(searchTerm || filterCompany !== "ALL" || filterSource !== "ALL" || filterActive !== "ALL") && (
+            {(searchTerm || filterBrand !== "ALL" || filterSource !== "ALL" || filterActive !== "ALL") && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
                   setSearchTerm("");
-                  setFilterCompany("ALL");
+                  setFilterBrand("ALL");
                   setFilterSource("ALL");
                   setFilterActive("ALL");
                 }}
@@ -464,7 +461,7 @@ export default function ProductsServices() {
             <TableHeader className="bg-slate-50/70 dark:bg-slate-900/50">
               <TableRow>
                 <TableHead className="w-[300px]">Item / Description</TableHead>
-                <TableHead className="w-[170px]">Company</TableHead>
+                <TableHead className="w-[170px]">Brands</TableHead>
                 <TableHead className="w-[100px]">Type</TableHead>
                 <TableHead className="w-[110px]">SKU</TableHead>
                 <TableHead className="w-[130px]">Standard Price</TableHead>
@@ -537,18 +534,18 @@ export default function ProductsServices() {
                     </TableCell>
 
                     <TableCell className="py-2.5">
-                      {item.company_name ? (
+                      {item.brands ? (
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <Badge
                             variant="outline"
                             className="text-[10px] px-2 py-0.5 font-medium border-blue-200 bg-blue-50/80 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800"
                           >
-                            {item.company_name}
+                            {item.brands}
                           </Badge>
                         </div>
                       ) : (
                         <span className="text-slate-400 dark:text-slate-500 text-xs italic">
-                          General
+                          —
                         </span>
                       )}
                     </TableCell>
@@ -704,11 +701,11 @@ export default function ProductsServices() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-foreground">Company</label>
+              <label className="text-xs font-semibold text-foreground">Brands</label>
               <Input
-                value={formData.company_name}
-                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                placeholder="e.g. Zenatech Corporation, Acme Global Solutions... (optional)"
+                value={formData.brands}
+                onChange={(e) => setFormData({ ...formData, brands: e.target.value })}
+                placeholder="e.g. DaaS, DeskFlex, Othership (optional)"
                 className="mt-1 h-9 text-xs"
               />
             </div>

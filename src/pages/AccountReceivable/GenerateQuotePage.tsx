@@ -142,7 +142,6 @@ export default function GenerateQuotePage() {
   const [contactTitle, setContactTitle] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [billingAddress, setBillingAddress] = useState("");
-  const [hubspotCompanyId, setHubspotCompanyId] = useState<string | null>(null);
 
   // Line Items Form Rows - default to empty line item without any default values
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>([
@@ -300,7 +299,6 @@ export default function GenerateQuotePage() {
     lastProcessedUrlSignatureRef.current = currentSignature;
 
     if (hsCompId) {
-      setHubspotCompanyId(hsCompId);
       setCustomerId(hsCompId);
       oauthService.getHubSpotCompanies().then((res) => {
         const comp = (res?.items || []).find(
@@ -441,11 +439,6 @@ export default function GenerateQuotePage() {
     if (custOption.email) setClientEmail(custOption.email);
     if (custOption.bill_address) setBillingAddress(custOption.bill_address);
 
-    if (custOption.hubspot_id || custOption.is_hubspot) {
-      setHubspotCompanyId(custOption.hubspot_id || custOption.id);
-    } else {
-      setHubspotCompanyId(null);
-    }
     if (custOption.currency) {
       setCurrency(custOption.currency);
     }
@@ -726,7 +719,6 @@ export default function GenerateQuotePage() {
     setContactTitle("");
     setClientEmail("");
     setBillingAddress("");
-    setHubspotCompanyId(null);
     setCustomerId("");
     setCustomerSearch("");
     setSelectedCustomer(null);
@@ -1303,7 +1295,7 @@ export default function GenerateQuotePage() {
                             onChange={(val) => handleLineItemChange(i, "name", val)}
                             onSelectProduct={(product) => handleSelectProduct(i, product)}
                             placeholder="Item name..."
-                            companyId={hubspotCompanyId || clientCompanyName || customerId}
+                            companyId={customerId || clientCompanyName}
                             className="h-7 text-xs border-slate-200 focus:border-amber-500 bg-transparent px-2"
                           />
                           <textarea

@@ -70,7 +70,6 @@ import { oauthService } from "../../services/oauthService";
 
 export type ARTab =
   | "overview"
-  | "customers"
   | "hubspot_companies"
   | "quotes"
   | "to_invoice"
@@ -86,7 +85,9 @@ export default function AccountReceivablePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
-  const activeTab: ARTab = (searchParams.get("tab") as ARTab) || "overview";
+  const requestedTab = searchParams.get("tab");
+  // "customers" was removed; old links fall back to the overview
+  const activeTab: ARTab = requestedTab && requestedTab !== "customers" ? (requestedTab as ARTab) : "overview";
   const setActiveTab = (tab: ARTab) => {
     setSearchParams(
       (prev) => {
@@ -795,22 +796,6 @@ export default function AccountReceivablePage() {
 
           <button
             type="button"
-            onClick={() => setActiveTab("customers")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "customers"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Customers &amp; Templates</span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-              {customers.length}
-            </Badge>
-          </button>
-
-          <button
-            type="button"
             onClick={() => setActiveTab("hubspot_companies")}
             className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
               activeTab === "hubspot_companies"
@@ -1036,7 +1021,7 @@ export default function AccountReceivablePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setActiveTab("customers")}
+                  onClick={() => setActiveTab("hubspot_companies")}
                   className="text-xs rounded-xl cursor-pointer"
                 >
                   <span>View All Customers ({customers.length})</span>
@@ -1471,117 +1456,6 @@ export default function AccountReceivablePage() {
           </div>
         )}
 
-        {/* TAB: CUSTOMERS & TEMPLATES */}
-        {activeTab === "customers" && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-blue-600" />
-                  <span>Customer Profiles &amp; Saved Invoice Templates</span>
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Select any customer to generate a new proposal quote or customized invoice with pre-filled line items.
-                </p>
-              </div>
-              <Button
-                onClick={() => navigate("/account-receivable/generate")}
-                className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Generate Invoice</span>
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {customers.map((cust) => (
-                <div
-                  key={cust.id}
-                  className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-400 dark:hover:border-blue-500 transition-all flex flex-col justify-between group"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <Badge variant="outline" className="text-[10px] font-mono text-slate-500 mb-1">
-                          {cust.id}
-                        </Badge>
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">
-                          {cust.name}
-                        </h4>
-                      </div>
-                      {cust.has_template ? (
-                        <Badge className="bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 text-[10px] whitespace-nowrap">
-                          <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
-                          Template Saved
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-[10px] text-slate-500 whitespace-nowrap">
-                          Default
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
-                      {cust.contact_person && (
-                        <div className="flex items-center gap-2">
-                          <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{cust.contact_person}</span>
-                        </div>
-                      )}
-                      {cust.email && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{cust.email}</span>
-                        </div>
-                      )}
-                      {cust.phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{cust.phone}</span>
-                        </div>
-                      )}
-                      {cust.billing_address && (
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                          <span className="line-clamp-2">{cust.billing_address}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button className="w-full gap-2 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 text-white text-xs h-8 rounded-xl shadow-xs cursor-pointer">
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Generate</span>
-                          <ChevronDown className="w-3.5 h-3.5 opacity-70 ml-auto" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48 text-xs">
-                        <DropdownMenuItem
-                          onClick={() => navigate(`/account-receivable/generate-quote?customerId=${encodeURIComponent(cust.id)}&customerName=${encodeURIComponent(cust.display_name || cust.name || "")}`)}
-                          className="gap-2 cursor-pointer"
-                        >
-                          <FileText className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Generate Quote</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => navigate(`/account-receivable/generate?customerId=${encodeURIComponent(cust.id)}`)}
-                          className="gap-2 cursor-pointer"
-                        >
-                          <Receipt className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>Generate Invoice</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* TAB: HUBSPOT COMPANIES & TEMPLATES */}
         {activeTab === "hubspot_companies" && (
           <div className="space-y-4">
@@ -1683,15 +1557,6 @@ export default function AccountReceivablePage() {
                           )}
                         </div>
 
-                        <Badge
-                          className={`text-[10px] whitespace-nowrap shrink-0 ${
-                            comp.products_count > 0
-                              ? "bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200"
-                              : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                          }`}
-                        >
-                          {comp.products_count > 0 ? `${comp.products_count} Products` : "Default Catalog"}
-                        </Badge>
                       </div>
 
                       <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">

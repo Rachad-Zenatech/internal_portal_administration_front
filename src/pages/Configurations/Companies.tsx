@@ -51,9 +51,9 @@ export default function Companies() {
             <Building2 className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Companies</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">A/R Companies</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              All companies synced from HubSpot CRM. Used as customers in Quotes & Invoices and to group Products & Services.
+              All companies synced from HubSpot CRM. Used as customers in Quotes & Invoices.
             </p>
           </div>
         </div>
@@ -83,7 +83,7 @@ export default function Companies() {
       <Card className="border shadow-xs max-w-xs">
         <CardContent className="p-4">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            {debouncedSearch ? "Matching Companies" : "Total Companies"}
+            {debouncedSearch ? "Matching A/R Companies" : "Total A/R Companies"}
           </p>
           <h3 className="text-2xl font-bold mt-1 text-foreground">{total}</h3>
         </CardContent>
@@ -108,7 +108,7 @@ export default function Companies() {
               <TableHead>Industry</TableHead>
               <TableHead>Location</TableHead>
               <TableHead>Phone</TableHead>
-              <TableHead className="text-right">Products</TableHead>
+              <TableHead>Brand</TableHead>
               <TableHead>Last Synced</TableHead>
             </TableRow>
           </TableHeader>
@@ -140,8 +140,18 @@ export default function Companies() {
                     {[c.city, c.state, c.country].filter(Boolean).join(", ") || "—"}
                   </TableCell>
                   <TableCell className="text-sm">{c.phone || "—"}</TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant={c.products_count > 0 ? "default" : "secondary"}>{c.products_count}</Badge>
+                  <TableCell>
+                    {c.brand ? (
+                      <div className="flex flex-wrap gap-1">
+                        {c.brand.split(", ").map((b) => (
+                          <Badge key={b} variant="outline" className="text-[10px] px-1.5 py-0">
+                            {b}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {c.updated_at ? format(new Date(c.updated_at), "MMM d, yyyy HH:mm") : "—"}

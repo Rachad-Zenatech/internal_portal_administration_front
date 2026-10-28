@@ -75,28 +75,17 @@ export const masterTablesService = {
   },
 
   // --- Products & Services (HubSpot Integration) ---
-  getProducts: (search?: string, isActive?: boolean, companyId?: string) => {
+  getProducts: (search?: string, isActive?: boolean) => {
     const params = new URLSearchParams();
     if (search) params.append("search", search);
     if (isActive !== undefined) params.append("is_active", String(isActive));
-    if (companyId) params.append("company_id", companyId);
     const qs = params.toString() ? `?${params.toString()}` : "";
     return apiClient.get<MasterProductListResponse>(`/api/master/products${qs}`);
   },
 
-  getCompanyProducts: (
-    companyId: string,
-    search?: string,
-    isActive?: boolean,
-    includeGeneral: boolean = true
-  ) => {
-    const params = new URLSearchParams();
-    if (search) params.append("search", search);
-    if (isActive !== undefined) params.append("is_active", String(isActive));
-    if (!includeGeneral) params.append("include_general", "false");
-    const qs = params.toString() ? `?${params.toString()}` : "";
-    return apiClient.get<MasterProductListResponse>(
-      `/api/companies/${encodeURIComponent(companyId)}/products${qs}`
+  getCompanyBrands: (companyRef: string) => {
+    return apiClient.get<{ brands: string[] }>(
+      `/api/companies/${encodeURIComponent(companyRef)}/brands`
     );
   },
 
@@ -111,8 +100,7 @@ export const masterTablesService = {
     tax_rate?: number;
     product_type?: string;
     is_active?: boolean;
-    hubspot_company_id?: string | null;
-    company_name?: string | null;
+    brands?: string | null;
   }) => {
     return apiClient.post<MasterProductItem>("/api/master/products", payload);
   },
@@ -130,8 +118,7 @@ export const masterTablesService = {
       tax_rate?: number;
       product_type?: string;
       is_active?: boolean;
-      hubspot_company_id?: string | null;
-      company_name?: string | null;
+      brands?: string | null;
     }
   ) => {
     return apiClient.put<MasterProductItem>(`/api/master/products/${id}`, payload);
@@ -171,8 +158,7 @@ export interface MasterProductItem {
   product_type: string;
   is_active: boolean;
   source: string;
-  hubspot_company_id?: string | null;
-  company_name?: string | null;
+  brands?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -136,34 +136,19 @@ export function useImportMasterClasses() {
 
 // --- Products & Services (HubSpot Integration) ---
 
-export function useMasterProducts(search?: string, isActive?: boolean, companyId?: string) {
+export function useMasterProducts(search?: string, isActive?: boolean) {
   return useQuery({
-    queryKey: ["master-products", search || "", isActive !== undefined ? String(isActive) : "all", companyId || "all"],
-    queryFn: () => masterTablesService.getProducts(search, isActive, companyId),
+    queryKey: ["master-products", search || "", isActive !== undefined ? String(isActive) : "all"],
+    queryFn: () => masterTablesService.getProducts(search, isActive),
     staleTime: 60 * 1000,
   });
 }
 
-export function useCompanyProducts(
-  companyId?: string | null,
-  search?: string,
-  isActive?: boolean,
-  includeGeneral: boolean = true
-) {
+export function useCompanyBrands(companyRef?: string | null) {
   return useQuery({
-    queryKey: [
-      "company-products",
-      companyId || "general",
-      search || "",
-      isActive !== undefined ? String(isActive) : "all",
-      String(includeGeneral),
-    ],
-    queryFn: () => {
-      if (companyId && companyId.trim()) {
-        return masterTablesService.getCompanyProducts(companyId, search, isActive, includeGeneral);
-      }
-      return masterTablesService.getProducts(search, isActive);
-    },
+    queryKey: ["company-brands", companyRef || ""],
+    queryFn: () => masterTablesService.getCompanyBrands(companyRef as string),
+    enabled: !!companyRef && companyRef.trim() !== "",
     staleTime: 60 * 1000,
   });
 }

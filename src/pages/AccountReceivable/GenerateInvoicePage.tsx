@@ -1114,7 +1114,12 @@ export default function GenerateInvoicePage() {
           (selectedCustomer.name && c.name?.toLowerCase() === selectedCustomer.name.toLowerCase()) ||
           (selectedCustomer.display_name && c.display_name?.toLowerCase() === selectedCustomer.display_name.toLowerCase())
       );
-      if (match && (match.id !== selectedCustomer.id || match.display_name !== selectedCustomer.display_name)) {
+      // Matched by id but with a different name = the user is editing the name; don't snap it back.
+      const isNameEdit =
+        !!match &&
+        match.id === selectedCustomer.id &&
+        (match.display_name || "").toLowerCase() !== (selectedCustomer.display_name || "").toLowerCase();
+      if (match && !isNameEdit && (match.id !== selectedCustomer.id || match.display_name !== selectedCustomer.display_name)) {
         setSelectedCustomer(match);
       }
     }
@@ -1743,7 +1748,7 @@ export default function GenerateInvoicePage() {
       ...prev,
       {
         date: invoiceDate,
-        activity: `Item ${prev.length + 1}`,
+        activity: "",
         description: "",
         currency: currency || "USD",
         quantity: 1,
@@ -1778,15 +1783,12 @@ export default function GenerateInvoicePage() {
       const subFreq = parent.billing_frequency || "Monthly";
 
       const periods = calculateServicePeriodAndNextBilling(parentStartDate, subFreq, 1);
-      const subIndex = subs.length + 1;
-      const defaultTitle = `Additional Service #${subIndex}`;
-
       subs.push({
         id: `sub-${Date.now()}`,
         date: parent.date || parentStartDate,
-        activity: defaultTitle,
-        name: defaultTitle,
-        title: defaultTitle,
+        activity: "",
+        name: "",
+        title: "",
         description: "",
         currency: parent.currency || currency || "USD",
         quantity: 1,
@@ -3662,7 +3664,7 @@ export default function GenerateInvoicePage() {
                 <thead>
                   <tr className="bg-muted/80 text-muted-foreground font-bold uppercase tracking-wider text-[11px] border-b border-border">
                     <th className="py-2.5 px-2.5 w-[130px] min-w-[130px] text-left">Start Date</th>
-                    <th className="py-2.5 px-3 min-w-[320px] text-left">Activity / Item &amp; Description</th>
+                    <th className="py-2.5 px-3 min-w-[320px] text-left">Item &amp; Description</th>
                     <th className="py-2.5 px-2 w-[95px] min-w-[95px] text-left">Unit price</th>
                     <th className="py-2.5 px-2 w-[110px] min-w-[110px] text-left">Currency</th>
                     <th className="py-2.5 px-2 w-[75px] min-w-[75px] text-left">Quantity</th>
@@ -3764,7 +3766,7 @@ export default function GenerateInvoicePage() {
                                   handleUpdateLine(idx, "name", val);
                                 }}
                                 onSelectProduct={(product) => handleSelectProduct(idx, product)}
-                                placeholder="Activity / Item name..."
+                                placeholder="Item name..."
                                 companyId={selectedCustomer?.hubspot_id || selectedCustomer?.name || selectedCustomer?.id}
                                 className="text-xs h-7 font-medium flex-1"
                               />

@@ -96,21 +96,27 @@ export function ARCustomerAutocomplete({
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
-  // Synchronize internal query with customerName or customerId
+  // True while the user is editing the text; stops prop-driven syncing from overwriting their edits.
+  const isTypingRef = useRef(false);
+
+  // Adopt a customer name set from outside (loaded document, URL params, selection elsewhere).
   useEffect(() => {
-    if (customerName) {
+    if (customerName && customerName !== query && !isTypingRef.current) {
       setQuery(customerName);
-    } else if (customerId && customers.length > 0) {
-      const match = customers.find(
-        (c) =>
-          c.id.toLowerCase() === customerId.toLowerCase() ||
-          `CUST-${c.id}`.toLowerCase() === customerId.toLowerCase() ||
-          c.id.toLowerCase().endsWith(customerId.toLowerCase())
-      );
-      if (match) {
-        setQuery(match.display_name);
-      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerName]);
+
+  // Resolve the display name from customerId only when no name was given and the user isn't typing.
+  useEffect(() => {
+    if (customerName || isTypingRef.current || !customerId || customers.length === 0) return;
+    const match = customers.find(
+      (c) =>
+        c.id.toLowerCase() === customerId.toLowerCase() ||
+        `CUST-${c.id}`.toLowerCase() === customerId.toLowerCase() ||
+        c.id.toLowerCase().endsWith(customerId.toLowerCase())
+    );
+    if (match) setQuery(match.display_name);
   }, [customerName, customerId, customers]);
 
   // Server-side search + paging (GET /api/ar/customers/search): HubSpot companies first, then
@@ -210,6 +216,7 @@ export function ARCustomerAutocomplete({
   const totalItemsCount = (showAddOption ? 1 : 0) + filteredCustomers.length;
 
   const handleSelectCustomer = (customer: ARCustomerOption) => {
+    isTypingRef.current = false;
     setQuery(customer.display_name);
     onSelect(customer);
     setOpen(false);
@@ -349,6 +356,7 @@ export function ARCustomerAutocomplete({
             value={query}
             onChange={(e) => {
               const val = e.target.value;
+              isTypingRef.current = true;
               setQuery(val);
               onSelect({
                 id: customerId || (val ? `CUST-${Math.floor(Math.random() * 80000 + 10000)}` : ""),
@@ -375,6 +383,7 @@ export function ARCustomerAutocomplete({
               <button
                 type="button"
                 onClick={() => {
+                  isTypingRef.current = true;
                   setQuery("");
                   onSelect({ id: "", display_name: "", name: "" });
                   inputRef.current?.focus();

@@ -206,7 +206,7 @@ export interface HubSpotCompanyItem {
   contact_email: string;
   contact_phone: string;
   template_status: string;
-  products_count: number;
+  brand: string;
   created_at: string | null;
   updated_at: string | null;
 }
