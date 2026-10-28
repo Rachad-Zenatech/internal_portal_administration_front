@@ -1,6 +1,7 @@
 import React from 'react';
-import { Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
+import { POST_LOGIN_REDIRECT_KEY } from '@/services/helper';
 import { Loader2, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -13,6 +14,7 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ navigationCode, actionCode = 'VIEW', children }: ProtectedRouteProps) {
   const { user, roles, isLoading, hasPermission } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -23,6 +25,16 @@ export default function ProtectedRoute({ navigationCode, actionCode = 'VIEW', ch
   }
 
   if (!user) {
+    // Remember where they were going (e.g. a request link from an email) so the
+    // login page can send them back there after Microsoft sign-in.
+    const target = location.pathname + location.search;
+    if (target.startsWith("/") && !target.startsWith("//") && !target.startsWith("/login") && target !== "/") {
+      try {
+        sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, target);
+      } catch {
+        // Storage blocked: they'll land on the default page instead.
+      }
+    }
     return <Navigate to="/login" replace />;
   }
 
