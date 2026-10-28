@@ -308,6 +308,12 @@ export type SecureInfoRequestSummary = {
   fields: string[];
   requested_by_id: string;
   requested_by_name?: string | null;
+  requested_by_email?: string | null;
+  requested_from_id?: string | null;
+  requested_from_name?: string | null;
+  requested_from_email?: string | null;
+  /** The account may ask for a verification code; handled live on Teams, never collected. */
+  may_need_2fa?: boolean;
   expires_at: string;
   submitted_at?: string | null;
   last_revealed_at?: string | null;
@@ -323,6 +329,7 @@ export type SecureInfoRequestCreate = {
   fields: string[];
   ttl_hours?: number;
   notify_email?: boolean;
+  may_need_2fa?: boolean;
 };
 
 export type SecureInfoReveal = {

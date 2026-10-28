@@ -15,8 +15,12 @@ import {
   Clock,
   KeyRound,
   Ban,
+  Phone,
+  MessageSquare,
+  Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/AuthContext";
 import {
   createSecureInfoRequest,
   deleteSecureInfo,
@@ -49,6 +53,15 @@ const TTL_OPTIONS = [
 const FORBIDDEN_FIELD_RE =
   /\b(otp|one[\s-]?time|recovery|backup\s*codes?|2fa|mfa|verification\s*code|security\s*code|authenticator|sms\s*code)\b/i;
 const SECRET_FIELD_RE = /pass|secret|pin|token|key/i;
+
+/** Teams deep links (open the Teams app or web client). Only an email address goes in the link. */
+function teamsChatUrl(email: string, message: string): string {
+  return `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(email)}&message=${encodeURIComponent(message)}`;
+}
+
+function teamsCallUrl(email: string): string {
+  return `https://teams.microsoft.com/l/call/0/0?users=${encodeURIComponent(email)}`;
+}
 
 /** True when a regular message looks like it contains a password, so we can suggest the secure form. */
 export function looksLikeCredential(text: string): boolean {
@@ -92,6 +105,7 @@ export const RequestAccountDetailsDialog: React.FC<RequestAccountDetailsDialogPr
   const [newField, setNewField] = useState("");
   const [ttlHours, setTtlHours] = useState(48);
   const [notifyEmail, setNotifyEmail] = useState(true);
+  const [mayNeed2fa, setMayNeed2fa] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -101,6 +115,7 @@ export const RequestAccountDetailsDialog: React.FC<RequestAccountDetailsDialogPr
       setNewField("");
       setTtlHours(48);
       setNotifyEmail(true);
+      setMayNeed2fa(false);
     }
   }, [open]);
 
@@ -140,6 +155,7 @@ export const RequestAccountDetailsDialog: React.FC<RequestAccountDetailsDialogPr
         fields,
         ttl_hours: ttlHours,
         notify_email: notifyEmail,
+        may_need_2fa: mayNeed2fa,
       });
       toast.success("Account details requested. The requester has been notified.");
       onOpenChange(false);
@@ -251,6 +267,24 @@ export const RequestAccountDetailsDialog: React.FC<RequestAccountDetailsDialogPr
                 Email the requester
               </label>
             </div>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-md border border-slate-200 dark:border-zinc-700 p-2.5">
+            <Checkbox
+              id="secure-2fa"
+              checked={mayNeed2fa}
+              onCheckedChange={(c) => setMayNeed2fa(Boolean(c))}
+              className="mt-0.5"
+            />
+            <label htmlFor="secure-2fa" className="text-xs cursor-pointer">
+              <span className="font-medium text-slate-700 dark:text-zinc-300">
+                This account may ask for a verification code (2FA)
+              </span>
+              <span className="block text-[11px] text-slate-400">
+                The requester is told you'll contact them on Teams when you sign in, so they can approve the sign-in or
+                complete that step. Codes are never collected in the portal.
+              </span>
+            </label>
           </div>
 
           <DialogFooter>
@@ -371,8 +405,9 @@ const SubmitSecureInfoDialog: React.FC<SubmitSecureInfoDialogProps> = ({
           })}
 
           <p className="text-[11px] text-slate-400">
-            If the service sends a verification code, don't share it here. Complete that step yourself when the admin
-            signs in.
+            {summary.may_need_2fa
+              ? `This account may ask for a verification code. ${summary.requested_by_name || "The admin"} will contact you on Teams when they sign in. Don't enter codes here.`
+              : "If the service sends a verification code, don't share it here. Complete that step yourself when the admin signs in."}
           </p>
 
           <DialogFooter>
@@ -399,6 +434,7 @@ interface SecureInfoRequestCardProps {
 }
 
 export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ requestId, summary, refetch }) => {
+  const { user } = useAuth();
   const [submitOpen, setSubmitOpen] = useState(false);
   const [revealed, setRevealed] = useState<SecureInfoReveal | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -519,6 +555,21 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
 
   const title = summary.status === "SUBMITTED" ? "Account details submitted" : "Account access requested";
 
+  // 2FA: the code is handled live on Teams between the admin who asked and the requester.
+  const isOpen = summary.status === "PENDING" || summary.status === "SUBMITTED";
+  const viewerIsAdmin = Boolean(user?.id && user.id === summary.requested_by_id);
+  const viewerIsRequester = Boolean(user?.id && user.id === summary.requested_from_id);
+  const requesterName = summary.requested_from_name || "the requester";
+  const otherEmail = viewerIsAdmin ? summary.requested_from_email : viewerIsRequester ? summary.requested_by_email : null;
+  const teamsMessage = viewerIsAdmin
+    ? `Hi, I'm signing in to the account for Request #${requestId} (${summary.purpose}). It may ask for a verification code. Can you jump on a quick call so you can approve it?`
+    : `Hi, about Request #${requestId} (${summary.purpose}): I'm ready for the verification step whenever you sign in.`;
+  const twoFaNote = viewerIsAdmin
+    ? `This account may ask for a verification code. Contact ${requesterName} on Teams when you sign in so they can approve it or complete that step live. Never ask for codes in the portal, email or chat.`
+    : viewerIsRequester
+    ? `This account may ask for a verification code. When ${requestedBy} signs in, they'll contact you on Teams so you can approve the sign-in or complete that step. Don't enter codes in the portal, and don't send them by email or chat.`
+    : "This account may ask for a verification code. It's handled on Teams between the admin and the requester.";
+
   return (
     <div className="mt-2 ml-12 rounded-lg border border-violet-200 dark:border-violet-900/50 bg-violet-50/50 dark:bg-violet-950/20 p-3.5 space-y-2.5">
       <div className="flex items-start gap-2.5">
@@ -572,6 +623,31 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
               <EyeOff className="h-3 w-3" /> Hide now
             </Button>
           </div>
+        </div>
+      )}
+
+      {summary.may_need_2fa && isOpen && (
+        <div className="rounded-md border border-sky-200 dark:border-sky-900/60 bg-sky-50/70 dark:bg-sky-950/30 p-2.5 space-y-2">
+          <div className="flex items-start gap-2 text-xs text-sky-900 dark:text-sky-200">
+            <Smartphone className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>{twoFaNote}</span>
+          </div>
+          {otherEmail && (
+            <div className="flex flex-wrap gap-2 pl-5">
+              {viewerIsAdmin && (
+                <Button asChild size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                  <a href={teamsCallUrl(otherEmail)} target="_blank" rel="noopener noreferrer">
+                    <Phone className="h-3 w-3" /> Call {requesterName} on Teams
+                  </a>
+                </Button>
+              )}
+              <Button asChild size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                <a href={teamsChatUrl(otherEmail, teamsMessage)} target="_blank" rel="noopener noreferrer">
+                  <MessageSquare className="h-3 w-3" /> Message {viewerIsAdmin ? requesterName : requestedBy} on Teams
+                </a>
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
