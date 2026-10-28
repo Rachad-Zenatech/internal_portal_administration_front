@@ -80,10 +80,10 @@ export function createSecureInfoRequest(id: string, payload: SecureInfoRequestCr
   return apiClient.post<RequestMessageItem>(`${BASE}/requests/${id}/secure-requests`, payload);
 }
 
-export function submitSecureInfo(id: string, secureId: string, values: Record<string, string>) {
+export function submitSecureInfo(id: string, secureId: string, values: Record<string, string>, mayNeed2fa?: boolean) {
   return apiClient.post<SecureInfoRequestSummary>(
     `${BASE}/requests/${id}/secure-requests/${secureId}/submit`,
-    { values },
+    { values, may_need_2fa: mayNeed2fa },
   );
 }
 

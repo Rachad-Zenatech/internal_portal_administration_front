@@ -100,7 +100,6 @@ export const RequestAccountDetailsDialog: React.FC<RequestAccountDetailsDialogPr
   const [newField, setNewField] = useState("");
   const [ttlHours, setTtlHours] = useState(48);
   const [notifyEmail, setNotifyEmail] = useState(true);
-  const [mayNeed2fa, setMayNeed2fa] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -110,7 +109,6 @@ export const RequestAccountDetailsDialog: React.FC<RequestAccountDetailsDialogPr
       setNewField("");
       setTtlHours(48);
       setNotifyEmail(true);
-      setMayNeed2fa(false);
     }
   }, [open]);
 
@@ -150,7 +148,6 @@ export const RequestAccountDetailsDialog: React.FC<RequestAccountDetailsDialogPr
         fields,
         ttl_hours: ttlHours,
         notify_email: notifyEmail,
-        may_need_2fa: mayNeed2fa,
       });
       toast.success("Account details requested. The requester has been notified.");
       onOpenChange(false);
@@ -264,24 +261,6 @@ export const RequestAccountDetailsDialog: React.FC<RequestAccountDetailsDialogPr
             </div>
           </div>
 
-          <div className="flex items-start gap-2 rounded-md border border-slate-200 dark:border-zinc-700 p-2.5">
-            <Checkbox
-              id="secure-2fa"
-              checked={mayNeed2fa}
-              onCheckedChange={(c) => setMayNeed2fa(Boolean(c))}
-              className="mt-0.5"
-            />
-            <label htmlFor="secure-2fa" className="text-xs cursor-pointer">
-              <span className="font-medium text-slate-700 dark:text-zinc-300">
-                This account may ask for a verification code (2FA)
-              </span>
-              <span className="block text-[11px] text-slate-400">
-                When you sign in, you can ask the requester for the code. They send it through the vault, you view it
-                once, and it's deleted after 10 minutes.
-              </span>
-            </label>
-          </div>
-
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancel
@@ -316,6 +295,7 @@ const SubmitSecureInfoDialog: React.FC<SubmitSecureInfoDialogProps> = ({
 }) => {
   const [values, setValues] = useState<Record<string, string>>({});
   const [shown, setShown] = useState<Record<string, boolean>>({});
+  const [uses2fa, setUses2fa] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Never keep typed values around once the dialog closes.
@@ -323,6 +303,7 @@ const SubmitSecureInfoDialog: React.FC<SubmitSecureInfoDialogProps> = ({
     if (!open) {
       setValues({});
       setShown({});
+      setUses2fa(false);
     }
   }, [open]);
 
@@ -335,7 +316,7 @@ const SubmitSecureInfoDialog: React.FC<SubmitSecureInfoDialogProps> = ({
     }
     setSaving(true);
     try {
-      await submitSecureInfo(requestId, summary.id, values);
+      await submitSecureInfo(requestId, summary.id, values, uses2fa);
       setValues({});
       toast.success("Account details submitted securely.");
       onOpenChange(false);
@@ -399,11 +380,23 @@ const SubmitSecureInfoDialog: React.FC<SubmitSecureInfoDialogProps> = ({
             );
           })}
 
-          <p className="text-[11px] text-slate-400">
-            {summary.may_need_2fa
-              ? `This account may send you a verification code. When ${summary.requested_by_name || "the admin"} signs in, you'll get an email asking for it, and you'll send it from this request. Don't put codes in these fields.`
-              : "Don't put verification codes in these fields. If the admin needs one, you'll get an email asking for it."}
-          </p>
+          <div className="flex items-start gap-2 rounded-md border border-slate-200 dark:border-zinc-700 p-2.5">
+            <Checkbox
+              id="secure-uses-2fa"
+              checked={uses2fa}
+              onCheckedChange={(c) => setUses2fa(Boolean(c))}
+              className="mt-0.5"
+            />
+            <label htmlFor="secure-uses-2fa" className="text-xs cursor-pointer">
+              <span className="font-medium text-slate-700 dark:text-zinc-300">
+                This account asks for a verification code (2FA) when signing in
+              </span>
+              <span className="block text-[11px] text-slate-400">
+                When {summary.requested_by_name || "the admin"} signs in, you'll get an email asking for the code, and
+                you'll send it from this request. Don't put codes in the fields above.
+              </span>
+            </label>
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
