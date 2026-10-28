@@ -291,12 +291,45 @@ export type RequestMessageItem = {
   sender_name: string;
   sender_email?: string | null;
   sender_role?: string | null;
-  message_type: 'REQUEST_INFO' | 'REPLY' | 'GENERAL' | string;
+  message_type: 'REQUEST_INFO' | 'REPLY' | 'GENERAL' | 'SECURE_REQUEST' | string;
   subject?: string | null;
   message_text: string;
   recipient_emails: string[];
   email_sent: boolean;
   created_at: string;
+  secure_request?: SecureInfoRequestSummary | null;
+};
+
+/** Status of a secure account-details request. Never contains the submitted values. */
+export type SecureInfoRequestSummary = {
+  id: string;
+  status: 'PENDING' | 'SUBMITTED' | 'EXPIRED' | 'DELETED' | 'CANCELLED';
+  purpose: string;
+  fields: string[];
+  requested_by_id: string;
+  requested_by_name?: string | null;
+  expires_at: string;
+  submitted_at?: string | null;
+  last_revealed_at?: string | null;
+  reveal_count: number;
+  reveals_remaining: number;
+  can_submit: boolean;
+  can_reveal: boolean;
+  can_delete: boolean;
+};
+
+export type SecureInfoRequestCreate = {
+  purpose: string;
+  fields: string[];
+  ttl_hours?: number;
+  notify_email?: boolean;
+};
+
+export type SecureInfoReveal = {
+  fields: { label: string; value: string }[];
+  hide_after_seconds: number;
+  expires_at: string;
+  reveals_remaining: number;
 };
 
 export type RequestMessageCreate = {

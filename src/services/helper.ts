@@ -1,10 +1,17 @@
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** Machine-readable code when the backend sends detail as {code, message}, e.g. "REAUTH_REQUIRED". */
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
+}
+
+export function getApiErrorCode(error: unknown): string | undefined {
+  return error instanceof ApiError ? error.code : undefined;
 }
 
 export function getApiErrorStatus(error: unknown): number | undefined {
@@ -33,7 +40,12 @@ export async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     handleUnauthorized(res);
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new ApiError((err as { detail: string }).detail || "Request failed", res.status);
+    const detail = (err as { detail?: unknown }).detail;
+    if (detail && typeof detail === "object" && !Array.isArray(detail)) {
+      const { code, message } = detail as { code?: string; message?: string };
+      throw new ApiError(message || "Request failed", res.status, code);
+    }
+    throw new ApiError((detail as string) || "Request failed", res.status);
   }
   if (res.status === 204) return null as unknown as T;
   return res.json() as Promise<T>;

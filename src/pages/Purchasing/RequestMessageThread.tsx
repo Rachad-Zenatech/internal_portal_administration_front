@@ -11,10 +11,12 @@ import {
   Sparkles,
   Info,
   Check,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import { postRequestMessage } from "@/services/purchasingService";
+import { RequestAccountDetailsDialog, SecureInfoRequestCard, looksLikeCredential } from "./SecureInfoRequest";
 import type { RequestDetail, RequestMessageItem } from "@/types/purchasing";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,6 +61,9 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
   );
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [secureDialogOpen, setSecureDialogOpen] = useState(false);
+  const [credentialWarningAck, setCredentialWarningAck] = useState(false);
+  const showCredentialWarning = looksLikeCredential(messageText) && !credentialWarningAck;
 
   // Determine last message status for banner
   const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
@@ -74,6 +79,10 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
     e.preventDefault();
     if (!messageText.trim()) {
       toast.error("Please enter a message before sending.");
+      return;
+    }
+    if (showCredentialWarning) {
+      toast.warning("This looks like it contains a password. Use the secure form instead, or click Send anyway.");
       return;
     }
 
@@ -93,6 +102,7 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
       );
       setMessageText("");
       setSubject("");
+      setCredentialWarningAck(false);
       await refetch();
     } catch (err: unknown) {
       toast.error((err as Error)?.message || "Failed to post message to thread");
@@ -144,6 +154,14 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
   };
 
   const getMessageTypeBadge = (type?: string) => {
+    if (type === "SECURE_REQUEST") {
+      return (
+        <Badge className="bg-violet-100 hover:bg-violet-100 text-violet-800 dark:bg-violet-950/70 dark:text-violet-300 text-[10px] gap-1 border-none shadow-none font-medium">
+          <Lock className="h-3 w-3 text-violet-600 dark:text-violet-400" />
+          Secure Request
+        </Badge>
+      );
+    }
     if (type === "REQUEST_INFO") {
       return (
         <Badge className="bg-amber-100 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 text-[10px] gap-1 border-none shadow-none font-medium">
@@ -202,6 +220,17 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            {!isRequester && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSecureDialogOpen(true)}
+                className="text-xs h-7 gap-1"
+              >
+                <Lock className="h-3 w-3 text-violet-600" />
+                Request account details
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -360,10 +389,14 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
                       </div>
                     )}
 
-                    {/* Message Body */}
-                    <div className="mt-2 text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap break-words pl-12 sm:pl-12">
-                      {msg.message_text}
-                    </div>
+                    {/* Message Body (secure requests render as a card; the text holds no secrets either way) */}
+                    {msg.secure_request ? (
+                      <SecureInfoRequestCard requestId={request.id} summary={msg.secure_request} refetch={refetch} />
+                    ) : (
+                      <div className="mt-2 text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap break-words pl-12 sm:pl-12">
+                        {msg.message_text}
+                      </div>
+                    )}
 
                     {/* Recipients Footer if emailed */}
                     {msg.recipient_emails && msg.recipient_emails.length > 0 && (
@@ -476,6 +509,36 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
                 }
                 className="text-sm resize-y min-h-[90px] focus-visible:ring-sky-500"
               />
+              {showCredentialWarning && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-md border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+                  <span className="flex items-center gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    This looks like it contains a password. Messages aren't encrypted and are emailed.
+                  </span>
+                  <div className="flex gap-1.5 shrink-0">
+                    {!isRequester && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => setSecureDialogOpen(true)}
+                      >
+                        Use secure request
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs"
+                      onClick={() => setCredentialWarningAck(true)}
+                    >
+                      Send anyway
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Bottom Controls: Email checkbox & Submit button */}
@@ -523,6 +586,16 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
           </form>
         </div>
       </CardContent>
+
+      {!isRequester && (
+        <RequestAccountDetailsDialog
+          requestId={request.id}
+          requesterLabel={request.requester_email || request.requester}
+          open={secureDialogOpen}
+          onOpenChange={setSecureDialogOpen}
+          onCreated={refetch}
+        />
+      )}
     </Card>
   );
 };

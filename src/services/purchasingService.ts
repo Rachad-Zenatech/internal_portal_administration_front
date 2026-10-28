@@ -15,6 +15,9 @@ import type {
   WireTransferInput,
   RequestMessageItem,
   RequestMessageCreate,
+  SecureInfoRequestCreate,
+  SecureInfoRequestSummary,
+  SecureInfoReveal,
 } from "@/types/purchasing";
 
 const BASE = "/api/purchasing";
@@ -69,6 +72,26 @@ export function getRequestMessages(id: string) {
 
 export function postRequestMessage(id: string, payload: RequestMessageCreate) {
   return apiClient.post<RequestMessageItem>(`${BASE}/requests/${id}/messages`, payload);
+}
+
+// ─── Secure info requests (account credentials) ───
+export function createSecureInfoRequest(id: string, payload: SecureInfoRequestCreate) {
+  return apiClient.post<RequestMessageItem>(`${BASE}/requests/${id}/secure-requests`, payload);
+}
+
+export function submitSecureInfo(id: string, secureId: string, values: Record<string, string>) {
+  return apiClient.post<SecureInfoRequestSummary>(
+    `${BASE}/requests/${id}/secure-requests/${secureId}/submit`,
+    { values },
+  );
+}
+
+export function revealSecureInfo(id: string, secureId: string) {
+  return apiClient.post<SecureInfoReveal>(`${BASE}/requests/${id}/secure-requests/${secureId}/reveal`);
+}
+
+export function deleteSecureInfo(id: string, secureId: string) {
+  return apiClient.delete<SecureInfoRequestSummary>(`${BASE}/requests/${id}/secure-requests/${secureId}`);
 }
 
 export interface ApproverCandidateUser {
