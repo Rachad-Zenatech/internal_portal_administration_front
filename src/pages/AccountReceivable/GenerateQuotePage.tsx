@@ -14,6 +14,7 @@ import {
   Loader2,
   Plus,
   Printer,
+  RotateCcw,
   Save,
   Send,
   Trash2,
@@ -54,6 +55,9 @@ import { UserAutocomplete } from "./UserAutocomplete";
 import { SendQuoteModal } from "./SendQuoteModal";
 import { calculateRowPricing, parseDateOnly, formatDateOnly, normalizeBillingFrequencyForSelect } from "./lineItemPricingUtils";
 import { CurrencyAutocomplete } from "../Purchasing/CurrencyAutocomplete";
+import { ProductServiceAutocomplete } from "./ProductServiceAutocomplete";
+import type { MasterProductItem } from "@/services/masterTablesService";
+import { oauthService } from "@/services/oauthService";
 
 export interface QuoteLineItem {
   name: string;
@@ -280,9 +284,10 @@ export default function GenerateQuotePage() {
   useEffect(() => {
     const custId = searchParams.get("customerId") || searchParams.get("customer_id") || searchParams.get("customer");
     const custNameParam = searchParams.get("customerName") || searchParams.get("name");
-    const currentSignature = `${custId || ""}_${custNameParam || ""}`;
+    const hsCompId = searchParams.get("hubspotCompanyId") || searchParams.get("companyId");
+    const currentSignature = `${custId || ""}_${custNameParam || ""}_${hsCompId || ""}`;
 
-    if (!custId && !custNameParam) {
+    if (!custId && !custNameParam && !hsCompId) {
       lastProcessedUrlSignatureRef.current = "";
       return;
     }
@@ -292,6 +297,30 @@ export default function GenerateQuotePage() {
     }
 
     lastProcessedUrlSignatureRef.current = currentSignature;
+
+    if (hsCompId) {
+      setCustomerId(hsCompId);
+      oauthService.getHubSpotCompanies().then((res) => {
+        const comp = (res?.items || []).find(
+          (c) => c.hubspot_id.toLowerCase() === hsCompId.toLowerCase() || String(c.id) === hsCompId
+        );
+        if (comp) {
+          setCustomerSearch(comp.name);
+          setClientCompanyName(comp.name);
+          if (comp.phone || comp.contact_phone) setClientPhone(comp.phone || comp.contact_phone);
+          if (comp.contact_name) setContactPerson(comp.contact_name);
+          if (comp.billing_email || comp.contact_email) setClientEmail(comp.billing_email || comp.contact_email);
+          if (comp.address) setBillingAddress(comp.address);
+          if (comp.currency) setCurrency(comp.currency);
+          setClosingMessage(
+            companyName
+              ? `${companyName} is thankful for the opportunity to partner with ${comp.name} to help optimize your operations. If you have any final questions, please email me directly at ${preparedByEmail}. We're ready to hit the ground running!`
+              : `We are thankful for the opportunity to partner with ${comp.name} to help optimize your operations. If you have any final questions, please email me directly at ${preparedByEmail}. We're ready to hit the ground running!`
+          );
+        }
+      }).catch((e) => console.debug("Error loading HubSpot company for quote:", e));
+    }
+
     Promise.all([
       financeService.getPayableContacts({ limit: 500 }).catch(() => ({ items: [] })),
       arInvoiceService.getCustomers().catch(() => []),
@@ -410,6 +439,10 @@ export default function GenerateQuotePage() {
     if (custOption.email) setClientEmail(custOption.email);
     if (custOption.bill_address) setBillingAddress(custOption.bill_address);
 
+    if (custOption.currency) {
+      setCurrency(custOption.currency);
+    }
+
     setClosingMessage(
       `${companyName} is thankful for the opportunity to partner with ${compName} to help optimize your operations. If you have any final questions, please email me directly at ${preparedByEmail}. We're ready to hit the ground running!`
     );
@@ -418,7 +451,10 @@ export default function GenerateQuotePage() {
   const handleAddLineItem = () => {
     setLineItems((prev) => [
       ...prev,
-      createEmptyQuoteLineItem(),
+      {
+        ...createEmptyQuoteLineItem(),
+        currency: currency || "USD",
+      },
     ]);
   };
 
@@ -434,6 +470,12 @@ export default function GenerateQuotePage() {
     field: keyof QuoteLineItem | "subtotal",
     value: any
   ) => {
+    if (field === "currency" && value) {
+      if (index === 0 || !currency || currency === "USD") {
+        setCurrency(value);
+      }
+    }
+
     setLineItems((prev) => {
       const next = [...prev];
       const item = { ...next[index], [field]: value };
@@ -448,6 +490,8 @@ export default function GenerateQuotePage() {
         item.calculation = `Manual Override: $${(Number(item.subtotal) || 0).toFixed(2)}`;
       } else {
         const isLineRenewal = quoteType === "RENEWAL" || !!item.is_renewal;
+        const isFreqChange = field === "billing_frequency";
+        const explicitProrated = isFreqChange ? undefined : (isLineRenewal ? false : item.is_prorated);
         const pricing = calculateRowPricing({
           quantity: item.quantity,
           unit_price: item.price,
@@ -458,7 +502,7 @@ export default function GenerateQuotePage() {
           billing_start_date: item.billing_start_date,
           tax_rate: item.tax_rate,
           is_renewal: isLineRenewal,
-          is_prorated: isLineRenewal ? false : item.is_prorated,
+          is_prorated: explicitProrated,
           quote_type: quoteType,
         });
 
@@ -470,6 +514,53 @@ export default function GenerateQuotePage() {
       }
 
       next[index] = item;
+      return next;
+    });
+  };
+
+  const handleSelectProduct = (index: number, product: MasterProductItem) => {
+    const prodCurrency = (product.currency || "").trim();
+    if (prodCurrency) {
+      if (index === 0 || !currency || currency === "USD") {
+        setCurrency(prodCurrency);
+      }
+    }
+
+    setLineItems((prev) => {
+      const next = [...prev];
+      const isLineRenewal = quoteType === "RENEWAL" || !!next[index]?.is_renewal;
+
+      const normFreq = product.billing_frequency ? normalizeBillingFrequencyForSelect(product.billing_frequency) : "";
+      const mappedFreq = normFreq && normFreq !== "none" ? normFreq : (product.billing_frequency || "");
+
+      const updated = {
+        ...next[index],
+        name: product.name,
+        description: product.description || next[index]?.description || "",
+        price: product.price !== undefined && product.price !== null ? product.price : 0,
+        currency: prodCurrency || next[index]?.currency || currency || "USD",
+        billing_frequency: mappedFreq,
+        term: product.term || next[index]?.term || 1,
+        tax_rate: product.tax_rate !== undefined && product.tax_rate !== null ? product.tax_rate : (next[index]?.tax_rate || ""),
+      };
+      const pricing = calculateRowPricing({
+        quantity: updated.quantity,
+        unit_price: updated.price,
+        unit_discount: updated.unit_discount,
+        discount_type: updated.discount_type,
+        billing_frequency: updated.billing_frequency,
+        term: updated.term,
+        billing_start_date: updated.billing_start_date,
+        tax_rate: updated.tax_rate,
+        is_renewal: isLineRenewal,
+        quote_type: quoteType,
+      });
+      updated.subtotal = pricing.amount;
+      updated.calculation = pricing.formulaString;
+      updated.is_renewal = isLineRenewal;
+      updated.is_prorated = pricing.isProrated;
+      updated.badge = pricing.badge;
+      next[index] = updated;
       return next;
     });
   };
@@ -616,6 +707,29 @@ export default function GenerateQuotePage() {
     }
   };
 
+  const handleClearQuoteForm = () => {
+    if (lineItems.some((it) => it.name) || clientCompanyName) {
+      if (!window.confirm("Are you sure you want to clear all quote form fields?")) {
+        return;
+      }
+    }
+    setClientCompanyName("");
+    setClientPhone("");
+    setContactPerson("");
+    setContactTitle("");
+    setClientEmail("");
+    setBillingAddress("");
+    setCustomerId("");
+    setCustomerSearch("");
+    setSelectedCustomer(null);
+    setLineItems([createEmptyQuoteLineItem()]);
+    setDiscount(0);
+    setTax(0);
+    setNotes("");
+    setClosingMessage("");
+    setSaveSuccessMsg(null);
+  };
+
   const currentQuoteObj: ARQuote | null = quoteId
     ? {
         id: quoteId,
@@ -732,6 +846,17 @@ export default function GenerateQuotePage() {
               <span>View Details</span>
             </Button>
           )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleClearQuoteForm}
+            className="text-xs gap-1.5 h-8 px-3 text-muted-foreground hover:text-foreground cursor-pointer"
+            title="Clear all fields and reset quotation form"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Clear Form</span>
+          </Button>
 
           <Button
             variant="outline"
@@ -1163,13 +1288,15 @@ export default function GenerateQuotePage() {
                     return (
                       <tr key={i} className="hover:bg-slate-50/50 group">
                         <td className="py-2 px-3 space-y-1.5 align-top">
-                          <Input
+                          <ProductServiceAutocomplete
                             id={`quote-line-name-${i}`}
                             name={`line_name_${i}`}
                             value={itm.name}
-                            onChange={(e) => handleLineItemChange(i, "name", e.target.value)}
+                            onChange={(val) => handleLineItemChange(i, "name", val)}
+                            onSelectProduct={(product) => handleSelectProduct(i, product)}
                             placeholder="Item name..."
-                            className="h-7 text-xs font-medium border-slate-200 focus:border-amber-500 bg-transparent px-2"
+                            companyId={customerId || clientCompanyName}
+                            className="h-7 text-xs border-slate-200 focus:border-amber-500 bg-transparent px-2"
                           />
                           <textarea
                             id={`quote-line-desc-${i}`}

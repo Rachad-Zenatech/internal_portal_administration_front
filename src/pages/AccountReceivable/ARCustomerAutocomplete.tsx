@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Check, ChevronsUpDown, Plus, X, Building2, User, Mail, Loader2 } from "lucide-react";
 import { financeService } from "@/services/financeService";
+import { arInvoiceService } from "@/services/arInvoiceService";
+import type { ARCustomer } from "@/services/arInvoiceService";
 import { useQueryClient } from "@tanstack/react-query";
 
 export interface ARCustomerOption {
@@ -26,6 +28,10 @@ export interface ARCustomerOption {
   bill_address?: string | null;
   account_number?: string;
   is_active?: boolean;
+  hubspot_id?: string | null;
+  is_hubspot?: boolean;
+  domain?: string | null;
+  currency?: string | null;
   banking_details?: {
     bank_country?: string;
     bank_name?: string;
@@ -51,6 +57,8 @@ interface ARCustomerAutocompleteProps {
   className?: string;
 }
 
+const CUSTOMER_PAGE_SIZE = 100;
+
 export function ARCustomerAutocomplete({
   customerId,
   customerName,
@@ -64,6 +72,11 @@ export function ARCustomerAutocomplete({
   const [query, setQuery] = useState(customerName || "");
   const [customers, setCustomers] = useState<ARCustomerOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const requestSeq = useRef(0);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   // New Customer Dialog state
@@ -83,66 +96,98 @@ export function ARCustomerAutocomplete({
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
-  // Synchronize internal query with customerName or customerId
+  // True while the user is editing the text; stops prop-driven syncing from overwriting their edits.
+  const isTypingRef = useRef(false);
+
+  // Adopt a customer name set from outside (loaded document, URL params, selection elsewhere).
   useEffect(() => {
-    if (customerName) {
+    if (customerName && customerName !== query && !isTypingRef.current) {
       setQuery(customerName);
-    } else if (customerId && customers.length > 0) {
-      const match = customers.find(
-        (c) =>
-          c.id.toLowerCase() === customerId.toLowerCase() ||
-          `CUST-${c.id}`.toLowerCase() === customerId.toLowerCase() ||
-          c.id.toLowerCase().endsWith(customerId.toLowerCase())
-      );
-      if (match) {
-        setQuery(match.display_name);
-      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerName]);
+
+  // Resolve the display name from customerId only when no name was given and the user isn't typing.
+  useEffect(() => {
+    if (customerName || isTypingRef.current || !customerId || customers.length === 0) return;
+    const match = customers.find(
+      (c) =>
+        c.id.toLowerCase() === customerId.toLowerCase() ||
+        `CUST-${c.id}`.toLowerCase() === customerId.toLowerCase() ||
+        c.id.toLowerCase().endsWith(customerId.toLowerCase())
+    );
+    if (match) setQuery(match.display_name);
   }, [customerName, customerId, customers]);
 
-  // Load real AR Customers from financeService / payable-contacts endpoint
+  // Server-side search + paging (GET /api/ar/customers/search): HubSpot companies first, then
+  // contacts/profiles deduplicated by name. Loads CUSTOMER_PAGE_SIZE rows at a time.
   useEffect(() => {
-    setIsLoading(true);
-    financeService
-      .getPayableContacts({ limit: 500 })
-      .then((res) => {
-        if (res && res.items && res.items.length > 0) {
-          // Filter for AR customers or contacts with 1100 account
-          const arContacts: ARCustomerOption[] = res.items
-            .filter(
-              (c: any) =>
-                c.contact_type === "customer" ||
-                c.account_side === "ar" ||
-                c.account_number === "1100" ||
-                !c.account_number ||
-                String(c.account_number).startsWith("11") ||
-                (c.account_type && String(c.account_type).toLowerCase().includes("receivable"))
-            )
-            .map((c: any) => ({
-              id: c.id ? (String(c.id).startsWith("CUST-") ? String(c.id) : `CUST-${c.id}`) : `CUST-${Date.now()}`,
-              display_name: c.display_name,
-              full_name: c.full_name || null,
-              email: c.email || null,
-              phone: c.phone_numbers || null,
-              bill_address: c.bill_address || null,
-              account_number: c.account_number || "1100",
-              is_active: c.is_active !== false,
-              banking_details: c.banking_details || c.banking || null,
-            }));
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => clearTimeout(t);
+  }, [query]);
 
-          setCustomers(arContacts);
-        } else {
-          setCustomers([]);
-        }
+  const toOption = (c: ARCustomer): ARCustomerOption => ({
+    id: c.id,
+    display_name: c.display_name || c.name,
+    name: c.name,
+    full_name: c.contact_person || null,
+    email: c.email || null,
+    phone: c.phone || null,
+    bill_address: c.billing_address || null,
+    account_number: c.is_hubspot ? "HUBSPOT" : "1100",
+    is_active: true,
+    hubspot_id: c.hubspot_id ?? null,
+    is_hubspot: !!c.is_hubspot,
+    domain: c.domain || null,
+    currency: c.currency || null,
+  });
+
+  useEffect(() => {
+    const seq = ++requestSeq.current;
+    setIsLoading(true);
+    arInvoiceService
+      .searchCustomers({ search: debouncedQuery || undefined, limit: CUSTOMER_PAGE_SIZE, offset: 0 })
+      .then((page) => {
+        if (seq !== requestSeq.current) return;
+        setCustomers(page.items.map(toOption));
+        setTotalCount(page.total);
+        setHasMore(page.has_more);
       })
       .catch((err) => {
+        if (seq !== requestSeq.current) return;
         console.debug("Could not fetch contacts:", err);
         setCustomers([]);
+        setTotalCount(0);
+        setHasMore(false);
       })
       .finally(() => {
-        setIsLoading(false);
+        if (seq === requestSeq.current) setIsLoading(false);
       });
-  }, []);
+  }, [debouncedQuery]);
+
+  const loadMore = () => {
+    if (!hasMore || isLoading || isLoadingMore) return;
+    const seq = requestSeq.current;
+    setIsLoadingMore(true);
+    arInvoiceService
+      .searchCustomers({ search: debouncedQuery || undefined, limit: CUSTOMER_PAGE_SIZE, offset: customers.length })
+      .then((page) => {
+        if (seq !== requestSeq.current) return;
+        setCustomers((prev) => {
+          const seen = new Set(prev.map((c) => c.id));
+          return [...prev, ...page.items.map(toOption).filter((c) => !seen.has(c.id))];
+        });
+        setTotalCount(page.total);
+        setHasMore(page.has_more);
+      })
+      .catch((err) => console.debug("Could not load more contacts:", err))
+      .finally(() => setIsLoadingMore(false));
+  };
+
+  const handleListScroll = () => {
+    const el = listRef.current;
+    if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 48) loadMore();
+  };
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -157,18 +202,8 @@ export function ARCustomerAutocomplete({
 
   const trimmedQuery = query.trim();
 
-  // Filter customers based on query
-  const filteredCustomers = useMemo(() => {
-    if (!trimmedQuery) return customers;
-    const lower = trimmedQuery.toLowerCase();
-    return customers.filter(
-      (c) =>
-        c.display_name.toLowerCase().includes(lower) ||
-        c.id.toLowerCase().includes(lower) ||
-        (c.email && c.email.toLowerCase().includes(lower)) ||
-        (c.full_name && c.full_name.toLowerCase().includes(lower))
-    );
-  }, [customers, trimmedQuery]);
+  // Results are already filtered server-side.
+  const filteredCustomers = customers;
 
   const isExactMatch = useMemo(() => {
     if (!trimmedQuery) return false;
@@ -181,6 +216,7 @@ export function ARCustomerAutocomplete({
   const totalItemsCount = (showAddOption ? 1 : 0) + filteredCustomers.length;
 
   const handleSelectCustomer = (customer: ARCustomerOption) => {
+    isTypingRef.current = false;
     setQuery(customer.display_name);
     onSelect(customer);
     setOpen(false);
@@ -320,6 +356,7 @@ export function ARCustomerAutocomplete({
             value={query}
             onChange={(e) => {
               const val = e.target.value;
+              isTypingRef.current = true;
               setQuery(val);
               onSelect({
                 id: customerId || (val ? `CUST-${Math.floor(Math.random() * 80000 + 10000)}` : ""),
@@ -346,6 +383,7 @@ export function ARCustomerAutocomplete({
               <button
                 type="button"
                 onClick={() => {
+                  isTypingRef.current = true;
                   setQuery("");
                   onSelect({ id: "", display_name: "", name: "" });
                   inputRef.current?.focus();
@@ -389,12 +427,13 @@ export function ARCustomerAutocomplete({
                 )}
               </span>
               <span className="text-[10px] opacity-80">
-                {filteredCustomers.length} contact(s)
+                {filteredCustomers.length}{totalCount > filteredCustomers.length ? ` of ${totalCount}` : ""} contact(s)
               </span>
             </div>
 
             <div
               ref={listRef}
+              onScroll={handleListScroll}
               style={{
                 scrollbarWidth: "thin",
                 overscrollBehavior: "contain",
@@ -453,6 +492,11 @@ export function ARCustomerAutocomplete({
                         <span className="font-bold text-foreground truncate">
                           {cust.display_name}
                         </span>
+                        {cust.is_hubspot && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300">
+                            HubSpot
+                          </span>
+                        )}
                         <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground border border-border/60">
                           {cust.id}
                         </span>
@@ -479,6 +523,13 @@ export function ARCustomerAutocomplete({
                   </button>
                 );
               })}
+
+              {isLoadingMore && (
+                <div className="px-3 py-2 flex items-center justify-center gap-1.5 text-muted-foreground text-[11px]">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Loading more...
+                </div>
+              )}
 
               {filteredCustomers.length === 0 && !showAddOption && (
                 <div className="px-3 py-4 text-center text-muted-foreground text-xs">

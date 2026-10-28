@@ -9,6 +9,18 @@ export interface ARCustomer {
   phone?: string;
   billing_address?: string;
   has_template?: boolean;
+  hubspot_id?: string;
+  is_hubspot?: boolean;
+  domain?: string | null;
+  currency?: string | null;
+}
+
+export interface ARCustomerPage {
+  items: ARCustomer[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
 }
 
 export interface InvoiceLineItem {
@@ -220,6 +232,14 @@ export const arInvoiceService = {
     } catch {
       return [];
     }
+  },
+
+  async searchCustomers(params: { search?: string; limit?: number; offset?: number }): Promise<ARCustomerPage> {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set("search", params.search);
+    qs.set("limit", String(params.limit ?? 100));
+    qs.set("offset", String(params.offset ?? 0));
+    return apiClient.get<ARCustomerPage>(`/api/ar/customers/search?${qs.toString()}`);
   },
 
   async updateCustomer(customerId: string, data: Partial<ARCustomer>): Promise<ARCustomer> {

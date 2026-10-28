@@ -133,3 +133,101 @@ export function useImportMasterClasses() {
     },
   });
 }
+
+// --- Products & Services (HubSpot Integration) ---
+
+export function useMasterProducts(search?: string, isActive?: boolean) {
+  return useQuery({
+    queryKey: ["master-products", search || "", isActive !== undefined ? String(isActive) : "all"],
+    queryFn: () => masterTablesService.getProducts(search, isActive),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useCompanyBrands(companyRef?: string | null) {
+  return useQuery({
+    queryKey: ["company-brands", companyRef || ""],
+    queryFn: () => masterTablesService.getCompanyBrands(companyRef as string),
+    enabled: !!companyRef && companyRef.trim() !== "",
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useCreateMasterProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: masterTablesService.createProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["master-products"] });
+      toast.success("Product/Service created successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Failed to create product/service");
+    },
+  });
+}
+
+export function useUpdateMasterProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Parameters<typeof masterTablesService.updateProduct>[1] }) =>
+      masterTablesService.updateProduct(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["master-products"] });
+      toast.success("Product/Service updated successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Failed to update product/service");
+    },
+  });
+}
+
+export function useDeleteMasterProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: masterTablesService.deleteProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["master-products"] });
+      toast.success("Product/Service deleted successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Failed to delete product/service");
+    },
+  });
+}
+
+export function useSyncHubSpotProducts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (apiKey?: string) => masterTablesService.syncHubSpotProducts(apiKey),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["master-products"] });
+      toast.success(data.message || `Synced ${data.count} items from HubSpot!`);
+    },
+    onError: (err: any) => {
+      const errData = err?.response?.data;
+      if (errData?.error === "MISSING_SCOPES") {
+        toast.error("HubSpot permission missing: 'crm.objects.products.read' scope required", {
+          description: errData.message,
+          duration: 8000,
+        });
+      } else {
+        toast.error(errData?.detail || errData?.message || "Failed to sync from HubSpot");
+      }
+    },
+  });
+}
+
+export function useImportMasterProducts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: masterTablesService.importProductsFile,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["master-products"] });
+      toast.success(`Imported ${data.imported_count} products/services successfully!`);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Failed to import products file");
+    },
+  });
+}

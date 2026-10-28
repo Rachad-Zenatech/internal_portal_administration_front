@@ -1,10 +1,11 @@
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
   Building2,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   CornerDownRight,
   CreditCard,
@@ -26,6 +27,8 @@ import {
   Trash2,
   TrendingUp,
   Users,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -63,10 +66,11 @@ import { GLCodeAutocomplete } from "../Purchasing/GLCodeAutocomplete";
 import { ClassAutocomplete } from "../Purchasing/ClassAutocomplete";
 import { useNotificationStream } from "@/hooks/useNotifications";
 import { calculateRowPricing } from "./lineItemPricingUtils";
+import { oauthService } from "../../services/oauthService";
 
 export type ARTab =
   | "overview"
-  | "customers"
+  | "hubspot_companies"
   | "quotes"
   | "to_invoice"
   | "invoices"
@@ -74,12 +78,16 @@ export type ARTab =
   | "completed"
   | "activity";
 
+const HUBSPOT_COMPANIES_PAGE_SIZE = 100;
+
 export default function AccountReceivablePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
-  const activeTab: ARTab = (searchParams.get("tab") as ARTab) || "overview";
+  const requestedTab = searchParams.get("tab");
+  // "customers" was removed; old links fall back to the overview
+  const activeTab: ARTab = requestedTab && requestedTab !== "customers" ? (requestedTab as ARTab) : "overview";
   const setActiveTab = (tab: ARTab) => {
     setSearchParams(
       (prev) => {
@@ -131,6 +139,59 @@ export default function AccountReceivablePage() {
   const { data: customers = [], refetch: refetchCustomers } = useQuery({
     queryKey: ["ar-customers"],
     queryFn: () => arInvoiceService.getCustomers(),
+  });
+
+  // HubSpot Companies Search & Query
+  const [hubspotSearchTerm, setHubspotSearchTerm] = useState("");
+  const [debouncedHubspotSearch, setDebouncedHubspotSearch] = useState("");
+  const [hubspotPage, setHubspotPage] = useState(0);
+  const [allHubspotCompaniesTotal, setAllHubspotCompaniesTotal] = useState(0);
+  const {
+    data: hubspotCompaniesData,
+    refetch: refetchHubspotCompanies,
+    isLoading: isHubspotCompaniesLoading,
+    isFetching: isHubspotCompaniesFetching,
+  } = useQuery({
+    queryKey: ["hubspot-companies", debouncedHubspotSearch, hubspotPage, HUBSPOT_COMPANIES_PAGE_SIZE],
+    queryFn: () =>
+      oauthService.getHubSpotCompanies(
+        debouncedHubspotSearch || undefined,
+        HUBSPOT_COMPANIES_PAGE_SIZE,
+        hubspotPage * HUBSPOT_COMPANIES_PAGE_SIZE,
+      ),
+    placeholderData: keepPreviousData,
+  });
+  const hubspotCompanies = hubspotCompaniesData?.items || [];
+  const hubspotTotal = hubspotCompaniesData?.total ?? 0;
+  const hubspotPageCount = Math.max(1, Math.ceil(hubspotTotal / HUBSPOT_COMPANIES_PAGE_SIZE));
+  const hubspotRangeStart = hubspotTotal === 0 ? 0 : hubspotPage * HUBSPOT_COMPANIES_PAGE_SIZE + 1;
+  const hubspotRangeEnd = Math.min(hubspotTotal, hubspotPage * HUBSPOT_COMPANIES_PAGE_SIZE + hubspotCompanies.length);
+
+  // Search runs on the server across every company; wait for a typing pause and restart at page 1.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedHubspotSearch(hubspotSearchTerm.trim());
+      setHubspotPage(0);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [hubspotSearchTerm]);
+
+  // Keep the unfiltered total for the tab badge while searching.
+  useEffect(() => {
+    if (!debouncedHubspotSearch && hubspotCompaniesData) setAllHubspotCompaniesTotal(hubspotCompaniesData.total);
+  }, [debouncedHubspotSearch, hubspotCompaniesData]);
+
+  const syncHubspotCompaniesMutation = useMutation({
+    mutationFn: () => oauthService.syncHubSpotCompanies(),
+    onSuccess: (res) => {
+      refetchHubspotCompanies();
+      queryClient.invalidateQueries({ queryKey: ["hubspot-companies"] });
+      setBannerSuccess(`Successfully synchronized ${res.count} companies from HubSpot CRM!`);
+      setTimeout(() => setBannerSuccess(null), 5000);
+    },
+    onError: (err: any) => {
+      alert(err?.response?.data?.detail || err?.message || "Failed to sync companies from HubSpot.");
+    },
   });
 
   // Real-time SSE / WebSocket notifications & instant live cache updates
@@ -735,17 +796,24 @@ export default function AccountReceivablePage() {
 
           <button
             type="button"
-            onClick={() => setActiveTab("customers")}
+            onClick={() => setActiveTab("hubspot_companies")}
             className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "customers"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+              activeTab === "hubspot_companies"
+                ? "bg-orange-600 text-white shadow-xs"
                 : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
             }`}
           >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Customers &amp; Templates</span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-              {customers.length}
+            <Building2 className={`w-3.5 h-3.5 ${activeTab === "hubspot_companies" ? "text-white" : "text-orange-500"}`} />
+            <span>HubSpot Companies</span>
+            <Badge
+              variant="secondary"
+              className={`text-[10px] px-1.5 py-0 h-4 border-none font-bold ${
+                activeTab === "hubspot_companies"
+                  ? "bg-orange-700 text-white"
+                  : "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300"
+              }`}
+            >
+              {allHubspotCompaniesTotal}
             </Badge>
           </button>
 
@@ -953,7 +1021,7 @@ export default function AccountReceivablePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setActiveTab("customers")}
+                  onClick={() => setActiveTab("hubspot_companies")}
                   className="text-xs rounded-xl cursor-pointer"
                 >
                   <span>View All Customers ({customers.length})</span>
@@ -1388,114 +1456,208 @@ export default function AccountReceivablePage() {
           </div>
         )}
 
-        {/* TAB: CUSTOMERS & TEMPLATES */}
-        {activeTab === "customers" && (
+        {/* TAB: HUBSPOT COMPANIES & TEMPLATES */}
+        {activeTab === "hubspot_companies" && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-blue-600" />
-                  <span>Customer Profiles &amp; Saved Invoice Templates</span>
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Select any customer to generate a new proposal quote or customized invoice with pre-filled line items.
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400">
+                    <Building2 className="w-4 h-4" />
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>HubSpot Companies CRM &amp; Profiles</span>
+                    <Badge className="bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/60 dark:text-orange-300 text-[10px] font-semibold">
+                      Live HubSpot Sync
+                    </Badge>
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Synchronized companies and client accounts from HubSpot CRM. Click Generate to auto-fill all company billing information and company-specific products into quotes or invoices.
                 </p>
               </div>
+
               <Button
-                onClick={() => navigate("/account-receivable/generate")}
-                className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs cursor-pointer"
+                onClick={() => syncHubspotCompaniesMutation.mutate()}
+                disabled={syncHubspotCompaniesMutation.isPending}
+                className="gap-1.5 text-xs bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-xs cursor-pointer shrink-0"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Generate Invoice</span>
+                <RefreshCw className={`w-3.5 h-3.5 ${syncHubspotCompaniesMutation.isPending ? "animate-spin" : ""}`} />
+                <span>{syncHubspotCompaniesMutation.isPending ? "Syncing..." : "Sync from HubSpot"}</span>
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {customers.map((cust) => (
-                <div
-                  key={cust.id}
-                  className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-400 dark:hover:border-blue-500 transition-all flex flex-col justify-between group"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <Badge variant="outline" className="text-[10px] font-mono text-slate-500 mb-1">
-                          {cust.id}
-                        </Badge>
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">
-                          {cust.name}
-                        </h4>
-                      </div>
-                      {cust.has_template ? (
-                        <Badge className="bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 text-[10px] whitespace-nowrap">
-                          <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
-                          Template Saved
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-[10px] text-slate-500 whitespace-nowrap">
-                          Default
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
-                      {cust.contact_person && (
-                        <div className="flex items-center gap-2">
-                          <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{cust.contact_person}</span>
-                        </div>
-                      )}
-                      {cust.email && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{cust.email}</span>
-                        </div>
-                      )}
-                      {cust.phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{cust.phone}</span>
-                        </div>
-                      )}
-                      {cust.billing_address && (
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                          <span className="line-clamp-2">{cust.billing_address}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button className="w-full gap-2 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 text-white text-xs h-8 rounded-xl shadow-xs cursor-pointer">
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Generate</span>
-                          <ChevronDown className="w-3.5 h-3.5 opacity-70 ml-auto" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48 text-xs">
-                        <DropdownMenuItem
-                          onClick={() => navigate(`/account-receivable/generate-quote?customerId=${encodeURIComponent(cust.id)}&customerName=${encodeURIComponent(cust.display_name || cust.name || "")}`)}
-                          className="gap-2 cursor-pointer"
-                        >
-                          <FileText className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Generate Quote</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => navigate(`/account-receivable/generate?customerId=${encodeURIComponent(cust.id)}`)}
-                          className="gap-2 cursor-pointer"
-                        >
-                          <Receipt className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>Generate Invoice</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))}
+            <div className="relative w-full sm:max-w-md">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={hubspotSearchTerm}
+                onChange={(e) => setHubspotSearchTerm(e.target.value)}
+                placeholder="Search company, domain, industry, city..."
+                className="pl-8 h-9 text-xs bg-white dark:bg-slate-900"
+              />
             </div>
+
+            {isHubspotCompaniesLoading ? (
+              <div className="p-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-orange-500 mb-2" />
+                <span className="text-xs">Loading HubSpot companies...</span>
+              </div>
+            ) : hubspotCompanies.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+                <Building2 className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700" />
+                <p className="text-xs">
+                  {debouncedHubspotSearch
+                    ? "No HubSpot companies found matching your search."
+                    : "No HubSpot companies synced yet."}
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => syncHubspotCompaniesMutation.mutate()}
+                  disabled={syncHubspotCompaniesMutation.isPending}
+                  className="h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white rounded-xl cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                  <span>Sync from HubSpot CRM</span>
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {hubspotCompanies.map((comp) => (
+                  <div
+                    key={comp.hubspot_id}
+                    className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-orange-400 dark:hover:border-orange-500 transition-all flex flex-col justify-between group"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                            <Badge variant="outline" className="text-[10px] font-mono text-slate-500 border-slate-200 dark:border-slate-700">
+                              {comp.hubspot_id}
+                            </Badge>
+                            {comp.industry && (
+                              <Badge className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-none text-[9px] px-1.5 py-0">
+                                {comp.industry}
+                              </Badge>
+                            )}
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-orange-600 transition-colors truncate">
+                            {comp.name}
+                          </h4>
+                          {comp.domain && (
+                            <a
+                              href={comp.website || `https://${comp.domain}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 mt-0.5"
+                            >
+                              <Globe className="w-3 h-3 text-slate-400" />
+                              <span className="truncate">{comp.domain}</span>
+                              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                            </a>
+                          )}
+                        </div>
+
+                      </div>
+
+                      <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                        {comp.contact_name && (
+                          <div className="flex items-center gap-2">
+                            <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{comp.contact_name}</span>
+                          </div>
+                        )}
+                        {(comp.billing_email || comp.contact_email) && (
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate font-mono text-[11px]">{comp.billing_email || comp.contact_email}</span>
+                          </div>
+                        )}
+                        {comp.phone && (
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate font-mono text-[11px]">{comp.phone}</span>
+                          </div>
+                        )}
+                        {comp.address && (
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                            <span className="line-clamp-2">{comp.address}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          navigate(
+                            `/account-receivable/generate-quote?hubspotCompanyId=${encodeURIComponent(
+                              comp.hubspot_id
+                            )}&customerName=${encodeURIComponent(comp.name)}`
+                          )
+                        }
+                        className="h-8 flex-1 text-xs gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40 cursor-pointer font-semibold rounded-xl"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Generate Quote</span>
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          navigate(
+                            `/account-receivable/generate?hubspotCompanyId=${encodeURIComponent(
+                              comp.hubspot_id
+                            )}&customerName=${encodeURIComponent(comp.name)}`
+                          )
+                        }
+                        className="h-8 flex-1 text-xs gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer font-semibold rounded-xl"
+                      >
+                        <Receipt className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Generate Invoice</span>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {hubspotTotal > 0 && (
+              <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 px-4 py-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs text-slate-500">
+                <span className="flex items-center gap-2">
+                  Showing {hubspotRangeStart}–{hubspotRangeEnd} of {hubspotTotal}
+                  {isHubspotCompaniesFetching && <Loader2 className="w-3 h-3 animate-spin text-orange-500" />}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span>
+                    Page {hubspotPage + 1} of {hubspotPageCount}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1 text-xs rounded-xl cursor-pointer"
+                    disabled={hubspotPage === 0 || isHubspotCompaniesFetching}
+                    onClick={() => setHubspotPage((p) => Math.max(0, p - 1))}
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1 text-xs rounded-xl cursor-pointer"
+                    disabled={hubspotPage >= hubspotPageCount - 1 || isHubspotCompaniesFetching}
+                    onClick={() => setHubspotPage((p) => p + 1)}
+                  >
+                    Next
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

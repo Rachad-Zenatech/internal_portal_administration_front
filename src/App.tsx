@@ -22,6 +22,9 @@ const Entities = lazy(() => import("./pages/Configurations/Entities"));
 const Projects = lazy(() => import("./pages/Configurations/Projects"));
 const Locations = lazy(() => import("./pages/Configurations/Locations"));
 const Classes = lazy(() => import("./pages/Configurations/Classes"));
+const ProductsServices = lazy(() => import("./pages/Configurations/ProductsServices"));
+const OAuthConfiguration = lazy(() => import("./pages/Configurations/OAuthConfiguration"));
+const Companies = lazy(() => import("./pages/Configurations/Companies"));
 
 const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
 const PurchaseRequests = lazy(() => import("./pages/Purchasing/PurchaseRequests"));
@@ -157,6 +160,14 @@ function App() {
               <Route path="/configurations/locations" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Locations /></ProtectedRoute>} />
               <Route path="/configuration/classes" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Classes /></ProtectedRoute>} />
               <Route path="/configurations/classes" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Classes /></ProtectedRoute>} />
+              <Route path="/configuration/products" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><ProductsServices /></ProtectedRoute>} />
+              <Route path="/configurations/products" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><ProductsServices /></ProtectedRoute>} />
+              <Route path="/configuration/products-services" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><ProductsServices /></ProtectedRoute>} />
+              <Route path="/configurations/products-services" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><ProductsServices /></ProtectedRoute>} />
+              <Route path="/configuration/companies" element={<ProtectedRoute navigationCode="CONFIG_COMPANIES"><Companies /></ProtectedRoute>} />
+              <Route path="/configurations/companies" element={<ProtectedRoute navigationCode="CONFIG_COMPANIES"><Companies /></ProtectedRoute>} />
+              <Route path="/configuration/oauth"element={<ProtectedRoute navigationCode="CONFIG_USERS"><OAuthConfiguration /></ProtectedRoute>} />
+              <Route path="/configurations/oauth" element={<ProtectedRoute navigationCode="CONFIG_USERS"><OAuthConfiguration /></ProtectedRoute>} />
               <Route path="/configuration/entities" element={<ProtectedRoute navigationCode="CONFIG_CHART_OF_ACCOUNTS"><Entities /></ProtectedRoute>} />
               <Route path="/purchasing/payable-contacts" element={<ProtectedRoute><PayableContacts /></ProtectedRoute>} />
               <Route path="/purchasing/vendors" element={<ProtectedRoute><PayableContacts /></ProtectedRoute>} />
