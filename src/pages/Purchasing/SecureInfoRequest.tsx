@@ -560,7 +560,7 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
     ? `Hi, I'm signing in to the account for Request #${requestId} (${summary.purpose}). It may ask for a verification code. Let me know when you're free to approve it.`
     : `Hi, about Request #${requestId} (${summary.purpose}): I'm ready for the verification step whenever you sign in.`;
   const twoFaNote = viewerIsAdmin
-    ? `This account may ask for a verification code. Contact ${requesterName} on Teams when you sign in so they can approve it or complete that step live. Never ask for codes in the portal, email or chat.`
+    ? `This account may ask for a verification code. Contact ${requesterName} on Teams when you sign in so they can approve it or complete that step live.`
     : viewerIsRequester
     ? `This account may ask for a verification code. When ${requestedBy} signs in, they'll contact you on Teams so you can approve the sign-in or complete that step. Don't enter codes in the portal, and don't send them by email or chat.`
     : "This account may ask for a verification code. It's handled on Teams between the admin and the requester.";
