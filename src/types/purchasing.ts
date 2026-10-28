@@ -312,7 +312,7 @@ export type SecureInfoRequestSummary = {
   requested_from_id?: string | null;
   requested_from_name?: string | null;
   requested_from_email?: string | null;
-  /** The account may ask for a verification code; handled live on Teams, never collected. */
+  /** The account may ask for a verification code (2FA) when the admin signs in. */
   may_need_2fa?: boolean;
   expires_at: string;
   submitted_at?: string | null;
@@ -322,6 +322,18 @@ export type SecureInfoRequestSummary = {
   can_submit: boolean;
   can_reveal: boolean;
   can_delete: boolean;
+  /** One-time code: NONE, REQUESTED (admin is signing in), SENT (waiting to be viewed). */
+  code_state?: 'NONE' | 'REQUESTED' | 'SENT';
+  code_requested_at?: string | null;
+  code_expires_at?: string | null;
+  can_request_code?: boolean;
+  can_send_code?: boolean;
+  can_reveal_code?: boolean;
+};
+
+export type SecureCodeReveal = {
+  code: string;
+  hide_after_seconds: number;
 };
 
 export type SecureInfoRequestCreate = {

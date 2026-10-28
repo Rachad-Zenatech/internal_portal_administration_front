@@ -18,6 +18,7 @@ import type {
   SecureInfoRequestCreate,
   SecureInfoRequestSummary,
   SecureInfoReveal,
+  SecureCodeReveal,
 } from "@/types/purchasing";
 
 const BASE = "/api/purchasing";
@@ -92,6 +93,19 @@ export function revealSecureInfo(id: string, secureId: string) {
 
 export function deleteSecureInfo(id: string, secureId: string) {
   return apiClient.delete<SecureInfoRequestSummary>(`${BASE}/requests/${id}/secure-requests/${secureId}`);
+}
+
+// 2FA verification code: admin asks, requester sends it through the vault, admin views it once.
+export function requestSecureCode(id: string, secureId: string) {
+  return apiClient.post<SecureInfoRequestSummary>(`${BASE}/requests/${id}/secure-requests/${secureId}/code/request`);
+}
+
+export function sendSecureCode(id: string, secureId: string, code: string) {
+  return apiClient.post<SecureInfoRequestSummary>(`${BASE}/requests/${id}/secure-requests/${secureId}/code`, { code });
+}
+
+export function revealSecureCode(id: string, secureId: string) {
+  return apiClient.post<SecureCodeReveal>(`${BASE}/requests/${id}/secure-requests/${secureId}/code/reveal`);
 }
 
 export interface ApproverCandidateUser {

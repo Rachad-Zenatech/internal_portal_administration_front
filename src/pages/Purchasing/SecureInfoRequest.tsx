@@ -15,7 +15,7 @@ import {
   Clock,
   KeyRound,
   Ban,
-  MessageSquare,
+  Send,
   Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,11 +23,14 @@ import { useAuth } from "@/lib/AuthContext";
 import {
   createSecureInfoRequest,
   deleteSecureInfo,
+  requestSecureCode,
+  revealSecureCode,
   revealSecureInfo,
+  sendSecureCode,
   submitSecureInfo,
 } from "@/services/purchasingService";
 import { getApiErrorCode, POST_LOGIN_REDIRECT_KEY } from "@/services/helper";
-import type { SecureInfoRequestSummary, SecureInfoReveal } from "@/types/purchasing";
+import type { SecureCodeReveal, SecureInfoRequestSummary, SecureInfoReveal } from "@/types/purchasing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -52,11 +55,8 @@ const TTL_OPTIONS = [
 const FORBIDDEN_FIELD_RE =
   /\b(otp|one[\s-]?time|recovery|backup\s*codes?|2fa|mfa|verification\s*code|security\s*code|authenticator|sms\s*code)\b/i;
 const SECRET_FIELD_RE = /pass|secret|pin|token|key/i;
-
-/** Teams deep links (open the Teams app or web client). Only an email address goes in the link. */
-function teamsChatUrl(email: string, message: string): string {
-  return `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(email)}&message=${encodeURIComponent(message)}`;
-}
+// While a code is being requested or waiting to be viewed, refresh the card this often.
+const CODE_REFRESH_MS = 10_000;
 
 /** True when a regular message looks like it contains a password, so we can suggest the secure form. */
 export function looksLikeCredential(text: string): boolean {
@@ -276,8 +276,8 @@ export const RequestAccountDetailsDialog: React.FC<RequestAccountDetailsDialogPr
                 This account may ask for a verification code (2FA)
               </span>
               <span className="block text-[11px] text-slate-400">
-                The requester is told you'll contact them on Teams when you sign in, so they can approve the sign-in or
-                complete that step. Codes are never collected in the portal.
+                When you sign in, you can ask the requester for the code. They send it through the vault, you view it
+                once, and it's deleted after 10 minutes.
               </span>
             </label>
           </div>
@@ -401,8 +401,8 @@ const SubmitSecureInfoDialog: React.FC<SubmitSecureInfoDialogProps> = ({
 
           <p className="text-[11px] text-slate-400">
             {summary.may_need_2fa
-              ? `This account may ask for a verification code. ${summary.requested_by_name || "The admin"} will contact you on Teams when they sign in. Don't enter codes here.`
-              : "If the service sends a verification code, don't share it here. Complete that step yourself when the admin signs in."}
+              ? `This account may send you a verification code. When ${summary.requested_by_name || "the admin"} signs in, you'll get an email asking for it, and you'll send it from this request. Don't put codes in these fields.`
+              : "Don't put verification codes in these fields. If the admin needs one, you'll get an email asking for it."}
           </p>
 
           <DialogFooter>
@@ -412,6 +412,83 @@ const SubmitSecureInfoDialog: React.FC<SubmitSecureInfoDialogProps> = ({
             <Button type="submit" disabled={saving} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
               <Lock className="h-3.5 w-3.5" />
               {saving ? "Submitting..." : "Submit securely"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ─── Requester: send the 2FA code ────────────────────────────────────────────
+
+interface SendCodeDialogProps {
+  requestId: string;
+  summary: SecureInfoRequestSummary;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSent: () => Promise<unknown>;
+}
+
+const SendCodeDialog: React.FC<SendCodeDialogProps> = ({ requestId, summary, open, onOpenChange, onSent }) => {
+  const [code, setCode] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) setCode("");
+  }, [open]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code.trim()) {
+      toast.error("Please enter the verification code.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await sendSecureCode(requestId, summary.id, code);
+      setCode("");
+      toast.success("Code sent securely.");
+      onOpenChange(false);
+      await onSent();
+    } catch (err) {
+      toast.error(errorMessage(err, "Could not send the code."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Smartphone className="h-4 w-4 text-violet-600" />
+              Send verification code securely
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Enter the code the service just sent you. Only {summary.requested_by_name || "the admin"} can view it,
+              once, and it's deleted after 10 minutes.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            autoComplete="one-time-code"
+            spellCheck={false}
+            maxLength={64}
+            placeholder="e.g. 482915"
+            className="text-center text-lg tracking-widest font-mono"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving} className="gap-1.5 bg-violet-600 hover:bg-violet-700 text-white">
+              <Lock className="h-3.5 w-3.5" />
+              {saving ? "Sending..." : "Send securely"}
             </Button>
           </DialogFooter>
         </form>
@@ -433,9 +510,13 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
   const [submitOpen, setSubmitOpen] = useState(false);
   const [revealed, setRevealed] = useState<SecureInfoReveal | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
-  const [busy, setBusy] = useState<"reveal" | "delete" | null>(null);
+  const [busy, setBusy] = useState<"reveal" | "delete" | "code" | null>(null);
   const [justReauthed, setJustReauthed] = useState(false);
+  const [sendCodeOpen, setSendCodeOpen] = useState(false);
+  const [revealedCode, setRevealedCode] = useState<SecureCodeReveal | null>(null);
+  const [codeSecondsLeft, setCodeSecondsLeft] = useState(0);
   const timerRef = useRef<number | null>(null);
+  const codeTimerRef = useRef<number | null>(null);
 
   const hide = () => {
     if (timerRef.current) window.clearInterval(timerRef.current);
@@ -444,17 +525,41 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
     setSecondsLeft(0);
   };
 
+  const hideCode = () => {
+    if (codeTimerRef.current) window.clearInterval(codeTimerRef.current);
+    codeTimerRef.current = null;
+    setRevealedCode(null);
+    setCodeSecondsLeft(0);
+  };
+
   // Clear revealed values on unmount, and when the tab is hidden.
   useEffect(() => {
     const onVisibility = () => {
-      if (document.hidden) hide();
+      if (document.hidden) {
+        hide();
+        hideCode();
+      }
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
       hide();
+      hideCode();
     };
   }, []);
+
+  // While a code is on its way (or waiting to be viewed), keep the card current for the two people involved,
+  // so the admin sees "Reveal code" and the requester sees "Send code" without reloading. Stops on its own.
+  const viewerIsAdmin = Boolean(user?.id && user.id === summary.requested_by_id);
+  const viewerIsRequester = Boolean(user?.id && user.id === summary.requested_from_id);
+  const codeInFlight = summary.code_state === "REQUESTED" || summary.code_state === "SENT";
+  useEffect(() => {
+    if (!codeInFlight || !(viewerIsAdmin || viewerIsRequester)) return;
+    const id = window.setInterval(() => {
+      if (!document.hidden) void refetch();
+    }, CODE_REFRESH_MS);
+    return () => window.clearInterval(id);
+  }, [codeInFlight, viewerIsAdmin, viewerIsRequester, refetch]);
 
   // Back from the re-sign-in for this card: prompt to reveal (doesn't auto-reveal, which would use a view).
   useEffect(() => {
@@ -517,6 +622,49 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
     }
   };
 
+  const handleRequestCode = async () => {
+    setBusy("code");
+    try {
+      await requestSecureCode(requestId, summary.id);
+      toast.success(`${summary.requested_from_name || "The requester"} has been emailed to send the code.`);
+      await refetch();
+    } catch (err) {
+      toast.error(errorMessage(err, "Could not ask for the code."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleRevealCode = async () => {
+    setBusy("code");
+    try {
+      const data = await revealSecureCode(requestId, summary.id);
+      setRevealedCode(data);
+      setCodeSecondsLeft(data.hide_after_seconds);
+      if (codeTimerRef.current) window.clearInterval(codeTimerRef.current);
+      codeTimerRef.current = window.setInterval(() => {
+        setCodeSecondsLeft((s) => {
+          if (s <= 1) {
+            hideCode();
+            return 0;
+          }
+          return s - 1;
+        });
+      }, 1000);
+      void refetch();
+    } catch (err) {
+      if (getApiErrorCode(err) === "REAUTH_REQUIRED") {
+        toast.info("Please sign in again to view the code.");
+        startReauth(summary.id);
+        return;
+      }
+      toast.error(errorMessage(err, "Could not load the code."));
+      void refetch();
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const copy = async (label: string, value: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -550,20 +698,36 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
 
   const title = summary.status === "SUBMITTED" ? "Account details submitted" : "Account access requested";
 
-  // 2FA: the code is handled live on Teams between the admin who asked and the requester.
-  const isOpen = summary.status === "PENDING" || summary.status === "SUBMITTED";
-  const viewerIsAdmin = Boolean(user?.id && user.id === summary.requested_by_id);
-  const viewerIsRequester = Boolean(user?.id && user.id === summary.requested_from_id);
+  // 2FA verification code: admin asks while signing in, requester sends it through the vault.
   const requesterName = summary.requested_from_name || "the requester";
-  const otherEmail = viewerIsAdmin ? summary.requested_from_email : viewerIsRequester ? summary.requested_by_email : null;
-  const teamsMessage = viewerIsAdmin
-    ? `Hi, I'm signing in to the account for Request #${requestId} (${summary.purpose}). It may ask for a verification code. Let me know when you're free to approve it.`
-    : `Hi, about Request #${requestId} (${summary.purpose}): I'm ready for the verification step whenever you sign in.`;
-  const twoFaNote = viewerIsAdmin
-    ? `This account may ask for a verification code. Contact ${requesterName} on Teams when you sign in so they can approve it or complete that step live.`
-    : viewerIsRequester
-    ? `This account may ask for a verification code. When ${requestedBy} signs in, they'll contact you on Teams so you can approve the sign-in or complete that step. Don't enter codes in the portal, and don't send them by email or chat.`
-    : "This account may ask for a verification code. It's handled on Teams between the admin and the requester.";
+  const codeState = summary.code_state || "NONE";
+  const codeExpiresIn = summary.code_expires_at
+    ? formatDistanceToNow(new Date(summary.code_expires_at), { addSuffix: true })
+    : null;
+  const codeNote = (() => {
+    if (summary.status === "PENDING") {
+      return summary.may_need_2fa && viewerIsRequester
+        ? `This account may need a verification code. When ${requestedBy} signs in, you'll get an email asking for it.`
+        : null;
+    }
+    if (summary.status !== "SUBMITTED") return null;
+    if (viewerIsAdmin) {
+      if (codeState === "REQUESTED") return `Waiting for ${requesterName} to send the code. They've been emailed.`;
+      if (codeState === "SENT") return `${requesterName} sent the code. You can view it once; it's deleted ${codeExpiresIn}.`;
+      return summary.may_need_2fa
+        ? `This account may ask for a verification code. When you sign in, ask ${requesterName} for it here.`
+        : null;
+    }
+    if (viewerIsRequester) {
+      if (codeState === "REQUESTED") return `${requestedBy} is signing in now and needs the verification code. Send it here when it arrives.`;
+      if (codeState === "SENT") return `Code sent. ${requestedBy} can view it once.`;
+      return summary.may_need_2fa
+        ? `When ${requestedBy} signs in, you'll get an email asking for the verification code. Only ever send it from this request.`
+        : null;
+    }
+    return summary.may_need_2fa ? "This account may need a verification code; it's sent through the vault." : null;
+  })();
+  const codeNoteUrgent = (viewerIsRequester && codeState === "REQUESTED") || (viewerIsAdmin && codeState === "SENT");
 
   return (
     <div className="mt-2 ml-12 rounded-lg border border-violet-200 dark:border-violet-900/50 bg-violet-50/50 dark:bg-violet-950/20 p-3.5 space-y-2.5">
@@ -621,21 +785,42 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
         </div>
       )}
 
-      {summary.may_need_2fa && isOpen && (
-        <div className="rounded-md border border-sky-200 dark:border-sky-900/60 bg-sky-50/70 dark:bg-sky-950/30 p-2.5 space-y-2">
-          <div className="flex items-start gap-2 text-xs text-sky-900 dark:text-sky-200">
-            <Smartphone className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-            <span>{twoFaNote}</span>
+      {revealedCode && (
+        <div className="rounded-md border border-violet-200 dark:border-violet-900/60 bg-white dark:bg-zinc-900 p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 w-28 shrink-0">Verification code</span>
+            <code className="flex-1 rounded bg-slate-100 dark:bg-zinc-800 px-3 py-1.5 text-lg font-mono tracking-widest text-center">
+              {revealedCode.code}
+            </code>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Copy code"
+              onClick={() => copy("Code", revealedCode.code)}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
           </div>
-          {otherEmail && (
-            <div className="flex flex-wrap gap-2 pl-5">
-              <Button asChild size="sm" variant="outline" className="h-7 text-xs gap-1.5">
-                <a href={teamsChatUrl(otherEmail, teamsMessage)} target="_blank" rel="noopener noreferrer">
-                  <MessageSquare className="h-3 w-3" /> Message {viewerIsAdmin ? requesterName : requestedBy} on Teams
-                </a>
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <span>Hiding in {codeSecondsLeft}s · this code has been deleted from the portal</span>
+            <Button type="button" variant="ghost" size="sm" className="h-6 text-[11px] gap-1" onClick={hideCode}>
+              <EyeOff className="h-3 w-3" /> Hide now
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {codeNote && !revealedCode && (
+        <div
+          className={`flex items-start gap-2 rounded-md border p-2.5 text-xs ${
+            codeNoteUrgent
+              ? "border-violet-300 bg-violet-100/70 text-violet-900 dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-200"
+              : "border-sky-200 bg-sky-50/70 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-200"
+          }`}
+        >
+          <Smartphone className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <span>{codeNote}</span>
         </div>
       )}
 
@@ -669,6 +854,43 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
             </span>
           </Button>
         )}
+        {summary.can_send_code && (
+          <Button
+            size="sm"
+            onClick={() => setSendCodeOpen(true)}
+            className="h-8 text-xs gap-1.5 bg-violet-600 hover:bg-violet-700 text-white"
+          >
+            <Smartphone className="h-3.5 w-3.5" /> Send verification code securely
+          </Button>
+        )}
+        {summary.can_reveal_code && !revealedCode && (
+          <Button
+            size="sm"
+            onClick={handleRevealCode}
+            disabled={busy !== null}
+            className="h-8 text-xs gap-1.5 bg-violet-600 hover:bg-violet-700 text-white"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            {busy === "code" ? "Loading..." : "Reveal code"}
+            <span className="opacity-80">(1 view)</span>
+          </Button>
+        )}
+        {summary.can_request_code && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRequestCode}
+            disabled={busy !== null}
+            className="h-8 text-xs gap-1.5"
+          >
+            <Send className="h-3.5 w-3.5" />
+            {busy === "code"
+              ? "Sending..."
+              : codeState === "REQUESTED"
+              ? "Ask for the code again"
+              : "I'm signing in – send me the code"}
+          </Button>
+        )}
         {summary.can_delete && (
           <Button
             size="sm"
@@ -690,6 +912,15 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
           open={submitOpen}
           onOpenChange={setSubmitOpen}
           onSubmitted={refetch}
+        />
+      )}
+      {summary.can_send_code && (
+        <SendCodeDialog
+          requestId={requestId}
+          summary={summary}
+          open={sendCodeOpen}
+          onOpenChange={setSendCodeOpen}
+          onSent={refetch}
         />
       )}
     </div>
