@@ -83,6 +83,9 @@ import type {
 import { ARCustomerAutocomplete } from "./ARCustomerAutocomplete";
 import type { ARCustomerOption } from "./ARCustomerAutocomplete";
 import { CurrencyAutocomplete } from "../Purchasing/CurrencyAutocomplete";
+import { ProductServiceAutocomplete } from "./ProductServiceAutocomplete";
+import type { MasterProductItem } from "@/services/masterTablesService";
+import { oauthService } from "@/services/oauthService";
 import { GLCodeAutocomplete } from "../Purchasing/GLCodeAutocomplete";
 import { ClassAutocomplete } from "../Purchasing/ClassAutocomplete";
 import { OverridePriceModal } from "./OverridePriceModal";
@@ -468,6 +471,7 @@ export default function GenerateInvoicePage() {
       email: custOption.email || undefined,
       phone: custOption.phone || undefined,
       billing_address: custOption.bill_address || undefined,
+      hubspot_id: custOption.hubspot_id || undefined,
     };
     setSelectedCustomer(cust);
     setCustomerSearch(cust.name);
@@ -479,6 +483,7 @@ export default function GenerateInvoicePage() {
     if (custOption.phone) setBillToPhone(custOption.phone);
     if (custOption.bill_address) setBillToAddress(custOption.bill_address);
     if (custOption.email) setBillToEmail(custOption.email);
+    if (custOption.currency) setCurrency(custOption.currency);
 
     try {
       const template = await arInvoiceService.getCustomerTemplate(custOption.id);
@@ -652,15 +657,45 @@ export default function GenerateInvoicePage() {
 
   const lastProcessedUrlSignatureRef = useRef<string | null>(null);
 
-  // Initial load from URL query params (either specific invoiceId, quoteId or customerId)
+  // Initial load from URL query params (either specific invoiceId, quoteId, customerId or hubspotCompanyId)
   useEffect(() => {
     const invId = searchParams.get("invoiceId");
     const custId = searchParams.get("customerId");
     const qId = searchParams.get("quoteId") || searchParams.get("quote_id") || searchParams.get("fromQuote");
-    const signature = `inv:${invId || ""}|cust:${custId || ""}|q:${qId || ""}`;
+    const hsCompId = searchParams.get("hubspotCompanyId") || searchParams.get("companyId");
+    const signature = `inv:${invId || ""}|cust:${custId || ""}|q:${qId || ""}|hs:${hsCompId || ""}`;
 
     if (lastProcessedUrlSignatureRef.current === signature) return;
     lastProcessedUrlSignatureRef.current = signature;
+
+    if (hsCompId) {
+      setCurrentInvoiceId(null);
+      oauthService.getHubSpotCompanies().then((res) => {
+        const comp = (res?.items || []).find(
+          (c) => c.hubspot_id.toLowerCase() === hsCompId.toLowerCase() || String(c.id) === hsCompId
+        );
+        if (comp) {
+          const cust: ARCustomer = {
+            id: comp.hubspot_id,
+            name: comp.name,
+            display_name: comp.name,
+            contact_person: comp.contact_name || undefined,
+            phone: comp.phone || comp.contact_phone || undefined,
+            email: comp.billing_email || comp.contact_email || undefined,
+            billing_address: comp.address || undefined,
+            hubspot_id: comp.hubspot_id,
+          };
+          setSelectedCustomer(cust);
+          setCustomerSearch(comp.name);
+          setBillToName(comp.name);
+          if (comp.phone || comp.contact_phone) setBillToPhone(comp.phone || comp.contact_phone);
+          if (comp.address) setBillToAddress(comp.address);
+          if (comp.billing_email || comp.contact_email) setBillToEmail(comp.billing_email || comp.contact_email);
+          if (comp.currency) setCurrency(comp.currency);
+          setTemplateLoadedToast(`Loaded HubSpot Company: ${comp.name}`);
+        }
+      }).catch((e) => console.debug("Error loading HubSpot company for invoice:", e));
+    }
 
     if (invId) {
       setCurrentInvoiceId(invId);
@@ -1649,6 +1684,15 @@ export default function GenerateInvoicePage() {
     setLineItems((prev) => {
       const copy = [...prev];
       const item = { ...copy[index], [field]: val };
+      if (field === "currency" && val) {
+        if (index === 0 || !currency || currency === "USD") {
+          setCurrency(val);
+        }
+      }
+
+      if (field === "billing_frequency") {
+        item.billing_type = val;
+      }
 
       if (field === "billing_frequency" || field === "date" || field === "term" || field === "billing_start_date") {
         const itemDate = item.billing_start_date || item.date || invoiceDate;
@@ -1667,13 +1711,14 @@ export default function GenerateInvoicePage() {
       } else {
         item.is_manual_total = false;
         const isItemPaid = (item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid";
+        const effectiveStartDate = item.billing_start_date || item.date || invoiceDate;
         const proration = computeItemProration(
           item.quantity,
           item.unit_price,
           item.unit_discount,
           item.discount_type,
           item.billing_frequency,
-          item.billing_start_date,
+          effectiveStartDate,
           item.tax_rate,
           item.term,
           isItemPaid
@@ -1790,6 +1835,15 @@ export default function GenerateInvoicePage() {
       if (!parent.sub_items) return prev;
       const subs = [...parent.sub_items];
       const sub = { ...subs[subIndex], [field]: val };
+      if (field === "currency" && val) {
+        if (!currency || currency === "USD") {
+          setCurrency(val);
+        }
+      }
+
+      if (field === "billing_frequency") {
+        sub.billing_type = val;
+      }
 
       if (field === "billing_frequency" || field === "date" || field === "term" || field === "billing_start_date") {
         const subDate = sub.billing_start_date || sub.date || parent.billing_start_date || parent.date || invoiceDate;
@@ -1808,13 +1862,14 @@ export default function GenerateInvoicePage() {
       } else {
         sub.is_manual_total = false;
         const isSubPaid = (sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid";
+        const effectiveSubDate = sub.billing_start_date || sub.date || parent.billing_start_date || parent.date || invoiceDate;
         const subProration = computeItemProration(
           sub.quantity,
           sub.unit_price,
           sub.unit_discount,
           sub.discount_type,
           sub.billing_frequency,
-          sub.billing_start_date,
+          effectiveSubDate,
           sub.tax_rate,
           sub.term,
           isSubPaid
@@ -1825,6 +1880,116 @@ export default function GenerateInvoicePage() {
         sub.is_prorated = subProration.isProrated;
       }
       subs[subIndex] = sub;
+      parent.sub_items = subs;
+      copy[parentIndex] = parent;
+      return copy;
+    });
+  };
+
+  const handleSelectProduct = (index: number, product: MasterProductItem) => {
+    const prodCurrency = (product.currency || "").trim();
+    if (prodCurrency) {
+      if (index === 0 || !currency || currency === "USD") {
+        setCurrency(prodCurrency);
+      }
+    }
+
+    setLineItems((prev) => {
+      const copy = [...prev];
+      const prevItem = copy[index] || {};
+      const itemDate = prevItem.billing_start_date || prevItem.date || invoiceDate;
+      const normFreq = product.billing_frequency ? normalizeBillingFrequencyForSelect(product.billing_frequency) : "";
+      const freq = normFreq && normFreq !== "none" ? normFreq : (product.billing_frequency || prevItem.billing_frequency || "One-Time");
+      const term = product.term || prevItem.term || 1;
+      const periods = calculateServicePeriodAndNextBilling(itemDate, freq, term);
+
+      const isItemPaid = (prevItem.status === "Paid" || prevItem.service_status === "Paid") && prevItem.status !== "Unpaid" && prevItem.service_status !== "Unpaid";
+      const proration = computeItemProration(
+        prevItem.quantity || 1,
+        product.price !== undefined && product.price !== null ? product.price : 0,
+        prevItem.unit_discount || "",
+        prevItem.discount_type || "%",
+        freq,
+        prevItem.billing_start_date,
+        product.tax_rate || prevItem.tax_rate || "",
+        term,
+        isItemPaid
+      );
+
+      copy[index] = {
+        ...prevItem,
+        activity: product.name,
+        name: product.name,
+        description: product.description || prevItem.description || "",
+        unit_price: product.price !== undefined && product.price !== null ? product.price : 0,
+        currency: prodCurrency || prevItem.currency || currency || "USD",
+        billing_frequency: freq,
+        billing_type: freq,
+        term: term,
+        tax_rate: product.tax_rate || prevItem.tax_rate || "",
+        service_period: periods.service_period,
+        next_billing_date: periods.next_billing_date,
+        total: proration.amount,
+        calculation: proration.formulaString,
+        badge: proration.badge,
+        is_prorated: proration.isProrated,
+      };
+      return copy;
+    });
+  };
+
+  const handleSelectSubProduct = (parentIndex: number, subIndex: number, product: MasterProductItem) => {
+    const prodCurrency = (product.currency || "").trim();
+    if (prodCurrency) {
+      if (!currency || currency === "USD") {
+        setCurrency(prodCurrency);
+      }
+    }
+
+    setLineItems((prev) => {
+      const copy = [...prev];
+      const parent = { ...copy[parentIndex] };
+      if (!parent.sub_items) return prev;
+      const subs = [...parent.sub_items];
+      const sub = { ...subs[subIndex] };
+      const subDate = sub.billing_start_date || sub.date || parent.billing_start_date || parent.date || invoiceDate;
+      const normFreq = product.billing_frequency ? normalizeBillingFrequencyForSelect(product.billing_frequency) : "";
+      const freq = normFreq && normFreq !== "none" ? normFreq : (product.billing_frequency || sub.billing_frequency || parent.billing_frequency || "Monthly");
+      const term = product.term || sub.term || 1;
+      const periods = calculateServicePeriodAndNextBilling(subDate, freq, term);
+
+      const isSubPaid = (sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid";
+      const subProration = computeItemProration(
+        sub.quantity || 1,
+        product.price !== undefined && product.price !== null ? product.price : 0,
+        sub.unit_discount || "",
+        sub.discount_type || "%",
+        freq,
+        sub.billing_start_date,
+        product.tax_rate || sub.tax_rate || "",
+        term,
+        isSubPaid
+      );
+
+      subs[subIndex] = {
+        ...sub,
+        activity: product.name,
+        name: product.name,
+        title: product.name,
+        description: product.description || sub.description || "",
+        unit_price: product.price !== undefined && product.price !== null ? product.price : 0,
+        currency: prodCurrency || sub.currency || parent.currency || currency || "USD",
+        billing_frequency: freq,
+        billing_type: freq,
+        term: term,
+        tax_rate: product.tax_rate || sub.tax_rate || "",
+        service_period: periods.service_period,
+        next_billing_date: periods.next_billing_date,
+        total: subProration.amount,
+        calculation: subProration.formulaString,
+        badge: subProration.badge,
+        is_prorated: subProration.isProrated,
+      };
       parent.sub_items = subs;
       copy[parentIndex] = parent;
       return copy;
@@ -3513,13 +3678,14 @@ export default function GenerateInvoicePage() {
                 <tbody className="divide-y divide-border text-[12px]">
                   {lineItems.map((item, idx) => {
                     const isItemPaid = (item.status === "Paid" || item.service_status === "Paid") && item.status !== "Unpaid" && item.service_status !== "Unpaid";
+                    const effectiveStartDate = item.billing_start_date || item.date || invoiceDate;
                     const parentProration = computeItemProration(
                       item.quantity,
                       item.unit_price,
                       item.unit_discount,
                       item.discount_type,
                       item.billing_frequency,
-                      item.billing_start_date,
+                      effectiveStartDate,
                       item.tax_rate,
                       item.term,
                       isItemPaid
@@ -3591,14 +3757,15 @@ export default function GenerateInvoicePage() {
                           {/* Activity Name & Description */}
                           <td className="py-2 px-3 space-y-1 align-top">
                             <div className="flex items-center gap-1.5">
-                              <Input
-                                type="text"
+                              <ProductServiceAutocomplete
                                 value={item.activity || item.name || ""}
-                                onChange={(e) => {
-                                  handleUpdateLine(idx, "activity", e.target.value);
-                                  handleUpdateLine(idx, "name", e.target.value);
+                                onChange={(val) => {
+                                  handleUpdateLine(idx, "activity", val);
+                                  handleUpdateLine(idx, "name", val);
                                 }}
+                                onSelectProduct={(product) => handleSelectProduct(idx, product)}
                                 placeholder="Activity / Item name..."
+                                companyId={selectedCustomer?.hubspot_id || selectedCustomer?.name || selectedCustomer?.id}
                                 className="text-xs h-7 font-medium flex-1"
                               />
                               {isItemPaid ? (
@@ -3651,9 +3818,9 @@ export default function GenerateInvoicePage() {
                                 )}
                               </div>
                             )}
-                            {parentProration.isProrated && parentProration.formulaString && (
+                            {(parentProration.formulaString || item.calculation) && (
                               <div className="text-[11px] text-blue-600 dark:text-blue-400 italic font-mono mt-0.5 tracking-tight break-words">
-                                Formula: {parentProration.formulaString}
+                                Formula: {parentProration.formulaString || item.calculation}
                               </div>
                             )}
                           </td>
@@ -3812,13 +3979,14 @@ export default function GenerateInvoicePage() {
                         {/* Indented Sub-items / Prorated Charges under this parent activity */}
                         {item.sub_items && item.sub_items.map((sub, sIdx) => {
                           const isSubPaid = (sub.status === "Paid" || sub.service_status === "Paid") && sub.status !== "Unpaid" && sub.service_status !== "Unpaid";
+                          const effectiveSubDate = sub.billing_start_date || sub.date || item.billing_start_date || item.date || invoiceDate;
                           const subProration = computeItemProration(
                             sub.quantity,
                             sub.unit_price,
                             sub.unit_discount,
                             sub.discount_type,
                             sub.billing_frequency,
-                            sub.billing_start_date,
+                            effectiveSubDate,
                             sub.tax_rate,
                             sub.term,
                             isSubPaid
@@ -3892,14 +4060,15 @@ export default function GenerateInvoicePage() {
                               <td className="py-1.5 px-3 align-top space-y-1">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-blue-500 font-mono text-xs leading-none shrink-0">└──</span>
-                                  <Input
-                                    type="text"
+                                  <ProductServiceAutocomplete
                                     value={sub.activity || sub.name || ""}
-                                    onChange={(e) => {
-                                      handleUpdateSubItem(idx, sIdx, "activity", e.target.value);
-                                      handleUpdateSubItem(idx, sIdx, "name", e.target.value);
+                                    onChange={(val) => {
+                                      handleUpdateSubItem(idx, sIdx, "activity", val);
+                                      handleUpdateSubItem(idx, sIdx, "name", val);
                                     }}
+                                    onSelectProduct={(product) => handleSelectSubProduct(idx, sIdx, product)}
                                     placeholder="Prorated charge / sub-item name..."
+                                    companyId={selectedCustomer?.hubspot_id || selectedCustomer?.name || selectedCustomer?.id}
                                     className="text-xs h-6 font-medium bg-card flex-1"
                                   />
                                   {isSubPaid ? (
@@ -3956,7 +4125,7 @@ export default function GenerateInvoicePage() {
                                       )}
                                     </div>
                                   )}
-                                  {subProration.isProrated && activeFormula && (
+                                  {(activeFormula || subProration.formulaString) && (
                                     <div className="text-[11px] text-blue-600 dark:text-blue-400 italic font-mono tracking-tight break-words">
                                       Formula: {activeFormula}
                                     </div>
@@ -4678,9 +4847,9 @@ export default function GenerateInvoicePage() {
                                     )}
                                   </div>
                                 )}
-                                {parentProration.isProrated && parentProration.formulaString && (
+                                {(parentProration.formulaString || item.calculation) && (
                                   <div className="text-[10px] text-blue-600 italic font-mono mt-0.5 tracking-tight break-words">
-                                    Formula: {parentProration.formulaString}
+                                    Formula: {parentProration.formulaString || item.calculation}
                                   </div>
                                 )}
                               </div>
@@ -4819,7 +4988,7 @@ export default function GenerateInvoicePage() {
                                         )}
                                       </div>
                                     )}
-                                    {subProration.isProrated && activeFormula && (
+                                    {(activeFormula || subProration.formulaString) && (
                                       <div className="pl-4 text-[10px] text-blue-600 italic font-mono mt-0.5 tracking-tight break-words">
                                         Formula: {activeFormula}
                                       </div>
@@ -5175,9 +5344,9 @@ export default function GenerateInvoicePage() {
                                     )}
                                   </div>
                                 )}
-                                {parentProration.isProrated && parentProration.formulaString && (
+                                {(parentProration.formulaString || item.calculation) && (
                                   <div className="text-[10px] text-teal-800 italic font-mono mt-0.5 tracking-tight break-words">
-                                    Formula: {parentProration.formulaString}
+                                    Formula: {parentProration.formulaString || item.calculation}
                                   </div>
                                 )}
                               </div>
@@ -5316,7 +5485,7 @@ export default function GenerateInvoicePage() {
                                         )}
                                       </div>
                                     )}
-                                    {subProration.isProrated && activeFormula && (
+                                    {(activeFormula || subProration.formulaString) && (
                                       <div className="pl-4 text-[10px] text-teal-800 italic font-mono mt-0.5 tracking-tight break-words">
                                         Formula: {activeFormula}
                                       </div>

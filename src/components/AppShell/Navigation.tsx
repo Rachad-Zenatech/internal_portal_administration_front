@@ -116,6 +116,9 @@ export const navigation = [
       { label: "Group Projects", path: "/configurations/projects", navigationCode: "CONFIG_CHART_OF_ACCOUNTS" },
       { label: "Locations", path: "/configurations/locations", navigationCode: "CONFIG_CHART_OF_ACCOUNTS" },
       { label: "Classes", path: "/configurations/classes", navigationCode: "CONFIG_CHART_OF_ACCOUNTS" },
+      { label: "Companies", path: "/configurations/companies", navigationCode: "CONFIG_COMPANIES" },
+      { label: "Products & Services", path: "/configurations/products", navigationCode: "CONFIG_CHART_OF_ACCOUNTS" },
+      { label: "OAuth Configuration", path: "/configurations/oauth", navigationCode: "CONFIG_USERS" },
     ]
   },
   {
