@@ -446,7 +446,7 @@ export default function RequestDetail() {
     const message =
       status === 401 ? "Your session has expired. Redirecting to login..." :
       status === 403 ? "You don't have permission to view this request." :
-      status === 404 || !isError ? "Request not found." :
+      status === 404 || !isError ? "This request doesn't exist, has been deleted, or you don't have access to it." :
       "Could not load this request. Please try again.";
     const canRetry = isError && status !== 401 && status !== 403 && status !== 404;
     return (

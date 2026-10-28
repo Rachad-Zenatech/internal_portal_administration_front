@@ -29,11 +29,14 @@ export function handleUnauthorized(res: Response): void {
   if (window.location.pathname.startsWith("/login")) return;
 
   sessionExpiryHandled = true;
+  // Only say "your session has expired" if this tab was actually signed in. Someone opening
+  // a link (e.g. from an email) while signed out just needs to sign in.
+  const wasSignedIn = Boolean(sessionStorage.getItem("token"));
   sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, window.location.pathname + window.location.search);
   sessionStorage.removeItem("token");
   sessionStorage.removeItem("user");
   sessionStorage.removeItem("ms_id_token");
-  window.location.assign(`/login?reason=${SESSION_EXPIRED_REASON}`);
+  window.location.assign(wasSignedIn ? `/login?reason=${SESSION_EXPIRED_REASON}` : "/login");
 }
 
 export async function handleResponse<T>(res: Response): Promise<T> {
@@ -48,5 +51,14 @@ export async function handleResponse<T>(res: Response): Promise<T> {
     throw new ApiError((detail as string) || "Request failed", res.status);
   }
   if (res.status === 204) return null as unknown as T;
+  // CloudFront replaces API 403/404 responses with the SPA's index.html (as 200 OK).
+  // The API never returns HTML, so treat it as "not found or no access" instead of a JSON parse error.
+  if ((res.headers.get("content-type") || "").includes("text/html")) {
+    throw new ApiError(
+      "This item doesn't exist, was deleted, or you don't have access to it.",
+      404,
+      "NOT_FOUND_OR_NO_ACCESS",
+    );
+  }
   return res.json() as Promise<T>;
 }

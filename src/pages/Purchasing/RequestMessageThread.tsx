@@ -382,8 +382,8 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
                       </div>
                     </div>
 
-                    {/* Subject if any */}
-                    {msg.subject && (
+                    {/* Subject if any (secure request cards already show it as their title) */}
+                    {msg.subject && !msg.secure_request && (
                       <div className="mt-2.5 text-xs font-semibold text-slate-800 dark:text-zinc-200">
                         {msg.subject}
                       </div>

@@ -15,7 +15,6 @@ import {
   Clock,
   KeyRound,
   Ban,
-  Phone,
   MessageSquare,
   Smartphone,
 } from "lucide-react";
@@ -57,10 +56,6 @@ const SECRET_FIELD_RE = /pass|secret|pin|token|key/i;
 /** Teams deep links (open the Teams app or web client). Only an email address goes in the link. */
 function teamsChatUrl(email: string, message: string): string {
   return `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(email)}&message=${encodeURIComponent(message)}`;
-}
-
-function teamsCallUrl(email: string): string {
-  return `https://teams.microsoft.com/l/call/0/0?users=${encodeURIComponent(email)}`;
 }
 
 /** True when a regular message looks like it contains a password, so we can suggest the secure form. */
@@ -562,7 +557,7 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
   const requesterName = summary.requested_from_name || "the requester";
   const otherEmail = viewerIsAdmin ? summary.requested_from_email : viewerIsRequester ? summary.requested_by_email : null;
   const teamsMessage = viewerIsAdmin
-    ? `Hi, I'm signing in to the account for Request #${requestId} (${summary.purpose}). It may ask for a verification code. Can you jump on a quick call so you can approve it?`
+    ? `Hi, I'm signing in to the account for Request #${requestId} (${summary.purpose}). It may ask for a verification code. Let me know when you're free to approve it.`
     : `Hi, about Request #${requestId} (${summary.purpose}): I'm ready for the verification step whenever you sign in.`;
   const twoFaNote = viewerIsAdmin
     ? `This account may ask for a verification code. Contact ${requesterName} on Teams when you sign in so they can approve it or complete that step live. Never ask for codes in the portal, email or chat.`
@@ -634,13 +629,6 @@ export const SecureInfoRequestCard: React.FC<SecureInfoRequestCardProps> = ({ re
           </div>
           {otherEmail && (
             <div className="flex flex-wrap gap-2 pl-5">
-              {viewerIsAdmin && (
-                <Button asChild size="sm" variant="outline" className="h-7 text-xs gap-1.5">
-                  <a href={teamsCallUrl(otherEmail)} target="_blank" rel="noopener noreferrer">
-                    <Phone className="h-3 w-3" /> Call {requesterName} on Teams
-                  </a>
-                </Button>
-              )}
               <Button asChild size="sm" variant="outline" className="h-7 text-xs gap-1.5">
                 <a href={teamsChatUrl(otherEmail, teamsMessage)} target="_blank" rel="noopener noreferrer">
                   <MessageSquare className="h-3 w-3" /> Message {viewerIsAdmin ? requesterName : requestedBy} on Teams
