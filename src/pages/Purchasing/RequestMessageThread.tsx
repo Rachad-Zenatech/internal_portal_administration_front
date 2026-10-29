@@ -12,10 +12,11 @@ import {
   Info,
   Check,
   Lock,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
-import { postRequestMessage } from "@/services/purchasingService";
+import { deleteRequestMessage, postRequestMessage } from "@/services/purchasingService";
 import { RequestAccountDetailsDialog, SecureInfoRequestCard, looksLikeCredential } from "./SecureInfoRequest";
 import type { RequestDetail, RequestMessageItem } from "@/types/purchasing";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -64,9 +65,29 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
   const [secureDialogOpen, setSecureDialogOpen] = useState(false);
   const [credentialWarningAck, setCredentialWarningAck] = useState(false);
   const showCredentialWarning = looksLikeCredential(messageText) && !credentialWarningAck;
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  // Determine last message status for banner
-  const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+  const handleDeleteMessage = async (msg: RequestMessageItem) => {
+    const ok = window.confirm(
+      "Delete this message for everyone? Its text will be removed from the thread and the request history. " +
+        "Emails that were already sent can't be recalled.",
+    );
+    if (!ok) return;
+    setDeletingId(msg.id);
+    try {
+      await deleteRequestMessage(request.id, msg.id);
+      toast.success("Message deleted.");
+      await refetch();
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message || "Could not delete the message.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // Determine last message status for banner (deleted messages don't count)
+  const liveMessages = messages.filter((m) => !m.deleted_at);
+  const lastMessage = liveMessages.length > 0 ? liveMessages[liveMessages.length - 1] : null;
   const isAwaitingRequesterReply =
     lastMessage && lastMessage.message_type === "REQUEST_INFO" && lastMessage.sender_role !== "Requester";
   const isReplyReceived = lastMessage && lastMessage.message_type === "REPLY";
@@ -363,8 +384,22 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
                         </div>
                       </div>
 
-                      {/* Email Notification Status */}
-                      <div className="shrink-0 flex items-center">
+                      {/* Email Notification Status + delete */}
+                      <div className="shrink-0 flex items-center gap-1.5">
+                        {msg.can_delete && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-slate-400 hover:text-red-600"
+                            aria-label="Delete message"
+                            title="Delete message"
+                            disabled={deletingId === msg.id}
+                            onClick={() => handleDeleteMessage(msg)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         {msg.email_sent ? (
                           <div
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
@@ -390,7 +425,14 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
                     )}
 
                     {/* Message Body (secure requests render as a card; the text holds no secrets either way) */}
-                    {msg.secure_request ? (
+                    {msg.deleted_at ? (
+                      <div className="mt-2 pl-12 text-sm italic text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
+                        <Trash2 className="h-3.5 w-3.5" />
+                        This message was deleted
+                        {msg.deleted_by_name ? ` by ${msg.deleted_by_name}` : ""} on{" "}
+                        {format(new Date(msg.deleted_at), "MMM d, yyyy 'at' h:mm a")}.
+                      </div>
+                    ) : msg.secure_request ? (
                       <SecureInfoRequestCard requestId={request.id} summary={msg.secure_request} refetch={refetch} />
                     ) : (
                       <div className="mt-2 text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap break-words pl-12 sm:pl-12">

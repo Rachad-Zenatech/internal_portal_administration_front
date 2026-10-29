@@ -75,6 +75,11 @@ export function postRequestMessage(id: string, payload: RequestMessageCreate) {
   return apiClient.post<RequestMessageItem>(`${BASE}/requests/${id}/messages`, payload);
 }
 
+/** Delete a thread message (sender or super admin). Its text is wiped; a "deleted" marker stays. */
+export function deleteRequestMessage(id: string, messageId: number) {
+  return apiClient.delete<void>(`${BASE}/requests/${id}/messages/${messageId}`);
+}
+
 // ─── Secure info requests (account credentials) ───
 export function createSecureInfoRequest(id: string, payload: SecureInfoRequestCreate) {
   return apiClient.post<RequestMessageItem>(`${BASE}/requests/${id}/secure-requests`, payload);

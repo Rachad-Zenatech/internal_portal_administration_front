@@ -298,6 +298,10 @@ export type RequestMessageItem = {
   email_sent: boolean;
   created_at: string;
   secure_request?: SecureInfoRequestSummary | null;
+  /** Deleted messages keep their place in the thread; their text is wiped. */
+  deleted_at?: string | null;
+  deleted_by_name?: string | null;
+  can_delete?: boolean;
 };
 
 /** Status of a secure account-details request. Never contains the submitted values. */
