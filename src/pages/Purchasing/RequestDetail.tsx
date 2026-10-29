@@ -734,7 +734,9 @@ export default function RequestDetail() {
     if (meta.form === "approval") {
       const effectiveAmount = Number(data?.request?.amount || data?.purchase_order?.amount || data?.invoice?.amount || 0);
       const isLevel1 = (data?.request?.current_approval_level || 1) === 1;
-      const defaultPassToL2 = action === "APPROVE" && isLevel1 && effectiveAmount >= 10000;
+      // requires_second_level covers requests that cross $10k only once tax is added.
+      const needsL2 = Boolean(data?.request?.requires_second_level) || effectiveAmount >= 10000;
+      const defaultPassToL2 = action === "APPROVE" && isLevel1 && needsL2;
       setApproval({ approver: user?.id || "", comment: "", pass_to_level_2: defaultPassToL2 });
     }
     setConfirmGoods({ description: "" });
@@ -758,6 +760,8 @@ export default function RequestDetail() {
           item_url: po.item_url || request.item_url || undefined,
           expected_delivery_date: po.expected_delivery_date?.trim() || undefined,
           items: isMulti ? poItems : undefined,
+          // Tax counts toward the $10k Level 2 threshold (backend uses at least its minimum rate).
+          estimated_tax_rate: poTax.rate,
         },
       });
     } else if (kind === "invoice") {
@@ -4032,7 +4036,7 @@ export default function RequestDetail() {
                   </Select>
                 </div>
 
-                {activeForm.action === "APPROVE" && (data?.request?.current_approval_level || 1) === 1 && Number(data?.request?.amount || data?.purchase_order?.amount || data?.invoice?.amount || 0) >= 10000 && (
+                {activeForm.action === "APPROVE" && (data?.request?.current_approval_level || 1) === 1 && (Boolean(data?.request?.requires_second_level) || Number(data?.request?.amount || data?.purchase_order?.amount || data?.invoice?.amount || 0) >= 10000) && (
                   <div className="p-3 bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/60 rounded-xl space-y-1.5">
                     <div className="flex items-center space-x-2.5">
                       <Checkbox
@@ -4046,7 +4050,7 @@ export default function RequestDetail() {
                       >
                         <span>Pass to Level 2 Approver (Company Approver)</span>
                         <Badge variant="outline" className="text-[10px] bg-purple-100/80 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 border-purple-300">
-                          ≥ $10,000
+                          ≥ $10,000 incl. tax
                         </Badge>
                       </label>
                     </div>

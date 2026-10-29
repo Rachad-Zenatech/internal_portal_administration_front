@@ -885,6 +885,8 @@ export function PurchaseRequests() {
           amount: Number(apWireForm.amount) || 0,
           vendor: apWireForm.vendor || effectiveTitle,
         } : undefined,
+        // Tax counts toward the $10k Level 2 threshold (backend uses at least its minimum rate).
+        estimated_tax_rate: taxEstimate?.rateDecimal ?? undefined,
       };
 
       const detail = await createMutation.mutateAsync(payload);

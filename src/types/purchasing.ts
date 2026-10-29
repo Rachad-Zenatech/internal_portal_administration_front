@@ -430,6 +430,8 @@ export type RequestCreateInput = {
   due_date?: string | null;
   recurring_schedule?: RecurringSchedule | null;
   wire_transfer?: WireTransferInput;
+  /** Estimated sales tax rate shown on the form (0.13 = 13%); counts toward the $10k Level 2 threshold. */
+  estimated_tax_rate?: number;
 };
 
 export type PurchaseOrderInput = {
@@ -448,6 +450,8 @@ export type PurchaseOrderInput = {
   shipped_to_location?: string | null;
   gl_code?: string | null;
   items?: any[] | null;
+  /** Estimated sales tax rate for this PO; counts toward the $10k Level 2 threshold. */
+  estimated_tax_rate?: number;
 };
 
 export type InvoiceItemInput = {
