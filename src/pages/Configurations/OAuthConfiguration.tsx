@@ -32,6 +32,7 @@ import {
   Paperclip,
   Inbox,
   Settings,
+  LogIn,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,7 @@ export default function OAuthConfiguration() {
   const [isLoadingEntraStatus, setIsLoadingEntraStatus] = useState(true);
   const [isTestingEntra, setIsTestingEntra] = useState(false);
   const [isDisconnectingEntra, setIsDisconnectingEntra] = useState(false);
+  const [isSigningInEntra, setIsSigningInEntra] = useState(false);
   const [isSavingEntraConfig, setIsSavingEntraConfig] = useState(false);
 
   // Microsoft Entra Form State
@@ -351,6 +353,29 @@ export default function OAuthConfiguration() {
       toast.error(err?.response?.data?.detail || "Microsoft Entra connection test failed");
     } finally {
       setIsTestingEntra(false);
+    }
+  };
+
+  const handleSignInEntra = async () => {
+    try {
+      setIsSigningInEntra(true);
+      const res = await oauthService.getMicrosoftEntraAuthUrl();
+      if (!res.auth_url) throw new Error("No authorization URL returned.");
+
+      const width = 560;
+      const height = 700;
+      const left = window.screen.width / 2 - width / 2;
+      const top = window.screen.height / 2 - height / 2;
+      const popup = window.open(
+        res.auth_url,
+        "Microsoft Entra Sign In",
+        `width=${width},height=${height},top=${top},left=${left},status=yes,scrollbars=yes`
+      );
+      if (!popup) window.location.href = res.auth_url;
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || err.message || "Failed to generate Microsoft sign-in URL");
+    } finally {
+      setIsSigningInEntra(false);
     }
   };
 
@@ -1225,6 +1250,17 @@ export default function OAuthConfiguration() {
                 >
                   {isLoadingEmails ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Inbox className="w-3.5 h-3.5" />}
                   <span>Sync Emails</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSignInEntra}
+                  disabled={isSigningInEntra}
+                  className="text-xs h-9 gap-1.5"
+                >
+                  {isSigningInEntra ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5 text-blue-600" />}
+                  <span>Sign in with Microsoft</span>
                 </Button>
 
                 <Button

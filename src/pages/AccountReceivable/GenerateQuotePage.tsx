@@ -518,6 +518,17 @@ export default function GenerateQuotePage() {
     });
   };
 
+  const handleClearLineItem = (index: number) => {
+    setLineItems((prev) => {
+      const next = [...prev];
+      next[index] = {
+        ...createEmptyQuoteLineItem(),
+        currency: next[index]?.currency || currency || "USD",
+      };
+      return next;
+    });
+  };
+
   const handleSelectProduct = (index: number, product: MasterProductItem) => {
     const prodCurrency = (product.currency || "").trim();
     if (prodCurrency) {
@@ -1294,6 +1305,7 @@ export default function GenerateQuotePage() {
                             value={itm.name}
                             onChange={(val) => handleLineItemChange(i, "name", val)}
                             onSelectProduct={(product) => handleSelectProduct(i, product)}
+                            onClear={() => handleClearLineItem(i)}
                             placeholder="Item name..."
                             companyId={customerId || clientCompanyName}
                             className="h-7 text-xs border-slate-200 focus:border-amber-500 bg-transparent px-2"

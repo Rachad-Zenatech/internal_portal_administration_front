@@ -804,7 +804,7 @@ export default function AccountReceivablePage() {
             }`}
           >
             <Building2 className={`w-3.5 h-3.5 ${activeTab === "hubspot_companies" ? "text-white" : "text-orange-500"}`} />
-            <span>HubSpot Companies</span>
+            <span>A/R Companies</span>
             <Badge
               variant="secondary"
               className={`text-[10px] px-1.5 py-0 h-4 border-none font-bold ${
@@ -1456,7 +1456,7 @@ export default function AccountReceivablePage() {
           </div>
         )}
 
-        {/* TAB: HUBSPOT COMPANIES & TEMPLATES */}
+        {/* TAB: A/R COMPANIES & TEMPLATES */}
         {activeTab === "hubspot_companies" && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
@@ -1466,7 +1466,7 @@ export default function AccountReceivablePage() {
                     <Building2 className="w-4 h-4" />
                   </span>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>HubSpot Companies CRM &amp; Profiles</span>
+                    <span>A/R Companies &amp; Profiles</span>
                     <Badge className="bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/60 dark:text-orange-300 text-[10px] font-semibold">
                       Live HubSpot Sync
                     </Badge>
@@ -1500,15 +1500,15 @@ export default function AccountReceivablePage() {
             {isHubspotCompaniesLoading ? (
               <div className="p-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800">
                 <Loader2 className="w-6 h-6 animate-spin mx-auto text-orange-500 mb-2" />
-                <span className="text-xs">Loading HubSpot companies...</span>
+                <span className="text-xs">Loading A/R companies...</span>
               </div>
             ) : hubspotCompanies.length === 0 ? (
               <div className="p-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
                 <Building2 className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700" />
                 <p className="text-xs">
                   {debouncedHubspotSearch
-                    ? "No HubSpot companies found matching your search."
-                    : "No HubSpot companies synced yet."}
+                    ? "No A/R companies found matching your search."
+                    : "No A/R companies synced yet."}
                 </p>
                 <Button
                   size="sm"

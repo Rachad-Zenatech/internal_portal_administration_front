@@ -10,6 +10,8 @@ interface ProductServiceAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   onSelectProduct?: (product: MasterProductItem) => void;
+  /** Called when the clear button is pressed, so the caller can reset the rest of the line. */
+  onClear?: () => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -23,7 +25,8 @@ export function ProductServiceAutocomplete({
   value,
   onChange,
   onSelectProduct,
-  placeholder = "Item / Service name...",
+  onClear,
+  placeholder ="Item / Service name...",
   disabled = false,
   className = "",
   id,
@@ -226,7 +229,8 @@ export function ProductServiceAutocomplete({
           onClick={(e) => {
             e.stopPropagation();
             setInputValue("");
-            onChange("");
+            if (onClear) onClear();
+            else onChange("");
             setOpen(false);
             inputRef.current?.focus();
           }}

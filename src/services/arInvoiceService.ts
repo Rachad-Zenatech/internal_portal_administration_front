@@ -11,6 +11,7 @@ export interface ARCustomer {
   has_template?: boolean;
   hubspot_id?: string;
   is_hubspot?: boolean;
+  brand?: string | null;
   domain?: string | null;
   currency?: string | null;
 }
