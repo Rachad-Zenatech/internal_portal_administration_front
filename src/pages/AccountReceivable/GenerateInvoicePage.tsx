@@ -692,7 +692,7 @@ export default function GenerateInvoicePage() {
           if (comp.address) setBillToAddress(comp.address);
           if (comp.billing_email || comp.contact_email) setBillToEmail(comp.billing_email || comp.contact_email);
           if (comp.currency) setCurrency(comp.currency);
-          setTemplateLoadedToast(`Loaded HubSpot Company: ${comp.name}`);
+          setTemplateLoadedToast(`Loaded A/R Company: ${comp.name}`);
         }
       }).catch((e) => console.debug("Error loading HubSpot company for invoice:", e));
     }

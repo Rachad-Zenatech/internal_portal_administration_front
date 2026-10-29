@@ -30,6 +30,7 @@ export interface ARCustomerOption {
   is_active?: boolean;
   hubspot_id?: string | null;
   is_hubspot?: boolean;
+  brand?: string | null;
   domain?: string | null;
   currency?: string | null;
   banking_details?: {
@@ -138,6 +139,7 @@ export function ARCustomerAutocomplete({
     is_active: true,
     hubspot_id: c.hubspot_id ?? null,
     is_hubspot: !!c.is_hubspot,
+    brand: c.brand || null,
     domain: c.domain || null,
     currency: c.currency || null,
   });
@@ -492,11 +494,15 @@ export function ARCustomerAutocomplete({
                         <span className="font-bold text-foreground truncate">
                           {cust.display_name}
                         </span>
-                        {cust.is_hubspot && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300">
-                            HubSpot
-                          </span>
-                        )}
+                        {cust.brand &&
+                          cust.brand.split(",").map((b) => b.trim()).filter(Boolean).map((b) => (
+                            <span
+                              key={b}
+                              className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300"
+                            >
+                              {b}
+                            </span>
+                          ))}
                         <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground border border-border/60">
                           {cust.id}
                         </span>
