@@ -4,11 +4,11 @@ import { AuthProvider } from "./lib/AuthContext";
 import { ShieldAlert, ArrowLeft } from "lucide-react";
 import { Button } from "./components/ui/button";
 
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute from "./components/common/ProtectedRoute";
 
 const AppShell = lazy(() => import("./components/AppShell/AppShell"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const UploadFile = lazy(() => import("./pages/UploadFiles"));
+const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
+const UploadFile = lazy(() => import("./pages/UploadFiles/UploadFiles"));
 const Users = lazy(() => import("./pages/Configurations/Users"));
 const Roles = lazy(() => import("./pages/Configurations/Roles"));
 const UserRoleAssignment = lazy(() => import("./pages/Configurations/UserRoleAssignment"));
@@ -26,7 +26,7 @@ const ProductsServices = lazy(() => import("./pages/Configurations/ProductsServi
 const OAuthConfiguration = lazy(() => import("./pages/Configurations/OAuthConfiguration"));
 const Companies = lazy(() => import("./pages/Configurations/Companies"));
 
-const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
+const AuditLog = lazy(() => import("./pages/Logs/AuditLog"));
 const PurchaseRequests = lazy(() => import("./pages/Purchasing/PurchaseRequests"));
 const RequestDetail = lazy(() => import("./pages/Purchasing/RequestDetail"));
 const Invoices = lazy(() => import("./pages/Purchasing/Invoices"));
@@ -38,8 +38,8 @@ const GenerateInvoicePage = lazy(() => import("./pages/AccountReceivable/Generat
 const GenerateQuotePage = lazy(() => import("./pages/AccountReceivable/GenerateQuotePage"));
 const QuoteDetailPage = lazy(() => import("./pages/AccountReceivable/QuoteDetailPage"));
 const WorkflowDetailPage = lazy(() => import("./pages/AccountReceivable/WorkflowDetailPage"));
-const Login = lazy(() => import("./pages/Login"));
-const PendingAccess = lazy(() => import("./pages/PendingAccess"));
+const Login = lazy(() => import("./pages/Auth/Login"));
+const PendingAccess = lazy(() => import("./pages/Auth/PendingAccess"));
 
 // Order System Pages
 const SystemLogsPage = lazy(() => import("./pages/Logs/SystemLogsPage"));

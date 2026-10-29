@@ -114,7 +114,7 @@ import { EditCombinedRequestDialog } from "./EditCombinedRequestDialog";
 import { ConvertToRecurringDialog } from "./ConvertToRecurringDialog";
 import { WireTransferDialog } from "./WireTransferDialog";
 import { useAuth } from "@/lib/AuthContext";
-import Stepper from "@/components/Stepper";
+import Stepper from "@/components/common/Stepper";
 import { RequestStatus } from "@/types/purchasing";
 import type {
   PurchaseOrderInput,

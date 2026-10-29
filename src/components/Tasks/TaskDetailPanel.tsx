@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Trash2, Edit2, Paperclip, ExternalLink, FileText, Package, ReceiptText, AlertTriangle, User, Building2, Tag, Layers } from "lucide-react";
-import Stepper from "@/components/Stepper";
+import Stepper from "@/components/common/Stepper";
 import { RequestStatus } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import HelpIcon from "@/components/ui/HelpIcon";
