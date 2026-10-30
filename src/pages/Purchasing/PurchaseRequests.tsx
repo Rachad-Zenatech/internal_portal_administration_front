@@ -371,11 +371,21 @@ export function PurchaseRequests() {
   const [quoteExtraction, setQuoteExtraction] = useState<QuoteExtractionResponse | null>(null);
   const quoteFileInputRef = useRef<HTMLInputElement | null>(null);
   const [quoteItems, setQuoteItems] = useState<PurchaseRequestItem[]>([]);
+  const itemUrlExtractionTimeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const lastExtractedItemUrlsRef = useRef<Map<number, string>>(new Map());
   const [shippingFee, setShippingFee] = useState<number>(0);
   const [taxFee, setTaxFee] = useState<number>(0);
   const [isFullScreenTable, setIsFullScreenTable] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [isQBExportOpen, setIsQBExportOpen] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      for (const timeout of itemUrlExtractionTimeoutsRef.current.values()) {
+        clearTimeout(timeout);
+      }
+    };
+  }, []);
 
   // File Preview Modal State
   const [previewTarget, setPreviewTarget] = useState<PreviewFileTarget | null>(null);
@@ -655,19 +665,24 @@ export function PurchaseRequests() {
   };
 
   const handleItemUrlExtraction = async (index: number, description: string) => {
-    const urlMatch = description.match(/(?:https?:\/\/|www\.)[^\s<]+/i);
+    const urlMatch = description.match(
+      /(?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<]*)?/i,
+    );
     const url = urlMatch?.[0].replace(/[),.;!?]+$/, "");
     if (!url) return;
 
     const initialItem = quoteItems[index];
     if (!initialItem) return;
     const initialPrice = Number(initialItem.unit_price) || 0;
-    const normalizedUrl = url.startsWith("www.") ? `https://${url}` : url;
+    const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    if (lastExtractedItemUrlsRef.current.get(index) === normalizedUrl) return;
 
+    lastExtractedItemUrlsRef.current.set(index, normalizedUrl);
     try {
       const product = await extractProductInfoFromUrl(normalizedUrl);
       const extractedPrice = Number.parseFloat(product.price);
       if (!Number.isFinite(extractedPrice) || extractedPrice <= 0) {
+        lastExtractedItemUrlsRef.current.delete(index);
         toast.error("Could not extract a price from the item link.");
         return;
       }
@@ -694,8 +709,29 @@ export function PurchaseRequests() {
         return next;
       });
     } catch (err) {
+      lastExtractedItemUrlsRef.current.delete(index);
       toast.error(err instanceof Error ? err.message : "Failed to extract item price from link.");
     }
+  };
+
+  const scheduleItemUrlExtraction = (index: number, description: string) => {
+    const existingTimeout = itemUrlExtractionTimeoutsRef.current.get(index);
+    if (existingTimeout) clearTimeout(existingTimeout);
+
+    const timeout = setTimeout(() => {
+      itemUrlExtractionTimeoutsRef.current.delete(index);
+      void handleItemUrlExtraction(index, description);
+    }, 700);
+    itemUrlExtractionTimeoutsRef.current.set(index, timeout);
+  };
+
+  const extractItemUrlOnBlur = (index: number, description: string) => {
+    const existingTimeout = itemUrlExtractionTimeoutsRef.current.get(index);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      itemUrlExtractionTimeoutsRef.current.delete(index);
+    }
+    void handleItemUrlExtraction(index, description);
   };
 
   const handleAddItem = () => {
@@ -715,6 +751,11 @@ export function PurchaseRequests() {
   };
 
   const handleRemoveItem = (index: number) => {
+    for (const timeout of itemUrlExtractionTimeoutsRef.current.values()) {
+      clearTimeout(timeout);
+    }
+    itemUrlExtractionTimeoutsRef.current.clear();
+    lastExtractedItemUrlsRef.current.clear();
     setQuoteItems((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -1583,8 +1624,11 @@ export function PurchaseRequests() {
                               <td className="p-2">
                                 <Input
                                   value={itm.description}
-                                  onChange={(e) => handleItemChange(idx, "description", e.target.value)}
-                                  onBlur={(e) => handleItemUrlExtraction(idx, e.currentTarget.value)}
+                                  onChange={(e) => {
+                                    handleItemChange(idx, "description", e.target.value);
+                                    scheduleItemUrlExtraction(idx, e.target.value);
+                                  }}
+                                  onBlur={(e) => extractItemUrlOnBlur(idx, e.currentTarget.value)}
                                   placeholder="Item description..."
                                   className="h-8 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
                                 />
@@ -2329,8 +2373,11 @@ export function PurchaseRequests() {
                               <td className="p-2">
                                 <Input
                                   value={itm.description}
-                                  onChange={(e) => handleItemChange(idx, "description", e.target.value)}
-                                  onBlur={(e) => handleItemUrlExtraction(idx, e.currentTarget.value)}
+                                  onChange={(e) => {
+                                    handleItemChange(idx, "description", e.target.value);
+                                    scheduleItemUrlExtraction(idx, e.target.value);
+                                  }}
+                                  onBlur={(e) => extractItemUrlOnBlur(idx, e.currentTarget.value)}
                                   placeholder="Item description..."
                                   className="h-8 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
                                 />
