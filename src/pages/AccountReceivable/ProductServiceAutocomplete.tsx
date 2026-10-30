@@ -47,11 +47,12 @@ export function ProductServiceAutocomplete({
   const companyBrands = brandData?.brands;
   const products = useMemo(() => {
     const all = data?.items || [];
-    // A company without brands set in HubSpot keeps the full catalog.
-    if (!companyBrands || companyBrands.length === 0) return all;
+    // A selected company with no brand gets no products; with no company selected the full catalog stays.
+    const hasCompany = !!companyId && companyId.trim() !== "";
+    if (!companyBrands || companyBrands.length === 0) return hasCompany ? [] : all;
     const allowed = new Set(companyBrands.map((b) => b.toLowerCase()));
     return all.filter((p) => p.brands && allowed.has(p.brands.toLowerCase()));
-  }, [data, companyBrands]);
+  }, [data, companyBrands, companyId]);
 
   useEffect(() => {
     setInputValue(value || "");
