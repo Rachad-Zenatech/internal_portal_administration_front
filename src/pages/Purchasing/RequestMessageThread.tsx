@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
   MessageSquare,
@@ -66,6 +66,14 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
   const [credentialWarningAck, setCredentialWarningAck] = useState(false);
   const showCredentialWarning = looksLikeCredential(messageText) && !credentialWarningAck;
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // Chat-style thread: its own scroll area that opens on, and follows, the newest message.
+  const threadScrollRef = useRef<HTMLDivElement | null>(null);
+  const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+  useEffect(() => {
+    const el = threadScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [lastMessageId]);
 
   const handleDeleteMessage = async (msg: RequestMessageItem) => {
     const ok = window.confirm(
@@ -329,7 +337,11 @@ export const RequestMessageThread: React.FC<RequestMessageThreadProps> = ({ data
               </p>
             </div>
           ) : (
-            <div className="space-y-3.5">
+            <div
+              ref={threadScrollRef}
+              className="space-y-3.5 max-h-[60vh] min-h-[160px] overflow-y-auto overscroll-contain pr-1 -mr-1 scroll-smooth rounded-lg"
+              aria-label="Message thread"
+            >
               {messages.map((msg: RequestMessageItem, index: number) => {
                 const isMsgRequester = msg.sender_role?.toLowerCase().includes("requester");
                 const isMsgPurchasing = msg.sender_role?.toLowerCase().includes("purchas");
