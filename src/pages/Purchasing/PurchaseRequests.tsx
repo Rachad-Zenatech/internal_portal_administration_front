@@ -295,6 +295,11 @@ const EMPTY_FORM: RequestCreateInput = {
   project_name: "",
 };
 
+function parseExtractedPrice(price: string | number | null | undefined): number | null {
+  const numericPrice = Number(String(price ?? "").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/)?.[0]);
+  return Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : null;
+}
+
 export function PurchaseRequests() {
   const kpiRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -340,8 +345,8 @@ export function PurchaseRequests() {
             updates.title = res.name;
           }
           // Populate price
-          const parsedPrice = parseFloat(res.price);
-          if (!isNaN(parsedPrice) && parsedPrice > 0) {
+          const parsedPrice = parseExtractedPrice(res.price);
+          if (parsedPrice !== null) {
             updates.unit_price = parsedPrice;
             updates.amount = parsedPrice * (prev.quantity || 1);
           }
@@ -680,8 +685,8 @@ export function PurchaseRequests() {
     lastExtractedItemUrlsRef.current.set(index, normalizedUrl);
     try {
       const product = await extractProductInfoFromUrl(normalizedUrl);
-      const extractedPrice = Number.parseFloat(product.price);
-      if (!Number.isFinite(extractedPrice) || extractedPrice <= 0) {
+      const extractedPrice = parseExtractedPrice(product.price);
+      if (extractedPrice === null) {
         lastExtractedItemUrlsRef.current.delete(index);
         toast.error("Could not extract a price from the item link.");
         return;
@@ -708,6 +713,14 @@ export function PurchaseRequests() {
         };
         return next;
       });
+      const extractedCurrency =
+        product.currency && product.currency !== "N/A" ? product.currency : undefined;
+      if (extractedCurrency) {
+        setForm((prev) => ({ ...prev, currency: extractedCurrency }));
+      }
+      toast.success(
+        `Extracted ${product.name && product.name !== "N/A" ? `${product.name}: ` : ""}${formatMoney(extractedPrice, extractedCurrency || "USD")}`,
+      );
     } catch (err) {
       lastExtractedItemUrlsRef.current.delete(index);
       toast.error(err instanceof Error ? err.message : "Failed to extract item price from link.");
@@ -1654,16 +1667,16 @@ export function PurchaseRequests() {
                                   />
                                   {isForeign && (
                                     <div className="text-[10.5px] text-right text-slate-500 dark:text-zinc-400 font-mono">
-                                      {formatMoney(usdUnitPrice)} USD
+                                      {formatMoney(usdUnitPrice)}
                                     </div>
                                   )}
                                 </div>
                               </td>
                               <td className="p-2 w-36 text-right font-semibold font-mono text-sm text-slate-900 dark:text-zinc-100">
-                                <div>{formatMoney(itm.total)} {quoteCurr}</div>
+                                <div>{formatMoney(itm.total, quoteCurr)}</div>
                                 {isForeign && (
                                   <div className="text-[10.5px] font-normal text-slate-500 dark:text-zinc-400 font-mono">
-                                    {formatMoney(usdTotal)} USD
+                                    {formatMoney(usdTotal)}
                                   </div>
                                 )}
                               </td>
@@ -2402,17 +2415,17 @@ export function PurchaseRequests() {
                                 />
                                 {isForeign && (
                                   <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono block text-right mt-0.5 whitespace-nowrap">
-                                    ({formatMoney(usdUnitPrice)} USD)
+                                    ({formatMoney(usdUnitPrice)})
                                   </span>
                                 )}
                               </td>
                               <td className="p-2 w-36 text-right">
                                 <div className="font-semibold font-mono text-sm text-slate-900 dark:text-zinc-100">
-                                  {formatMoney(itm.total)}
+                                  {formatMoney(itm.total, quoteCurr)}
                                 </div>
                                 {isForeign && (
                                   <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono block text-right whitespace-nowrap">
-                                    ({formatMoney(usdTotal)} USD)
+                                    ({formatMoney(usdTotal)})
                                   </span>
                                 )}
                               </td>
