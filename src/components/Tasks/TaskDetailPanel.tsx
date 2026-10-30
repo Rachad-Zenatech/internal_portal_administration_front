@@ -17,6 +17,7 @@ import { Trash2, Edit2, Paperclip, ExternalLink, FileText, Package, ReceiptText,
 import Stepper from "@/components/common/Stepper";
 import { RequestStatus } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
+import { LinkifiedText } from "@/components/common/LinkifiedText";
 import HelpIcon from "@/components/ui/HelpIcon";
 import {
   SPEND_FLOW,
@@ -517,7 +518,9 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                                   <TableRow key={idx}>
                                     <TableCell className="text-center text-slate-400 font-mono text-[11px]">{idx + 1}</TableCell>
                                     <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
-                                    <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">{itm.description}</TableCell>
+                                    <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">
+                                      <LinkifiedText text={itm.description} />
+                                    </TableCell>
                                     <TableCell className="text-right text-xs">{itm.quantity ?? 1}</TableCell>
                                     <TableCell className="text-right font-mono text-xs">${Number(itm.unit_price || 0).toFixed(2)}</TableCell>
                                     <TableCell className="text-right font-semibold font-mono text-xs text-slate-900 dark:text-zinc-100">

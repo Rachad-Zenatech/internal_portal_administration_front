@@ -68,6 +68,7 @@ import PurchaseRequestDetail from "./PurchaseRequestDetail";
 import { FilePreviewModal, type PreviewFileTarget } from "./FilePreviewModal";
 import { ChangeLevel1ApproverModal } from "./ChangeLevel1ApproverModal";
 import { RequestMessageThread } from "./RequestMessageThread";
+import { LinkifiedText } from "@/components/common/LinkifiedText";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -2156,7 +2157,9 @@ export default function RequestDetail() {
                               <TableRow key={itm.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30">
                                 <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
                                 <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
-                                <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">{itm.description}</TableCell>
+                                <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">
+                                  <LinkifiedText text={itm.description} />
+                                </TableCell>
                                 <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
                                 <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">
                                   <div>{formatMoney(rawPrice)} {quoteNativeCurrency}</div>
@@ -4732,5 +4735,4 @@ function FieldInput({
     </div>
   );
 }
-
 
