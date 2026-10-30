@@ -654,6 +654,50 @@ export function PurchaseRequests() {
     });
   };
 
+  const handleItemUrlExtraction = async (index: number, description: string) => {
+    const urlMatch = description.match(/(?:https?:\/\/|www\.)[^\s<]+/i);
+    const url = urlMatch?.[0].replace(/[),.;!?]+$/, "");
+    if (!url) return;
+
+    const initialItem = quoteItems[index];
+    if (!initialItem) return;
+    const initialPrice = Number(initialItem.unit_price) || 0;
+    const normalizedUrl = url.startsWith("www.") ? `https://${url}` : url;
+
+    try {
+      const product = await extractProductInfoFromUrl(normalizedUrl);
+      const extractedPrice = Number.parseFloat(product.price);
+      if (!Number.isFinite(extractedPrice) || extractedPrice <= 0) {
+        toast.error("Could not extract a price from the item link.");
+        return;
+      }
+
+      setQuoteItems((prev) => {
+        const currentItem = prev[index];
+        if (
+          !currentItem ||
+          currentItem.description !== description ||
+          (Number(currentItem.unit_price) || 0) !== initialPrice
+        ) {
+          return prev;
+        }
+
+        const quantity = Number(currentItem.quantity) || 0;
+        const discount = Number(currentItem.discount) || 0;
+        const tax = Number(currentItem.tax) || 0;
+        const next = [...prev];
+        next[index] = {
+          ...currentItem,
+          unit_price: extractedPrice,
+          total: Math.max(0, quantity * extractedPrice - discount + tax),
+        };
+        return next;
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to extract item price from link.");
+    }
+  };
+
   const handleAddItem = () => {
     setQuoteItems((prev) => [
       ...prev,
@@ -1540,6 +1584,7 @@ export function PurchaseRequests() {
                                 <Input
                                   value={itm.description}
                                   onChange={(e) => handleItemChange(idx, "description", e.target.value)}
+                                  onBlur={(e) => handleItemUrlExtraction(idx, e.currentTarget.value)}
                                   placeholder="Item description..."
                                   className="h-8 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
                                 />
@@ -2285,6 +2330,7 @@ export function PurchaseRequests() {
                                 <Input
                                   value={itm.description}
                                   onChange={(e) => handleItemChange(idx, "description", e.target.value)}
+                                  onBlur={(e) => handleItemUrlExtraction(idx, e.currentTarget.value)}
                                   placeholder="Item description..."
                                   className="h-8 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
                                 />
@@ -2428,4 +2474,3 @@ export function PurchaseRequests() {
 }
 
 export default PurchaseRequests;
-
