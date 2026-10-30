@@ -376,6 +376,7 @@ export function PurchaseRequests() {
   const [quoteExtraction, setQuoteExtraction] = useState<QuoteExtractionResponse | null>(null);
   const quoteFileInputRef = useRef<HTMLInputElement | null>(null);
   const [quoteItems, setQuoteItems] = useState<PurchaseRequestItem[]>([]);
+  const [lineItemsCurrency, setLineItemsCurrency] = useState("USD");
   const itemUrlExtractionTimeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const lastExtractedItemUrlsRef = useRef<Map<number, string>>(new Map());
   const [shippingFee, setShippingFee] = useState<number>(0);
@@ -570,6 +571,7 @@ export function PurchaseRequests() {
     setQuoteFile(null);
     setQuoteExtraction(null);
     setQuoteItems([]);
+    setLineItemsCurrency("USD");
     setShippingFee(0);
     setTaxFee(0);
     setShowUnsavedConfirm(false);
@@ -589,6 +591,7 @@ export function PurchaseRequests() {
       const isForeign = Boolean(conv?.is_converted);
       const rate = conv?.exchange_rate || 1.0;
       const origCurr = conv?.original_currency || result.extraction.currency || "USD";
+      setLineItemsCurrency(origCurr);
 
       // 1. Keep line items strictly in their extracted native quote currency (e.g. CAD) so inputs match the PDF quote
       const items: PurchaseRequestItem[] = (result.extraction.items || []).map((itm, idx) => {
@@ -716,6 +719,7 @@ export function PurchaseRequests() {
       const extractedCurrency =
         product.currency && product.currency !== "N/A" ? product.currency : undefined;
       if (extractedCurrency) {
+        setLineItemsCurrency(extractedCurrency);
         setForm((prev) => ({ ...prev, currency: extractedCurrency }));
       }
       toast.success(
@@ -895,9 +899,15 @@ export function PurchaseRequests() {
     }
 
     try {
-      const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted);
+      const sourceQuoteCurrency =
+        quoteExtraction?.extraction?.conversion?.original_currency ||
+        quoteExtraction?.extraction?.currency;
+      const isForeign = Boolean(
+        quoteExtraction?.extraction?.conversion?.is_converted &&
+        sourceQuoteCurrency === lineItemsCurrency,
+      );
       const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
-      const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
+      const quoteCurr = lineItemsCurrency || form.currency || "USD";
       const finalUsdAmount = isForeign ? Math.round(totalCalculatedAmount * rate * 100) / 100 : totalCalculatedAmount;
 
       const finalItems = itemMode === "MULTIPLE" ? quoteItems.map((itm) => ({
@@ -967,7 +977,11 @@ export function PurchaseRequests() {
           ? baseAmt
           : (itemMode === "MULTIPLE" && isForeign ? finalUsdAmount : totalCalculatedAmount),
         unit_price: isRecurring ? baseAmt : form.unit_price,
-        currency: isAP ? (apWireForm.currency || "USD") : (form.currency || "USD"),
+        currency: isAP
+          ? (apWireForm.currency || "USD")
+          : itemMode === "MULTIPLE"
+          ? (isForeign ? "USD" : lineItemsCurrency)
+          : (form.currency || "USD"),
         product_info: extractedProductInfo || form.product_info || undefined,
         due_date: isAP
           ? (apWireForm.due_date || undefined)
@@ -1578,6 +1592,16 @@ export function PurchaseRequests() {
                       Line Items &amp; Parts Breakdown ({quoteItems.length})
                     </label>
                     <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-500 dark:text-zinc-400">Currency</span>
+                        <CurrencyAutocomplete
+                          value={lineItemsCurrency}
+                          onChange={(currency) => {
+                            setLineItemsCurrency(currency);
+                            setForm((prev) => ({ ...prev, currency }));
+                          }}
+                        />
+                      </div>
                       <Button
                         type="button"
                         variant="outline"
@@ -1608,15 +1632,21 @@ export function PurchaseRequests() {
                           <th className="p-2 w-28">SKU</th>
                           <th className="p-2">Description</th>
                           <th className="p-2 w-20 text-right">Qty</th>
-                          <th className="p-2 w-36 text-right">Price ({quoteExtraction?.extraction?.currency || form.currency || "USD"})</th>
-                          <th className="p-2 w-36 text-right">Total ({quoteExtraction?.extraction?.currency || form.currency || "USD"})</th>
+                          <th className="p-2 w-36 text-right">Price ({lineItemsCurrency})</th>
+                          <th className="p-2 w-36 text-right">Total ({lineItemsCurrency})</th>
                           <th className="p-2 w-10 text-center"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                         {quoteItems.map((itm, idx) => {
-                          const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
-                          const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted || (quoteCurr && quoteCurr !== "USD"));
+                          const quoteCurr = lineItemsCurrency;
+                          const sourceQuoteCurrency =
+                            quoteExtraction?.extraction?.conversion?.original_currency ||
+                            quoteExtraction?.extraction?.currency;
+                          const isForeign = Boolean(
+                            quoteExtraction?.extraction?.conversion?.is_converted &&
+                            sourceQuoteCurrency === quoteCurr,
+                          );
                           const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
                           const usdUnitPrice = isForeign ? Math.round(Number(itm.unit_price || 0) * rate * 100) / 100 : Number(itm.unit_price || 0);
                           const usdTotal = isForeign ? Math.round(Number(itm.total || 0) * rate * 100) / 100 : Number(itm.total || 0);
@@ -1728,8 +1758,14 @@ export function PurchaseRequests() {
 
                     <div className="text-right text-xs space-y-2 min-w-[300px]">
                       {(() => {
-                        const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
-                        const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted || (quoteCurr && quoteCurr !== "USD"));
+                        const quoteCurr = lineItemsCurrency;
+                        const sourceQuoteCurrency =
+                          quoteExtraction?.extraction?.conversion?.original_currency ||
+                          quoteExtraction?.extraction?.currency;
+                        const isForeign = Boolean(
+                          quoteExtraction?.extraction?.conversion?.is_converted &&
+                          sourceQuoteCurrency === quoteCurr,
+                        );
                         const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
                         const usdSubtotal = Math.round(itemsSubtotal * rate * 100) / 100;
                         const usdShipping = Math.round(Number(shippingFee || 0) * rate * 100) / 100;
@@ -1742,11 +1778,11 @@ export function PurchaseRequests() {
                               <span>Items Subtotal:</span>
                               <div className="text-right">
                                 <span className="font-medium font-mono text-slate-800 dark:text-zinc-200">
-                                  {formatMoney(itemsSubtotal)} {quoteCurr}
+                                  {formatMoney(itemsSubtotal, quoteCurr)}
                                 </span>
                                 {isForeign && (
                                   <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono block">
-                                    ({formatMoney(usdSubtotal)} USD)
+                                    ({formatMoney(usdSubtotal)})
                                   </span>
                                 )}
                               </div>
@@ -1769,7 +1805,7 @@ export function PurchaseRequests() {
                                 />
                                 {isForeign && (
                                   <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono">
-                                    ({formatMoney(usdShipping)} USD)
+                                    ({formatMoney(usdShipping)})
                                   </span>
                                 )}
                               </div>
@@ -1791,7 +1827,7 @@ export function PurchaseRequests() {
                                 />
                                 {isForeign && (
                                   <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono">
-                                    ({formatMoney(usdTax)} USD)
+                                    ({formatMoney(usdTax)})
                                   </span>
                                 )}
                               </div>
@@ -1801,11 +1837,11 @@ export function PurchaseRequests() {
                               <span className="text-slate-900 dark:text-zinc-100 font-semibold">Grand Total:</span>
                               <div className="text-right">
                                 <span className="font-bold text-base text-slate-900 dark:text-zinc-100 font-mono">
-                                  {formatMoney(totalCalculatedAmount)} {quoteCurr}
+                                  {formatMoney(totalCalculatedAmount, quoteCurr)}
                                 </span>
                                 {isForeign && (
                                   <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 font-mono block">
-                                    ({formatMoney(usdGrandTotal)} USD)
+                                    ({formatMoney(usdGrandTotal)})
                                   </span>
                                 )}
                               </div>
@@ -2337,15 +2373,27 @@ export function PurchaseRequests() {
               <FileText className="h-5 w-5 text-indigo-600" />
               <span>Full Screen Line Items Table ({quoteItems.length} Parts)</span>
             </DialogTitle>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddItem}
-              className="h-8 text-xs flex items-center gap-1"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Part
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 dark:text-zinc-400">Currency</span>
+                <CurrencyAutocomplete
+                  value={lineItemsCurrency}
+                  onChange={(currency) => {
+                    setLineItemsCurrency(currency);
+                    setForm((prev) => ({ ...prev, currency }));
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddItem}
+                className="h-8 text-xs flex items-center gap-1"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add Part
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="space-y-4 pt-4">
@@ -2357,15 +2405,21 @@ export function PurchaseRequests() {
                     <th className="p-3 w-36 font-semibold">SKU</th>
                     <th className="p-3 font-semibold">Description</th>
                     <th className="p-3 w-24 text-right font-semibold">Qty</th>
-                    <th className="p-3 w-36 text-right font-semibold">Price ({quoteExtraction?.extraction?.currency || "USD"})</th>
-                    <th className="p-3 w-36 text-right font-semibold">Total ({quoteExtraction?.extraction?.currency || "USD"})</th>
+                    <th className="p-3 w-36 text-right font-semibold">Price ({lineItemsCurrency})</th>
+                    <th className="p-3 w-36 text-right font-semibold">Total ({lineItemsCurrency})</th>
                     <th className="p-3 w-12 text-center"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                   {quoteItems.map((itm, idx) => {
-                          const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
-                          const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted || (quoteCurr && quoteCurr !== "USD"));
+                          const quoteCurr = lineItemsCurrency;
+                          const sourceQuoteCurrency =
+                            quoteExtraction?.extraction?.conversion?.original_currency ||
+                            quoteExtraction?.extraction?.currency;
+                          const isForeign = Boolean(
+                            quoteExtraction?.extraction?.conversion?.is_converted &&
+                            sourceQuoteCurrency === quoteCurr,
+                          );
                           const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
                           const usdUnitPrice = isForeign ? Math.round(Number(itm.unit_price || 0) * rate * 100) / 100 : Number(itm.unit_price || 0);
                           const usdTotal = isForeign ? Math.round(Number(itm.total || 0) * rate * 100) / 100 : Number(itm.total || 0);
