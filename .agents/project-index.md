@@ -161,7 +161,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/QuickBooksExportDialog.tsx (1078 lines) - quick books export dialog (pages  purchasing)
 - src/pages/Purchasing/QuickBooksItemDetailsDialog.tsx (981 lines) - quick books item details dialog (pages  purchasing)
 - src/pages/Purchasing/QuickBooksPage.tsx (2161 lines) - quick books page (pages  purchasing)
-- src/pages/Purchasing/RecurringPayments.tsx (3031 lines) - recurring payments (pages  purchasing)
+- src/pages/Purchasing/RecurringPayments.tsx (3057 lines) - recurring payments (pages  purchasing)
 - src/pages/Purchasing/RequestDetail.tsx (4739 lines) - request detail (pages  purchasing)
 - src/pages/Purchasing/RequestMessageThread.tsx (657 lines) - request message thread (pages  purchasing)
 - src/pages/Purchasing/ScheduleBreakdownModal.tsx (579 lines) - schedule breakdown modal (pages  purchasing)

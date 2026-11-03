@@ -1641,7 +1641,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `readyCount` (fn)
     - `currentTabSelectedTotalAmount` (fn)
 
-## src/pages/Purchasing/RecurringPayments.tsx (3031 lines) - recurring payments (pages  purchasing)
+## src/pages/Purchasing/RecurringPayments.tsx (3057 lines) - recurring payments (pages  purchasing)
 - `CalendarCell` (interface)
 - `RequesterAutocomplete` (function)
     - `handleClickOutside` (fn)

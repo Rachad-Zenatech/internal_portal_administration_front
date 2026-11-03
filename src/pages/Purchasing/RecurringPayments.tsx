@@ -1168,6 +1168,32 @@ export default function RecurringPayments() {
         const p = (r.priority || "MEDIUM").toUpperCase();
         if (p !== priorityFilter.toUpperCase()) return false;
       }
+      if (dueFilter !== "ALL") {
+        const isCompOrRej =
+          parsedStatus === RequestStatus.Completed ||
+          parsedStatus === RequestStatus.Rejected ||
+          r.status === "COMPLETED" ||
+          r.status === "REJECTED" ||
+          (r.status as string) === "PAID";
+        if (isCompOrRej) return false;
+
+        const dateStr = r.due_date || r.request_date;
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return false;
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        d.setHours(0, 0, 0, 0);
+        const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (dueFilter === "DUE_TODAY" && diffDays !== 0) return false;
+        if (dueFilter === "DUE_7_DAYS" && (diffDays < 0 || diffDays > 7)) return false;
+        if (dueFilter === "OVERDUE" && diffDays >= 0) return false;
+      }
+      if (priorityFilter !== "ALL") {
+        const p = (r.priority || "MEDIUM").toUpperCase();
+        if (p !== priorityFilter.toUpperCase()) return false;
+      }
       if (reviewFilter !== "ALL") {
         const rev = r.review_status || "WAITING_FOR_REVIEW";
         if (rev !== reviewFilter) return false;
