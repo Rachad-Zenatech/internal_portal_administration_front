@@ -21,6 +21,7 @@ import { resolveUserDepartment } from "@/lib/userDepartment";
 import { useAuth } from "@/lib/AuthContext";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { GLCodeAutocomplete } from "./GLCodeAutocomplete";
+import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { useRef } from "react";
 import { toast } from "sonner";
 import { Loader2, Plus, FolderKanban, Trash2, Maximize2, FileText, Truck, DollarSign, AlertTriangle, Landmark, ShoppingCart, Clock, FileSpreadsheet } from "lucide-react";
@@ -201,6 +202,7 @@ export function EditRequestDialog({
     gl_code: "",
     due_date: "",
     project_name: "",
+    currency: "USD",
   });
 
   const currentRequesterUser = useMemo(() => {
@@ -342,6 +344,7 @@ export function EditRequestDialog({
         gl_code: request.gl_code || "",
         due_date: request.due_date ? request.due_date.split("T")[0] : "",
         project_name: request.project_name || "",
+        currency: request.currency || "USD",
       };
       setFormData(initialForm);
 
@@ -686,6 +689,7 @@ export function EditRequestDialog({
         };
       } else if (formData.request_type === "RECURRING") {
         payload.unit_price = calculatedAmount;
+        payload.currency = formData.currency || "USD";
         payload.quantity = 1;
         payload.item_url = formData.item_url || null;
         payload.items = [];
@@ -1201,9 +1205,17 @@ export function EditRequestDialog({
               </div>
             ) : formData.request_type === "RECURRING" ? (
               <div className="space-y-3.5 pt-1">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Amount (USD) <span className="text-red-500">*</span></label>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Currency</label>
+                    <CurrencyAutocomplete
+                      value={formData.currency || "USD"}
+                      onChange={(code) => setFormData((prev) => ({ ...prev, currency: code }))}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Amount ({formData.currency || "USD"}) <span className="text-red-500">*</span></label>
                     <Input
                       type="number"
                       step="0.01"

@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, useRef } from 'react';
 import { apiClient } from '../services/apiClient';
+import { POST_LOGIN_REDIRECT_KEY } from '../services/helper';
 
 export interface User {
   id: string;
@@ -71,7 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('ms_id_token');
+        // Keep the "return here after login" page (e.g. a request link from an email).
+        // The failed request above has just saved it, and clearing it here sent users
+        // to the dashboard after signing in.
+        const postLoginRedirect = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
         sessionStorage.clear();
+        if (postLoginRedirect) {
+          sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, postLoginRedirect);
+        }
       }
       return null;
     } finally {

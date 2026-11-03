@@ -364,7 +364,7 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
 
                         {/* Custom Amount */}
                         <div className="col-span-3 relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">$</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">{currency === "USD" ? "$" : currency}</span>
                           <Input
                             type="number"
                             step="0.01"
@@ -411,7 +411,7 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                         <div className="space-y-0.5">
                           <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Interest</label>
                           <div className="relative">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">$</span>
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">{currency === "USD" ? "$" : currency}</span>
                             <Input
                               type="number"
                               step="0.01"
@@ -432,7 +432,7 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                         <div className="space-y-0.5">
                           <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Principal Paid</label>
                           <div className="relative">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">$</span>
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">{currency === "USD" ? "$" : currency}</span>
                             <Input
                               type="number"
                               step="0.01"
@@ -453,7 +453,7 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
                         <div className="space-y-0.5">
                           <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Remaining Balance</label>
                           <div className="relative">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">$</span>
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">{currency === "USD" ? "$" : currency}</span>
                             <Input
                               type="number"
                               step="0.01"

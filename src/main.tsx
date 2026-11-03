@@ -2,13 +2,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import GlobalLoadingScreen from "@/components/GlobalLoadingScreen";
+import GlobalLoadingScreen from "@/components/common/GlobalLoadingScreen";
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "next-themes"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import ErrorBoundary from "@/components/ErrorBoundary"
+import ErrorBoundary from "@/components/common/ErrorBoundary"
 import { installGlobalErrorReporting } from "@/services/errorReporting"
 
 installGlobalErrorReporting();
@@ -24,7 +24,8 @@ const queryClient = new QueryClient({
           typeof error === "object" && error !== null && "status" in error
             ? (error as { status?: unknown }).status
             : undefined;
-        if (status === 401 || status === 403) {
+        // Client errors (401/403/404/...) won't succeed on retry; only retry network and 5xx failures
+        if (typeof status === "number" && status >= 400 && status < 500) {
           return false;
         }
         return failureCount < 3;

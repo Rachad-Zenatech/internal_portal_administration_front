@@ -13,6 +13,12 @@ import type {
   RequestDetail,
   TransitionInput,
   WireTransferInput,
+  RequestMessageItem,
+  RequestMessageCreate,
+  SecureInfoRequestCreate,
+  SecureInfoRequestSummary,
+  SecureInfoReveal,
+  SecureCodeReveal,
 } from "@/types/purchasing";
 
 const BASE = "/api/purchasing";
@@ -61,6 +67,52 @@ export function getRequest(id: string) {
   return apiClient.get<RequestDetail>(`${BASE}/requests/${id}`);
 }
 
+export function getRequestMessages(id: string) {
+  return apiClient.get<RequestMessageItem[]>(`${BASE}/requests/${id}/messages`);
+}
+
+export function postRequestMessage(id: string, payload: RequestMessageCreate) {
+  return apiClient.post<RequestMessageItem>(`${BASE}/requests/${id}/messages`, payload);
+}
+
+/** Delete a thread message (sender or super admin). Its text is wiped; a "deleted" marker stays. */
+export function deleteRequestMessage(id: string, messageId: number) {
+  return apiClient.delete<void>(`${BASE}/requests/${id}/messages/${messageId}`);
+}
+
+// ─── Secure info requests (account credentials) ───
+export function createSecureInfoRequest(id: string, payload: SecureInfoRequestCreate) {
+  return apiClient.post<RequestMessageItem>(`${BASE}/requests/${id}/secure-requests`, payload);
+}
+
+export function submitSecureInfo(id: string, secureId: string, values: Record<string, string>, mayNeed2fa?: boolean) {
+  return apiClient.post<SecureInfoRequestSummary>(
+    `${BASE}/requests/${id}/secure-requests/${secureId}/submit`,
+    { values, may_need_2fa: mayNeed2fa },
+  );
+}
+
+export function revealSecureInfo(id: string, secureId: string) {
+  return apiClient.post<SecureInfoReveal>(`${BASE}/requests/${id}/secure-requests/${secureId}/reveal`);
+}
+
+export function deleteSecureInfo(id: string, secureId: string) {
+  return apiClient.delete<SecureInfoRequestSummary>(`${BASE}/requests/${id}/secure-requests/${secureId}`);
+}
+
+// 2FA verification code: admin asks, requester sends it through the vault, admin views it once.
+export function requestSecureCode(id: string, secureId: string) {
+  return apiClient.post<SecureInfoRequestSummary>(`${BASE}/requests/${id}/secure-requests/${secureId}/code/request`);
+}
+
+export function sendSecureCode(id: string, secureId: string, code: string) {
+  return apiClient.post<SecureInfoRequestSummary>(`${BASE}/requests/${id}/secure-requests/${secureId}/code`, { code });
+}
+
+export function revealSecureCode(id: string, secureId: string) {
+  return apiClient.post<SecureCodeReveal>(`${BASE}/requests/${id}/secure-requests/${secureId}/code/reveal`);
+}
+
 export interface ApproverCandidateUser {
   id: string;
   full_name: string;
@@ -95,6 +147,12 @@ export function getLevel1Candidates(requestId: string) {
   return apiClient.get<Level1CandidatesResponse>(`${BASE}/requests/${requestId}/level-1-candidates`);
 }
 
+export function redirectToVanessa(requestId: string, reason?: string) {
+  return apiClient.post<RequestDetail>(`${BASE}/requests/${requestId}/redirect-to-vanessa`, {
+    reason,
+  });
+}
+
 export function reassignLevel1Approver(requestId: string, approverId: string, reason?: string) {
   return apiClient.post<RequestDetail>(`${BASE}/requests/${requestId}/reassign-level1-approver`, {
     approver_id: approverId,
@@ -102,11 +160,15 @@ export function reassignLevel1Approver(requestId: string, approverId: string, re
   });
 }
 
-export async function extractQuote(file: File) {
+export async function extractQuote(file: File, requestId?: string) {
   const optimizedFile = await compressAttachmentBeforeUpload(file);
   const formData = new FormData();
   formData.append("file", optimizedFile);
-  return apiClient.post<any>(`${BASE}/quotes/extract`, formData, {
+  if (requestId) {
+    formData.append("request_id", requestId);
+  }
+  const url = requestId ? `${BASE}/quotes/extract?request_id=${encodeURIComponent(requestId)}` : `${BASE}/quotes/extract`;
+  return apiClient.post<any>(url, formData, {
     actionLabel: "Extracting Multi-Part Quote",
     actionSubtitle: "Analyzing PDF layout, OCR text, and extracting line items...",
   });

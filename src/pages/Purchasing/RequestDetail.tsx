@@ -22,7 +22,7 @@ import { VendorAutocomplete } from "./VendorAutocomplete";
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import HelpIcon from "@/components/ui/HelpIcon";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -56,6 +56,9 @@ import {
   Eye,
   UserCheck,
   Repeat,
+  MessageSquare,
+  Loader2,
+  Forward,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -64,6 +67,8 @@ import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
 import PurchaseRequestDetail from "./PurchaseRequestDetail";
 import { FilePreviewModal, type PreviewFileTarget } from "./FilePreviewModal";
 import { ChangeLevel1ApproverModal } from "./ChangeLevel1ApproverModal";
+import { RequestMessageThread } from "./RequestMessageThread";
+import { LinkifiedText } from "@/components/common/LinkifiedText";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,13 +107,15 @@ import {
   useDeleteAttachment,
   useUpdateReviewStatus,
   useUpdateWireTransfer,
+  useExtractQuote,
+  useRedirectToVanessa,
 } from "@/hooks/usePurchasing";
 import * as purchasingService from "@/services/purchasingService";
 import { EditCombinedRequestDialog } from "./EditCombinedRequestDialog";
 import { ConvertToRecurringDialog } from "./ConvertToRecurringDialog";
 import { WireTransferDialog } from "./WireTransferDialog";
 import { useAuth } from "@/lib/AuthContext";
-import Stepper from "@/components/Stepper";
+import Stepper from "@/components/common/Stepper";
 import { RequestStatus } from "@/types/purchasing";
 import type {
   PurchaseOrderInput,
@@ -144,7 +151,7 @@ import {
   formatRequestType,
   formatActivityAction,
   formatActivityValue,
-  TAX_RATE,
+  resolveTaxRate,
 } from "./purchasingMeta";
 
 type FormKind = "po" | "invoice" | "approval" | "tracking" | "confirmGoods" | "hold" | "complete";
@@ -190,6 +197,8 @@ export default function RequestDetail() {
   const uploadAttachments = useUploadAttachments(id ?? "");
   const deleteAttachment = useDeleteAttachment(id ?? "");
   const reviewMutation = useUpdateReviewStatus();
+  const extractQuoteMutation = useExtractQuote();
+  const quoteDetailFileInputRef = useRef<HTMLInputElement>(null);
 
   const [previewTarget, setPreviewTarget] = useState<PreviewFileTarget | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -330,7 +339,26 @@ export default function RequestDetail() {
   const [isActivityLogsOpen, setIsActivityLogsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isConvertToRecurringOpen, setIsConvertToRecurringOpen] = useState(false);
-  const [activeDetailTab, setActiveDetailTab] = useState<string>("overview");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [isRedirectVanessaDialogOpen, setIsRedirectVanessaDialogOpen] = useState(false);
+  const [vanessaRedirectReason, setVanessaRedirectReason] = useState("");
+  const redirectToVanessaMutation = useRedirectToVanessa();
+
+  useEffect(() => {
+    if (searchParams.get("redirect_to") === "vanessa") {
+      setIsRedirectVanessaDialogOpen(true);
+    }
+  }, [searchParams]);
+  const [activeDetailTab, setActiveDetailTab] = useState<string>(() => {
+    return searchParams.get("tab") === "messages" ? "messages" : "overview";
+  });
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "messages") {
+      setActiveDetailTab("messages");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (user?.id) {
@@ -403,6 +431,14 @@ export default function RequestDetail() {
     if (activeDetailTab === "recurring" && !hasRecurringTab) setActiveDetailTab("overview");
   }, [activeDetailTab, hasItemsTab, hasPoTab, hasInvoiceTab, hasWireTab, hasRecurringTab]);
 
+  // A deleted request's notifications are removed server-side on the 404; refresh so they disappear here too
+  const isRequestGone = isError && getApiErrorStatus(error) === 404;
+  useEffect(() => {
+    if (isRequestGone) {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    }
+  }, [isRequestGone, queryClient]);
+
   if (isLoading) {
     return <div className="p-8 text-sm text-muted-foreground">Loading request...</div>;
   }
@@ -411,7 +447,7 @@ export default function RequestDetail() {
     const message =
       status === 401 ? "Your session has expired. Redirecting to login..." :
       status === 403 ? "You don't have permission to view this request." :
-      status === 404 || !isError ? "Request not found." :
+      status === 404 || !isError ? "This request doesn't exist, has been deleted, or you don't have access to it." :
       "Could not load this request. Please try again.";
     const canRetry = isError && status !== 401 && status !== 403 && status !== 404;
     return (
@@ -684,11 +720,24 @@ export default function RequestDetail() {
         expected_delivery_date: purchase_order?.expected_delivery_date || "",
         item_url: purchase_order?.item_url || request.item_url || "",
       });
+
+      // Quote has a foreign currency but no stored conversion rate: fetch a live rate so USD totals are correct
+      if (isForeign && !Number(quoteConv?.exchange_rate)) {
+        purchasingService.getExchangeRate(quoteCurr, "USD")
+          .then((res: any) => {
+            const rate = Number(res?.exchange_rate) || 1.0;
+            setPoFxRate(rate);
+            setPo((prev) => ({ ...prev, amount: Math.round(totalNative * rate * 100) / 100, currency: "USD" }));
+          })
+          .catch((err: any) => toast.error(`Failed to fetch exchange rate for ${quoteCurr}: ${err?.message || "Unknown error"}`));
+      }
     }
     if (meta.form === "approval") {
       const effectiveAmount = Number(data?.request?.amount || data?.purchase_order?.amount || data?.invoice?.amount || 0);
       const isLevel1 = (data?.request?.current_approval_level || 1) === 1;
-      const defaultPassToL2 = action === "APPROVE" && isLevel1 && effectiveAmount >= 10000;
+      // requires_second_level covers requests that cross $10k only once tax is added.
+      const needsL2 = Boolean(data?.request?.requires_second_level) || effectiveAmount >= 10000;
+      const defaultPassToL2 = action === "APPROVE" && isLevel1 && needsL2;
       setApproval({ approver: user?.id || "", comment: "", pass_to_level_2: defaultPassToL2 });
     }
     setConfirmGoods({ description: "" });
@@ -712,6 +761,8 @@ export default function RequestDetail() {
           item_url: po.item_url || request.item_url || undefined,
           expected_delivery_date: po.expected_delivery_date?.trim() || undefined,
           items: isMulti ? poItems : undefined,
+          // Tax counts toward the $10k Level 2 threshold (backend uses at least its minimum rate).
+          estimated_tax_rate: poTax.rate,
         },
       });
     } else if (kind === "invoice") {
@@ -806,7 +857,7 @@ export default function RequestDetail() {
   const pInfo = request.product_info;
   const pVendor = (pInfo?.vendor || "").toLowerCase();
   const isCaVendor = pVendor.includes(".ca") || pVendor.includes("amazon.ca") || (request.item_url || "").toLowerCase().includes("amazon.ca");
-  
+
   let crawledOrigPrice: number | null = null;
   let crawledOrigCurr: string | null = null;
 
@@ -833,6 +884,16 @@ export default function RequestDetail() {
     crawledOrigCurr.toUpperCase() !== (request.currency || "USD").toUpperCase()
   );
 
+  // After-tax total: the actual cost recorded at payment wins; otherwise estimate from the regional rate
+  const reqTax = resolveTaxRate({
+    shippingAddress: purchase_order?.shipped_to_location || (request as any).shipped_to_location || (request as any).shipping_address,
+    vendorAddress: request.quote_data?.vendor?.address,
+    vendorName: purchase_order?.vendor || request.quote_data?.vendor?.name,
+    currency: hasCrawledForeignPrice ? crawledOrigCurr : request.currency,
+  });
+  const actualCostInvoice = (data?.invoices || []).find((i) => i.actual_cost_after_tax != null)
+    || (inv?.actual_cost_after_tax != null ? inv : null);
+
   const recalculatePoUsdTotal = (items: any[], shippingFeeNative: number, rate: number) => {
     const sumNative = items.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
     const subtotalUsd = Math.round(sumNative * rate * 100) / 100;
@@ -840,6 +901,16 @@ export default function RequestDetail() {
     const totalUsd = Math.round((subtotalUsd + shippingUsd) * 100) / 100;
     return { sumNative, subtotalUsd, shippingUsd, totalUsd };
   };
+
+  // po.amount is persisted in USD; review fields display and accept the selected item currency
+  const poUsdToNative = (usd: number) => (poFxRate > 0 ? Math.round((usd / poFxRate) * 100) / 100 : usd);
+  const poNativeToUsd = (native: number) => Math.round(native * poFxRate * 100) / 100;
+  const poTax = resolveTaxRate({
+    shippingAddress: po.shipped_to_location,
+    vendorAddress: request.quote_data?.vendor?.address,
+    vendorName: po.vendor,
+    currency: poItemCurrency,
+  });
 
   const handlePoItemCurrencyChange = async (newCurr: string) => {
     const targetCurr = (newCurr || "USD").toUpperCase();
@@ -1079,6 +1150,21 @@ export default function RequestDetail() {
               <span>Convert to Recurring</span>
             </Button>
           )}
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setActiveDetailTab("messages")}
+            className="h-8 text-xs font-medium gap-1.5 border-sky-300 dark:border-sky-800 text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/40 shadow-xs"
+          >
+            <MessageSquare className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+            <span>Message Thread</span>
+            {data?.messages && data.messages.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-bold bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
+                {data.messages.length}
+              </Badge>
+            )}
+          </Button>
 
           {canEditRequest && (
             <Button
@@ -1368,6 +1454,19 @@ export default function RequestDetail() {
                 >
                   <FileText className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                   <span>Request Overview</span>
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="messages"
+                  className="text-xs px-3.5 h-8 gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs font-medium"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+                  <span>Messages &amp; Thread</span>
+                  {data?.messages && data.messages.length > 0 && (
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                      {data.messages.length}
+                    </span>
+                  )}
                 </TabsTrigger>
 
                 {hasItemsTab && (
@@ -1704,8 +1803,9 @@ export default function RequestDetail() {
                                 {formatMoney(
                                   request.recurring_schedule?.amount_per_cycle ||
                                   request.amount ||
-                                  0
-                                )} {request.currency || "USD"}
+                                  0,
+                                  request.currency || "USD"
+                                )}
                               </span>
                             }
                           />
@@ -1723,8 +1823,9 @@ export default function RequestDetail() {
                               <span className="font-bold text-emerald-600 dark:text-emerald-400">
                                 {formatMoney(
                                   request.recurring_schedule?.total_amount ||
-                                  ((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24))
-                                )} {request.currency || "USD"}
+                                  ((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * (request.recurring_schedule?.total_installments || 24)),
+                                  request.currency || "USD"
+                                )}
                               </span>
                             }
                           />
@@ -1735,10 +1836,12 @@ export default function RequestDetail() {
                             label="Total"
                             value={
                               <span className="font-semibold text-slate-900 dark:text-zinc-100">
-                                {formatMoney(request.amount ?? 0)} {request.currency || "USD"}
+                                {hasCrawledForeignPrice
+                                  ? formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1), crawledOrigCurr || "USD")
+                                  : formatMoney(request.amount ?? 0, request.currency || "USD")}
                                 {hasCrawledForeignPrice && (
                                   <span className="text-slate-500 text-xs ml-1.5 font-normal">
-                                    ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1))} {crawledOrigCurr})
+                                    ({formatMoney(request.amount ?? 0, request.currency || "USD")})
                                   </span>
                                 )}
                               </span>
@@ -1746,16 +1849,24 @@ export default function RequestDetail() {
                           />
 
                           <Field
-                            label="Total (After-Tax · 13% HST)"
+                            label={actualCostInvoice ? "Total (After-Tax · Actual)" : `Total (After-Tax · ${reqTax.label})`}
                             value={
-                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                {formatMoney((request.amount ?? 0) * (1 + TAX_RATE))} {request.currency || "USD"}
-                                {hasCrawledForeignPrice && (
-                                  <span className="text-slate-500 text-xs ml-1.5 font-normal">
-                                    ({formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1) * (1 + TAX_RATE))} {crawledOrigCurr})
-                                  </span>
-                                )}
-                              </span>
+                              actualCostInvoice ? (
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                  {formatMoney(actualCostInvoice.actual_cost_after_tax, actualCostInvoice.currency || request.currency || "USD")}
+                                </span>
+                              ) : (
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                  {hasCrawledForeignPrice
+                                    ? formatMoney(crawledOrigPrice! * (Number(request.quantity) || 1) * (1 + reqTax.rate), crawledOrigCurr || "USD")
+                                    : formatMoney((request.amount ?? 0) * (1 + reqTax.rate), request.currency || "USD")}
+                                  {hasCrawledForeignPrice && (
+                                    <span className="text-slate-500 text-xs ml-1.5 font-normal">
+                                      ({formatMoney((request.amount ?? 0) * (1 + reqTax.rate), request.currency || "USD")})
+                                    </span>
+                                  )}
+                                </span>
+                              )
                             }
                           />
                         </>
@@ -1815,8 +1926,8 @@ export default function RequestDetail() {
                           <div className="p-3 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs">
                             <div className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Cycle Progress</div>
                             <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                              {request.recurring_schedule?.total_installments 
-                                ? `${request.recurring_schedule?.completed_installments || 0} / ${request.recurring_schedule?.total_installments} Cycles` 
+                              {request.recurring_schedule?.total_installments
+                                ? `${request.recurring_schedule?.completed_installments || 0} / ${request.recurring_schedule?.total_installments} Cycles`
                                 : `${request.recurring_schedule?.completed_installments || 0} Cycles Settled`}
                             </div>
                             {request.recurring_schedule?.total_installments ? (
@@ -1844,10 +1955,10 @@ export default function RequestDetail() {
                               {request.recurring_schedule?.total_amount || request.recurring_schedule?.total_installments ? "Total Commitment" : "Cycle Commitment"}
                             </div>
                             <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                              {request.recurring_schedule?.total_amount 
-                                ? formatMoney(request.recurring_schedule.total_amount) 
-                                : request.recurring_schedule?.total_installments 
-                                ? formatMoney((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * request.recurring_schedule.total_installments) 
+                              {request.recurring_schedule?.total_amount
+                                ? formatMoney(request.recurring_schedule.total_amount)
+                                : request.recurring_schedule?.total_installments
+                                ? formatMoney((request.recurring_schedule?.amount_per_cycle || request.amount || 0) * request.recurring_schedule.total_installments)
                                 : `${formatMoney(request.recurring_schedule?.amount_per_cycle || request.amount || 0)} / cycle`}
                             </div>
                           </div>
@@ -1954,6 +2065,40 @@ export default function RequestDetail() {
                         <span className="font-semibold text-base">Items &amp; Parts Breakdown ({(request.items?.length || request.quote_data?.items?.length || 0)})</span>
                       </div>
                       <div className="flex items-center gap-2">
+                        {canEditRequest && (
+                          <>
+                            <input
+                              type="file"
+                              ref={quoteDetailFileInputRef}
+                              accept=".pdf"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  toast.info("Extracting and saving quote PDF to request...");
+                                  await extractQuoteMutation.mutateAsync({ file, requestId: request.id });
+                                  toast.success("Quote PDF uploaded, extracted, and saved to request!");
+                                  refetch?.();
+                                } catch (err: any) {
+                                  toast.error(err?.message || "Failed to extract and save quote PDF");
+                                } finally {
+                                  if (quoteDetailFileInputRef.current) quoteDetailFileInputRef.current.value = "";
+                                }
+                              }}
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={extractQuoteMutation.isPending}
+                              onClick={() => quoteDetailFileInputRef.current?.click()}
+                              className="h-7 text-xs px-2.5 gap-1.5 border-dashed border-indigo-300 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 cursor-pointer"
+                            >
+                              {extractQuoteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                              <span>{extractQuoteMutation.isPending ? "Saving Quote..." : "Upload Quote PDF"}</span>
+                            </Button>
+                          </>
+                        )}
                         <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 font-mono text-xs font-semibold">
                           {isForeignQuote
                             ? `Currency: ${quoteNativeCurrency} (Converted @ 1 ${quoteNativeCurrency} = $${quoteExchangeRate} USD)`
@@ -2012,7 +2157,9 @@ export default function RequestDetail() {
                               <TableRow key={itm.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30">
                                 <TableCell className="text-xs text-slate-400 font-mono text-center">{idx + 1}</TableCell>
                                 <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
-                                <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">{itm.description}</TableCell>
+                                <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">
+                                  <LinkifiedText text={itm.description} />
+                                </TableCell>
                                 <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
                                 <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">
                                   <div>{formatMoney(rawPrice)} {quoteNativeCurrency}</div>
@@ -2782,6 +2929,11 @@ export default function RequestDetail() {
                 </Card>
               </TabsContent>
             )}
+
+            {/* TAB: Message Thread & Inquiries */}
+            <TabsContent value="messages" className="m-0 focus-visible:outline-none space-y-6">
+              <RequestMessageThread data={data} refetch={refetch} />
+            </TabsContent>
           </Tabs>
         </div>
 
@@ -2833,13 +2985,23 @@ export default function RequestDetail() {
           <Card className="border border-slate-200 dark:border-zinc-800 shadow-xs">
             <Tabs defaultValue="approvals" className="w-full">
               <CardHeader className="pb-0 pt-3 px-4 border-b border-border/40">
-                <TabsList className="h-8 p-0.5 bg-muted/60 w-full grid grid-cols-2">
+                <TabsList className="h-8 p-0.5 bg-muted/60 w-full grid grid-cols-3">
                   <TabsTrigger value="approvals" className="text-xs px-2.5 h-7 gap-1.5 data-[state=active]:shadow-xs">
                     <Stamp className="h-3.5 w-3.5" />
                     <span>Approvals</span>
                     {approvals.length > 0 && (
                       <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
                         {approvals.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+
+                  <TabsTrigger value="messages" className="text-xs px-2.5 h-7 gap-1.5 data-[state=active]:shadow-xs">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span>Messages</span>
+                    {data.messages && data.messages.length > 0 && (
+                      <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300">
+                        {data.messages.length}
                       </span>
                     )}
                   </TabsTrigger>
@@ -3018,6 +3180,48 @@ export default function RequestDetail() {
                       </div>
                     )}
                   </div>
+                </TabsContent>
+
+                {/* Messages Sidebar Tab */}
+                <TabsContent value="messages" className="m-0 space-y-3">
+                  <div className="flex items-center justify-between pb-1 border-b">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Thread Messages ({data.messages?.length || 0})
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveDetailTab("messages")}
+                      className="text-xs h-6 px-1.5 text-sky-600 hover:text-sky-700"
+                    >
+                      Open Thread &rarr;
+                    </Button>
+                  </div>
+                  {(!data.messages || data.messages.length === 0) ? (
+                    <div className="text-center py-6 px-2 text-xs text-muted-foreground">
+                      <MessageSquare className="h-5 w-5 mx-auto mb-1.5 opacity-50" />
+                      No messages yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                      {data.messages.slice(-3).map((m) => (
+                        <div key={m.id} className="p-2.5 rounded-lg border bg-muted/40 text-xs space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-900 dark:text-zinc-100">{m.sender_name}</span>
+                            <span className="text-[10px] text-muted-foreground">{formatDate(m.created_at)}</span>
+                          </div>
+                          <p className="line-clamp-2 text-slate-600 dark:text-zinc-400">{m.message_text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => setActiveDetailTab("messages")}
+                    className="w-full text-xs h-7 bg-sky-600 hover:bg-sky-700 text-white"
+                  >
+                    View / Send Messages
+                  </Button>
                 </TabsContent>
 
                 {/* Attachments Tab */}
@@ -3225,30 +3429,40 @@ export default function RequestDetail() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total Pre-Tax (USD)</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium">Total Pre-Tax ({poItemCurrency})</label>
+                        {poItemCurrency !== "USD" && (
+                          <span className="text-[10px] text-slate-400 font-mono">≈ ${po.amount.toFixed(2)} USD</span>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={String(po.amount)}
+                        value={String(poUsdToNative(po.amount))}
                         onChange={(e) => {
                           const amt = Math.max(0, Number(e.target.value) || 0);
-                          setPo((prev) => ({ ...prev, amount: amt, currency: "USD" }));
+                          setPo((prev) => ({ ...prev, amount: poNativeToUsd(amt), currency: "USD" }));
                         }}
                         className="font-mono bg-white dark:bg-zinc-900 font-semibold"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total After-Tax (USD)</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium">Total After-Tax ({poItemCurrency} · {poTax.label})</label>
+                        {poItemCurrency !== "USD" && (
+                          <span className="text-[10px] text-slate-400 font-mono">≈ ${(Math.round(po.amount * (1 + poTax.rate) * 100) / 100).toFixed(2)} USD</span>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={String(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100)}
+                        value={String(Math.round(poUsdToNative(po.amount) * (1 + poTax.rate) * 100) / 100)}
                         onChange={(e) => {
                           const afterTax = Math.max(0, Number(e.target.value) || 0);
-                          const preTax = Math.round((afterTax / (1 + TAX_RATE)) * 100) / 100;
-                          setPo((prev) => ({ ...prev, amount: preTax, currency: "USD" }));
+                          const preTax = Math.round((afterTax / (1 + poTax.rate)) * 100) / 100;
+                          setPo((prev) => ({ ...prev, amount: poNativeToUsd(preTax), currency: "USD" }));
                         }}
                         className="font-semibold font-mono bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400"
                       />
@@ -3266,7 +3480,7 @@ export default function RequestDetail() {
                           </span>
                         </div>
                         <span className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
-                          Item prices in {poItemCurrency} automatically convert to USD totals
+                          Amounts shown in {poItemCurrency}; USD equivalents are used for approvals
                         </span>
                       </div>
                     )}
@@ -3275,16 +3489,16 @@ export default function RequestDetail() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium">Items Subtotal (USD)</label>
+                        <label className="text-xs font-medium">Items Subtotal ({poItemCurrency})</label>
                         {poItemCurrency !== "USD" && (
                           <span className="text-[10px] text-slate-400 font-mono">
-                            {poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {poItemCurrency}
+                            ≈ ${(Math.round(poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0) * poFxRate * 100) / 100).toFixed(2)} USD
                           </span>
                         )}
                       </div>
                       <Input
                         type="text"
-                        value={`$${(Math.round(poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0) * poFxRate * 100) / 100).toFixed(2)}`}
+                        value={(Math.round(poItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0) * 100) / 100).toFixed(2)}
                         disabled
                         className="font-mono bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold"
                       />
@@ -3293,7 +3507,7 @@ export default function RequestDetail() {
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-medium flex items-center gap-1">
                           <Truck className="h-3.5 w-3.5 text-indigo-500" />
-                          <span>Shipping Fee {poItemCurrency !== "USD" ? `(${poItemCurrency})` : "(USD)"}</span>
+                          <span>Shipping Fee ({poItemCurrency})</span>
                         </label>
                         {poItemCurrency !== "USD" && (
                           <span className="text-[10px] text-slate-400 font-mono">
@@ -3316,30 +3530,40 @@ export default function RequestDetail() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total Pre-Tax (USD)</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium">Total Pre-Tax ({poItemCurrency})</label>
+                        {poItemCurrency !== "USD" && (
+                          <span className="text-[10px] text-slate-400 font-mono">≈ ${po.amount.toFixed(2)} USD</span>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={String(po.amount)}
+                        value={String(poUsdToNative(po.amount))}
                         onChange={(e) => {
                           const amt = Math.max(0, Number(e.target.value) || 0);
-                          setPo((prev) => ({ ...prev, amount: amt, currency: "USD" }));
+                          setPo((prev) => ({ ...prev, amount: poNativeToUsd(amt), currency: "USD" }));
                         }}
                         className="font-mono bg-white dark:bg-zinc-900 font-semibold"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Total After-Tax (USD)</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium">Total After-Tax ({poItemCurrency} · {poTax.label})</label>
+                        {poItemCurrency !== "USD" && (
+                          <span className="text-[10px] text-slate-400 font-mono">≈ ${(Math.round(po.amount * (1 + poTax.rate) * 100) / 100).toFixed(2)} USD</span>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={String(Math.round(po.amount * (1 + TAX_RATE) * 100) / 100)}
+                        value={String(Math.round(poUsdToNative(po.amount) * (1 + poTax.rate) * 100) / 100)}
                         onChange={(e) => {
                           const afterTax = Math.max(0, Number(e.target.value) || 0);
-                          const preTax = Math.round((afterTax / (1 + TAX_RATE)) * 100) / 100;
-                          setPo((prev) => ({ ...prev, amount: preTax, currency: "USD" }));
+                          const preTax = Math.round((afterTax / (1 + poTax.rate)) * 100) / 100;
+                          setPo((prev) => ({ ...prev, amount: poNativeToUsd(preTax), currency: "USD" }));
                         }}
                         className="font-semibold font-mono bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400"
                       />
@@ -3357,7 +3581,7 @@ export default function RequestDetail() {
                           </span>
                         </div>
                         <span className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
-                          Table items in {poItemCurrency} automatically convert to USD totals
+                          Amounts shown in {poItemCurrency}; USD equivalents are used for approvals
                         </span>
                       </div>
                     )}
@@ -3815,7 +4039,7 @@ export default function RequestDetail() {
                   </Select>
                 </div>
 
-                {activeForm.action === "APPROVE" && (data?.request?.current_approval_level || 1) === 1 && Number(data?.request?.amount || data?.purchase_order?.amount || data?.invoice?.amount || 0) >= 10000 && (
+                {activeForm.action === "APPROVE" && (data?.request?.current_approval_level || 1) === 1 && (Boolean(data?.request?.requires_second_level) || Number(data?.request?.amount || data?.purchase_order?.amount || data?.invoice?.amount || 0) >= 10000) && (
                   <div className="p-3 bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/60 rounded-xl space-y-1.5">
                     <div className="flex items-center space-x-2.5">
                       <Checkbox
@@ -3829,7 +4053,7 @@ export default function RequestDetail() {
                       >
                         <span>Pass to Level 2 Approver (Company Approver)</span>
                         <Badge variant="outline" className="text-[10px] bg-purple-100/80 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 border-purple-300">
-                          ≥ $10,000
+                          ≥ $10,000 incl. tax
                         </Badge>
                       </label>
                     </div>
@@ -4059,7 +4283,74 @@ export default function RequestDetail() {
 
       {id && (
         <>
-          <ScheduleBreakdownModal
+
+      {/* Redirect to Vanessa Fernandes Dialog */}
+      <Dialog open={isRedirectVanessaDialogOpen} onOpenChange={setIsRedirectVanessaDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-200">
+              <Forward className="h-5 w-5 text-purple-600" />
+              Redirect Level 2 Approval to Vanessa
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600 dark:text-zinc-400 mt-1">
+              This assigns Level 2 Company Approval for Request #{request?.id} directly to <strong>Vanessa Fernandes</strong> and sends her an immediate approval notification email.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-xs font-medium text-slate-700 dark:text-zinc-300">
+                Reason / Note for Vanessa (Optional)
+              </label>
+              <Textarea
+                value={vanessaRedirectReason}
+                onChange={(e) => setVanessaRedirectReason(e.target.value)}
+                placeholder="e.g., Hi Vanessa, please review and approve this requisition on Shaun's behalf."
+                rows={3}
+                className="mt-1 text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsRedirectVanessaDialogOpen(false)}
+              disabled={redirectToVanessaMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+              disabled={redirectToVanessaMutation.isPending}
+              onClick={async () => {
+                if (!id) return;
+                try {
+                  await redirectToVanessaMutation.mutateAsync({
+                    requestId: id,
+                    reason: vanessaRedirectReason.trim() || undefined,
+                  });
+                  setIsRedirectVanessaDialogOpen(false);
+                  setVanessaRedirectReason("");
+                  if (searchParams.get("redirect_to")) {
+                    const next = new URLSearchParams(searchParams);
+                    next.delete("redirect_to");
+                    setSearchParams(next, { replace: true });
+                  }
+                } catch {
+                  // handled by onError
+                }
+              }}
+            >
+              {redirectToVanessaMutation.isPending ? "Redirecting..." : "Confirm Redirect"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ScheduleBreakdownModal
             request={data?.request || null}
             open={isScheduleLedgerOpen}
             onOpenChange={setIsScheduleLedgerOpen}
@@ -4444,5 +4735,4 @@ function FieldInput({
     </div>
   );
 }
-
 

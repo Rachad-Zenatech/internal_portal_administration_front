@@ -259,7 +259,12 @@ export const usePurchaseRequest = useRequestDetail;
 
 export function useExtractQuote() {
   return useMutation({
-    mutationFn: (file: File) => purchasing.extractQuote(file),
+    mutationFn: (args: File | { file: File; requestId?: string }) => {
+      if (args instanceof File) {
+        return purchasing.extractQuote(args);
+      }
+      return purchasing.extractQuote(args.file, args.requestId);
+    },
   });
 }
 
@@ -386,6 +391,22 @@ export function useDeleteProjectGroup() {
     },
     onError: (err: any) => {
       toast.error(err?.message || "Failed to delete project group");
+    },
+  });
+}
+
+export function useRedirectToVanessa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, reason }: { requestId: string; reason?: string }) =>
+      purchasing.redirectToVanessa(requestId, reason),
+    onSuccess: (_, { requestId }) => {
+      qc.invalidateQueries({ queryKey: keys.request(requestId) });
+      qc.invalidateQueries({ queryKey: keys.all });
+      toast.success('Level 2 approval redirected to Vanessa Fernandes');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to redirect approval to Vanessa');
     },
   });
 }

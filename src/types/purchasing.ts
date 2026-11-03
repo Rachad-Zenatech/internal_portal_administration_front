@@ -242,6 +242,8 @@ export type Invoice = {
   interest?: number | null;
   principal_paid?: number | null;
   balance?: number | null;
+  currency?: string | null;
+  actual_cost_after_tax?: number | null;
   created_at: string;
   items?: InvoiceItemDetail[];
 };
@@ -282,6 +284,84 @@ export type AttachmentInfo = {
   uploader_name?: string | null;
 };
 
+export type RequestMessageItem = {
+  id: number;
+  request_id: string;
+  sender_id?: string | null;
+  sender_name: string;
+  sender_email?: string | null;
+  sender_role?: string | null;
+  message_type: 'REQUEST_INFO' | 'REPLY' | 'GENERAL' | 'SECURE_REQUEST' | string;
+  subject?: string | null;
+  message_text: string;
+  recipient_emails: string[];
+  email_sent: boolean;
+  created_at: string;
+  secure_request?: SecureInfoRequestSummary | null;
+  /** Deleted messages keep their place in the thread; their text is wiped. */
+  deleted_at?: string | null;
+  deleted_by_name?: string | null;
+  can_delete?: boolean;
+};
+
+/** Status of a secure account-details request. Never contains the submitted values. */
+export type SecureInfoRequestSummary = {
+  id: string;
+  status: 'PENDING' | 'SUBMITTED' | 'EXPIRED' | 'DELETED' | 'CANCELLED';
+  purpose: string;
+  fields: string[];
+  requested_by_id: string;
+  requested_by_name?: string | null;
+  requested_by_email?: string | null;
+  requested_from_id?: string | null;
+  requested_from_name?: string | null;
+  requested_from_email?: string | null;
+  /** The account may ask for a verification code (2FA) when the admin signs in. */
+  may_need_2fa?: boolean;
+  expires_at: string;
+  submitted_at?: string | null;
+  last_revealed_at?: string | null;
+  reveal_count: number;
+  reveals_remaining: number;
+  can_submit: boolean;
+  can_reveal: boolean;
+  can_delete: boolean;
+  /** One-time code: NONE, REQUESTED (admin is signing in), SENT (waiting to be viewed). */
+  code_state?: 'NONE' | 'REQUESTED' | 'SENT';
+  code_requested_at?: string | null;
+  code_expires_at?: string | null;
+  can_request_code?: boolean;
+  can_send_code?: boolean;
+  can_reveal_code?: boolean;
+};
+
+export type SecureCodeReveal = {
+  code: string;
+  hide_after_seconds: number;
+};
+
+export type SecureInfoRequestCreate = {
+  purpose: string;
+  fields: string[];
+  ttl_hours?: number;
+  notify_email?: boolean;
+  may_need_2fa?: boolean;
+};
+
+export type SecureInfoReveal = {
+  fields: { label: string; value: string }[];
+  hide_after_seconds: number;
+  expires_at: string;
+  reveals_remaining: number;
+};
+
+export type RequestMessageCreate = {
+  message_text: string;
+  message_type?: string;
+  subject?: string;
+  notify_email?: boolean;
+};
+
 export type RequestDetail = {
   request: PurchaseRequest;
   purchase_order: PurchaseOrder | null;
@@ -294,6 +374,7 @@ export type RequestDetail = {
   ordered_date: string | null;
   attachments: AttachmentInfo[];
   history: TaskHistoryItem[];
+  messages?: RequestMessageItem[];
 };
 
 export type PurchasingSummary = {
@@ -353,6 +434,8 @@ export type RequestCreateInput = {
   due_date?: string | null;
   recurring_schedule?: RecurringSchedule | null;
   wire_transfer?: WireTransferInput;
+  /** Estimated sales tax rate shown on the form (0.13 = 13%); counts toward the $10k Level 2 threshold. */
+  estimated_tax_rate?: number;
 };
 
 export type PurchaseOrderInput = {
@@ -371,6 +454,8 @@ export type PurchaseOrderInput = {
   shipped_to_location?: string | null;
   gl_code?: string | null;
   items?: any[] | null;
+  /** Estimated sales tax rate for this PO; counts toward the $10k Level 2 threshold. */
+  estimated_tax_rate?: number;
 };
 
 export type InvoiceItemInput = {
@@ -400,6 +485,8 @@ export type InvoiceInput = {
   principal_paid?: number | string | null;
   balance?: number | string | null;
   remaining_balance?: number | string | null;
+  currency?: string | null;
+  actual_cost_after_tax?: number | null;
   items?: InvoiceItemInput[];
 };
 

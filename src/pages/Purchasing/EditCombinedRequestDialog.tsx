@@ -48,7 +48,7 @@ import type {
   AttachmentInfo,
 } from "@/types/purchasing";
 import { RequestStatus } from "@/types/purchasing";
-import { TAX_RATE, formatMoney } from "./purchasingMeta";
+import { formatMoney, resolveTaxRate } from "./purchasingMeta";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FilePreviewModal, type PreviewFileTarget } from "./FilePreviewModal";
 import {
@@ -699,11 +699,13 @@ export function EditCombinedRequestDialog({
   };
 
   const parsedAmount = parseFloat(amount) || 0;
-  const afterTaxAmount = Math.round(parsedAmount * (1 + TAX_RATE) * 100) / 100;
+  const reqTax = resolveTaxRate({ shippingAddress, vendorName: poVendor || invVendor, currency: reqCurrency });
+  const poTax = resolveTaxRate({ shippingAddress, vendorName: poVendor || invVendor, currency: poCurrency });
+  const afterTaxAmount = Math.round(parsedAmount * (1 + reqTax.rate) * 100) / 100;
 
   const handleAfterTaxChange = (val: string) => {
     const after = parseFloat(val) || 0;
-    const pre = Math.round((after / (1 + TAX_RATE)) * 100) / 100;
+    const pre = Math.round((after / (1 + reqTax.rate)) * 100) / 100;
     handleAmountChange(String(pre));
   };
 
@@ -769,7 +771,7 @@ export function EditCombinedRequestDialog({
 
   const handlePoAfterTaxChange = (val: number) => {
     const after = Math.max(0, val || 0);
-    const pre = Math.round((after / (1 + TAX_RATE)) * 100) / 100;
+    const pre = Math.round((after / (1 + poTax.rate)) * 100) / 100;
     setPoAmount(pre);
     if (isPricingSynced) {
       setInvAmount(pre);
@@ -1546,7 +1548,7 @@ export function EditCombinedRequestDialog({
                   <div className="rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/30 p-3.5 flex items-center justify-between">
                     <div>
                       <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300 block">
-                        Estimated Total After-Tax (13% Tax)
+                        Estimated Total After-Tax ({reqTax.label})
                       </span>
                       <Input
                         type="number"
@@ -1958,13 +1960,13 @@ export function EditCombinedRequestDialog({
                   <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/30 p-3.5 flex items-center justify-between">
                     <div>
                       <span className="text-xs font-medium text-amber-800 dark:text-amber-300 block">
-                        Estimated Total After-Tax (13% Tax)
+                        Estimated Total After-Tax ({poTax.label})
                       </span>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={String(Math.round(poAmount * (1 + TAX_RATE) * 100) / 100)}
+                        value={String(Math.round(poAmount * (1 + poTax.rate) * 100) / 100)}
                         onChange={(e) => handlePoAfterTaxChange(Number(e.target.value))}
                         className="h-8 font-mono text-base font-bold text-amber-800 dark:text-amber-300 bg-transparent border-0 p-0 focus-visible:ring-0"
                       />

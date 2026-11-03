@@ -14,9 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Trash2, Edit2, Paperclip, ExternalLink, FileText, Package, ReceiptText, AlertTriangle, User, Building2, Tag, Layers } from "lucide-react";
-import Stepper from "@/components/Stepper";
+import Stepper from "@/components/common/Stepper";
 import { RequestStatus } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
+import { LinkifiedText } from "@/components/common/LinkifiedText";
 import HelpIcon from "@/components/ui/HelpIcon";
 import {
   SPEND_FLOW,
@@ -26,7 +27,7 @@ import {
   getStatusBadge,
   getStatusLabel,
   PRIORITY_BADGE,
-  TAX_RATE,
+  resolveTaxRate,
   formatDate,
   formatRequestType,
   formatActivityAction,
@@ -227,7 +228,13 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
   const totalAmount = Number(task.amount || 0);
   const unitPrice = Number(task.unit_price || 0);
   const quantity = Number(task.quantity || 1);
-  const afterTaxAmount = totalAmount * (1 + TAX_RATE);
+  const taskTax = resolveTaxRate({
+    shippingAddress: task.purchase_order?.shipped_to_location || task.shipping_address,
+    vendorAddress: parsedQuoteData?.vendor?.address,
+    vendorName: task.purchase_order?.vendor || parsedQuoteData?.vendor?.name || parsedProductInfo?.vendor,
+    currency: task.currency,
+  });
+  const afterTaxAmount = totalAmount * (1 + taskTax.rate);
 
   const rawItems = (task.items && task.items.length > 0)
     ? task.items
@@ -286,7 +293,11 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                   ${totalAmount.toFixed(2)} <span className="text-xs font-normal text-muted-foreground">{task.currency || "USD"}</span>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Est. After-Tax: <span className="font-semibold text-slate-700 dark:text-slate-300">${afterTaxAmount.toFixed(2)}</span>
+                  {task.invoice?.actual_cost_after_tax != null ? (
+                    <>Actual After-Tax: <span className="font-semibold text-slate-700 dark:text-slate-300">{Number(task.invoice.actual_cost_after_tax).toFixed(2)} {task.invoice.currency || task.currency || "USD"}</span></>
+                  ) : (
+                    <>Est. After-Tax ({taskTax.label}): <span className="font-semibold text-slate-700 dark:text-slate-300">{afterTaxAmount.toFixed(2)} {task.currency || "USD"}</span></>
+                  )}
                 </div>
               </div>
             </div>
@@ -507,7 +518,9 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, readOnly = fa
                                   <TableRow key={idx}>
                                     <TableCell className="text-center text-slate-400 font-mono text-[11px]">{idx + 1}</TableCell>
                                     <TableCell className="text-xs text-slate-500 font-mono">{itm.sku || "—"}</TableCell>
-                                    <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">{itm.description}</TableCell>
+                                    <TableCell className="font-medium text-slate-900 dark:text-zinc-100 text-xs">
+                                      <LinkifiedText text={itm.description} />
+                                    </TableCell>
                                     <TableCell className="text-right text-xs">{itm.quantity ?? 1}</TableCell>
                                     <TableCell className="text-right font-mono text-xs">${Number(itm.unit_price || 0).toFixed(2)}</TableCell>
                                     <TableCell className="text-right font-semibold font-mono text-xs text-slate-900 dark:text-zinc-100">

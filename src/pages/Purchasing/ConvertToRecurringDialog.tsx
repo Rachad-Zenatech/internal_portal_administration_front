@@ -243,10 +243,10 @@ export function ConvertToRecurringDialog({
               {/* Amount per cycle */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
-                  Cycle Amount (USD) <span className="text-rose-500">*</span>
+                  Cycle Amount ({request.currency || "USD"}) <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">{request.currency || "USD"}</span>
                   <Input
                     type="number"
                     step="0.01"
@@ -254,7 +254,7 @@ export function ConvertToRecurringDialog({
                     placeholder="0.00"
                     value={cycleAmount}
                     onChange={(e) => setCycleAmount(e.target.value)}
-                    className="h-10 text-sm font-mono pl-8 bg-white dark:bg-zinc-950"
+                    className="h-10 text-sm font-mono pl-14 bg-white dark:bg-zinc-950"
                     required
                   />
                 </div>

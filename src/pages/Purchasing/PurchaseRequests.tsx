@@ -295,6 +295,11 @@ const EMPTY_FORM: RequestCreateInput = {
   project_name: "",
 };
 
+function parseExtractedPrice(price: string | number | null | undefined): number | null {
+  const numericPrice = Number(String(price ?? "").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/)?.[0]);
+  return Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : null;
+}
+
 export function PurchaseRequests() {
   const kpiRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -340,8 +345,8 @@ export function PurchaseRequests() {
             updates.title = res.name;
           }
           // Populate price
-          const parsedPrice = parseFloat(res.price);
-          if (!isNaN(parsedPrice) && parsedPrice > 0) {
+          const parsedPrice = parseExtractedPrice(res.price);
+          if (parsedPrice !== null) {
             updates.unit_price = parsedPrice;
             updates.amount = parsedPrice * (prev.quantity || 1);
           }
@@ -371,11 +376,22 @@ export function PurchaseRequests() {
   const [quoteExtraction, setQuoteExtraction] = useState<QuoteExtractionResponse | null>(null);
   const quoteFileInputRef = useRef<HTMLInputElement | null>(null);
   const [quoteItems, setQuoteItems] = useState<PurchaseRequestItem[]>([]);
+  const [lineItemsCurrency, setLineItemsCurrency] = useState("USD");
+  const itemUrlExtractionTimeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const lastExtractedItemUrlsRef = useRef<Map<number, string>>(new Map());
   const [shippingFee, setShippingFee] = useState<number>(0);
   const [taxFee, setTaxFee] = useState<number>(0);
   const [isFullScreenTable, setIsFullScreenTable] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [isQBExportOpen, setIsQBExportOpen] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      for (const timeout of itemUrlExtractionTimeoutsRef.current.values()) {
+        clearTimeout(timeout);
+      }
+    };
+  }, []);
 
   // File Preview Modal State
   const [previewTarget, setPreviewTarget] = useState<PreviewFileTarget | null>(null);
@@ -555,6 +571,7 @@ export function PurchaseRequests() {
     setQuoteFile(null);
     setQuoteExtraction(null);
     setQuoteItems([]);
+    setLineItemsCurrency("USD");
     setShippingFee(0);
     setTaxFee(0);
     setShowUnsavedConfirm(false);
@@ -574,6 +591,7 @@ export function PurchaseRequests() {
       const isForeign = Boolean(conv?.is_converted);
       const rate = conv?.exchange_rate || 1.0;
       const origCurr = conv?.original_currency || result.extraction.currency || "USD";
+      setLineItemsCurrency(origCurr);
 
       // 1. Keep line items strictly in their extracted native quote currency (e.g. CAD) so inputs match the PDF quote
       const items: PurchaseRequestItem[] = (result.extraction.items || []).map((itm, idx) => {
@@ -654,6 +672,85 @@ export function PurchaseRequests() {
     });
   };
 
+  const handleItemUrlExtraction = async (index: number, description: string) => {
+    const urlMatch = description.match(
+      /(?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<]*)?/i,
+    );
+    const url = urlMatch?.[0].replace(/[),.;!?]+$/, "");
+    if (!url) return;
+
+    const initialItem = quoteItems[index];
+    if (!initialItem) return;
+    const initialPrice = Number(initialItem.unit_price) || 0;
+    const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    if (lastExtractedItemUrlsRef.current.get(index) === normalizedUrl) return;
+
+    lastExtractedItemUrlsRef.current.set(index, normalizedUrl);
+    try {
+      const product = await extractProductInfoFromUrl(normalizedUrl);
+      const extractedPrice = parseExtractedPrice(product.price);
+      if (extractedPrice === null) {
+        lastExtractedItemUrlsRef.current.delete(index);
+        toast.error("Could not extract a price from the item link.");
+        return;
+      }
+
+      setQuoteItems((prev) => {
+        const currentItem = prev[index];
+        if (
+          !currentItem ||
+          currentItem.description !== description ||
+          (Number(currentItem.unit_price) || 0) !== initialPrice
+        ) {
+          return prev;
+        }
+
+        const quantity = Number(currentItem.quantity) || 0;
+        const discount = Number(currentItem.discount) || 0;
+        const tax = Number(currentItem.tax) || 0;
+        const next = [...prev];
+        next[index] = {
+          ...currentItem,
+          unit_price: extractedPrice,
+          total: Math.max(0, quantity * extractedPrice - discount + tax),
+        };
+        return next;
+      });
+      const extractedCurrency =
+        product.currency && product.currency !== "N/A" ? product.currency : undefined;
+      if (extractedCurrency) {
+        setLineItemsCurrency(extractedCurrency);
+        setForm((prev) => ({ ...prev, currency: extractedCurrency }));
+      }
+      toast.success(
+        `Extracted ${product.name && product.name !== "N/A" ? `${product.name}: ` : ""}${formatMoney(extractedPrice, extractedCurrency || "USD")}`,
+      );
+    } catch (err) {
+      lastExtractedItemUrlsRef.current.delete(index);
+      toast.error(err instanceof Error ? err.message : "Failed to extract item price from link.");
+    }
+  };
+
+  const scheduleItemUrlExtraction = (index: number, description: string) => {
+    const existingTimeout = itemUrlExtractionTimeoutsRef.current.get(index);
+    if (existingTimeout) clearTimeout(existingTimeout);
+
+    const timeout = setTimeout(() => {
+      itemUrlExtractionTimeoutsRef.current.delete(index);
+      void handleItemUrlExtraction(index, description);
+    }, 700);
+    itemUrlExtractionTimeoutsRef.current.set(index, timeout);
+  };
+
+  const extractItemUrlOnBlur = (index: number, description: string) => {
+    const existingTimeout = itemUrlExtractionTimeoutsRef.current.get(index);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      itemUrlExtractionTimeoutsRef.current.delete(index);
+    }
+    void handleItemUrlExtraction(index, description);
+  };
+
   const handleAddItem = () => {
     setQuoteItems((prev) => [
       ...prev,
@@ -671,6 +768,11 @@ export function PurchaseRequests() {
   };
 
   const handleRemoveItem = (index: number) => {
+    for (const timeout of itemUrlExtractionTimeoutsRef.current.values()) {
+      clearTimeout(timeout);
+    }
+    itemUrlExtractionTimeoutsRef.current.clear();
+    lastExtractedItemUrlsRef.current.clear();
     setQuoteItems((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -797,9 +899,15 @@ export function PurchaseRequests() {
     }
 
     try {
-      const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted);
+      const sourceQuoteCurrency =
+        quoteExtraction?.extraction?.conversion?.original_currency ||
+        quoteExtraction?.extraction?.currency;
+      const isForeign = Boolean(
+        quoteExtraction?.extraction?.conversion?.is_converted &&
+        sourceQuoteCurrency === lineItemsCurrency,
+      );
       const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
-      const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
+      const quoteCurr = lineItemsCurrency || form.currency || "USD";
       const finalUsdAmount = isForeign ? Math.round(totalCalculatedAmount * rate * 100) / 100 : totalCalculatedAmount;
 
       const finalItems = itemMode === "MULTIPLE" ? quoteItems.map((itm) => ({
@@ -869,7 +977,11 @@ export function PurchaseRequests() {
           ? baseAmt
           : (itemMode === "MULTIPLE" && isForeign ? finalUsdAmount : totalCalculatedAmount),
         unit_price: isRecurring ? baseAmt : form.unit_price,
-        currency: isAP ? (apWireForm.currency || "USD") : (form.currency || "USD"),
+        currency: isAP
+          ? (apWireForm.currency || "USD")
+          : itemMode === "MULTIPLE"
+          ? (isForeign ? "USD" : lineItemsCurrency)
+          : (form.currency || "USD"),
         product_info: extractedProductInfo || form.product_info || undefined,
         due_date: isAP
           ? (apWireForm.due_date || undefined)
@@ -878,17 +990,19 @@ export function PurchaseRequests() {
           : undefined,
         recurring_schedule: recurringScheduleObj,
         items: (isAP || isRecurring) ? undefined : finalItems,
-        quote_file_id: undefined,
-        quote_data: (isAP || isRecurring) ? undefined : (quoteExtraction?.extraction || undefined),
+        quote_file_id: quoteExtraction?.file_id || undefined,
+        quote_data: (isAP || isRecurring) ? undefined : (quoteExtraction ? { ...quoteExtraction.extraction, file_id: quoteExtraction.file_id } : undefined),
         wire_transfer: isAP ? {
           ...apWireForm,
           amount: Number(apWireForm.amount) || 0,
           vendor: apWireForm.vendor || effectiveTitle,
         } : undefined,
+        // Tax counts toward the $10k Level 2 threshold (backend uses at least its minimum rate).
+        estimated_tax_rate: taxEstimate?.rateDecimal ?? undefined,
       };
 
       const detail = await createMutation.mutateAsync(payload);
-      if (quoteFile) {
+      if (quoteFile && !quoteExtraction?.file_id) {
         try {
           await uploadAttachments(detail.request.id, [quoteFile]);
         } catch (attErr) {
@@ -1478,6 +1592,16 @@ export function PurchaseRequests() {
                       Line Items &amp; Parts Breakdown ({quoteItems.length})
                     </label>
                     <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-500 dark:text-zinc-400">Currency</span>
+                        <CurrencyAutocomplete
+                          value={lineItemsCurrency}
+                          onChange={(currency) => {
+                            setLineItemsCurrency(currency);
+                            setForm((prev) => ({ ...prev, currency }));
+                          }}
+                        />
+                      </div>
                       <Button
                         type="button"
                         variant="outline"
@@ -1508,15 +1632,21 @@ export function PurchaseRequests() {
                           <th className="p-2 w-28">SKU</th>
                           <th className="p-2">Description</th>
                           <th className="p-2 w-20 text-right">Qty</th>
-                          <th className="p-2 w-36 text-right">Price ({quoteExtraction?.extraction?.currency || form.currency || "USD"})</th>
-                          <th className="p-2 w-36 text-right">Total ({quoteExtraction?.extraction?.currency || form.currency || "USD"})</th>
+                          <th className="p-2 w-36 text-right">Price ({lineItemsCurrency})</th>
+                          <th className="p-2 w-36 text-right">Total ({lineItemsCurrency})</th>
                           <th className="p-2 w-10 text-center"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                         {quoteItems.map((itm, idx) => {
-                          const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
-                          const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted || (quoteCurr && quoteCurr !== "USD"));
+                          const quoteCurr = lineItemsCurrency;
+                          const sourceQuoteCurrency =
+                            quoteExtraction?.extraction?.conversion?.original_currency ||
+                            quoteExtraction?.extraction?.currency;
+                          const isForeign = Boolean(
+                            quoteExtraction?.extraction?.conversion?.is_converted &&
+                            sourceQuoteCurrency === quoteCurr,
+                          );
                           const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
                           const usdUnitPrice = isForeign ? Math.round(Number(itm.unit_price || 0) * rate * 100) / 100 : Number(itm.unit_price || 0);
                           const usdTotal = isForeign ? Math.round(Number(itm.total || 0) * rate * 100) / 100 : Number(itm.total || 0);
@@ -1537,7 +1667,11 @@ export function PurchaseRequests() {
                               <td className="p-2">
                                 <Input
                                   value={itm.description}
-                                  onChange={(e) => handleItemChange(idx, "description", e.target.value)}
+                                  onChange={(e) => {
+                                    handleItemChange(idx, "description", e.target.value);
+                                    scheduleItemUrlExtraction(idx, e.target.value);
+                                  }}
+                                  onBlur={(e) => extractItemUrlOnBlur(idx, e.currentTarget.value)}
                                   placeholder="Item description..."
                                   className="h-8 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
                                 />
@@ -1563,16 +1697,16 @@ export function PurchaseRequests() {
                                   />
                                   {isForeign && (
                                     <div className="text-[10.5px] text-right text-slate-500 dark:text-zinc-400 font-mono">
-                                      {formatMoney(usdUnitPrice)} USD
+                                      {formatMoney(usdUnitPrice)}
                                     </div>
                                   )}
                                 </div>
                               </td>
                               <td className="p-2 w-36 text-right font-semibold font-mono text-sm text-slate-900 dark:text-zinc-100">
-                                <div>{formatMoney(itm.total)} {quoteCurr}</div>
+                                <div>{formatMoney(itm.total, quoteCurr)}</div>
                                 {isForeign && (
                                   <div className="text-[10.5px] font-normal text-slate-500 dark:text-zinc-400 font-mono">
-                                    {formatMoney(usdTotal)} USD
+                                    {formatMoney(usdTotal)}
                                   </div>
                                 )}
                               </td>
@@ -1624,8 +1758,14 @@ export function PurchaseRequests() {
 
                     <div className="text-right text-xs space-y-2 min-w-[300px]">
                       {(() => {
-                        const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
-                        const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted || (quoteCurr && quoteCurr !== "USD"));
+                        const quoteCurr = lineItemsCurrency;
+                        const sourceQuoteCurrency =
+                          quoteExtraction?.extraction?.conversion?.original_currency ||
+                          quoteExtraction?.extraction?.currency;
+                        const isForeign = Boolean(
+                          quoteExtraction?.extraction?.conversion?.is_converted &&
+                          sourceQuoteCurrency === quoteCurr,
+                        );
                         const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
                         const usdSubtotal = Math.round(itemsSubtotal * rate * 100) / 100;
                         const usdShipping = Math.round(Number(shippingFee || 0) * rate * 100) / 100;
@@ -1638,11 +1778,11 @@ export function PurchaseRequests() {
                               <span>Items Subtotal:</span>
                               <div className="text-right">
                                 <span className="font-medium font-mono text-slate-800 dark:text-zinc-200">
-                                  {formatMoney(itemsSubtotal)} {quoteCurr}
+                                  {formatMoney(itemsSubtotal, quoteCurr)}
                                 </span>
                                 {isForeign && (
                                   <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono block">
-                                    ({formatMoney(usdSubtotal)} USD)
+                                    ({formatMoney(usdSubtotal)})
                                   </span>
                                 )}
                               </div>
@@ -1665,7 +1805,7 @@ export function PurchaseRequests() {
                                 />
                                 {isForeign && (
                                   <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono">
-                                    ({formatMoney(usdShipping)} USD)
+                                    ({formatMoney(usdShipping)})
                                   </span>
                                 )}
                               </div>
@@ -1687,7 +1827,7 @@ export function PurchaseRequests() {
                                 />
                                 {isForeign && (
                                   <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono">
-                                    ({formatMoney(usdTax)} USD)
+                                    ({formatMoney(usdTax)})
                                   </span>
                                 )}
                               </div>
@@ -1697,11 +1837,11 @@ export function PurchaseRequests() {
                               <span className="text-slate-900 dark:text-zinc-100 font-semibold">Grand Total:</span>
                               <div className="text-right">
                                 <span className="font-bold text-base text-slate-900 dark:text-zinc-100 font-mono">
-                                  {formatMoney(totalCalculatedAmount)} {quoteCurr}
+                                  {formatMoney(totalCalculatedAmount, quoteCurr)}
                                 </span>
                                 {isForeign && (
                                   <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 font-mono block">
-                                    ({formatMoney(usdGrandTotal)} USD)
+                                    ({formatMoney(usdGrandTotal)})
                                   </span>
                                 )}
                               </div>
@@ -2096,13 +2236,21 @@ export function PurchaseRequests() {
             {/* 6b. Recurring & Subscription Specific Fields */}
             {form.request_type === "RECURRING" && (
               <div className="space-y-4 pt-1">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Currency</label>
+                    <CurrencyAutocomplete
+                      value={form.currency || "USD"}
+                      onChange={(curr) => setForm((prev) => ({ ...prev, currency: curr }))}
+                    />
+                  </div>
+
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                      Amount (USD) <span className="text-red-500">*</span>
+                      Amount ({form.currency || "USD"}) <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">{form.currency || "USD"}</span>
                       <Input
                         type="number"
                         step="0.01"
@@ -2118,7 +2266,7 @@ export function PurchaseRequests() {
                           setForm((prev) => ({ ...prev, amount: val, unit_price: val }));
                         }}
                         disabled={isScheduled && schedFrequency === "CUSTOM"}
-                        className="h-9 text-xs font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                        className="h-9 text-xs font-mono pl-12 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                         required={!(isScheduled && schedFrequency === "CUSTOM")}
                       />
                     </div>
@@ -2225,15 +2373,27 @@ export function PurchaseRequests() {
               <FileText className="h-5 w-5 text-indigo-600" />
               <span>Full Screen Line Items Table ({quoteItems.length} Parts)</span>
             </DialogTitle>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddItem}
-              className="h-8 text-xs flex items-center gap-1"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Part
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 dark:text-zinc-400">Currency</span>
+                <CurrencyAutocomplete
+                  value={lineItemsCurrency}
+                  onChange={(currency) => {
+                    setLineItemsCurrency(currency);
+                    setForm((prev) => ({ ...prev, currency }));
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddItem}
+                className="h-8 text-xs flex items-center gap-1"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add Part
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="space-y-4 pt-4">
@@ -2245,15 +2405,21 @@ export function PurchaseRequests() {
                     <th className="p-3 w-36 font-semibold">SKU</th>
                     <th className="p-3 font-semibold">Description</th>
                     <th className="p-3 w-24 text-right font-semibold">Qty</th>
-                    <th className="p-3 w-36 text-right font-semibold">Price ({quoteExtraction?.extraction?.currency || "USD"})</th>
-                    <th className="p-3 w-36 text-right font-semibold">Total ({quoteExtraction?.extraction?.currency || "USD"})</th>
+                    <th className="p-3 w-36 text-right font-semibold">Price ({lineItemsCurrency})</th>
+                    <th className="p-3 w-36 text-right font-semibold">Total ({lineItemsCurrency})</th>
                     <th className="p-3 w-12 text-center"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                   {quoteItems.map((itm, idx) => {
-                          const quoteCurr = quoteExtraction?.extraction?.currency || form.currency || "USD";
-                          const isForeign = Boolean(quoteExtraction?.extraction?.conversion?.is_converted || (quoteCurr && quoteCurr !== "USD"));
+                          const quoteCurr = lineItemsCurrency;
+                          const sourceQuoteCurrency =
+                            quoteExtraction?.extraction?.conversion?.original_currency ||
+                            quoteExtraction?.extraction?.currency;
+                          const isForeign = Boolean(
+                            quoteExtraction?.extraction?.conversion?.is_converted &&
+                            sourceQuoteCurrency === quoteCurr,
+                          );
                           const rate = quoteExtraction?.extraction?.conversion?.exchange_rate || 1.0;
                           const usdUnitPrice = isForeign ? Math.round(Number(itm.unit_price || 0) * rate * 100) / 100 : Number(itm.unit_price || 0);
                           const usdTotal = isForeign ? Math.round(Number(itm.total || 0) * rate * 100) / 100 : Number(itm.total || 0);
@@ -2274,7 +2440,11 @@ export function PurchaseRequests() {
                               <td className="p-2">
                                 <Input
                                   value={itm.description}
-                                  onChange={(e) => handleItemChange(idx, "description", e.target.value)}
+                                  onChange={(e) => {
+                                    handleItemChange(idx, "description", e.target.value);
+                                    scheduleItemUrlExtraction(idx, e.target.value);
+                                  }}
+                                  onBlur={(e) => extractItemUrlOnBlur(idx, e.currentTarget.value)}
                                   placeholder="Item description..."
                                   className="h-8 text-sm w-full bg-white dark:bg-zinc-900 font-medium"
                                 />
@@ -2299,17 +2469,17 @@ export function PurchaseRequests() {
                                 />
                                 {isForeign && (
                                   <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono block text-right mt-0.5 whitespace-nowrap">
-                                    ({formatMoney(usdUnitPrice)} USD)
+                                    ({formatMoney(usdUnitPrice)})
                                   </span>
                                 )}
                               </td>
                               <td className="p-2 w-36 text-right">
                                 <div className="font-semibold font-mono text-sm text-slate-900 dark:text-zinc-100">
-                                  {formatMoney(itm.total)}
+                                  {formatMoney(itm.total, quoteCurr)}
                                 </div>
                                 {isForeign && (
                                   <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono block text-right whitespace-nowrap">
-                                    ({formatMoney(usdTotal)} USD)
+                                    ({formatMoney(usdTotal)})
                                   </span>
                                 )}
                               </td>
@@ -2418,4 +2588,3 @@ export function PurchaseRequests() {
 }
 
 export default PurchaseRequests;
-
