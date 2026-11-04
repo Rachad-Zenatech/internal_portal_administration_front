@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -24,7 +24,10 @@ export function addOneMonth(iso: string | null | undefined): string {
   return `${next.getFullYear()}-${mm}-${dd}`;
 }
 
-export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolean) => void, onCreated?: () => void) {
+/** Open the dialog already filled from an earlier Rent/Note payment ("Create next payment"). */
+export type WirePrefill = { requestId: number; category: string };
+
+export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolean) => void, onCreated?: () => void, prefill?: WirePrefill | null) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, roles } = useAuth();
@@ -39,6 +42,7 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
   const [selectedPrevious, setSelectedPrevious] = useState<PreviousWirePayment | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const prefillApplied = useRef(false);
 
   const category = wire.category || "Others";
   const isRecurring = isRecurringWireCategory(category);
@@ -50,7 +54,7 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
     enabled: open && isRecurring,
     staleTime: 30 * 1000,
   });
-  const previousPayments = previousQuery.data?.items ?? [];
+  const previousPayments = useMemo(() => previousQuery.data?.items ?? [], [previousQuery.data]);
 
   // fresh form every time the dialog opens
   useEffect(() => {
@@ -63,7 +67,8 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
     const dept = matched
       ? resolveUserDepartment(matched, effectiveRoles)
       : resolveUserDepartment({ ...user, roles }, effectiveRoles) || (user?.department && String(user.department).toUpperCase() !== "REQUESTER" ? user.department : "") || "";
-    setWire({ ...EMPTY_WIRE_FORM, entry_date: todayIso(), payment_date: todayIso() });
+    prefillApplied.current = false;
+    setWire({ ...EMPTY_WIRE_FORM, category: prefill?.category || EMPTY_WIRE_FORM.category, entry_date: todayIso(), payment_date: todayIso() });
     setTitle("");
     setRequester(name);
     setDepartment(dept || "");
@@ -79,7 +84,7 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
   }, [category, selectedPrevious]);
 
   /** Use the latest payment of a series as the template: bank details and vendor come along, dates/invoice start blank. */
-  const applyPrevious = (p: PreviousWirePayment) => {
+  const applyPrevious = useCallback((p: PreviousWirePayment) => {
     setSelectedPrevious(p);
     setWire({
       ...EMPTY_WIRE_FORM,
@@ -96,7 +101,17 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
     });
     setTitle(p.title || `Payment for ${p.vendor}`);
     if (p.department) setDepartment(p.department);
-  };
+  }, []);
+
+  // "Create next payment": once the series is loaded, fill the form from the payment it was started from
+  useEffect(() => {
+    if (!open || !prefill || prefillApplied.current || previousQuery.isLoading) return;
+    const source = previousPayments.find((p) => p.request_id === prefill.requestId);
+    if (source) {
+      prefillApplied.current = true;
+      applyPrevious(source);
+    }
+  }, [open, prefill, previousPayments, previousQuery.isLoading, applyPrevious]);
 
   const clearPrevious = () => {
     setSelectedPrevious(null);

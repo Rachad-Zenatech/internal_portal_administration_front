@@ -166,7 +166,7 @@ export function useRecurringPaymentsActions() {
     queryKey: ["recurring-requests"],
     queryFn: async () => {
       return await apiClient.get<PurchaseRequest[]>(
-        "/api/purchasing/requests?request_type=RECURRING,SCHEDULED_PAYMENT"
+        "/api/purchasing/requests?request_type=RECURRING,SCHEDULED_PAYMENT,WIRE_RECURRING"
       );
     },
     enabled: !!canAccess,

@@ -15,16 +15,40 @@ export function useInvoicesActions() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
   // The sidebar sub-menu links here with ?status=WAITING_PAYMENT, ?status=ON_HOLD, ...
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlStatus = (searchParams.get("status") || "ALL").toUpperCase();
   const [statusFilter, setStatusFilter] = useState<string>(urlStatus);
   useEffect(() => {
     setStatusFilter(urlStatus);
   }, [urlStatus]);
   const [isCreateWireOpen, setIsCreateWireOpen] = useState(false);
+  const [createPrefill, setCreatePrefill] = useState<{ requestId: number; category: string } | null>(null);
+  // "Create next payment" on a Rent/Note payment links here: /purchasing/invoices?newFrom=<request id>&category=Rent
+  const newFrom = searchParams.get("newFrom");
+  const newFromCategory = searchParams.get("category");
+  useEffect(() => {
+    if (!newFrom) return;
+    if (canCreateWire) {
+      setCreatePrefill({ requestId: Number(newFrom), category: newFromCategory || "Rent" });
+      setIsCreateWireOpen(true);
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("newFrom");
+      next.delete("category");
+      return next;
+    }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newFrom]);
   const [wireFilter, setWireFilter] = useState<string>("ALL");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
-  const [quickFilter, setQuickFilter] = useState<"ALL" | "DUE_TODAY" | "PENDING" | "OVERDUE">("ALL");
+  const urlQuick = (searchParams.get("filter") || "").toUpperCase();
+  const [quickFilter, setQuickFilter] = useState<"ALL" | "DUE_TODAY" | "PENDING" | "OVERDUE">(
+    urlQuick === "DUE_TODAY" || urlQuick === "OVERDUE" ? urlQuick : "ALL",
+  );
+  useEffect(() => {
+    setQuickFilter(urlQuick === "DUE_TODAY" || urlQuick === "OVERDUE" ? urlQuick : "ALL");
+  }, [urlQuick]);
   const [selectedWireTask, setSelectedWireTask] = useState<any | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const isWireTransfer = (task: any) => {
@@ -267,5 +291,5 @@ export function useInvoicesActions() {
     setTypeFilter("ALL");
     setQuickFilter("ALL");
   };
-  return { navigate, canCreateWire, isCreateWireOpen, setIsCreateWireOpen, tasks, isLoading, searchQuery, setSearchQuery, statusFilter, setStatusFilter, wireFilter, setWireFilter, typeFilter, setTypeFilter, quickFilter, setQuickFilter, selectedWireTask, setSelectedWireTask, copiedKey, isWireTransfer, isScheduledPayment, isDueToday, isOverdue, fetchTasks, handleCopy, handleCopyAllBankingDetails, quickFilterCounts, metrics, filteredTasks, hasActiveFilters, clearFilters };
+  return { navigate, canCreateWire, isCreateWireOpen, setIsCreateWireOpen, createPrefill, setCreatePrefill, tasks, isLoading, searchQuery, setSearchQuery, statusFilter, setStatusFilter, wireFilter, setWireFilter, typeFilter, setTypeFilter, quickFilter, setQuickFilter, selectedWireTask, setSelectedWireTask, copiedKey, isWireTransfer, isScheduledPayment, isDueToday, isOverdue, fetchTasks, handleCopy, handleCopyAllBankingDetails, quickFilterCounts, metrics, filteredTasks, hasActiveFilters, clearFilters };
 }

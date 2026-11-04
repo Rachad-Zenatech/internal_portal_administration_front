@@ -5,18 +5,20 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { WireGeneralPaymentFields } from "../fields/WireGeneralPaymentFields";
 import { WireBankingFields } from "../fields/WireBankingFields";
 import { PreviousPaymentPicker } from "./createWireTransfer/PreviousPaymentPicker";
-import { useCreateWireTransfer } from "./createWireTransfer/useCreateWireTransfer";
+import { useCreateWireTransfer, type WirePrefill } from "./createWireTransfer/useCreateWireTransfer";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** called after a wire transfer was created (so the wire page can reload its list) */
   onCreated?: () => void;
+  /** start from an earlier Rent/Note payment instead of a blank form */
+  prefill?: WirePrefill | null;
 }
 
 /** Creates a wire transfer (request type "Wire Transfer"); this replaced the "Wire Transfer" option of the purchase request dialog. */
-export function CreateWireTransferDialog({ open, onOpenChange, onCreated }: Props) {
-  const s = useCreateWireTransfer(open, onOpenChange, onCreated);
+export function CreateWireTransferDialog({ open, onOpenChange, onCreated, prefill }: Props) {
+  const s = useCreateWireTransfer(open, onOpenChange, onCreated, prefill);
   const { wire, setWire, title, setTitle, requester, setRequester, department, setDepartment, setFile, fileInputRef, category, isRecurring, isSubmitting } = s;
 
   return (

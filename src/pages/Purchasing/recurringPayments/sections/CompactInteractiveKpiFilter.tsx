@@ -6,7 +6,7 @@ export function CompactInteractiveKpiFilter({ v }: { v: RecurringPaymentsViewSta
   const { stats, cardFilter, handleCardFilterChange, kpiRef } = v;
   return (
     <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
-        {/* 1. All Subscriptions */}
+        {/* 1. All Recurring Payments */}
         <Card
           onClick={() => handleCardFilterChange("ALL")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-blue-300 ${

@@ -69,7 +69,11 @@ export default function Sidebar({
     // Wire Transfer sub-menu: records per status on the wire transfer page
     if (path.startsWith("/purchasing/invoices")) {
       if (!wireStatusCounts) return undefined;
-      const wireStatus = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "").get("status")?.toUpperCase();
+      const wireParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
+      const wireQuick = wireParams.get("filter")?.toUpperCase();
+      if (wireQuick === "DUE_TODAY") return wireStatusCounts.due_today ?? 0;
+      if (wireQuick === "OVERDUE") return wireStatusCounts.overdue ?? 0;
+      const wireStatus = wireParams.get("status")?.toUpperCase();
       return wireStatus ? wireStatusCounts.counts[wireStatus] ?? 0 : wireStatusCounts.total;
     }
     if (!purchasingSummary) return undefined;

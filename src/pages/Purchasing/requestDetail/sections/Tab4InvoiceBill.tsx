@@ -1,99 +1,33 @@
-import HelpIcon from "@/components/ui/HelpIcon";
 import { ReceiptText, Upload, Trash2, Download, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TabsContent } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import * as purchasingService from "@/services/purchasingService";
-import { PAYMENT_BADGE, PAYMENT_LABEL, STATUS_BADGE, formatDate, formatMoney } from "../../utils/purchasingMeta";
-import { Field } from "../components/Field";
+import { formatDate } from "../../utils/purchasingMeta";
+import { InvoiceRecordsList } from "../components/InvoiceRecordsList";
 import { ATTACHMENT_ACCEPT } from "../constants";
 import type { RequestDetailViewState } from "../hooks/useRequestDetailTail";
 
 export function Tab4InvoiceBill({ v }: { v: RequestDetailViewState }) {
   const { deleteAttachment, request, isLoadingPreview, handlePreviewAttachment, data, uploadAttachments, invoiceReceiptInputRef, canAttachFiles, renderCategory, inv, renderBankAccount, hasInvoiceTab } = v;
+  // newest first; a wire transfer keeps every payment that was recorded for it
+  const invoiceRecords = data?.invoices?.length ? data.invoices : inv ? [inv] : [];
+  const isWire = request.request_type === "ACCOUNTS_PAYABLE" && Boolean(data?.wire_transfer);
   return (
     <>
       {hasInvoiceTab && inv && (
               <TabsContent value="invoice" className="m-0 focus-visible:outline-none space-y-6">
                 <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
-                  <CardHeader className="pb-3 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/30">
-                    <CardTitle className="text-base font-semibold flex items-center justify-between text-slate-900 dark:text-zinc-100">
-                      <div className="flex items-center gap-2">
-                        <ReceiptText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                        <span>Invoice &amp; Bill · {inv.id}</span>
-                      </div>
-                      <Badge variant="outline" className={inv.paid_date ? STATUS_BADGE.COMPLETED : PAYMENT_BADGE[inv.payment_status]}>
-                        {inv.paid_date ? `Settled · ${formatDate(inv.paid_date)}` : (PAYMENT_LABEL[inv.payment_status] || inv.payment_status)}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-5 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 text-sm">
-                      <Field label="Vendor" value={inv.vendor} />
-                      <Field label="Amount" value={formatMoney(inv.amount)} />
-                      <Field label="Bill Date" value={formatDate(inv.paid_date || inv.invoice_date)} />
-                      <Field label="Due Date / Date Arrived" value={formatDate(inv.due_date)} />
-                      <Field
-                        label="Bank Account"
-                        value={renderBankAccount(inv.bank_account)}
-                      />
-                      <Field
-                        label="Category"
-                        value={
-                          inv.items && inv.items.length > 1 ? (
-                            <Badge variant="outline" className="bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-300 dark:border-zinc-700 text-xs font-normal">
-                              Split ({inv.items.length} lines)
-                            </Badge>
-                          ) : (
-                            renderCategory(inv.gl_code)
-                          )
-                        }
-                      />
-                      <Field label="Class (Department)" value={inv.department || "—"} />
-                      <Field label="From Location" value={inv.from_location || "—"} />
-                      <Field label={<span className="flex items-center gap-1"><span>Asset Flag</span><HelpIcon text="Asset Flag designates whether this invoice represents a Capitalized Fixed Asset (CapEx) — such as equipment, hardware, lease/financing agreements, or software licenses — rather than an immediate operational expense (OpEx). When checked, the cost is capitalized on the balance sheet and depreciated/amortized over time instead of expensed in full in the current period. It automatically defaults to active for Scheduled Payments, Recurring obligations, and Accounts Payable." /></span>} value={inv.asset_flag ? "Yes" : "No"} />
-                    </div>
-
-                    {inv.description && (
-                      <div className="pt-3 border-t border-slate-100 dark:border-zinc-800">
-                        <div className="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Description</div>
-                        <div className="text-sm text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{inv.description}</div>
-                      </div>
-                    )}
-
-                    {inv.items && inv.items.length > 0 && (
-                      <div className="mt-2 pt-3 border-t border-slate-100 dark:border-zinc-800">
-                        <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2 flex items-center justify-between">
-                          <span>Itemized Category Allocations ({inv.items.length} items)</span>
-                        </div>
-                        <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
-                          <div className="bg-slate-50 dark:bg-zinc-800/50 px-3 py-1.5 grid grid-cols-12 gap-2 font-medium text-slate-500">
-                            <div className="col-span-5">Item</div>
-                            <div className="col-span-2 text-right pr-6">Amount</div>
-                            <div className="col-span-4 pl-4 border-l border-slate-200 dark:border-zinc-700">Category</div>
-                            <div className="col-span-1 flex items-center justify-center gap-0.5"><span>Asset</span><HelpIcon text="Mark as Capitalized Fixed Asset (CapEx)" iconClassName="h-3 w-3" /></div>
-                          </div>
-                          {inv.items.map((it, idx) => (
-                            <div key={idx} className="px-3 py-2 grid grid-cols-12 gap-2 items-center bg-white dark:bg-zinc-900">
-                              <div className="col-span-5 break-words whitespace-normal leading-snug font-medium text-slate-800 dark:text-zinc-200" title={it.description}>
-                                {it.sku ? <span className="font-mono text-indigo-600 dark:text-indigo-400 mr-1">[{it.sku}]</span> : null}{it.description}
-                              </div>
-                              <div className="col-span-2 text-right pr-6 font-mono font-medium text-slate-700 dark:text-zinc-300">
-                                {formatMoney(it.amount)}
-                              </div>
-                              <div className="col-span-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
-                                {renderCategory(it.gl_code)}
-                              </div>
-                              <div className="col-span-1 text-center">
-                                {it.asset_flag ? <span className="inline-flex items-center gap-1"><Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">Asset</Badge><HelpIcon text="Capitalized Fixed Asset (CapEx)" iconClassName="h-3 w-3" /></span> : "—"}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {/* Attached Receipts & Invoices */}
+                  {/* every payment recorded against this request: summary + one row per record */}
+                  <InvoiceRecordsList
+                    invoices={invoiceRecords}
+                    amountDue={isWire ? (data?.wire_transfer?.amount ?? request.amount) : null}
+                    amountDueCurrency={isWire ? (data?.wire_transfer?.currency ?? request.currency) : null}
+                    renderBankAccount={renderBankAccount}
+                    renderCategory={renderCategory}
+                  />
+                  <CardContent className="px-5 pb-5 pt-0">
                     <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">

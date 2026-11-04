@@ -11,7 +11,7 @@ import { CreateWireTransferDialog } from "./dialogs/CreateWireTransferDialog";
 
 export default function Invoices() {
   const s = useInvoices();
-  const { isLoading, fetchTasks, metrics, canCreateWire, isCreateWireOpen, setIsCreateWireOpen } = s;
+  const { isLoading, fetchTasks, metrics, canCreateWire, isCreateWireOpen, setIsCreateWireOpen, createPrefill, setCreatePrefill } = s;
   return (
     <div className="w-full flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out pb-8">
       {/* ── Page Header ── */}
@@ -50,7 +50,10 @@ export default function Invoices() {
           {canCreateWire && (
           <Button
             size="sm"
-            onClick={() => setIsCreateWireOpen(true)}
+            onClick={() => {
+              setCreatePrefill(null);
+              setIsCreateWireOpen(true);
+            }}
             className="h-9 gap-1.5 text-xs font-medium shadow-sm bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
@@ -70,7 +73,7 @@ export default function Invoices() {
       <TableCard s={s} />
 
       {/* ── Create Wire Transfer ── */}
-      {canCreateWire && <CreateWireTransferDialog open={isCreateWireOpen} onOpenChange={setIsCreateWireOpen} onCreated={fetchTasks} />}
+      {canCreateWire && <CreateWireTransferDialog open={isCreateWireOpen} onOpenChange={setIsCreateWireOpen} onCreated={fetchTasks} prefill={createPrefill} />}
 
       {/* ── Read-Only Wire Info Details Dialog ── */}
       <ReadOnlyWireInfo s={s} />

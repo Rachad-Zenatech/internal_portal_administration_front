@@ -62,7 +62,7 @@ export const navigation = [
     // Purchase requesters can open the page to see their own recurring requests.
     alternateNavigationCodes: ["PURCHASING"],
     subItems: [
-      { label: "All Subscriptions", path: "/purchasing/recurring" },
+      { label: "All Recurring Payments", path: "/purchasing/recurring" },
       { label: "M&A Scheduled Payments", path: "/purchasing/recurring?filter=MA_SCHEDULED" },
       { label: "Due in 7 Days", path: "/purchasing/recurring?filter=DUE_SOON" },
       { label: "Waiting for Review", path: "/purchasing/recurring?filter=WAITING_REVIEW" },
@@ -80,12 +80,8 @@ export const navigation = [
     navigationCode: "INVOICES",
     subItems: [
       { label: "All Wire Transfers", path: "/purchasing/invoices" },
-      { label: "Draft", path: "/purchasing/invoices?status=INITIAL" },
-      { label: "Waiting Approval", path: "/purchasing/invoices?status=WAITING_APPROVAL" },
-      { label: "Waiting Payment", path: "/purchasing/invoices?status=WAITING_PAYMENT" },
-      { label: "Completed", path: "/purchasing/invoices?status=COMPLETED" },
-      { label: "Rejected", path: "/purchasing/invoices?status=REJECTED" },
-      { label: "Review on Hold", path: "/purchasing/invoices?status=ON_HOLD" },
+      { label: "Due on Today", path: "/purchasing/invoices?filter=DUE_TODAY" },
+      { label: "Overdue Payment", path: "/purchasing/invoices?filter=OVERDUE" },
     ],
   },
   {

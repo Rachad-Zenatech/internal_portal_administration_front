@@ -7,7 +7,7 @@ import { ACTION_META, PRIORITY_BADGE, getStatusBadge, getStatusLabel, formatDate
 import type { RequestDetailViewState } from "../hooks/useRequestDetailTail";
 
 export function MainRequestHeaderFull({ v }: { v: RequestDetailViewState }) {
-  const { request, purchase_order, isAPRequest, isRecurring, available_actions, isSelfApprovalBlocked, hasInvoiceOrReceipt, isReviewed, onAction, transition, reviewMutation, setIsProjectDialogOpen, setQuickProjectValue, canEditRequest, navigate } = v;
+  const { request, data, purchase_order, isAPRequest, isRecurring, available_actions, isSelfApprovalBlocked, hasInvoiceOrReceipt, isReviewed, onAction, transition, reviewMutation, setIsProjectDialogOpen, setQuickProjectValue, canEditRequest, navigate } = v;
   return (
     <div className="w-full space-y-2.5">
         {/* Title with ID prefix and HelpIcon - Takes 100% full width */}
@@ -17,6 +17,18 @@ export function MainRequestHeaderFull({ v }: { v: RequestDetailViewState }) {
               #{request.id}
             </span>
             <span>{request.title}</span>
+            {data?.wire_transfer?.payment_series?.label && (
+              <button
+                type="button"
+                onClick={() => document.getElementById("wire-payments")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                title="Show all payments of this series"
+                className="shrink-0 cursor-pointer"
+              >
+                <Badge className="text-xs px-2 py-0.5 bg-teal-100 text-teal-800 hover:bg-teal-200 dark:bg-teal-950/80 dark:text-teal-300 border border-teal-300 dark:border-teal-700 font-bold shadow-2xs">
+                  {data.wire_transfer.payment_series.label}
+                </Badge>
+              </button>
+            )}
             {(request.source_portal === "m7a" || request.source_portal === "m&a" || request.source_portal === "m_and_a" || request.is_ma) && (
               <Badge className="text-xs px-2 py-0.5 bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-700 font-bold shrink-0 shadow-2xs">
                 M&amp;A

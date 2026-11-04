@@ -103,7 +103,7 @@ export function RecurringPaymentsBody({ s }: { s: RecurringPaymentsGuardedState 
         items={[
           {
             key: "ALL",
-            label: "All Subscriptions",
+            label: "All Recurring Payments",
             count: stats.total,
             icon: RefreshCw,
             color: "blue",

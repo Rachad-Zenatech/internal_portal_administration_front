@@ -570,6 +570,38 @@ export type WireTransfer = WireTransferInput & {
   payment_series?: WirePaymentSeries | null;
 };
 
+/** One payment of a Rent/Note wire series (each payment is its own request). */
+export type WireSeriesPayment = {
+  sequence: number;
+  request_id: number;
+  title: string | null;
+  status: string;
+  amount: number | null;
+  /** how much has been recorded as paid so far (less than amount for a part-paid wire) */
+  paid_amount: number;
+  currency: string;
+  due_date: string | null;
+  payment_date: string | null;
+  completed_at: string | null;
+  invoice_number: string | null;
+  entered_by: string | null;
+  is_current: boolean;
+};
+
+export type WireSeriesPayments = {
+  series: {
+    vendor: string;
+    category: string;
+    since: string | null;
+    payments_count: number;
+    current_sequence: number;
+    label: string | null;
+    /** completed payments added up per currency */
+    paid_to_date: Record<string, number>;
+  } | null;
+  payments: WireSeriesPayment[];
+};
+
 /** Latest payment of a Rent/Note series, used to pre-fill the next payment. */
 export type PreviousWirePayment = {
   request_id: number;

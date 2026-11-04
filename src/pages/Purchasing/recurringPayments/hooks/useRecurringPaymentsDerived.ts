@@ -79,7 +79,7 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
         }
       }
       if (cardFilter === "ALL") {
-        // "All Subscriptions" tab: includes all active recurring subscriptions and M&A scheduled payments
+        // "All Recurring Payments" tab: includes all active recurring subscriptions and M&A scheduled payments
         if (isRejected) return false;
       } else if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
         // "M&A Scheduled" tab: strictly show M&A transactions
@@ -180,7 +180,7 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
 
     const activeAll = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
 
-    const total = activeAll.length; // "All Subscriptions" card count
+    const total = activeAll.length; // "All Recurring Payments" card count
     const maScheduled = maRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected).length; // "M&A Scheduled" card count
     const dueSoon = requests.filter(isDueSoon).length; // "Due in 7 Days"
     const waitingReview = activeAll.filter(

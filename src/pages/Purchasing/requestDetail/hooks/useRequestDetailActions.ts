@@ -257,14 +257,17 @@ export function useRequestDetailActions() {
   const hasPoTab = Boolean(data?.purchase_order);
   const hasInvoiceTab = Boolean(data?.invoice);
   const hasWireTab = Boolean(data?.wire_transfer);
+  // Rent / Note wire transfers belong to a series of payments: they get a Payments tab
+  const hasPaymentsTab = Boolean(data?.wire_transfer?.payment_series);
   const hasRecurringTab = Boolean(isRecurring);
   useEffect(() => {
     if (activeDetailTab === "items" && !hasItemsTab) setActiveDetailTab("overview");
     if (activeDetailTab === "po" && !hasPoTab) setActiveDetailTab("overview");
     if (activeDetailTab === "invoice" && !hasInvoiceTab) setActiveDetailTab("overview");
     if (activeDetailTab === "wire" && !hasWireTab) setActiveDetailTab("overview");
+    if (activeDetailTab === "payments" && !hasPaymentsTab) setActiveDetailTab("overview");
     if (activeDetailTab === "recurring" && !hasRecurringTab) setActiveDetailTab("overview");
-  }, [activeDetailTab, hasItemsTab, hasPoTab, hasInvoiceTab, hasWireTab, hasRecurringTab]);
+  }, [activeDetailTab, hasItemsTab, hasPoTab, hasInvoiceTab, hasWireTab, hasPaymentsTab, hasRecurringTab]);
   // A deleted request's notifications are removed server-side on the 404; refresh so they disappear here too
   const isRequestGone = isError && getApiErrorStatus(error) === 404;
   useEffect(() => {
@@ -272,5 +275,5 @@ export function useRequestDetailActions() {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     }
   }, [isRequestGone, queryClient]);
-  return { id, glCodes, renderBankAccount, renderCategory, navigate, queryClient, data, isLoading, isError, error, refetch, isManualPriceOpen, setIsManualPriceOpen, isProjectDialogOpen, setIsProjectDialogOpen, quickProjectValue, setQuickProjectValue, isWireDialogOpen, setIsWireDialogOpen, isDraft, transition, updateWireTransfer, isEditWireOpen, setIsEditWireOpen, handleUpdateWire, uploadAttachments, deleteAttachment, reviewMutation, extractQuoteMutation, quoteDetailFileInputRef, previewTarget, isPreviewOpen, isLoadingPreview, invoiceReceiptInputRef, wireReceiptInputRef, handlePreviewAttachment, handlePreviewFile, handleClosePreview, user, userRoles, workflow_roles, hasRole, isScheduleLedgerOpen, setIsScheduleLedgerOpen, activeForm, setActiveForm, invoicePoNumber, setInvoicePoNumber, pendingFiles, setPendingFiles, poItems, setPoItems, poShippingFee, setPoShippingFee, poItemCurrency, setPoItemCurrency, poFxRate, setPoFxRate, po, setPo, invoice, setInvoice, invoiceItems, setInvoiceItems, approval, setApproval, tracking, setTracking, hold, setHold, isChangeApproverOpen, setIsChangeApproverOpen, completeData, setCompleteData, calculateNextDueDate, confirmGoods, setConfirmGoods, isActivityLogsOpen, setIsActivityLogsOpen, isEditOpen, setIsEditOpen, isConvertToRecurringOpen, setIsConvertToRecurringOpen, searchParams, setSearchParams, isRedirectVanessaDialogOpen, setIsRedirectVanessaDialogOpen, vanessaRedirectReason, setVanessaRedirectReason, redirectToVanessaMutation, activeDetailTab, setActiveDetailTab, isScheduledPayment, isRecurring, isAPRequest, backUrl, backLabel, hasItemsTab, hasPoTab, hasInvoiceTab, hasWireTab, hasRecurringTab };
+  return { id, glCodes, renderBankAccount, renderCategory, navigate, queryClient, data, isLoading, isError, error, refetch, isManualPriceOpen, setIsManualPriceOpen, isProjectDialogOpen, setIsProjectDialogOpen, quickProjectValue, setQuickProjectValue, isWireDialogOpen, setIsWireDialogOpen, isDraft, transition, updateWireTransfer, isEditWireOpen, setIsEditWireOpen, handleUpdateWire, uploadAttachments, deleteAttachment, reviewMutation, extractQuoteMutation, quoteDetailFileInputRef, previewTarget, isPreviewOpen, isLoadingPreview, invoiceReceiptInputRef, wireReceiptInputRef, handlePreviewAttachment, handlePreviewFile, handleClosePreview, user, userRoles, workflow_roles, hasRole, isScheduleLedgerOpen, setIsScheduleLedgerOpen, activeForm, setActiveForm, invoicePoNumber, setInvoicePoNumber, pendingFiles, setPendingFiles, poItems, setPoItems, poShippingFee, setPoShippingFee, poItemCurrency, setPoItemCurrency, poFxRate, setPoFxRate, po, setPo, invoice, setInvoice, invoiceItems, setInvoiceItems, approval, setApproval, tracking, setTracking, hold, setHold, isChangeApproverOpen, setIsChangeApproverOpen, completeData, setCompleteData, calculateNextDueDate, confirmGoods, setConfirmGoods, isActivityLogsOpen, setIsActivityLogsOpen, isEditOpen, setIsEditOpen, isConvertToRecurringOpen, setIsConvertToRecurringOpen, searchParams, setSearchParams, isRedirectVanessaDialogOpen, setIsRedirectVanessaDialogOpen, vanessaRedirectReason, setVanessaRedirectReason, redirectToVanessaMutation, activeDetailTab, setActiveDetailTab, isScheduledPayment, isRecurring, isAPRequest, backUrl, backLabel, hasItemsTab, hasPoTab, hasInvoiceTab, hasWireTab, hasPaymentsTab, hasRecurringTab };
 }

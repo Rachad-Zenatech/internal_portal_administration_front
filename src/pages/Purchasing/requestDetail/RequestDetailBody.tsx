@@ -31,6 +31,7 @@ import { ProductVendorUrlAi } from "./sections/ProductVendorUrlAi";
 import { Tab2LineItems } from "./sections/Tab2LineItems";
 import { Tab4InvoiceBill } from "./sections/Tab4InvoiceBill";
 import { Tab5WireTransfer } from "./sections/Tab5WireTransfer";
+import { Tab7PaymentHistory } from "./sections/Tab7PaymentHistory";
 import { Tab6RecurringHorizon } from "./sections/Tab6RecurringHorizon";
 import { ApprovalsTab } from "./sections/ApprovalsTab";
 import { AttachmentsTab } from "./sections/AttachmentsTab";
@@ -86,8 +87,11 @@ export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
         </Alert>
       )}
 
+      {/* Rent / Note wire transfers: every payment of the series up front, like a scheduled payment */}
+      <Tab7PaymentHistory v={v} />
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 xl:col-span-9 space-y-4">
+        <div className={v.hasPaymentsTab ? "lg:col-span-7 space-y-4" : "lg:col-span-8 xl:col-span-9 space-y-4"}>
           <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="w-full space-y-4">
             <RequestOverview v={v} />
 
@@ -195,6 +199,8 @@ export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
             {/* TAB 5: Wire Transfer */}
             <Tab5WireTransfer v={v} />
 
+            {/* TAB 7: Payment History (Rent / Note series) */}
+
             {/* TAB 6: Recurring Horizon */}
             <Tab6RecurringHorizon v={v} />
 
@@ -206,7 +212,7 @@ export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
         </div>
 
         {/* Activity: approvals + notifications */}
-        <div className="lg:col-span-4 xl:col-span-3 space-y-6">
+        <div className={v.hasPaymentsTab ? "lg:col-span-5 space-y-6" : "lg:col-span-4 xl:col-span-3 space-y-6"}>
 
           <EditCombinedRequestDialog open={isEditOpen} onOpenChange={setIsEditOpen} data={data} refetch={refetch} />
 

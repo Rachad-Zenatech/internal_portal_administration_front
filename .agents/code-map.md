@@ -45,13 +45,13 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
 - `HubSpotSyncProgress` (export function) - Small bottom-right card showing the background HubSpot companies sync: percentage while running,  then the result.
 
-## src/components/AppShell/Navigation.tsx (141 lines) - navigation (components  app shell)
+## src/components/AppShell/Navigation.tsx (137 lines) - navigation (components  app shell)
 - `navigation` (export const)
 
 ## src/components/AppShell/NotificationDropdown.tsx (149 lines) - notification dropdown (components  app shell)
 - `NotificationDropdownContent` (export function)
 
-## src/components/AppShell/Sidebar.tsx (462 lines) - sidebar (components  app shell)
+## src/components/AppShell/Sidebar.tsx (466 lines) - sidebar (components  app shell)
 - `SidebarUser` (interface)
 - `SidebarNavigationItem` (interface)
 - `SidebarProps` (interface)
@@ -599,7 +599,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `useClearReadNotifications` (export function)
 - `useClearAllNotifications` (export function)
 
-## src/hooks/usePurchasing.ts (423 lines) - use purchasing (hooks)
+## src/hooks/usePurchasing.ts (433 lines) - use purchasing (hooks)
 - `useProjects` (export function)
 - `useDepartments` (export function)
 - `usePurchasingSummary` (export function)
@@ -616,6 +616,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `qc` (fn)
 - `usePurchasingNotifications` (export function)
 - `usePossibleApprovers` (export function)
+- `useWireSeriesPayments` (export function) - Payment history of a Rent/Note wire series, for the request detail "Payments" tab.
 - `useWireStatusCounts` (export function) - Wire transfer page counts per status, for the sidebar sub-menu.
 - `useUsersList` (export function)
 - `useRolesList` (export function)
@@ -1535,7 +1536,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/BatchApproval.tsx (251 lines) - batch approval (pages  purchasing)
 - `BatchApproval` (export function)
 
-## src/pages/Purchasing/Invoices.tsx (80 lines) - invoices (pages  purchasing)
+## src/pages/Purchasing/Invoices.tsx (83 lines) - invoices (pages  purchasing)
 - `Invoices` (export function)
 
 ## src/pages/Purchasing/MyApprovals.tsx (367 lines) - my approvals (pages  purchasing)
@@ -1618,7 +1619,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `ConvertToRecurringDialogProps` (interface)
 - `ConvertToRecurringDialog` (export function)
 
-## src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (106 lines) - called after a wire transfer was created (so the wire page can reload its list)
+## src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (108 lines) - called after a wire transfer was created (so the wire page can reload its list)
 - `Props` (interface)
 - `CreateWireTransferDialog` (export function) - Creates a wire transfer (request type "Wire Transfer"); this replaced the "Wire Transfer" option of the purchase request dialog.
 
@@ -1660,9 +1661,10 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `Props` (interface)
 - `PreviousPaymentPicker` (export function) - Rent / Note are paid again and again: pick the last payment and the bank details come with it.
 
-## src/pages/Purchasing/dialogs/createWireTransfer/useCreateWireTransfer.ts (172 lines) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
+## src/pages/Purchasing/dialogs/createWireTransfer/useCreateWireTransfer.ts (187 lines) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
 - `todayIso` (const)
 - `addOneMonth` (export function) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
+- `WirePrefill` (export type) - Open the dialog already filled from an earlier Rent/Note payment ("Create next payment").
 - `useCreateWireTransfer` (export function)
 
 ## src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequest.ts (13 lines) - use edit combined request (pages  purchasing dialogs edit combined request hooks)
@@ -1995,7 +1997,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `useInvoices` (export function)
 - `InvoicesState` (export type)
 
-## src/pages/Purchasing/invoices/hooks/useInvoicesActions.ts (272 lines) - The sidebar sub-menu links here with ?status=WAITING_PAYMENT, ?status=ON_HOLD, ...
+## src/pages/Purchasing/invoices/hooks/useInvoicesActions.ts (296 lines) - The sidebar sub-menu links here with ?status=WAITING_PAYMENT, ?status=ON_HOLD, ...
 - `useInvoicesActions` (export function)
 
 ## src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx (312 lines) - filters search toolbar (pages  purchasing invoices sections)
@@ -2256,7 +2258,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/recurringPayments/utils.ts (20 lines) - utils (pages  purchasing recurring payments)
 - `getDueStatus` (export function)
 
-## src/pages/Purchasing/requestDetail/RequestDetailBody.tsx (530 lines) - request detail body (pages  purchasing request detail)
+## src/pages/Purchasing/requestDetail/RequestDetailBody.tsx (536 lines) - request detail body (pages  purchasing request detail)
 - `RequestDetailBody` (export function)
 
 ## src/pages/Purchasing/requestDetail/components/AssignedUsersField.tsx (45 lines) - assigned users field (pages  purchasing request detail components)
@@ -2274,6 +2276,12 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/requestDetail/components/InlineAttachmentUploader.tsx (67 lines) - Direct uploader for the Attachments tab.
 - `InlineAttachmentUploader` (export function) - can be attached without running a transition.
 
+## src/pages/Purchasing/requestDetail/components/InvoiceRecordsList.tsx (303 lines) - records shown before "Show all": enough to see the recent history without a long page
+- `Props` (interface)
+- `recordDate` (const)
+- `InvoiceRecordsList` (export function) - Every payment / invoice recorded against a request, newest first.
+- `SummaryTile` (function)
+
 ## src/pages/Purchasing/requestDetail/components/TwoUp.tsx (4 lines) - two up (pages  purchasing request detail components)
 - `TwoUp` (export function)
 
@@ -2286,7 +2294,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `Narrowed` (type) - Names tested by the early-return guards are known to be set once the guards have passed.
 - `RequestDetailGuardedState` (export type)
 
-## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions.ts (277 lines) - use request detail actions (pages  purchasing request detail hooks)
+## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions.ts (280 lines) - use request detail actions (pages  purchasing request detail hooks)
 - `useRequestDetailActions` (export function)
 
 ## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions2.ts (279 lines) - use request detail actions2 (pages  purchasing request detail hooks)
@@ -2317,7 +2325,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/requestDetail/sections/FinancialAccountingSection.tsx (211 lines) - financial accounting section (pages  purchasing request detail sections)
 - `FinancialAccountingSection` (export function)
 
-## src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (226 lines) - main request header full (pages  purchasing request detail sections)
+## src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (238 lines) - main request header full (pages  purchasing request detail sections)
 - `MainRequestHeaderFull` (export function)
 
 ## src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (431 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
@@ -2335,7 +2343,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/requestDetail/sections/Tab2LineItems.tsx (226 lines) - tab2 line items (pages  purchasing request detail sections)
 - `Tab2LineItems` (export function)
 
-## src/pages/Purchasing/requestDetail/sections/Tab4InvoiceBill.tsx (229 lines) - tab4 invoice bill (pages  purchasing request detail sections)
+## src/pages/Purchasing/requestDetail/sections/Tab4InvoiceBill.tsx (163 lines) - newest first; a wire transfer keeps every payment that was recorded for it
 - `Tab4InvoiceBill` (export function)
 
 ## src/pages/Purchasing/requestDetail/sections/Tab5WireTransfer.tsx (275 lines) - tab5 wire transfer (pages  purchasing request detail sections)
@@ -2343,6 +2351,10 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 
 ## src/pages/Purchasing/requestDetail/sections/Tab6RecurringHorizon.tsx (179 lines) - tab6 recurring horizon (pages  purchasing request detail sections)
 - `Tab6RecurringHorizon` (export function)
+
+## src/pages/Purchasing/requestDetail/sections/Tab7PaymentHistory.tsx (145 lines) - tab7 payment history (pages  purchasing request detail sections)
+- `Tab7PaymentHistory` (export function) - All Payments" card of a Rent / Note wire transfer: every payment of the series (same vendor and payment type),  oldest first, with the on...
+- `SummaryItem` (function)
 
 ## src/pages/Purchasing/requestDetail/sections/TopDetailsGrid.tsx (117 lines) - top details grid (pages  purchasing request detail sections)
 - `TopDetailsGrid` (export function)
@@ -2570,7 +2582,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `ReceivableEmailItem` (export interface)
 - `ReceivableEmailsResponse` (export interface)
 
-## src/services/purchasingService.ts (764 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
+## src/services/purchasingService.ts (770 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
 - `RequestListFilters` (export type)
 - `buildQuery` (function)
 - `getSummary` (export function)
@@ -2625,6 +2637,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `exportSingleRequestQuickBooksXlsx` (export function)
 - `getAPUsers` (export function)
 - `getKnownVendors` (export function)
+- `getWireSeriesPayments` (export function) - Every payment of the Rent/Note series a wire transfer belongs to ({series: null} for other wires).
 - `WireStatusCounts` (export type) - Records per status on the wire transfer page (sidebar badges); keys are canonical statuses such as WAITING_PAYMENT.
 - `getWireStatusCounts` (export function)
 - `getPreviousWirePayments` (export function) - Latest payment of each Rent/Note wire series (vendor + payment type), to pre-fill the next payment.
@@ -2737,7 +2750,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `EntityDeleteResult` (export interface)
 - `EntityBatchDeleteResult` (export interface)
 
-## src/types/purchasing.ts (785 lines) - purchasing (types)
+## src/types/purchasing.ts (817 lines) - purchasing (types)
 - `TaskHistoryItem` (export interface)
 - `RequestType` (export type)
 - `Priority` (export type)
@@ -2782,6 +2795,8 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `WireTransferInput` (export type)
 - `WirePaymentSeries` (export type) - Rent / Note wire payments: where this payment sits in its series, e.g.
 - `WireTransfer` (export type)
+- `WireSeriesPayment` (export type) - One payment of a Rent/Note wire series (each payment is its own request).
+- `WireSeriesPayments` (export type)
 - `PreviousWirePayment` (export type) - Latest payment of a Rent/Note series, used to pre-fill the next payment.
 - `TransitionInput` (export type)
 - `ItemMode` (export type)
