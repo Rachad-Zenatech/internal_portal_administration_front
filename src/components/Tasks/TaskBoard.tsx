@@ -4,7 +4,7 @@ import { Badge } from "../../components/ui/badge";
 import { Bookmark, ChevronsUp, ChevronUp, ChevronDown } from "lucide-react";
 import { RequestStatus } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
-import { STATUS_LABEL, STATUS_FILTER_OPTIONS, formatRequestType } from "@/pages/Purchasing/purchasingMeta";
+import { STATUS_LABEL, STATUS_FILTER_OPTIONS, formatRequestType } from "@/pages/Purchasing/utils/purchasingMeta";
 
 // One column per filterable state, labelled from the shared map so the board and
 // the rest of Purchasing cannot drift apart.

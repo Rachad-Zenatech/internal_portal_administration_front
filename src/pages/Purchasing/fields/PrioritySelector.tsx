@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { apiClient } from "@/services/apiClient";
 import type { Priority, RequestDetail, PurchaseRequest } from "@/types/purchasing";
-import { PRIORITY_BADGE } from "./purchasingMeta";
+import { PRIORITY_BADGE } from "../utils/purchasingMeta";
 
 interface PrioritySelectorProps {
   requestId: string | number;

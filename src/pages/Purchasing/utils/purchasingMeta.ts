@@ -105,6 +105,37 @@ export const ACCOUNTS_PAYABLE_FLOW: readonly RequestStatus[] = [
   RequestStatus.Completed,
 ];
 
+/** Wire transfer "Others": Draft -> Waiting Approval (Company Level 2) -> Waiting Payment -> Completed. */
+export const WIRE_OTHERS_FLOW: readonly RequestStatus[] = [
+  RequestStatus.Initial,
+  RequestStatus.WaitingApproval,
+  RequestStatus.WaitingPayment,
+  RequestStatus.Completed,
+];
+
+/** Wire transfer "Rent" / "Note": Draft -> Waiting Payment -> Completed (repeats for every payment period). */
+export const WIRE_RECURRING_FLOW: readonly RequestStatus[] = [
+  RequestStatus.Initial,
+  RequestStatus.WaitingPayment,
+  RequestStatus.Completed,
+];
+
+/** Rent and Note wire transfers are recurring payments: no approval step and a "Nth payment" series. */
+export function isRecurringWireCategory(category: string | null | undefined): boolean {
+  const c = (category || "").trim().toLowerCase();
+  return c === "rent" || c === "note";
+}
+
+/**
+ * Stage list for a wire transfer. Requests created before this workflow existed may still sit in
+ * New / Under Review, so they keep the old list until they move on.
+ */
+export function wireFlowFor(category: string | null | undefined, status: string | null | undefined): readonly RequestStatus[] {
+  const s = (status || "").toUpperCase();
+  if (s === "NEW" || s === "UNDER_REVIEW") return ACCOUNTS_PAYABLE_FLOW;
+  return isRecurringWireCategory(category) ? WIRE_RECURRING_FLOW : WIRE_OTHERS_FLOW;
+}
+
 export const QUOTE_FLOW: readonly RequestStatus[] = [
   RequestStatus.Initial,
   RequestStatus.New,

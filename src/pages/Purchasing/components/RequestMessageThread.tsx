@@ -17,7 +17,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import { deleteRequestMessage, postRequestMessage } from "@/services/purchasingService";
-import { RequestAccountDetailsDialog, SecureInfoRequestCard, looksLikeCredential } from "./SecureInfoRequest";
+import { RequestAccountDetailsDialog, SecureInfoRequestCard, looksLikeCredential } from "../SecureInfoRequest";
 import type { RequestDetail, RequestMessageItem } from "@/types/purchasing";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

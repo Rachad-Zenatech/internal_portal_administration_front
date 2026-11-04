@@ -8,6 +8,7 @@ import type {
   Invoice,
   PurchaseRequest,
   PurchasingNotification,
+  PreviousWirePayment,
   PurchasingSummary,
   RequestCreateInput,
   RequestDetail,
@@ -492,6 +493,22 @@ export function getAPUsers() {
 
 export function getKnownVendors() {
   return apiClient.get<string[]>(BASE + "/vendors");
+}
+
+/** Records per status on the wire transfer page (sidebar badges); keys are canonical statuses such as WAITING_PAYMENT. */
+export type WireStatusCounts = { total: number; counts: Record<string, number> };
+
+export function getWireStatusCounts() {
+  return apiClient.get<WireStatusCounts>("/api/wire-transfers/status-counts");
+}
+
+/** Latest payment of each Rent/Note wire series (vendor + payment type), to pre-fill the next payment. */
+export function getPreviousWirePayments(category?: string, search?: string) {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (search) params.set("search", search);
+  const qs = params.toString();
+  return apiClient.get<{ items: PreviousWirePayment[] }>(`/api/wire-transfers/previous-payments${qs ? `?${qs}` : ""}`);
 }
 
 export function getPayFromEntities() {

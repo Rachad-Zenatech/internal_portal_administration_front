@@ -26,9 +26,9 @@ import type {
   FrequencyType,
   CustomScheduleDate,
 } from "@/types/purchasing";
-import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
-import { calculateInstallmentsCount } from "./recurringScheduleUtils";
-import { formatMoney } from "./purchasingMeta";
+import { ScheduleDatesBuilder } from "../fields/ScheduleDatesBuilder";
+import { calculateInstallmentsCount } from "../utils/recurringScheduleUtils";
+import { formatMoney } from "../utils/purchasingMeta";
 
 interface ConvertToRecurringDialogProps {
   open: boolean;

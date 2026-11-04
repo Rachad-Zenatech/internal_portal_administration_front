@@ -8,12 +8,12 @@ import {
   Info,
   Edit3,
 } from "lucide-react";
-import { Badge } from "../../components/ui/badge";
-import { Button } from "../../components/ui/button";
+import { Badge } from "../../../components/ui/badge";
+import { Button } from "../../../components/ui/button";
 import type {
   InvoiceHierarchyResponse,
   AddonHierarchyChildRow,
-} from "../../services/arInvoiceService";
+} from "../../../services/arInvoiceService";
 
 interface InvoiceHierarchyItemsTableProps {
   hierarchy: InvoiceHierarchyResponse;

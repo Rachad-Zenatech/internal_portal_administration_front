@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useManualPrice } from "@/hooks/usePurchasing";
-import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
+import { CurrencyAutocomplete } from "../fields/CurrencyAutocomplete";
 
 type Props = {
   requestId: string;

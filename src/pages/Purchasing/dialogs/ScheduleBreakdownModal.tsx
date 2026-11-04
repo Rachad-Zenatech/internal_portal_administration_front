@@ -16,7 +16,7 @@ import {
   FREQUENCY_LABELS,
   type FrequencyType,
   type ProjectedInstallment,
-} from "./recurringScheduleUtils";
+} from "../utils/recurringScheduleUtils";
 import {
   CalendarClock,
   CheckCircle2,

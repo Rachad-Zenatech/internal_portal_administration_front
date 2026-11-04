@@ -13,7 +13,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { detectTaxWithPriority, type PriorityTaxEstimate } from "@/utils/taxRates";
-import { formatMoney } from "./purchasingMeta";
+import { formatMoney } from "../utils/purchasingMeta";
 
 interface ShippingDeliveryAddressFieldProps {
   shippingAddress: string;

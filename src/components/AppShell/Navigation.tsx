@@ -78,6 +78,15 @@ export const navigation = [
     icon: ReceiptText,
     section: "MAIN",
     navigationCode: "INVOICES",
+    subItems: [
+      { label: "All Wire Transfers", path: "/purchasing/invoices" },
+      { label: "Draft", path: "/purchasing/invoices?status=INITIAL" },
+      { label: "Waiting Approval", path: "/purchasing/invoices?status=WAITING_APPROVAL" },
+      { label: "Waiting Payment", path: "/purchasing/invoices?status=WAITING_PAYMENT" },
+      { label: "Completed", path: "/purchasing/invoices?status=COMPLETED" },
+      { label: "Rejected", path: "/purchasing/invoices?status=REJECTED" },
+      { label: "Review on Hold", path: "/purchasing/invoices?status=ON_HOLD" },
+    ],
   },
   {
     label: "Account Receivable",

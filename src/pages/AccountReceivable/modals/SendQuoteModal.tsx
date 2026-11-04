@@ -9,11 +9,11 @@ import {
   XCircle,
   Save,
 } from "lucide-react";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
-import { Textarea } from "../../components/ui/textarea";
-import { Badge } from "../../components/ui/badge";
+import { Button } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
+import { Textarea } from "../../../components/ui/textarea";
+import { Badge } from "../../../components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -21,20 +21,20 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../../components/ui/dialog";
+} from "../../../components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select";
+} from "../../../components/ui/select";
 import {
   arQuoteService,
-} from "../../services/arQuoteService";
+} from "../../../services/arQuoteService";
 import type {
   ARQuote,
-} from "../../services/arQuoteService";
+} from "../../../services/arQuoteService";
 
 interface SendQuoteModalProps {
   quote: ARQuote | null;

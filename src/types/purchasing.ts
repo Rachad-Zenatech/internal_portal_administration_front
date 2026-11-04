@@ -554,11 +554,37 @@ export type WireTransferInput = {
   payment_type?: "Rent" | "Note" | "Others" | string | null;
 };
 
+/** Rent / Note wire payments: where this payment sits in its series, e.g. "3rd payment since Jan, 2026". */
+export type WirePaymentSeries = {
+  sequence: number;
+  since: string | null;
+  label: string;
+  payments_count?: number;
+};
+
 export type WireTransfer = WireTransferInput & {
   id: number;
   request_id: number;
   created_at?: string;
   updated_at?: string;
+  payment_series?: WirePaymentSeries | null;
+};
+
+/** Latest payment of a Rent/Note series, used to pre-fill the next payment. */
+export type PreviousWirePayment = {
+  request_id: number;
+  title: string | null;
+  department: string | null;
+  vendor: string;
+  category: "Rent" | "Note" | string;
+  amount: number | null;
+  currency: string;
+  last_due_date: string | null;
+  payments_count: number;
+  since: string | null;
+  next_sequence: number;
+  next_label: string;
+  wire: WireTransferInput;
 };
 
 export type TransitionInput = {

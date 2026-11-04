@@ -25,7 +25,7 @@ import {
   formatDateToIso,
   calculateInstallmentsCount,
   formatRemainingDuration,
-} from "@/pages/Purchasing/recurringScheduleUtils";
+} from "@/pages/Purchasing/utils/recurringScheduleUtils";
 
 export interface ScheduleDatesBuilderProps {
   isScheduled: boolean;

@@ -41,6 +41,13 @@ src/
 ### Where new code goes
 
 * **New page:** `src/pages/<Feature>/`. Pages that belong together share a folder; a `.native.tsx` variant sits next to its web file.
+* **Split pages and dialogs.** A big page/dialog stays the entry point and sits next to a folder named after it (`generateInvoice/`, `requestDetail/`...):
+  * `hooks/` - `use<Name>.ts` is the composer; `use<Name>Data|Actions|Derived|State*.ts` hold the state, queries, handlers and derived values, in the original order.
+  * `sections/` - JSX blocks that read from the composer's state via a single `s` (or `v`) prop.
+  * `types.ts`, `constants.ts`, `utils.ts`, `components/` - what used to be module-level in the page.
+  * `<Name>Body.tsx` - only for pages with early-return guards (loading / not-found): the page keeps the hooks and guards, the Body renders once they pass.
+  Add new state or handlers to the matching hook and new markup to a section; keep the entry file small.
+* **Large feature folders** (`Purchasing`, `AccountReceivable`) keep route pages at the top level and put supporting code in sub-folders: `fields/` (autocompletes, pickers, form fields), `dialogs/` or `modals/` (dialogs, drawers), `components/` (tables, steppers, badges, threads) and `utils/` (pure helpers). Put new supporting files in the matching sub-folder.
 * **Components:** used by one feature go in `src/components/<Feature>/`; used by several go in `src/components/common/`. `src/components/ui/` is only for shadcn primitives.
 * **New API calls** go in `src/services/<feature>Service.ts` through `apiClient`, not `fetch` inside components (some older pages still do this; move those calls when you touch them). Types go in `src/types/<feature>.ts`.
 * **Don't add loose files** to `src/pages/` or `src/components/`.

@@ -151,6 +151,16 @@ export function usePossibleApprovers(requestId: string | undefined) {
   });
 }
 
+/** Wire transfer page counts per status, for the sidebar sub-menu. Refreshes after any purchasing mutation. */
+export function useWireStatusCounts() {
+  return useQuery({
+    queryKey: [...keys.all, "wire-status-counts"],
+    queryFn: purchasing.getWireStatusCounts,
+    staleTime: 15 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+}
+
 export function useUsersList() {
   return useQuery({
     queryKey: ["configuration", "users", "active"],

@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/services/apiClient";
 import type { LucideIcon } from "lucide-react";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
-import { usePurchasingSummary } from "@/hooks/usePurchasing";
+import { usePurchasingSummary, useWireStatusCounts } from "@/hooks/usePurchasing";
 
 interface SidebarUser {
   is_super_admin?: boolean;
@@ -63,8 +63,15 @@ export default function Sidebar({
   const unreadCount = unreadCountData?.count ?? 0;
 
   const { data: purchasingSummary } = usePurchasingSummary();
+  const { data: wireStatusCounts } = useWireStatusCounts();
 
   const getSubItemCount = (path: string): number | undefined => {
+    // Wire Transfer sub-menu: records per status on the wire transfer page
+    if (path.startsWith("/purchasing/invoices")) {
+      if (!wireStatusCounts) return undefined;
+      const wireStatus = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "").get("status")?.toUpperCase();
+      return wireStatus ? wireStatusCounts.counts[wireStatus] ?? 0 : wireStatusCounts.total;
+    }
     if (!purchasingSummary) return undefined;
     if (path === "/purchasing/requests") return purchasingSummary.total_requests;
     if (path === "/purchasing/recurring") return purchasingSummary.recurring_total ?? 0;
@@ -304,7 +311,7 @@ export default function Sidebar({
                     const isSubActive = sub.path.includes("?")
                       ? fullPath === sub.path
                       : (location.pathname === sub.path && !location.search);
-                    const subCount = (sub.path.startsWith("/purchasing/requests") || sub.path.startsWith("/purchasing/recurring")) ? getSubItemCount(sub.path) : undefined;
+                    const subCount = (sub.path.startsWith("/purchasing/requests") || sub.path.startsWith("/purchasing/recurring") || sub.path.startsWith("/purchasing/invoices")) ? getSubItemCount(sub.path) : undefined;
                     const hasAction = hasActionWaiting(sub.path, sub.label);
                     return (
                       <Link

@@ -7,7 +7,7 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
-import { getStatusBadge, getStatusLabel, PRIORITY_BADGE, formatMoney, formatDate, formatRequestType } from "@/pages/Purchasing/purchasingMeta";
+import { getStatusBadge, getStatusLabel, PRIORITY_BADGE, formatMoney, formatDate, formatRequestType } from "@/pages/Purchasing/utils/purchasingMeta";
 
 interface TaskListProps {
   tasks: any[];
