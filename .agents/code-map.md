@@ -39,70 +39,19 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleCopy` (fn)
     - `handleResetChat` (fn)
 
-## src/components/AppShell/GlobalSettingsDialog.tsx (1126 lines) - global settings dialog (components  app shell)
-- `GlobalSettingsDialogProps` (interface)
+## src/components/AppShell/GlobalSettingsDialog.tsx (148 lines) - global settings dialog (components  app shell)
 - `GlobalSettingsDialog` (export function)
-    - `queryClient` (fn)
-    - `saveArReminderMutation` (fn)
-    - `testTriggerArReminderMutation` (fn)
-    - `saveHoldMutation` (fn)
-    - `testTriggerHoldMutation` (fn)
-    - `saveRecMutation` (fn)
-    - `testTriggerRecMutation` (fn)
-    - `handleAddCustomEmailHold` (fn)
-    - `handleRemoveCustomEmailHold` (fn)
-    - `handleAddCustomEmailRec` (fn)
-    - `handleRemoveCustomEmailRec` (fn)
 
 ## src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
 - `HubSpotSyncProgress` (export function) - Small bottom-right card showing the background HubSpot companies sync: percentage while running,  then the result.
 
-## src/components/AppShell/Navigation.tsx (132 lines) - navigation (components  app shell)
+## src/components/AppShell/Navigation.tsx (141 lines) - navigation (components  app shell)
 - `navigation` (export const)
 
-## src/components/AppShell/NotificationDropdown.tsx (1899 lines) - notification dropdown (components  app shell)
-- `formatNotificationText` (function) - Format notification text to remove underscores and capitalize status words
-- `formatStatusLabel` (function)
-- `formatRelativeTime` (function)
-- `diffDayVal` (function)
-- `RequestGroup` (interface)
-- `extractStatus` (function)
-- `getStatusBadgeClass` (function)
-- `formatMoney` (function)
-- `DueDateInfo` (interface)
-- `calculateDueInfo` (function)
-    - `statusUpper` (fn)
-- `isRecurringNotification` (export function)
-    - `entityType` (fn)
-    - `link` (fn)
-    - `type` (fn)
-    - `title` (fn)
-    - `message` (fn)
+## src/components/AppShell/NotificationDropdown.tsx (149 lines) - notification dropdown (components  app shell)
 - `NotificationDropdownContent` (export function)
-    - `navigate` (fn)
-    - `queryClient` (fn)
-    - `c` (fn)
-    - `n` (fn)
-    - `reviewMutation` (fn) - Toggle review status mutation with instant optimistic UI update
-    - `isInvoiceNotification` (fn) - Helper to detect AR invoice notifications
-    - `t` (fn)
-    - `ent` (fn)
-    - `tit` (fn)
-    - `msg` (fn)
-    - `url` (fn)
-    - `recurringNotifications` (fn) - Separate recurring, invoice, and request notifications
-    - `invoiceNotifications` (fn)
-    - `requestNotifications` (fn)
-    - `unreadRecurringCount` (fn)
-    - `unreadInvoiceCount` (fn)
-    - `recurringItems` (fn) - Unified recurring items list combining live recurring requests and notification history
-    - `recurringAlertsCount` (fn) - Calculate badge counter for recurring tab: Unread recurring updates count
-    - `toggleGroup` (fn)
-    - `handleOpenLink` (fn)
-    - `filteredNotifications` (fn)
-    - `handleSendTestEmail` (fn)
 
-## src/components/AppShell/Sidebar.tsx (455 lines) - sidebar (components  app shell)
+## src/components/AppShell/Sidebar.tsx (462 lines) - sidebar (components  app shell)
 - `SidebarUser` (interface)
 - `SidebarNavigationItem` (interface)
 - `SidebarProps` (interface)
@@ -212,23 +161,8 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `TaskBoardProps` (interface)
 - `TaskBoard` (export function)
 
-## src/components/Tasks/TaskDetailPanel.tsx (772 lines) - task detail panel (components  tasks)
-- `TaskDetailPanelProps` (interface)
-- `DetailField` (function)
+## src/components/Tasks/TaskDetailPanel.tsx (12 lines) - task detail panel (components  tasks)
 - `TaskDetailPanel` (export function)
-    - `formatGLCode` (fn)
-    - `handleDragOver` (fn)
-    - `handleDragLeave` (fn)
-    - `handleDrop` (fn)
-    - `handleAddNote` (fn)
-    - `handleEditNote` (fn)
-    - `handleDeleteNote` (fn)
-    - `confirmDeleteNote` (fn)
-    - `handleApprove` (fn)
-    - `handleReject` (fn)
-    - `handleDelete` (fn)
-    - `category` (fn)
-    - `rawItems` (fn)
 
 ## src/components/Tasks/TaskFormDialog.tsx (150 lines) - task form dialog (components  tasks)
 - `TaskFormDialogProps` (interface)
@@ -581,7 +515,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `useClearReadNotifications` (export function)
 - `useClearAllNotifications` (export function)
 
-## src/hooks/usePurchasing.ts (413 lines) - use purchasing (hooks)
+## src/hooks/usePurchasing.ts (423 lines) - use purchasing (hooks)
 - `useProjects` (export function)
 - `useDepartments` (export function)
 - `usePurchasingSummary` (export function)
@@ -598,6 +532,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `qc` (fn)
 - `usePurchasingNotifications` (export function)
 - `usePossibleApprovers` (export function)
+- `useWireStatusCounts` (export function) - Wire transfer page counts per status, for the sidebar sub-menu.
 - `useUsersList` (export function)
 - `useRolesList` (export function)
 - `useCurrencies` (export function)
@@ -670,65 +605,9 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 
 ## src/main.tsx (52 lines) - Create a client
 
-## src/pages/AccountReceivable/ARCustomerAutocomplete.tsx (677 lines) - a r customer autocomplete (pages  account receivable)
-- `ARCustomerOption` (export interface)
-- `ARCustomerAutocompleteProps` (interface)
-- `ARCustomerAutocomplete` (export function)
-    - `queryClient` (fn)
-    - `requestSeq` (fn)
-    - `isTypingRef` (fn) - True while the user is editing the text; stops prop-driven syncing from overwriting their edits.
-    - `toOption` (fn)
-    - `loadMore` (fn)
-    - `handleListScroll` (fn)
-    - `handleClickOutside` (fn)
-    - `isExactMatch` (fn)
-    - `totalItemsCount` (fn)
-    - `handleSelectCustomer` (fn)
-    - `handleOpenCreateModal` (fn)
-    - `handleCreateCustomerSubmit` (fn)
-    - `handleKeyDown` (fn)
-
-## src/pages/AccountReceivable/AccountReceivablePage.tsx (2407 lines) - account receivable page (pages  account receivable)
-- `ARTab` (export type)
+## src/pages/AccountReceivable/AccountReceivablePage.tsx (501 lines) - account receivable page (pages  account receivable)
 - `AccountReceivablePage` (export function)
-    - `navigate` (fn)
-    - `queryClient` (fn)
-    - `setActiveTab` (fn)
-    - `syncHubspotCompaniesMutation` (fn) - Starts the sync in the background; progress and the result are shown by the app-shell HubSpotSyncProgress widget.
-    - `convertInvoiceMutation` (fn) - Convert to Invoice Mutation
-    - `deleteQuoteMutation` (fn) - Delete Draft Quote Mutation
-    - `deleteInvoiceMutation` (fn) - Delete Invoice Mutation
-    - `generateRenewalQuoteMutation` (fn) - Generate Renewal Quote Mutation
-    - `sendInvoiceEmailMutation` (fn) - Send Invoice Email Mutation
-    - `handleOpenSendInvoiceEmail` (fn)
-    - `handleOpenRecordInvoicePayment` (fn)
-    - `handleConfirmInvoicePayment` (fn)
-    - `toggleQuoteExpanded` (fn)
-    - `toggleCustomerInvoiceExpanded` (fn)
-    - `handleExpandAllInvoiceCustomers` (fn)
-    - `handleCollapseAllInvoiceCustomers` (fn)
-    - `parseDueDateEpoch` (fn)
-    - `filteredCustomerInvoiceGroups` (fn) - Filter customer invoice groups by search term and status filter
-    - `normalizeQuoteNum` (fn)
-    - `filteredQuoteGroups` (fn) - Filter Logic over Quote Groups
-
-## src/pages/AccountReceivable/AddSeatsAddonsModal.tsx (739 lines) - add seats addons modal (pages  account receivable)
-- `AddSeatsAddonsModalProps` (interface)
-- `AddSeatsAddonsModal` (export const)
-    - `handleStartDateOptionChange` (fn) - Sync effective date when start date option changes
-    - `handleAdditionTypeChange` (fn) - Handle Addition Type Change
-    - `handleQuoteSelect` (fn) - Handle Quote Selection & Prefill
-    - `addMutation` (fn) - Submit Mutation
-    - `handleConfirm` (fn)
-
-## src/pages/AccountReceivable/BillingStartDatePicker.tsx (151 lines) - billing start date picker (pages  account receivable)
-- `BillingStartDatePickerProps` (interface)
-- `BillingStartDatePicker` (export const)
-
-## src/pages/AccountReceivable/BrandBadges.tsx (50 lines) - Distinct, readable colours (light + dark).
-- `brandColorClass` (export function) - Same brand name -> same colour, on every card and every reload.
-- `splitBrands` (export function) - Brands arrive as one string joined with "," (or ";"); split them into clean names.
-- `BrandBadges` (export function)
+    - `s` (fn)
 
 ## src/pages/AccountReceivable/CustomerQuoteViewPage.tsx (972 lines) - customer quote view page (pages  account receivable)
 - `CustomerQuoteViewPage` (export function)
@@ -746,103 +625,29 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `effectiveSubtotal` (fn)
     - `effectiveTax` (fn)
 
-## src/pages/AccountReceivable/GenerateInvoicePage.tsx (6377 lines) - generate invoice page (pages  account receivable)
-- `InvoiceSubItem` (export interface)
-- `LineItemFormRow` (export interface)
-- `InvoiceLayoutStyle` (export type)
+## src/pages/AccountReceivable/GenerateInvoicePage.tsx (883 lines) - generate invoice page (pages  account receivable)
 - `GenerateInvoicePage` (export function)
-    - `navigate` (fn)
-    - `location` (fn)
-    - `queryClient` (fn)
-    - `generateRenewalQuoteMutation` (fn) - Generate Renewal Quote Mutation
-    - `isFieldVisible` (fn)
-    - `toggleFieldVisibility` (fn)
-    - `renderFieldHeader` (fn)
-    - `aIsStandard` (fn)
-    - `bIsStandard` (fn)
-    - `handleSelectPreset` (fn) - Handle switching preset from dropdown
-    - `handleSelectCustomerOption` (fn) - Handle customer selection from A/R customer table autocomplete
-    - `handleSelectCustomer` (fn)
-    - `handleOpenQuickEdit` (fn) - Open Quick Edit Modal
-    - `updateCustomerMutation` (fn) - Quick Edit Mutation
-    - `handleOpenRecordPayment` (fn) - Open Record Payment Modal
-    - `handleConfirmRecordPayment` (fn)
-    - `parseFlexibleDate` (fn) - Date Parsing Helpers (Strict Local Date Parsing to prevent UTC timezone day shifts)
-    - `getSelectedCalendarDate` (fn)
-    - `getSelectedDueDate` (fn)
-    - `handleTermsChange` (fn)
-    - `getChargeablePeriodLabel` (fn)
-    - `freq` (fn)
-    - `calculateServicePeriodAndNextBilling` (fn)
-    - `computeItemProration` (fn) - Proration & Full Pricing Calculation Helper based on All 7 Fields
-    - `calculateTotals` (fn)
-    - `dueDateInfo` (fn) - Compute Payment Due Date status badge & reminder indicators
-    - `isPaid` (fn)
-    - `computedNextRenewal` (fn) - Dynamically compute Next Renewal Projection from live lineItems & sub-items
-    - `allInvoiceItems` (fn) - Check column visibility: hide any column that is empty/unfilled, null, undefined, or 0 across all items and sub-items
-    - `showDateCol` (fn)
-    - `showUnitPriceCol` (fn)
-    - `showCurrencyCol` (fn)
-    - `showQtyCol` (fn)
-    - `showDiscountCol` (fn)
-    - `showTaxCol` (fn)
-    - `visibleColumnCount` (fn)
-    - `isRecurringInvoice` (fn) - Determine if this invoice represents a recurring service agreement
-    - `handleUpdateLine` (fn)
-    - `handleAddLine` (fn)
-    - `handleRemoveLine` (fn)
-    - `handleAddSubItem` (fn)
-    - `handleRemoveSubItem` (fn)
-    - `handleUpdateSubItem` (fn)
-    - `handleSelectProduct` (fn)
-    - `prodCurrency` (fn)
-    - `handleSelectSubProduct` (fn)
-    - `prodCurrency` (fn)
-    - `handleSelectInvoiceTemplate` (fn) - Handle switching invoice layout template (Pace+ vs interlinkONE)
-    - `handleResetForm` (fn) - Reset form to defaults
-    - `handlePreviewAndScroll` (fn) - Preview & Scroll Action
-    - `handleScrollToForm` (fn)
-    - `handleOpenApplyTemplateDialog` (fn) - Open dialog for choosing whether to update existing template or create a new preset
-    - `saveTemplateMutation` (fn) - Apply to Customer Template Mutation (Supports updating existing preset or creating new preset, plus updating invoice snapshot)
-    - `saveNewPresetMutation` (fn) - Save as New Preset Mutation
-    - `deletePresetMutation` (fn) - Delete Template Preset Mutation
-    - `renamePresetMutation` (fn) - Rename Template Preset Mutation
-    - `generateInvoiceMutation` (fn) - Generate & Save (or Update) Invoice Snapshot Mutation (Does NOT touch customer template)
-    - `deleteInvoiceMutation` (fn) - Delete Invoice Mutation
-    - `handleDeleteInvoice` (fn)
-    - `handleGenerateInvoice` (fn) - Generate & Save Invoice Handler with Validation
-    - `handleOpenSendEmail` (fn) - Send Email Modal Trigger
-    - `sendEmailMutation` (fn) - Send Invoice Statement via SendGrid Mutation
-    - `handlePrint` (fn)
+    - `s` (fn)
 
-## src/pages/AccountReceivable/GenerateQuotePage.tsx (1726 lines) - generate quote page (pages  account receivable)
-- `QuoteLineItem` (export interface)
-- `createEmptyQuoteLineItem` (export const)
+## src/pages/AccountReceivable/GenerateQuotePage.tsx (268 lines) - generate quote page (pages  account receivable)
 - `GenerateQuotePage` (export function)
-    - `navigate` (fn)
-    - `queryClient` (fn)
-    - `handleLogoUpload` (fn) - Logo file upload handler
-    - `handleRemoveLogo` (fn)
-    - `handleClientNameChange` (fn)
-    - `handleSelectCustomerOption` (fn)
-    - `handleAddLineItem` (fn)
-    - `handleRemoveLineItem` (fn)
-    - `handleLineItemChange` (fn)
-    - `handleClearLineItem` (fn)
-    - `handleSelectProduct` (fn)
-    - `prodCurrency` (fn)
-    - `formatCurrency` (fn)
-    - `handlePrintPdf` (fn)
-    - `handleSaveDraft` (fn) - Save as Draft
-    - `handlePublishQuote` (fn) - Publish Quote
-    - `handleDeleteDraft` (fn)
-    - `handleClearQuoteForm` (fn)
 
-## src/pages/AccountReceivable/InvoiceHierarchyItemsTable.tsx (351 lines) - invoice hierarchy items table (pages  account receivable)
+## src/pages/AccountReceivable/QuoteDetailPage.tsx (45 lines) - quote detail page (pages  account receivable)
+- `QuoteDetailPage` (export function)
+
+## src/pages/AccountReceivable/WorkflowDetailPage.tsx (38 lines) - workflow detail page (pages  account receivable)
+- `WorkflowDetailPage` (export function)
+
+## src/pages/AccountReceivable/components/BrandBadges.tsx (50 lines) - Distinct, readable colours (light + dark).
+- `brandColorClass` (export function) - Same brand name -> same colour, on every card and every reload.
+- `splitBrands` (export function) - Brands arrive as one string joined with "," (or ";"); split them into clean names.
+- `BrandBadges` (export function)
+
+## src/pages/AccountReceivable/components/InvoiceHierarchyItemsTable.tsx (351 lines) - invoice hierarchy items table (pages  account receivable components)
 - `InvoiceHierarchyItemsTableProps` (interface)
 - `InvoiceHierarchyItemsTable` (export const)
 
-## src/pages/AccountReceivable/InvoiceStepper.tsx (230 lines) - invoice stepper (pages  account receivable)
+## src/pages/AccountReceivable/components/InvoiceStepper.tsx (230 lines) - invoice stepper (pages  account receivable components)
 - `InvoiceStepperData` (export interface)
 - `InvoiceStepperProps` (interface)
 - `StepState` (type)
@@ -851,86 +656,11 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `resolveInvoiceSteps` (export function)
 - `InvoiceStepper` (export const)
 
-## src/pages/AccountReceivable/NewWorkflowModal.tsx (2880 lines) - new workflow modal (pages  account receivable)
-- `CurrencyOption` (export interface)
-- `AR_CURRENCY_OPTIONS` (export const)
-- `BankFieldDef` (export interface)
-- `BANK_DETAILS_CATALOG` (export const)
-- `NewWorkflowModalProps` (interface)
-- `NewWorkflowModal` (export function)
-    - `queryClient` (fn)
-    - `handleClickOutside` (fn)
-    - `handleCustomerSelected` (fn)
-    - `resetForm` (fn)
-    - `calculateLineItemsTotal` (fn)
-    - `calculateMatchedInvoicesTotal` (fn)
-    - `calculateTotalInvoiceAmounts` (fn)
-    - `isCashFullyPaid` (fn)
-    - `handleAddMatchedInvoice` (fn)
-    - `handleUpdateMatchedInvoice` (fn)
-    - `handleRemoveMatchedInvoice` (fn)
-    - `handleOcrFiles` (fn)
-    - `generateDigitalInvoiceHtml` (fn)
-    - `handlePreviewAttachment` (fn)
-    - `handleFilesSelected` (fn)
-    - `handleDragOver` (fn)
-    - `handleDragLeave` (fn)
-    - `handleDrop` (fn)
-    - `handleRemoveCashAttachment` (fn)
-    - `handleAddLineItem` (fn)
-    - `handleUpdateLineItem` (fn)
-    - `handleRemoveLineItem` (fn)
-    - `createMutation` (fn)
-    - `generateSaleMutation` (fn)
-    - `updateMutation` (fn)
-    - `handleSubmit` (fn)
-
-## src/pages/AccountReceivable/OverridePriceModal.tsx (131 lines) - override price modal (pages  account receivable)
-- `OverridePriceModalProps` (interface)
-- `OverridePriceModal` (export const)
-
-## src/pages/AccountReceivable/ProductServiceAutocomplete.tsx (398 lines) - Called when the clear button is pressed, so the caller can reset the rest of the line.
-- `ProductServiceAutocompleteProps` (interface)
-- `ProductServiceAutocomplete` (export function)
-
-## src/pages/AccountReceivable/QuoteDetailDrawer.tsx (666 lines) - quote detail drawer (pages  account receivable)
-- `QuoteDetailDrawerProps` (interface)
-- `QuoteDetailDrawer` (export function)
-    - `queryClient` (fn)
-    - `publishMutation` (fn) - Publish Mutation
-    - `draftMutation` (fn) - Move to Draft Mutation
-    - `revokeLinksMutation` (fn) - Revoke Links Mutation
-    - `convertInvoiceMutation` (fn) - Convert to Invoice Mutation
-    - `revisionMutation` (fn) - Create Revision Mutation
-    - `deleteMutation` (fn) - Delete Draft Mutation
-    - `handleRecordPayment` (fn) - Record Payment Submit
-    - `handleCopyLink` (fn)
-    - `isRenewal` (fn)
-    - `effectiveSubtotal` (fn)
-    - `effectiveTax` (fn)
-
-## src/pages/AccountReceivable/QuoteDetailPage.tsx (1733 lines) - quote detail page (pages  account receivable)
-- `QuoteDetailPage` (export function)
-    - `navigate` (fn)
-    - `queryClient` (fn)
-    - `publishMutation` (fn) - Mutations
-    - `draftMutation` (fn)
-    - `revokeLinksMutation` (fn)
-    - `convertInvoiceMutation` (fn)
-    - `revisionMutation` (fn)
-    - `deleteMutation` (fn)
-    - `handleCopyLink` (fn)
-    - `handleRecordPayment` (fn)
-    - `formatAuditEvent` (fn)
-    - `formatActorDisplay` (fn)
-    - `effectiveSubtotal` (fn)
-    - `effectiveTax` (fn)
-
-## src/pages/AccountReceivable/QuoteNotesThread.tsx (367 lines) - quote notes thread (pages  account receivable)
+## src/pages/AccountReceivable/components/QuoteNotesThread.tsx (367 lines) - quote notes thread (pages  account receivable components)
 - `QuoteNotesThreadProps` (interface)
 - `QuoteNotesThread` (export function)
 
-## src/pages/AccountReceivable/QuoteStepper.tsx (246 lines) - quote stepper (pages  account receivable)
+## src/pages/AccountReceivable/components/QuoteStepper.tsx (246 lines) - quote stepper (pages  account receivable components)
 - `QuoteStepperProps` (interface)
 - `StepState` (type)
 - `DisplayStep` (interface)
@@ -938,48 +668,58 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `resolveQuoteSteps` (export function)
 - `QuoteStepper` (export const)
 
-## src/pages/AccountReceivable/SendQuoteModal.tsx (385 lines) - send quote modal (pages  account receivable)
-- `SendQuoteModalProps` (interface)
-- `SendQuoteModal` (export function)
+## src/pages/AccountReceivable/fields/ARCustomerAutocomplete.tsx (677 lines) - a r customer autocomplete (pages  account receivable fields)
+- `ARCustomerOption` (export interface)
+- `ARCustomerAutocompleteProps` (interface)
+- `ARCustomerAutocomplete` (export function)
+    - `queryClient` (fn)
+    - `requestSeq` (fn)
+    - `isTypingRef` (fn) - True while the user is editing the text; stops prop-driven syncing from overwriting their edits.
+    - `toOption` (fn)
+    - `loadMore` (fn)
+    - `handleListScroll` (fn)
+    - `handleClickOutside` (fn)
+    - `isExactMatch` (fn)
+    - `totalItemsCount` (fn)
+    - `handleSelectCustomer` (fn)
+    - `handleOpenCreateModal` (fn)
+    - `handleCreateCustomerSubmit` (fn)
+    - `handleKeyDown` (fn)
 
-## src/pages/AccountReceivable/UserAutocomplete.tsx (322 lines) - user autocomplete (pages  account receivable)
+## src/pages/AccountReceivable/fields/BillingStartDatePicker.tsx (151 lines) - billing start date picker (pages  account receivable fields)
+- `BillingStartDatePickerProps` (interface)
+- `BillingStartDatePicker` (export const)
+
+## src/pages/AccountReceivable/fields/ProductServiceAutocomplete.tsx (398 lines) - Called when the clear button is pressed, so the caller can reset the rest of the line.
+- `ProductServiceAutocompleteProps` (interface)
+- `ProductServiceAutocomplete` (export function)
+
+## src/pages/AccountReceivable/fields/UserAutocomplete.tsx (322 lines) - user autocomplete (pages  account receivable fields)
 - `UserOption` (export interface)
 - `UserAutocompleteProps` (interface)
 - `UserAutocomplete` (export function)
 
-## src/pages/AccountReceivable/WorkflowDetailDrawer.tsx (788 lines) - workflow detail drawer (pages  account receivable)
-- `WorkflowDetailDrawerProps` (interface)
+## src/pages/AccountReceivable/modals/AddSeatsAddonsModal.tsx (15 lines) - add seats addons modal (pages  account receivable modals)
+- `AddSeatsAddonsModal` (export const)
+
+## src/pages/AccountReceivable/modals/NewWorkflowModal.tsx (328 lines) - new workflow modal (pages  account receivable modals)
+- `NewWorkflowModal` (export function)
+
+## src/pages/AccountReceivable/modals/OverridePriceModal.tsx (131 lines) - override price modal (pages  account receivable modals)
+- `OverridePriceModalProps` (interface)
+- `OverridePriceModal` (export const)
+
+## src/pages/AccountReceivable/modals/QuoteDetailDrawer.tsx (12 lines) - quote detail drawer (pages  account receivable modals)
+- `QuoteDetailDrawer` (export function)
+
+## src/pages/AccountReceivable/modals/SendQuoteModal.tsx (385 lines) - send quote modal (pages  account receivable modals)
+- `SendQuoteModalProps` (interface)
+- `SendQuoteModal` (export function)
+
+## src/pages/AccountReceivable/modals/WorkflowDetailDrawer.tsx (12 lines) - workflow detail drawer (pages  account receivable modals)
 - `WorkflowDetailDrawer` (export function)
-    - `queryClient` (fn)
-    - `deleteMutation` (fn)
-    - `transitionMutation` (fn)
-    - `timerMutation` (fn)
-    - `getAllowedTargetStates` (fn) - Allowed transitions determination
-    - `getStepIndex` (fn)
 
-## src/pages/AccountReceivable/WorkflowDetailPage.tsx (2773 lines) - workflow detail page (pages  account receivable)
-- `WorkflowDetailPage` (export function)
-    - `navigate` (fn)
-    - `queryClient` (fn)
-    - `deleteMutation` (fn)
-    - `transitionMutation` (fn)
-    - `timerMutation` (fn)
-    - `attachmentMutation` (fn)
-    - `generateDigitalInvoiceHtml` (fn)
-    - `handlePreviewAttachment` (fn)
-    - `handleFilesSelected` (fn)
-    - `handleDragOver` (fn)
-    - `handleDragLeave` (fn)
-    - `handleDrop` (fn)
-    - `resolvedCustomer` (fn) - Dynamically resolve customer contact and bank settlement details
-    - `custId` (fn)
-    - `custName` (fn)
-    - `getAllowedTargetStates` (fn) - FSM allowed targets
-    - `getStepIndex` (fn)
-    - `getStepLabel` (fn)
-    - `rawAcct` (fn)
-
-## src/pages/AccountReceivable/lineItemPricingUtils.ts (242 lines) - line item pricing utils (pages  account receivable)
+## src/pages/AccountReceivable/utils/lineItemPricingUtils.ts (242 lines) - line item pricing utils (pages  account receivable utils)
 - `RowPricingResult` (export interface)
 - `calculateRowPricing` (export function)
 - `parseDateOnly` (export function) - Parses a date string (YYYY-MM-DD, MM/DD/YYYY, MM / DD / YYYY) safely in local calendar time  avoiding UTC off-by-one shifts.
@@ -1027,20 +767,8 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Configurations/Companies.tsx (198 lines) - companies (pages  configurations)
 - `Companies` (export function)
 
-## src/pages/Configurations/Entities.tsx (796 lines) - entities (pages  configurations)
+## src/pages/Configurations/Entities.tsx (84 lines) - entities (pages  configurations)
 - `Entities` (export function)
-    - `createMutation` (fn)
-    - `updateMutation` (fn)
-    - `deleteMutation` (fn)
-    - `batchDeleteMutation` (fn)
-    - `selectedIds` (fn)
-    - `handleOpenCreate` (fn)
-    - `handleOpenEdit` (fn)
-    - `handleCreateSubmit` (fn)
-    - `handleEditSubmit` (fn)
-    - `handleDelete` (fn)
-    - `handleBatchDelete` (fn)
-    - `table` (fn)
 
 ## src/pages/Configurations/Locations.tsx (621 lines) - locations (pages  configurations)
 - `Locations` (export function)
@@ -1056,26 +784,8 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `validateAndSetFile` (fn)
     - `handleImportSubmit` (fn)
 
-## src/pages/Configurations/OAuthConfiguration.tsx (1613 lines) - o auth configuration (pages  configurations)
+## src/pages/Configurations/OAuthConfiguration.tsx (242 lines) - o auth configuration (pages  configurations)
 - `OAuthConfiguration` (export function)
-    - `loadStatus` (fn) - Load HubSpot Status
-    - `loadEntraStatus` (fn) - Load Microsoft Entra Status
-    - `handleMessage` (fn)
-    - `handleConnectHubSpot` (fn) - ── HubSpot Action Handlers ──
-    - `handleTestConnection` (fn)
-    - `handleRefreshToken` (fn)
-    - `handleDisconnect` (fn)
-    - `handleSaveConfig` (fn)
-    - `handleCopyUri` (fn)
-    - `handleFetchLiveData` (fn)
-    - `handleSyncProducts` (fn)
-    - `handleTestEntraConnection` (fn) - ── Microsoft Entra Action Handlers ──
-    - `handleSignInEntra` (fn)
-    - `handleDisconnectEntra` (fn)
-    - `handleSaveEntraConfig` (fn)
-    - `handleFetchReceivableEmails` (fn)
-    - `filteredLiveItems` (fn) - Filter live items based on search query
-    - `filteredReceivableEmails` (fn) - Filter receivable emails
 
 ## src/pages/Configurations/PayableContacts.tsx (750 lines) - payable contacts (pages  configurations)
 - `BankingDetailsCell` (function)
@@ -1092,23 +802,8 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `syncMutation` (fn)
     - `handleSync` (fn)
 
-## src/pages/Configurations/ProductsServices.tsx (985 lines) - products services (pages  configurations)
+## src/pages/Configurations/ProductsServices.tsx (396 lines) - products services (pages  configurations)
 - `ProductsServices` (export function)
-    - `createMutation` (fn)
-    - `updateMutation` (fn)
-    - `deleteMutation` (fn)
-    - `syncMutation` (fn)
-    - `importMutation` (fn)
-    - `uniqueBrands` (fn)
-    - `filteredProducts` (fn)
-    - `hubspotCount` (fn)
-    - `activeCount` (fn)
-    - `handleOpenAdd` (fn)
-    - `handleOpenEdit` (fn)
-    - `handleSave` (fn)
-    - `handleDelete` (fn)
-    - `handleTriggerHubSpotSync` (fn)
-    - `handleImportFile` (fn)
 
 ## src/pages/Configurations/Projects.tsx (632 lines) - projects (pages  configurations)
 - `Projects` (export function)
@@ -1158,135 +853,23 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Configurations/RoleMcpToolPermissions.tsx (306 lines) - Left panel search
 - `RoleMcpToolPermissions` (export function)
 
-## src/pages/Configurations/Roles.tsx (799 lines) - roles (pages  configurations)
-- `getErrorMessage` (function)
-- `TreeNode` (const) - Recursive component for Tree Node
-    - `dragCounter` (fn)
-    - `handleDragStart` (fn)
-    - `handleDragEnter` (fn)
-    - `handleDragOver` (fn)
-    - `handleDragLeave` (fn)
-    - `handleDragEnd` (fn)
-    - `handleDrop` (fn)
+## src/pages/Configurations/Roles.tsx (56 lines) - roles (pages  configurations)
 - `Roles` (export function)
-    - `queryClient` (fn)
-    - `optimisticTree` (fn)
-    - `sortRoles` (fn) - Sort children
-    - `toggleNode` (fn)
-    - `createMutation` (fn)
-    - `updateMutation` (fn)
-    - `bulkSaveHierarchyMutation` (fn)
-    - `deleteMutation` (fn)
-    - `handleSubmit` (fn)
-    - `handleAddRoot` (fn)
-    - `handleAddChild` (fn)
-    - `startEdit` (fn)
-    - `confirmDelete` (fn)
-    - `confirmDeactivate` (fn)
-    - `canDrop` (fn)
-    - `handleMoveRole` (fn)
 
 ## src/pages/Configurations/UserRoleAssignment.tsx (387 lines) - user role assignment (pages  configurations)
 - `UserRoleAssignment` (export function)
 - `SelectableTreeNode` (const) - Recursive component for Tree Node in UserRoleAssignment
 - `RoleTree` (function) - Tree Diagram Component
 
-## src/pages/Configurations/Users.tsx (692 lines) - users (pages  configurations)
+## src/pages/Configurations/Users.tsx (291 lines) - users (pages  configurations)
 - `Users` (export function)
-    - `queryClient` (fn)
-    - `navigate` (fn)
-    - `createMutation` (fn)
-    - `updateMutation` (fn)
-    - `deleteMutation` (fn)
-    - `bulkDeleteMutation` (fn)
-    - `handleSubmit` (fn)
-    - `openCreateDialog` (fn)
-    - `confirmDelete` (fn)
-    - `confirmBulkDelete` (fn)
-    - `confirmDeactivate` (fn)
-    - `openEditDialog` (fn)
-    - `table` (fn)
 
-## src/pages/Configurations/WorkflowAssignments.tsx (2513 lines) - workflow assignments (pages  configurations)
-- `Assignment` (type)
-- `ApproverSummary` (type)
-- `DepartmentApprover` (type)
-- `DepartmentGroup` (type)
-- `ApproverPill` (function) - Rich Level 1 Approver Pill
-- `ApproverPillList` (function) - Approver Pill List with +X More Popover Dropdown
-- `MultiUserApproverPopover` (function) - Multi-User Approver Selection Popover
-    - `filteredUsers` (fn)
-    - `toggleUser` (fn)
-    - `handleSave` (fn)
-    - `handleClear` (fn)
+## src/pages/Configurations/WorkflowAssignments.tsx (301 lines) - workflow assignments (pages  configurations)
 - `WorkflowAssignments` (export function)
-    - `fetchData` (fn)
-    - `filteredDepartments` (fn) - Filtered department approvers
-    - `groupedDepartments` (fn) - Grouped departments map
-    - `stats` (fn)
-    - `toggleGroupExpand` (fn)
-    - `handleToggleSelectDept` (fn) - Multi-select handlers
-    - `handleToggleSelectAll` (fn)
-    - `handleBatchAssignApprovers` (fn) - Batch assign approvers to all selected departments
-    - `handleSelectDepartmentApprovers` (fn) - Handle direct multi-approver assignment for a single department
-    - `handleAssignGroupApprovers` (fn) - Handle Group-Level Multi-Approver Assignment
-    - `handleMoveDepartment` (fn) - Move Department into a Group (Drag & Drop or Dropdown select)
-    - `handleCreateGroup` (fn) - Create Group Handler
-    - `handleRenameGroup` (fn) - Rename Group Handler
-    - `handleDeleteGroup` (fn) - Delete Group Handler
-    - `handleSaveOperationalRole` (fn) - Operational Role Handlers
-    - `formDeptClean` (fn)
-    - `getRoleUserCount` (fn)
-    - `handleDeleteAssignment` (fn)
-    - `renderRoleTabContent` (fn) - Render Operational & Approver Role dedicated tab content
 
-## src/pages/Dashboard/Dashboard.tsx (2268 lines) - dashboard (pages  dashboard)
-- `ApproverSummary` (type)
-- `DepartmentApprover` (type)
-- `DepartmentGroup` (type)
-- `ApproverPill` (function) - Rich Level 1 Approver Pill without vertical clipping
-- `ApproverPillList` (function) - Approver Pill List with +X More Popover Dropdown
-- `MultiUserApproverPopover` (function) - Multi-User Approver Selection Popover
-    - `filteredUsers` (fn)
-    - `toggleUser` (fn)
-    - `handleSave` (fn)
-    - `handleClear` (fn)
+## src/pages/Dashboard/Dashboard.tsx (445 lines) - dashboard (pages  dashboard)
 - `Dashboard` (export function)
-    - `fetchWorkflowAssignments` (fn)
-    - `handleOpenApproverModal` (fn)
-    - `filteredDeptApprovers` (fn) - Filtered department approvers
-    - `groupedDepartments` (fn) - Grouped departments map
-    - `deptStats` (fn)
-    - `toggleGroupExpand` (fn)
-    - `handleExpandAll` (fn)
-    - `handleCollapseAll` (fn)
-    - `handleDragStartDept` (fn) - Drag and drop handlers
-    - `handleDragEndDept` (fn)
-    - `handleDragOverGroup` (fn)
-    - `handleDragLeaveGroup` (fn)
-    - `handleDropOnGroup` (fn)
-    - `handleToggleSelectDept` (fn) - Multi-select handlers for departments
-    - `handleToggleSelectAll` (fn)
-    - `handleSelectDepartmentApprovers` (fn) - Single Department Multi-Approver Assignment
-    - `handleBatchAssignApprovers` (fn) - Batch assign approvers to all selected departments
-    - `handleAssignGroupApprovers` (fn) - Group-Level Multi-Approver Assignment
-    - `handleMoveDepartment` (fn) - Move Department into a Group (Drag & Drop or select)
-    - `handleCreateGroup` (fn) - Create Group Handler
-    - `handleRenameGroup` (fn) - Rename Group Handler
-    - `handleDeleteGroup` (fn) - Delete Group Handler
-    - `handleToggleUserInRole` (fn)
-    - `handleToggleEntraUser` (fn)
-    - `handleSaveApproverAssignments` (fn)
-    - `navigate` (fn)
-    - `isTaskOwnedByUser` (fn)
-    - `userFull` (fn)
-    - `userEmail` (fn)
-    - `userName` (fn)
-    - `tasks` (fn)
-    - `handleTaskClick` (fn)
-    - `activeTasks` (fn)
-    - `pipelineValue` (fn)
-    - `filteredTasks` (fn)
+    - `s` (fn)
 
 ## src/pages/Logs/AuditLog.tsx (483 lines) - audit log (pages  logs)
 - `AuditLog` (export function)
@@ -1295,47 +878,52 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `auditTable` (fn)
     - `loginTable` (fn)
 
-## src/pages/Logs/SystemLogsPage.tsx (1065 lines) - system logs page (pages  logs)
-- `AuditLogItem` (interface)
-- `getActionMeta` (export function) - Helper to format human-readable action details
-    - `act` (fn)
-- `generateChangeSummary` (function) - Generate a concise human-readable summary of what changed
-- `formatLogDate` (function) - Helper to format timestamps cleanly
-- `getInitials` (function) - User Initials generator
+## src/pages/Logs/SystemLogsPage.tsx (113 lines) - system logs page (pages  logs)
 - `SystemLogsPage` (export function)
-    - `navigate` (fn)
-    - `fetchLogs` (fn) - Fetch logs
-    - `handleOpenInspector` (fn) - Handle opening inspector drawer
-    - `handleCopyJson` (fn)
-    - `stats` (fn) - KPI Calculations
 
-## src/pages/Purchasing/BankAccountAutocomplete.tsx (325 lines) - bank account autocomplete (pages  purchasing)
-- `BankAccountAutocompleteProps` (export interface)
-- `BankAccountAutocomplete` (export function)
-
-## src/pages/Purchasing/BatchApproval.tsx (763 lines) - batch approval (pages  purchasing)
-- `RoleAutocomplete` (function)
-    - `handleClickOutside` (fn)
-    - `uniqueRoles` (fn) - Distinct roles configured in Workflow / Role Assignments
-    - `filteredRoles` (fn)
-    - `q` (fn)
+## src/pages/Purchasing/BatchApproval.tsx (251 lines) - batch approval (pages  purchasing)
 - `BatchApproval` (export function)
-    - `navigate` (fn)
-    - `queryClient` (fn)
-    - `approveMutation` (fn) - Batch approve mutation
-    - `rejectMutation` (fn) - Batch reject mutation
-    - `notifyMutation` (fn) - Trigger manual notification mutation
-    - `saveSettingsMutation` (fn) - Save settings mutation
-    - `filteredRequests` (fn) - Filter requests
-    - `handleSelectAll` (fn) - Selection handlers
-    - `handleSelectRow` (fn)
-    - `selectedTotalAmount` (fn)
 
-## src/pages/Purchasing/CategoryAutocomplete.tsx (282 lines) - category autocomplete (pages  purchasing)
-- `CategoryAutocompleteProps` (export interface)
-- `CategoryAutocomplete` (export function)
+## src/pages/Purchasing/Invoices.tsx (80 lines) - invoices (pages  purchasing)
+- `Invoices` (export function)
 
-## src/pages/Purchasing/ChangeLevel1ApproverModal.tsx (471 lines) - change level1 approver modal (pages  purchasing)
+## src/pages/Purchasing/MyApprovals.tsx (367 lines) - my approvals (pages  purchasing)
+- `MyApprovals` (export function)
+
+## src/pages/Purchasing/PurchaseRequestDetail.tsx (47 lines) - purchase request detail (pages  purchasing)
+- `PurchaseRequestDetail` (export function)
+
+## src/pages/Purchasing/PurchaseRequests.tsx (519 lines) - purchase requests (pages  purchasing)
+- `PurchaseRequests` (export function)
+    - `s` (fn)
+
+## src/pages/Purchasing/QuickBooksPage.tsx (237 lines) - quick books page (pages  purchasing)
+- `QuickBooksPage` (export function)
+
+## src/pages/Purchasing/RecurringPayments.tsx (30 lines) - recurring payments (pages  purchasing)
+- `RecurringPayments` (export function)
+
+## src/pages/Purchasing/RequestDetail.tsx (42 lines) - request detail (pages  purchasing)
+- `RequestDetail` (export function)
+
+## src/pages/Purchasing/SecureInfoRequest.tsx (214 lines) - Secure info requests: an admin asks the requester for account details (e.g.
+- `SecureInfoRequestCard` (export const)
+
+## src/pages/Purchasing/components/MasterTransactionsTable.tsx (179 lines) - master transactions table (pages  purchasing components)
+- `MasterTransactionsTable` (export const)
+
+## src/pages/Purchasing/components/RequestMessageThread.tsx (657 lines) - request message thread (pages  purchasing components)
+- `RequestMessageThreadProps` (interface)
+- `RequestMessageThread` (export const)
+    - `handleDeleteMessage` (fn)
+    - `handleApplyTemplate` (fn)
+    - `handleSendMessage` (fn)
+    - `getRoleBadge` (fn)
+    - `r` (fn)
+    - `getMessageTypeBadge` (fn)
+    - `getInitials` (fn)
+
+## src/pages/Purchasing/dialogs/ChangeLevel1ApproverModal.tsx (471 lines) - change level1 approver modal (pages  purchasing dialogs)
 - `ChangeLevel1ApproverModalProps` (interface)
 - `ChangeLevel1ApproverModal` (export function)
     - `queryClient` (fn)
@@ -1345,19 +933,61 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleSelect` (fn)
     - `selectedCandidate` (fn)
 
-## src/pages/Purchasing/ClassAutocomplete.tsx (348 lines) - class autocomplete (pages  purchasing)
-- `ClassAutocompleteProps` (interface)
-- `ClassAutocomplete` (export function)
-
-## src/pages/Purchasing/ConvertToRecurringDialog.tsx (383 lines) - convert to recurring dialog (pages  purchasing)
+## src/pages/Purchasing/dialogs/ConvertToRecurringDialog.tsx (383 lines) - convert to recurring dialog (pages  purchasing dialogs)
 - `ConvertToRecurringDialogProps` (interface)
 - `ConvertToRecurringDialog` (export function)
 
-## src/pages/Purchasing/CountryAutocomplete.tsx (351 lines) - country autocomplete (pages  purchasing)
+## src/pages/Purchasing/dialogs/EditCombinedRequestDialog.tsx (244 lines) - edit combined request dialog (pages  purchasing dialogs)
+- `EditCombinedRequestDialog` (export function)
+
+## src/pages/Purchasing/dialogs/EditRequestDialog.tsx (231 lines) - edit request dialog (pages  purchasing dialogs)
+- `EditRequestDialog` (export function)
+
+## src/pages/Purchasing/dialogs/FilePreviewModal.tsx (246 lines) - file preview modal (pages  purchasing dialogs)
+- `PreviewFileTarget` (export interface)
+- `FilePreviewModalProps` (interface)
+- `FilePreviewModal` (export const)
+
+## src/pages/Purchasing/dialogs/ManualPriceDialog.tsx (76 lines) - manual price dialog (pages  purchasing dialogs)
+- `Props` (type)
+- `ManualPriceDialog` (export function)
+
+## src/pages/Purchasing/dialogs/QuickBooksExportDialog.tsx (162 lines) - quick books export dialog (pages  purchasing dialogs)
+- `QuickBooksExportDialog` (export function)
+
+## src/pages/Purchasing/dialogs/QuickBooksItemDetailsDialog.tsx (12 lines) - quick books item details dialog (pages  purchasing dialogs)
+- `QuickBooksItemDetailsDialog` (export function)
+
+## src/pages/Purchasing/dialogs/ScheduleBreakdownModal.tsx (579 lines) - schedule breakdown modal (pages  purchasing dialogs)
+- `ScheduleBreakdownModalProps` (interface)
+- `ScheduleBreakdownModal` (export const)
+    - `navigate` (fn)
+    - `handleOpenWireInfo` (fn)
+    - `existing` (fn)
+    - `installments` (fn)
+    - `formatMoney` (fn)
+    - `formatDate` (fn)
+
+## src/pages/Purchasing/dialogs/WireTransferDialog.tsx (269 lines) - wire transfer dialog (pages  purchasing dialogs)
+- `WireTransferDialog` (export function)
+
+## src/pages/Purchasing/fields/BankAccountAutocomplete.tsx (325 lines) - bank account autocomplete (pages  purchasing fields)
+- `BankAccountAutocompleteProps` (export interface)
+- `BankAccountAutocomplete` (export function)
+
+## src/pages/Purchasing/fields/CategoryAutocomplete.tsx (282 lines) - category autocomplete (pages  purchasing fields)
+- `CategoryAutocompleteProps` (export interface)
+- `CategoryAutocomplete` (export function)
+
+## src/pages/Purchasing/fields/ClassAutocomplete.tsx (348 lines) - class autocomplete (pages  purchasing fields)
+- `ClassAutocompleteProps` (interface)
+- `ClassAutocomplete` (export function)
+
+## src/pages/Purchasing/fields/CountryAutocomplete.tsx (351 lines) - country autocomplete (pages  purchasing fields)
 - `CountryAutocompleteProps` (interface)
 - `CountryAutocomplete` (export function)
 
-## src/pages/Purchasing/CreatableCombobox.tsx (708 lines) - creatable combobox (pages  purchasing)
+## src/pages/Purchasing/fields/CreatableCombobox.tsx (708 lines) - creatable combobox (pages  purchasing fields)
 - `CreatableComboboxProps` (interface)
 - `CreatableCombobox` (export function)
     - `queryClient` (fn)
@@ -1371,11 +1001,11 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleCreateVendorSubmit` (fn)
     - `handleKeyDown` (fn)
 
-## src/pages/Purchasing/CurrencyAutocomplete.tsx (321 lines) - currency autocomplete (pages  purchasing)
+## src/pages/Purchasing/fields/CurrencyAutocomplete.tsx (321 lines) - currency autocomplete (pages  purchasing fields)
 - `CurrencyAutocompleteProps` (interface)
 - `CurrencyAutocomplete` (export function)
 
-## src/pages/Purchasing/DepartmentAutocomplete.tsx (416 lines) - department autocomplete (pages  purchasing)
+## src/pages/Purchasing/fields/DepartmentAutocomplete.tsx (416 lines) - department autocomplete (pages  purchasing fields)
 - `DepartmentAutocompleteProps` (interface)
 - `DepartmentAutocomplete` (export function)
     - `activeUserDept` (fn) - Derive active requester's Graph API department
@@ -1389,367 +1019,27 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleKeyDown` (fn)
     - `renderHighlightedName` (fn)
 
-## src/pages/Purchasing/EditCombinedRequestDialog.tsx (2438 lines) - edit combined request dialog (pages  purchasing)
-- `EditCombinedRequestDialogProps` (interface)
-- `EditCombinedRequestDialog` (export function)
-    - `updateMutation` (fn)
-    - `currentRequesterUser` (fn)
-    - `q` (fn)
-    - `allSavedAddresses` (fn)
-    - `uploadAttachments` (fn) - --- Attachments & Receipt Preview States ---
-    - `deleteAttachment` (fn)
-    - `handlePreviewAttachment` (fn)
-    - `handleClosePreview` (fn)
-    - `handleClickOutside` (fn)
-    - `filteredUsers` (fn)
-    - `q` (fn)
-    - `itemsSubtotal` (fn) - Multi-parts calculations
-    - `calculatedGrandTotal` (fn)
-    - `handleItemModeSwitch` (fn) - Mode switch handler
-    - `handleAddPartItem` (fn) - Add Item / Part Row
-    - `handleRemovePartItem` (fn) - Remove Item / Part Row
-    - `handleUpdatePartItem` (fn) - Update Item Row
-    - `handleQuantityChange` (fn) - --- SINGLE ITEM PRICING HANDLERS ---
-    - `handleUnitPriceChange` (fn)
-    - `handleAmountChange` (fn)
-    - `handleAfterTaxChange` (fn)
-    - `handleCurrencyChange` (fn)
-    - `handleGlCodeChange` (fn)
-    - `handlePoQuantityChange` (fn) - --- PO CHANGED HANDLERS ---
-    - `handlePoUnitPriceChange` (fn)
-    - `handlePoShippingChange` (fn)
-    - `handlePoAmountChange` (fn)
-    - `handlePoAfterTaxChange` (fn)
-    - `handleForceSyncNow` (fn) - Force one-click sync action
-    - `handleSave` (fn) - Submit Handler: Saves Request Details, PO (if exists), Invoice (if exists), and Wire Transfer (if AP)
-
-## src/pages/Purchasing/EditRequestDialog.tsx (1591 lines) - edit request dialog (pages  purchasing)
-- `RequesterAutocomplete` (function)
-    - `handleClickOutside` (fn)
-    - `filteredUsers` (fn)
-    - `q` (fn)
-- `EditRequestDialog` (export function)
-    - `userDept` (fn)
-    - `c` (fn)
-    - `n` (fn)
-    - `c` (fn)
-    - `n` (fn)
-    - `currentRequesterUser` (fn)
-    - `q` (fn)
-    - `allSavedAddresses` (fn)
-    - `isDirty` (fn)
-    - `handleRequestClose` (fn)
-    - `updateMutation` (fn)
-    - `handleItemChange` (fn)
-    - `handleAddItem` (fn)
-    - `handleRemoveItem` (fn)
-    - `itemsSubtotal` (fn)
-    - `currentSubtotal` (fn)
-    - `effectiveVendorName` (fn)
-    - `effectiveVendorAddress` (fn)
-    - `taxEstimate` (fn)
-    - `estimatedTaxAmount` (fn)
-    - `calculatedAmount` (fn)
-    - `handleSubmit` (fn)
-
-## src/pages/Purchasing/FilePreviewModal.tsx (246 lines) - file preview modal (pages  purchasing)
-- `PreviewFileTarget` (export interface)
-- `FilePreviewModalProps` (interface)
-- `FilePreviewModal` (export const)
-
-## src/pages/Purchasing/GLCodeAutocomplete.tsx (335 lines) - g l code autocomplete (pages  purchasing)
+## src/pages/Purchasing/fields/GLCodeAutocomplete.tsx (335 lines) - g l code autocomplete (pages  purchasing fields)
 - `GLCodeAutocompleteProps` (interface)
 - `GLCodeAutocomplete` (export function)
 
-## src/pages/Purchasing/Invoices.tsx (1341 lines) - invoices (pages  purchasing)
-- `Invoices` (export function)
-    - `navigate` (fn)
-    - `isWireTransfer` (fn)
-    - `isScheduledPayment` (fn)
-    - `isDueToday` (fn)
-    - `isOverdue` (fn)
-    - `isPendingPayment` (fn)
-    - `fetchTasks` (fn)
-    - `handleCopy` (fn)
-    - `handleCopyAllBankingDetails` (fn)
-    - `quickFilterCounts` (fn) - Quick filter counts calculated across eligible dataset
-    - `metrics` (fn) - KPI Calculations across eligible dataset (Wire Transfer & Scheduled Payment only)
-    - `filteredTasks` (fn) - Filtered tasks based on search, status, wire details, and request type
-    - `clearFilters` (fn)
-
-## src/pages/Purchasing/LocationAutocomplete.tsx (347 lines) - location autocomplete (pages  purchasing)
+## src/pages/Purchasing/fields/LocationAutocomplete.tsx (347 lines) - location autocomplete (pages  purchasing fields)
 - `LocationAutocompleteProps` (interface)
 - `LocationAutocomplete` (export function)
 
-## src/pages/Purchasing/ManualPriceDialog.tsx (76 lines) - manual price dialog (pages  purchasing)
-- `Props` (type)
-- `ManualPriceDialog` (export function)
-
-## src/pages/Purchasing/MasterTransactionsTable.tsx (911 lines) - master transactions table (pages  purchasing)
-- `MasterTransactionItem` (export interface)
-- `MasterTransactionsTableProps` (interface)
-- `MasterTransactionsTable` (export const)
-    - `navigate` (fn)
-    - `stats` (fn) - 2.
-    - `filteredTransactions` (fn) - 3.
-    - `toggleSort` (fn)
-    - `handleExportCSV` (fn)
-    - `filteredTotalValue` (fn)
-    - `getUrgencyBadge` (fn)
-
-## src/pages/Purchasing/MyApprovals.tsx (1014 lines) - my approvals (pages  purchasing)
-- `getInitials` (function) - User Initials helper
-- `MyApprovals` (export function)
-    - `navigate` (fn)
-    - `queryClient` (fn)
-    - `handleRefresh` (fn)
-    - `approveMutation` (fn) - Batch approve mutation
-    - `rejectMutation` (fn) - Batch reject mutation
-    - `metrics` (fn) - Metrics calculation
-    - `filteredRequests` (fn) - Filter requests based on active card, priority filter, and search
-    - `selectedTotalAmount` (fn) - Total selected dollar amount
-    - `handleSelectAll` (fn)
-    - `handleToggleRow` (fn)
-    - `handleSingleApprove` (fn)
-    - `handleSingleReject` (fn)
-
-## src/pages/Purchasing/PaymentMethodSelect.tsx (357 lines) - payment method select (pages  purchasing)
+## src/pages/Purchasing/fields/PaymentMethodSelect.tsx (357 lines) - payment method select (pages  purchasing fields)
 - `PaymentMethodSelectProps` (interface)
 - `PaymentMethodSelect` (export function)
 
-## src/pages/Purchasing/PrioritySelector.tsx (180 lines) - priority selector (pages  purchasing)
+## src/pages/Purchasing/fields/PrioritySelector.tsx (180 lines) - priority selector (pages  purchasing fields)
 - `PrioritySelectorProps` (interface)
 - `PrioritySelector` (export function)
 
-## src/pages/Purchasing/ProjectAutocomplete.tsx (271 lines) - project autocomplete (pages  purchasing)
+## src/pages/Purchasing/fields/ProjectAutocomplete.tsx (271 lines) - project autocomplete (pages  purchasing fields)
 - `ProjectAutocompleteProps` (interface)
 - `ProjectAutocomplete` (export function)
 
-## src/pages/Purchasing/PurchaseRequestDetail.tsx (3199 lines) - purchase request detail (pages  purchasing)
-- `PurchaseRequestDetail` (export function)
-    - `navigate` (fn)
-    - `queryClient` (fn)
-    - `allInvoices` (fn)
-    - `updateWireTransfer` (fn)
-    - `handleOpenEdit` (fn)
-    - `reqLoc` (fn)
-    - `reqClass` (fn)
-    - `updateMutation` (fn)
-    - `reviewMutation` (fn)
-    - `deleteMutation` (fn)
-    - `recordInvoiceMutation` (fn)
-    - `transitionMutation` (fn)
-    - `uploadMutation` (fn)
-    - `deleteAttachmentMutation` (fn)
-    - `handlePreviewAttachment` (fn)
-    - `handlePreviewFile` (fn)
-    - `handleClosePreview` (fn)
-    - `handleEditSubmit` (fn)
-    - `effectiveDueDate` (fn)
-    - `handleRecordInvoiceSubmit` (fn)
-    - `paidToDate` (fn)
-    - `handleOpenRecordPayment` (fn)
-
-## src/pages/Purchasing/PurchaseRequests.tsx (2591 lines) - purchase requests (pages  purchasing)
-- `RequesterAutocomplete` (function)
-    - `handleClickOutside` (fn)
-    - `filteredUsers` (fn)
-    - `q` (fn)
-- `parseExtractedPrice` (function)
-- `PurchaseRequests` (export function)
-    - `navigate` (fn)
-    - `queryClient` (fn)
-    - `handleUrlExtraction` (fn)
-    - `trimmed` (fn)
-    - `handlePreviewFile` (fn)
-    - `handleClosePreview` (fn)
-    - `currentRequesterUser` (fn)
-    - `q` (fn)
-    - `allSavedAddresses` (fn)
-    - `handleStatusFilterChange` (fn)
-    - `filters` (fn)
-    - `isTaskOwnedByUser` (fn)
-    - `userFull` (fn)
-    - `userEmail` (fn)
-    - `userName` (fn)
-    - `visibleRequests` (fn)
-    - `createMutation` (fn)
-    - `extractQuoteMutation` (fn)
-    - `openCreate` (fn)
-    - `handleQuoteFileUpload` (fn) - Handle Quote PDF upload & extraction
-    - `handleItemChange` (fn)
-    - `handleItemUrlExtraction` (fn)
-    - `scheduleItemUrlExtraction` (fn)
-    - `extractItemUrlOnBlur` (fn)
-    - `handleAddItem` (fn)
-    - `handleRemoveItem` (fn)
-    - `itemsSubtotal` (fn)
-    - `currentSubtotal` (fn)
-    - `effectiveVendorName` (fn)
-    - `effectiveVendorAddress` (fn)
-    - `taxEstimate` (fn)
-    - `estimatedTaxAmount` (fn)
-    - `totalCalculatedAmount` (fn)
-    - `isDirty` (fn)
-    - `handleRequestClose` (fn)
-    - `handleSubmit` (fn)
-
-## src/pages/Purchasing/QuickBooksExportDialog.tsx (1078 lines) - quick books export dialog (pages  purchasing)
-- `QuickBooksExportDialogProps` (interface)
-- `DialogTab` (type)
-- `ExportMode` (type)
-- `FilterType` (type)
-- `formatForDateTimeInput` (function) - Formats a Date object to "YYYY-MM-DDTHH:mm:ss" for datetime-local input fields.
-    - `pad` (fn)
-- `formatDisplayDateTime` (function) - Formats a timestamp into human-readable "YYYY/MM/DD HH:mm:ss
-    - `pad` (fn)
-- `formatDisplayDate` (function) - Formats a Date object to "YYYY/MM/DD
-    - `pad` (fn)
-- `QuickBooksExportDialog` (export function)
-    - `fetchPreview` (fn)
-    - `handleToggleSelect` (fn)
-    - `handleSelectAll` (fn)
-    - `handleSyncSelected` (fn)
-    - `handleResetToLastExport` (fn)
-    - `handleSetTodayPreset` (fn)
-    - `handleExport` (fn)
-
-## src/pages/Purchasing/QuickBooksItemDetailsDialog.tsx (981 lines) - quick books item details dialog (pages  purchasing)
-- `QuickBooksItemDetailsDialogProps` (interface)
-- `QuickBooksItemDetailsDialog` (export function)
-    - `handleCopyJson` (fn)
-
-## src/pages/Purchasing/QuickBooksPage.tsx (2161 lines) - quick books page (pages  purchasing)
-- `formatForDateTimeInput` (function)
-    - `pad` (fn)
-- `formatDisplayDateTime` (function)
-    - `pad` (fn)
-- `isMaItem` (function)
-- `QuickBooksPage` (export function)
-    - `requestTypeOptions` (fn) - - A/R Invoices: All Types, A/R Invoices
-    - `applyDatePreset` (fn)
-    - `formatYmd` (fn)
-    - `clearDateFilter` (fn)
-    - `fetchPreview` (fn) - Fetch Preview / Staged Data
-    - `allExpenses` (fn) - Partition all staged items into Expenses, M&A Scheduled Payments, Bills, and A/R Invoices
-    - `allMaPayments` (fn)
-    - `allBills` (fn)
-    - `allARInvoices` (fn)
-    - `filteredItems` (fn)
-    - `currentTabItemIds` (fn) - Distinct valid IDs in current filtered items
-    - `currentTabSelectedIds` (fn) - Selected distinct IDs in current tab
-    - `handleSelectAll` (fn) - Handle Multi-Selection
-    - `handleClearSelection` (fn)
-    - `handleToggleSelect` (fn)
-    - `handleBatchSync` (fn) - Batch Sync (Routes dynamically for Expenses vs Bills vs A/R Invoices)
-    - `handleSingleSync` (fn) - Handle Single Sync (Routes dynamically for Expenses vs Bills vs A/R Invoices)
-    - `handleDeleteFromQuickBooks` (fn) - Handle Remove from QuickBooks
-    - `handleDisconnect` (fn) - Disconnect QuickBooks
-    - `handleExecuteQuery` (fn) - Run direct query
-    - `handleExport` (fn) - Export File Package
-    - `totalStaged` (fn)
-    - `readyCount` (fn)
-    - `currentTabSelectedTotalAmount` (fn)
-
-## src/pages/Purchasing/RecurringPayments.tsx (3057 lines) - recurring payments (pages  purchasing)
-- `CalendarCell` (interface)
-- `RequesterAutocomplete` (function)
-    - `handleClickOutside` (fn)
-    - `filteredUsers` (fn)
-    - `q` (fn)
-- `getDueStatus` (function)
-- `RecurringPayments` (export function)
-    - `navigate` (fn)
-    - `queryClient` (fn)
-    - `c` (fn)
-    - `n` (fn)
-    - `handleCardFilterChange` (fn)
-    - `handleOpenWireModal` (fn)
-    - `handleSaveWire` (fn)
-    - `reviewMutation` (fn) - Toggle review status mutation
-    - `getInitialDefaultSchedule` (fn) - Helper to generate default schedule starting from a base date
-    - `handleOpenCreate` (fn)
-    - `defaultDept` (fn)
-    - `createMutation` (fn)
-    - `updateMutation` (fn)
-    - `deleteMutation` (fn)
-    - `handleCloseEdit` (fn)
-    - `handleOpenEdit` (fn)
-    - `reqLoc` (fn)
-    - `reqClass` (fn)
-    - `handleCreateSubmit` (fn)
-    - `effectiveDueDate` (fn)
-    - `handleEditSubmit` (fn)
-    - `effectiveDueDate` (fn)
-    - `isMaTransaction` (fn) - Helper to check if a recurring request is strictly synced from M&A
-    - `src` (fn)
-    - `isDueSoon` (fn) - Helper to check if a recurring request is due within 7 days
-    - `filteredRequests` (fn) - Filtered requests
-    - `stats` (fn) - Summary statistics
-
-## src/pages/Purchasing/RequestDetail.tsx (4739 lines) - request detail (pages  purchasing)
-- `FormKind` (type)
-- `RequestDetail` (export function)
-    - `renderBankAccount` (fn)
-    - `renderCategory` (fn)
-    - `navigate` (fn)
-    - `queryClient` (fn)
-    - `transition` (fn)
-    - `updateWireTransfer` (fn)
-    - `handleUpdateWire` (fn)
-    - `uploadAttachments` (fn)
-    - `deleteAttachment` (fn)
-    - `reviewMutation` (fn)
-    - `extractQuoteMutation` (fn)
-    - `handlePreviewAttachment` (fn)
-    - `handlePreviewFile` (fn)
-    - `handleClosePreview` (fn)
-    - `calculateNextDueDate` (fn)
-    - `redirectToVanessaMutation` (fn)
-    - `getItemGLCode` (fn)
-    - `dispatch` (fn)
-    - `handleConfirmWire` (fn)
-    - `onAction` (fn)
-    - `submitForm` (fn)
-    - `pVendor` (fn)
-    - `actualCostInvoice` (fn)
-    - `recalculatePoUsdTotal` (fn)
-    - `poUsdToNative` (fn) - po.amount is persisted in USD; review fields display and accept the selected item currency
-    - `poNativeToUsd` (fn)
-    - `handlePoItemCurrencyChange` (fn)
-    - `targetCurr` (fn)
-    - `quoteNativeCurrency` (fn)
-    - `rawItemsList` (fn)
-    - `isWaitingApproval` (fn)
-- `Field` (function)
-- `AssignedUsersField` (function)
-- `TwoUp` (function)
-- `InlineAttachmentUploader` (function) - can be attached without running a transition.
-- `AttachmentDropzone` (function)
-- `FieldInput` (function)
-
-## src/pages/Purchasing/RequestMessageThread.tsx (657 lines) - request message thread (pages  purchasing)
-- `RequestMessageThreadProps` (interface)
-- `RequestMessageThread` (export const)
-    - `handleDeleteMessage` (fn)
-    - `handleApplyTemplate` (fn)
-    - `handleSendMessage` (fn)
-    - `getRoleBadge` (fn)
-    - `r` (fn)
-    - `getMessageTypeBadge` (fn)
-    - `getInitials` (fn)
-
-## src/pages/Purchasing/ScheduleBreakdownModal.tsx (579 lines) - schedule breakdown modal (pages  purchasing)
-- `ScheduleBreakdownModalProps` (interface)
-- `ScheduleBreakdownModal` (export const)
-    - `navigate` (fn)
-    - `handleOpenWireInfo` (fn)
-    - `existing` (fn)
-    - `installments` (fn)
-    - `formatMoney` (fn)
-    - `formatDate` (fn)
-
-## src/pages/Purchasing/ScheduleDatesBuilder.tsx (565 lines) - schedule dates builder (pages  purchasing)
+## src/pages/Purchasing/fields/ScheduleDatesBuilder.tsx (565 lines) - schedule dates builder (pages  purchasing fields)
 - `ScheduleDatesBuilderProps` (export interface)
 - `ScheduleDatesBuilder` (export const)
     - `handleAddDate` (fn) - Helper to add a new custom installment date
@@ -1759,35 +1049,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleDistributeEvenly` (fn)
     - `formatMoney` (fn)
 
-## src/pages/Purchasing/SecureInfoRequest.tsx (922 lines) - Secure info requests: an admin asks the requester for account details (e.g.
-- `looksLikeCredential` (export function) - True when a regular message looks like it contains a password, so we can suggest the secure form.
-- `errorMessage` (function)
-- `startReauth` (function) - Send the admin through a fresh Microsoft sign-in, then back to this request's messages.
-- `RequestAccountDetailsDialogProps` (interface)
-- `RequestAccountDetailsDialog` (export const)
-    - `addField` (fn)
-    - `handleSubmit` (fn)
-- `SubmitSecureInfoDialogProps` (interface)
-- `SubmitSecureInfoDialog` (const)
-    - `handleSubmit` (fn)
-- `SendCodeDialogProps` (interface)
-- `SendCodeDialog` (const)
-    - `handleSubmit` (fn)
-- `SecureInfoRequestCardProps` (interface)
-- `SecureInfoRequestCard` (export const)
-    - `hide` (fn)
-    - `hideCode` (fn)
-    - `onVisibility` (fn)
-    - `handleReveal` (fn)
-    - `handleDelete` (fn)
-    - `handleRequestCode` (fn)
-    - `handleRevealCode` (fn)
-    - `copy` (fn)
-    - `statusLine` (fn)
-    - `codeNote` (fn)
-    - `codeNoteUrgent` (fn)
-
-## src/pages/Purchasing/ShippingDeliveryAddressField.tsx (665 lines) - shipping delivery address field (pages  purchasing)
+## src/pages/Purchasing/fields/ShippingDeliveryAddressField.tsx (665 lines) - shipping delivery address field (pages  purchasing fields)
 - `ShippingDeliveryAddressFieldProps` (interface)
 - `parseAddressToParts` (function) - Intelligent helper to parse raw address string into structured parts.
 - `buildFullAddress` (function) - Builds formatted full shipping address from parts.
@@ -1803,32 +1065,18 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleApplySavedAddress` (fn)
     - `estimatedTaxAmount` (fn)
 
-## src/pages/Purchasing/TimezoneAutocomplete.tsx (274 lines) - timezone autocomplete (pages  purchasing)
+## src/pages/Purchasing/fields/TimezoneAutocomplete.tsx (274 lines) - timezone autocomplete (pages  purchasing fields)
 - `TimezoneAutocompleteProps` (interface)
 - `TimezoneAutocomplete` (export function)
 
-## src/pages/Purchasing/VendorAutocomplete.tsx (87 lines) - vendor autocomplete (pages  purchasing)
+## src/pages/Purchasing/fields/VendorAutocomplete.tsx (87 lines) - vendor autocomplete (pages  purchasing fields)
 - `VendorAutocompleteProps` (interface)
 - `VendorAutocomplete` (export function)
 
-## src/pages/Purchasing/WireBankingFields.tsx (1019 lines) - wire banking fields (pages  purchasing)
-- `FieldDef` (export interface)
-- `BANK_DETAILS_CATALOG` (export const)
-- `CLEARING_CODES_CATALOG` (export const)
-- `getLocalCountryDefaults` (export function)
-    - `c` (fn)
-- `WireBankingFieldsProps` (export interface)
+## src/pages/Purchasing/fields/WireBankingFields.tsx (104 lines) - wire banking fields (pages  purchasing fields)
 - `WireBankingFields` (export function)
-    - `availableBankFields` (fn)
-    - `availableClearingFields` (fn)
-    - `handleClickOutside` (fn)
-    - `handleCountryChange` (fn)
-    - `addBankField` (fn)
-    - `removeBankField` (fn)
-    - `addClearingField` (fn)
-    - `removeClearingField` (fn)
 
-## src/pages/Purchasing/WireGeneralPaymentFields.tsx (686 lines) - wire general payment fields (pages  purchasing)
+## src/pages/Purchasing/fields/WireGeneralPaymentFields.tsx (686 lines) - wire general payment fields (pages  purchasing fields)
 - `COMMON_PAY_FROM` (export const)
 - `COMMON_CURRENCIES` (export const)
 - `CURRENCY_SYMBOLS` (export const)
@@ -1842,28 +1090,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleAmountInputFocus` (fn)
     - `handleAmountInputBlur` (fn)
 
-## src/pages/Purchasing/WireTransferDialog.tsx (1651 lines) - wire transfer dialog (pages  purchasing)
-- `FieldDef` (interface)
-- `getLocalCountryDefaults` (function) - Fallback defaults mapped against AccountsPayableLog and schwifty requirements
-    - `c` (fn)
-- `WireTransferDialogProps` (interface)
-- `WireTransferDialog` (export function)
-    - `normalizedTabs` (fn) - Normalize visible tabs: combine banking and international into "banking
-    - `availableBankFields` (fn) - Available fields that are NOT currently displayed (prevents duplicates)
-    - `availableClearingFields` (fn)
-    - `handleClickOutside` (fn)
-    - `onWheel` (fn)
-    - `onWheel` (fn)
-    - `applyCountryIntelligence` (fn) - Apply country spec dynamically
-    - `handleCountryChange` (fn)
-    - `cleanDate` (fn)
-    - `handleSubmit` (fn)
-    - `addBankField` (fn) - Add / Remove Field Handlers (NO DUPLICATES ALLOWED)
-    - `removeBankField` (fn)
-    - `addClearingField` (fn)
-    - `removeClearingField` (fn)
-
-## src/pages/Purchasing/purchasingMeta.ts (298 lines) - Presentation metadata for Purchasing + Tasks.
+## src/pages/Purchasing/utils/purchasingMeta.ts (329 lines) - Presentation metadata for Purchasing + Tasks.
 - `STATUS_LABEL` (export const) - spellings are absent on purpose — parseRequestStatus resolves them first.
 - `STATUS_BADGE` (export const)
 - `getStatusLabel` (export function) - Display label for a raw API status.
@@ -1875,6 +1102,10 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `SPEND_FLOW` (export const)
 - `RECURRING_FLOW` (export const)
 - `ACCOUNTS_PAYABLE_FLOW` (export const)
+- `WIRE_OTHERS_FLOW` (export const) - Wire transfer "Others": Draft -> Waiting Approval (Company Level 2) -> Waiting Payment -> Completed.
+- `WIRE_RECURRING_FLOW` (export const) - Wire transfer "Rent" / "Note": Draft -> Waiting Payment -> Completed (repeats for every payment period).
+- `isRecurringWireCategory` (export function) - Rent and Note wire transfers are recurring payments: no approval step and a "Nth payment" series.
+- `wireFlowFor` (export function) - Stage list for a wire transfer.
 - `QUOTE_FLOW` (export const)
 - `STATUS_FILTER_OPTIONS` (export const) - States offered in filter dropdowns: the superset pipeline plus the two exception  states.
 - `ACTION_META` (export const)
@@ -1889,7 +1120,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `REQUEST_TYPE_LABEL` (export const)
 - `formatRequestType` (export function)
 
-## src/pages/Purchasing/recurringScheduleUtils.ts (459 lines) - recurring schedule utils (pages  purchasing)
+## src/pages/Purchasing/utils/recurringScheduleUtils.ts (459 lines) - recurring schedule utils (pages  purchasing utils)
 - `FREQUENCY_LABELS` (export const)
 - `FREQUENCY_INTERVAL_MONTHS` (export const)
 - `getCycleDate` (export function) - Accurately calculates the target date for cycle index N (0-indexed) from a base start date,  preventing month-overflow drift (e.g.
@@ -2041,7 +1272,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `ReceivableEmailItem` (export interface)
 - `ReceivableEmailsResponse` (export interface)
 
-## src/services/purchasingService.ts (747 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
+## src/services/purchasingService.ts (764 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
 - `RequestListFilters` (export type)
 - `buildQuery` (function)
 - `getSummary` (export function)
@@ -2096,6 +1327,9 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `exportSingleRequestQuickBooksXlsx` (export function)
 - `getAPUsers` (export function)
 - `getKnownVendors` (export function)
+- `WireStatusCounts` (export type) - Records per status on the wire transfer page (sidebar badges); keys are canonical statuses such as WAITING_PAYMENT.
+- `getWireStatusCounts` (export function)
+- `getPreviousWirePayments` (export function) - Latest payment of each Rent/Note wire series (vendor + payment type), to pre-fill the next payment.
 - `getPayFromEntities` (export function)
 - `updateWireTransfer` (export function)
 - `BankingCountry` (export interface)
@@ -2205,7 +1439,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `EntityDeleteResult` (export interface)
 - `EntityBatchDeleteResult` (export interface)
 
-## src/types/purchasing.ts (759 lines) - purchasing (types)
+## src/types/purchasing.ts (785 lines) - purchasing (types)
 - `TaskHistoryItem` (export interface)
 - `RequestType` (export type)
 - `Priority` (export type)
@@ -2248,7 +1482,9 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `HoldInput` (export type)
 - `ConfirmGoodsInput` (export type)
 - `WireTransferInput` (export type)
+- `WirePaymentSeries` (export type) - Rent / Note wire payments: where this payment sits in its series, e.g.
 - `WireTransfer` (export type)
+- `PreviousWirePayment` (export type) - Latest payment of a Rent/Note series, used to pre-fill the next payment.
 - `TransitionInput` (export type)
 - `ItemMode` (export type)
 - `PurchaseRequestItem` (export interface)
