@@ -6,12 +6,13 @@ Scan this index first to locate the right file and description without loading s
 For detailed function and route definitions, see `.agents/code-map.md`.
 
 - src/App.tsx (194 lines) - app
-- src/components/AppShell/AppShell.tsx (57 lines) - Set initial state
+- src/components/AppShell/AppShell.tsx (59 lines) - Set initial state
 - src/components/AppShell/Breadcrumbs.tsx (178 lines) - breadcrumbs (components  app shell)
 - src/components/AppShell/ChatMessageRenderer.tsx (356 lines) - chat message renderer (components  app shell)
 - src/components/AppShell/ConnectionStatusLight.tsx (263 lines) - connection status light (components  app shell)
 - src/components/AppShell/FloatingChat.tsx (561 lines) - floating chat (components  app shell)
 - src/components/AppShell/GlobalSettingsDialog.tsx (1126 lines) - global settings dialog (components  app shell)
+- src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
 - src/components/AppShell/Navigation.tsx (132 lines) - navigation (components  app shell)
 - src/components/AppShell/NotificationDropdown.tsx (1899 lines) - notification dropdown (components  app shell)
 - src/components/AppShell/Sidebar.tsx (455 lines) - sidebar (components  app shell)
@@ -79,7 +80,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/hooks/useDashboard.ts (84 lines) - use dashboard (hooks)
 - src/hooks/useEntities.ts (67 lines) - use entities (hooks)
 - src/hooks/useHeartbeat.ts (44 lines) - Track user activity
-- src/hooks/useHubSpotCompanies.ts (32 lines) - use hub spot companies (hooks)
+- src/hooks/useHubSpotCompanies.ts (51 lines) - Live progress of the background companies sync; polls every second only while a sync is running.
 - src/hooks/useMasterTables.ts (234 lines) - use master tables (hooks)
 - src/hooks/useNotifications.ts (303 lines) - use notifications (hooks)
 - src/hooks/usePurchasing.ts (413 lines) - use purchasing (hooks)
@@ -92,9 +93,10 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/lib/utils.ts (7 lines) - utils (lib)
 - src/main.tsx (52 lines) - Create a client
 - src/pages/AccountReceivable/ARCustomerAutocomplete.tsx (677 lines) - a r customer autocomplete (pages  account receivable)
-- src/pages/AccountReceivable/AccountReceivablePage.tsx (2348 lines) - account receivable page (pages  account receivable)
+- src/pages/AccountReceivable/AccountReceivablePage.tsx (2407 lines) - account receivable page (pages  account receivable)
 - src/pages/AccountReceivable/AddSeatsAddonsModal.tsx (739 lines) - add seats addons modal (pages  account receivable)
 - src/pages/AccountReceivable/BillingStartDatePicker.tsx (151 lines) - billing start date picker (pages  account receivable)
+- src/pages/AccountReceivable/BrandBadges.tsx (50 lines) - Distinct, readable colours (light + dark).
 - src/pages/AccountReceivable/CustomerQuoteViewPage.tsx (972 lines) - customer quote view page (pages  account receivable)
 - src/pages/AccountReceivable/GenerateInvoicePage.tsx (6377 lines) - generate invoice page (pages  account receivable)
 - src/pages/AccountReceivable/GenerateQuotePage.tsx (1726 lines) - generate quote page (pages  account receivable)
@@ -190,7 +192,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/services/financeService.ts (100 lines) - finance service (services)
 - src/services/helper.ts (65 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
 - src/services/masterTablesService.ts (180 lines) - master tables service (services)
-- src/services/oauthService.ts (281 lines) - oauth service (services)
+- src/services/oauthService.ts (311 lines) - oauth service (services)
 - src/services/purchasingService.ts (747 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
 - src/services/queryKeys.ts (26 lines) - All React Query cache keys live here so that invalidation calls in
 - src/services/uploadArchiveService.ts (22 lines) - upload archive service (services)

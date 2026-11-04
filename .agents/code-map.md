@@ -8,7 +8,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `NotFoundAlert` (function)
 - `App` (function)
 
-## src/components/AppShell/AppShell.tsx (57 lines) - Set initial state
+## src/components/AppShell/AppShell.tsx (59 lines) - Set initial state
 - `Props` (interface)
 - `AppShell` (export function)
 
@@ -53,6 +53,9 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleRemoveCustomEmailHold` (fn)
     - `handleAddCustomEmailRec` (fn)
     - `handleRemoveCustomEmailRec` (fn)
+
+## src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
+- `HubSpotSyncProgress` (export function) - Small bottom-right card showing the background HubSpot companies sync: percentage while running,  then the result.
 
 ## src/components/AppShell/Navigation.tsx (132 lines) - navigation (components  app shell)
 - `navigation` (export const)
@@ -537,9 +540,11 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/hooks/useHeartbeat.ts (44 lines) - Track user activity
 - `useHeartbeat` (export function)
 
-## src/hooks/useHubSpotCompanies.ts (32 lines) - use hub spot companies (hooks)
+## src/hooks/useHubSpotCompanies.ts (51 lines) - Live progress of the background companies sync; polls every second only while a sync is running.
 - `useHubSpotCompanies` (export function)
-- `useSyncHubSpotCompanies` (export function)
+- `HUBSPOT_SYNC_STATUS_KEY` (export const)
+- `useHubSpotCompaniesSyncStatus` (export function) - Live progress of the background companies sync; polls every second only while a sync is running.
+- `useSyncHubSpotCompanies` (export function) - Starts the companies sync in the background.
 
 ## src/hooks/useMasterTables.ts (234 lines) - use master tables (hooks)
 - `useMasterLocations` (export function)
@@ -683,13 +688,13 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleCreateCustomerSubmit` (fn)
     - `handleKeyDown` (fn)
 
-## src/pages/AccountReceivable/AccountReceivablePage.tsx (2348 lines) - account receivable page (pages  account receivable)
+## src/pages/AccountReceivable/AccountReceivablePage.tsx (2407 lines) - account receivable page (pages  account receivable)
 - `ARTab` (export type)
 - `AccountReceivablePage` (export function)
     - `navigate` (fn)
     - `queryClient` (fn)
     - `setActiveTab` (fn)
-    - `syncHubspotCompaniesMutation` (fn)
+    - `syncHubspotCompaniesMutation` (fn) - Starts the sync in the background; progress and the result are shown by the app-shell HubSpotSyncProgress widget.
     - `convertInvoiceMutation` (fn) - Convert to Invoice Mutation
     - `deleteQuoteMutation` (fn) - Delete Draft Quote Mutation
     - `deleteInvoiceMutation` (fn) - Delete Invoice Mutation
@@ -719,6 +724,11 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/AccountReceivable/BillingStartDatePicker.tsx (151 lines) - billing start date picker (pages  account receivable)
 - `BillingStartDatePickerProps` (interface)
 - `BillingStartDatePicker` (export const)
+
+## src/pages/AccountReceivable/BrandBadges.tsx (50 lines) - Distinct, readable colours (light + dark).
+- `brandColorClass` (export function) - Same brand name -> same colour, on every card and every reload.
+- `splitBrands` (export function) - Brands arrive as one string joined with "," (or ";"); split them into clean names.
+- `BrandBadges` (export function)
 
 ## src/pages/AccountReceivable/CustomerQuoteViewPage.tsx (972 lines) - customer quote view page (pages  account receivable)
 - `CustomerQuoteViewPage` (export function)
@@ -2013,7 +2023,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `MasterProductListResponse` (export interface)
 - `HubSpotSyncResult` (export interface)
 
-## src/services/oauthService.ts (281 lines) - oauth service (services)
+## src/services/oauthService.ts (311 lines) - oauth service (services)
 - `HubSpotOAuthConfig` (export interface)
 - `HubSpotConnectionInfo` (export interface)
 - `HubSpotOAuthStatus` (export interface)
@@ -2021,6 +2031,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `HubSpotTestResult` (export interface)
 - `HubSpotDataResponse` (export interface)
 - `HubSpotSyncResult` (export interface)
+- `HubSpotCompaniesSyncProgress` (export interface)
 - `oauthService` (export const)
 - `HubSpotCompanyItem` (export interface)
 - `HubSpotCompaniesResponse` (export interface)

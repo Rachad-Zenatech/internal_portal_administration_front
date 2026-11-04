@@ -35,6 +35,9 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Badge } from "../../components/ui/badge";
 import { Textarea } from "../../components/ui/textarea";
+import { Card, CardContent } from "../../components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import HelpIcon from "../../components/ui/HelpIcon";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,11 +65,20 @@ import type {
   ARQuote,
 } from "../../services/arQuoteService";
 import { SendQuoteModal } from "./SendQuoteModal";
+import { BrandBadges, brandColorClass } from "./BrandBadges";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import { GLCodeAutocomplete } from "../Purchasing/GLCodeAutocomplete";
 import { ClassAutocomplete } from "../Purchasing/ClassAutocomplete";
 import { useNotificationStream } from "@/hooks/useNotifications";
 import { calculateRowPricing } from "./lineItemPricingUtils";
 import { oauthService } from "../../services/oauthService";
+import { useSyncHubSpotCompanies } from "../../hooks/useHubSpotCompanies";
 
 export type ARTab =
   | "overview"
@@ -145,19 +157,26 @@ export default function AccountReceivablePage() {
   const [hubspotSearchTerm, setHubspotSearchTerm] = useState("");
   const [debouncedHubspotSearch, setDebouncedHubspotSearch] = useState("");
   const [hubspotPage, setHubspotPage] = useState(0);
+  const [hubspotBrand, setHubspotBrand] = useState<string>("all");
+  const { data: hubspotBrandsData } = useQuery({
+    queryKey: ["hubspot-companies", "brands"],
+    queryFn: () => oauthService.getHubSpotCompanyBrands(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const hubspotBrands = hubspotBrandsData?.brands ?? [];
   const [allHubspotCompaniesTotal, setAllHubspotCompaniesTotal] = useState(0);
   const {
     data: hubspotCompaniesData,
-    refetch: refetchHubspotCompanies,
     isLoading: isHubspotCompaniesLoading,
     isFetching: isHubspotCompaniesFetching,
   } = useQuery({
-    queryKey: ["hubspot-companies", debouncedHubspotSearch, hubspotPage, HUBSPOT_COMPANIES_PAGE_SIZE],
+    queryKey: ["hubspot-companies", debouncedHubspotSearch, hubspotPage, HUBSPOT_COMPANIES_PAGE_SIZE, hubspotBrand],
     queryFn: () =>
       oauthService.getHubSpotCompanies(
         debouncedHubspotSearch || undefined,
         HUBSPOT_COMPANIES_PAGE_SIZE,
         hubspotPage * HUBSPOT_COMPANIES_PAGE_SIZE,
+        hubspotBrand === "all" ? undefined : hubspotBrand,
       ),
     placeholderData: keepPreviousData,
   });
@@ -178,21 +197,11 @@ export default function AccountReceivablePage() {
 
   // Keep the unfiltered total for the tab badge while searching.
   useEffect(() => {
-    if (!debouncedHubspotSearch && hubspotCompaniesData) setAllHubspotCompaniesTotal(hubspotCompaniesData.total);
-  }, [debouncedHubspotSearch, hubspotCompaniesData]);
+    if (!debouncedHubspotSearch && hubspotBrand === "all" && hubspotCompaniesData) setAllHubspotCompaniesTotal(hubspotCompaniesData.total);
+  }, [debouncedHubspotSearch, hubspotBrand, hubspotCompaniesData]);
 
-  const syncHubspotCompaniesMutation = useMutation({
-    mutationFn: () => oauthService.syncHubSpotCompanies(),
-    onSuccess: (res) => {
-      refetchHubspotCompanies();
-      queryClient.invalidateQueries({ queryKey: ["hubspot-companies"] });
-      setBannerSuccess(`Successfully synchronized ${res.count} companies from HubSpot CRM!`);
-      setTimeout(() => setBannerSuccess(null), 5000);
-    },
-    onError: (err: any) => {
-      alert(err?.response?.data?.detail || err?.message || "Failed to sync companies from HubSpot.");
-    },
-  });
+  // Starts the sync in the background; progress and the result are shown by the app-shell HubSpotSyncProgress widget.
+  const syncHubspotCompaniesMutation = useSyncHubSpotCompanies();
 
   // Real-time SSE / WebSocket notifications & instant live cache updates
   useNotificationStream({
@@ -707,9 +716,80 @@ export default function AccountReceivablePage() {
     return list;
   }, [invoices]);
 
+  // Pipeline stages, in lifecycle order. Each stage opens its existing tab view.
+  const pipelineStages: {
+    tab: ARTab;
+    label: string;
+    value: number;
+    sub: string;
+    icon: typeof FileText;
+    tint: string;
+    card: string;
+    active: string;
+    iconBg: string;
+  }[] = [
+    {
+      tab: "quotes",
+      label: "Quotes",
+      value: quotes.length,
+      sub: `${quotes.filter((q) => q.publication_state === "DRAFT").length} draft · ${
+        quotes.filter((q) => q.publication_state === "PUBLISHED" && q.customer_response_state !== "SIGNED").length
+      } with customer`,
+      icon: FileText,
+      tint: "text-amber-600",
+      card: "border-l-amber-500 bg-amber-50/70 dark:bg-amber-950/20 hover:bg-amber-50 dark:hover:bg-amber-950/30",
+      active: "border-amber-500 ring-2 ring-amber-500/30 bg-amber-100/70 dark:bg-amber-950/40",
+      iconBg: "bg-amber-100 dark:bg-amber-900/40",
+    },
+    {
+      tab: "to_invoice",
+      label: "To Invoice",
+      value: toInvoiceQuotes.length,
+      sub: "signed, ready to invoice",
+      icon: PenTool,
+      tint: "text-sky-600",
+      card: "border-l-sky-500 bg-sky-50/70 dark:bg-sky-950/20 hover:bg-sky-50 dark:hover:bg-sky-950/30",
+      active: "border-sky-500 ring-2 ring-sky-500/30 bg-sky-100/70 dark:bg-sky-950/40",
+      iconBg: "bg-sky-100 dark:bg-sky-900/40",
+    },
+    {
+      tab: "invoices",
+      label: "Invoices",
+      value: invoices.length,
+      sub: "all issued invoices",
+      icon: Receipt,
+      tint: "text-indigo-600",
+      card: "border-l-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/20 hover:bg-indigo-50 dark:hover:bg-indigo-950/30",
+      active: "border-indigo-500 ring-2 ring-indigo-500/30 bg-indigo-100/70 dark:bg-indigo-950/40",
+      iconBg: "bg-indigo-100 dark:bg-indigo-900/40",
+    },
+    {
+      tab: "awaiting_payment",
+      label: "Awaiting Payment",
+      value: awaitingPaymentInvoices.length,
+      sub: `${awaitingPaymentInvoices.filter((i) => (i.status || "").toUpperCase() === "OVERDUE").length} overdue`,
+      icon: CreditCard,
+      tint: "text-fuchsia-600",
+      card: "border-l-fuchsia-500 bg-fuchsia-50/70 dark:bg-fuchsia-950/20 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30",
+      active: "border-fuchsia-500 ring-2 ring-fuchsia-500/30 bg-fuchsia-100/70 dark:bg-fuchsia-950/40",
+      iconBg: "bg-fuchsia-100 dark:bg-fuchsia-900/40",
+    },
+    {
+      tab: "completed",
+      label: "Completed",
+      value: completedRecords.length,
+      sub: "fully paid",
+      icon: CheckCircle2,
+      tint: "text-emerald-600",
+      card: "border-l-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30",
+      active: "border-emerald-500 ring-2 ring-emerald-500/30 bg-emerald-100/70 dark:bg-emerald-950/40",
+      iconBg: "bg-emerald-100 dark:bg-emerald-900/40",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 p-4 sm:p-6 lg:p-8">
-      <div className="w-full space-y-6">
+    <div className="w-full">
+      <div className="w-full flex flex-col gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
         {/* Banner Alert */}
         {bannerSuccess && (
           <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
@@ -718,33 +798,28 @@ export default function AccountReceivablePage() {
           </div>
         )}
 
-        {/* Top Header & Global Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <Receipt className="w-6 h-6" />
-              </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                  Accounts Receivable
-                </h1>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                  End-to-end management of proposal quotes, customer link signing, invoice dispatch, and payment recording.
-                </p>
-              </div>
+        {/* Header & Global Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
+                Accounts Receivable
+              </h2>
+              <HelpIcon text="Track every receivable from quote to cash: proposal quotes, customer signing, invoice dispatch and payment recording." />
             </div>
+            <p className="text-xs text-slate-500 dark:text-zinc-400">
+              End-to-end management of proposal quotes, customer link signing, invoice dispatch, and payment recording.
+            </p>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button
               variant="outline"
-              size="sm"
               onClick={() => {
                 refetchQuotes();
                 refetchInvoices();
               }}
-              className="gap-2 text-xs rounded-xl border-slate-200 dark:border-slate-800 cursor-pointer"
+              className="gap-2 cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
               <span>Refresh</span>
@@ -753,7 +828,7 @@ export default function AccountReceivablePage() {
             {/* Generate Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="gap-2 text-xs bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-medium px-4 py-2 rounded-xl shadow-xs cursor-pointer">
+                <Button className="gap-2 font-medium shadow-sm bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 cursor-pointer">
                   <Plus className="w-4 h-4" />
                   <span>Generate</span>
                   <ChevronDown className="w-3.5 h-3.5 opacity-70" />
@@ -779,128 +854,84 @@ export default function AccountReceivablePage() {
           </div>
         </div>
 
-        {/* Workflow Navigation Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-slate-200 dark:border-slate-800 pb-1 scrollbar-none">
-          <button
-            type="button"
-            onClick={() => setActiveTab("overview")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "overview"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>Overview</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("hubspot_companies")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "hubspot_companies"
-                ? "bg-orange-600 text-white shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            <Building2 className={`w-3.5 h-3.5 ${activeTab === "hubspot_companies" ? "text-white" : "text-orange-500"}`} />
-            <span>A/R Companies</span>
-            <Badge
-              variant="secondary"
-              className={`text-[10px] px-1.5 py-0 h-4 border-none font-bold ${
-                activeTab === "hubspot_companies"
-                  ? "bg-orange-700 text-white"
-                  : "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300"
-              }`}
-            >
-              {allHubspotCompaniesTotal}
-            </Badge>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("quotes")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "quotes"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Quotes</span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-              {quotes.length}
-            </Badge>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("to_invoice")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "to_invoice"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            <PenTool className="w-3.5 h-3.5" />
-            <span>To Invoice</span>
-            {toInvoiceQuotes.length > 0 && (
-              <Badge className="bg-amber-600 text-white text-[10px] px-1.5 py-0 h-4">
-                {toInvoiceQuotes.length}
-              </Badge>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("invoices")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "invoices"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            <Receipt className="w-3.5 h-3.5" />
-            <span>Invoices</span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-              {invoices.length}
-            </Badge>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("awaiting_payment")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "awaiting_payment"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            <CreditCard className="w-3.5 h-3.5" />
-            <span>Awaiting Payment</span>
-            {awaitingPaymentInvoices.length > 0 && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-700">
-                {awaitingPaymentInvoices.length}
-              </Badge>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("completed")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "completed"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Completed</span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-              {completedRecords.length}
-            </Badge>
-          </button>
+        {/* Pipeline: Quote -> Signed -> Invoiced -> Awaiting Payment -> Paid (stages double as navigation) */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3 animate-in fade-in duration-300">
+          {pipelineStages.map((stage, idx) => {
+            const Icon = stage.icon;
+            const isSelected = activeTab === stage.tab;
+            return (
+              <Card
+                key={stage.tab}
+                role="button"
+                tabIndex={0}
+                onClick={() => setActiveTab(stage.tab)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setActiveTab(stage.tab);
+                  }
+                }}
+                className={`group border border-l-4 transition-all cursor-pointer rounded-lg hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
+                  isSelected ? stage.active : `border-slate-200 dark:border-zinc-800 ${stage.card}`
+                }`}
+              >
+                <CardContent className="p-2.5 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="text-[11px] font-semibold text-slate-600 dark:text-zinc-300 block">
+                      {idx + 1}. {stage.label}
+                    </span>
+                    <div className="text-lg sm:text-xl font-bold text-slate-900 dark:text-zinc-100 leading-tight mt-0.5">
+                      {stage.value}
+                    </div>
+                    <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5 truncate">{stage.sub}</div>
+                  </div>
+                  <div className="flex flex-col items-end justify-between self-stretch shrink-0">
+                    <div className={`p-1.5 rounded-md ${stage.iconBg}`}>
+                      <Icon className={`h-4 w-4 ${stage.tint}`} />
+                    </div>
+                    <span className={`flex items-center text-[10px] font-semibold ${stage.tint} ${isSelected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}>
+                      {isSelected ? "Viewing" : "View"}
+                      <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
+
+        {/* Collection progress across all invoices */}
+        <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-zinc-400">
+          <span className="whitespace-nowrap font-medium">
+            Collection progress: {completedRecords.length} of {invoices.length} invoice{invoices.length === 1 ? "" : "s"} paid
+          </span>
+          <div className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all"
+              style={{ width: `${invoices.length > 0 ? Math.min(100, Math.round((completedRecords.length / invoices.length) * 100)) : 0}%` }}
+            />
+          </div>
+          <span className="font-mono">
+            {invoices.length > 0 ? Math.min(100, Math.round((completedRecords.length / invoices.length) * 100)) : 0}%
+          </span>
+        </div>
+
+        {/* Non-pipeline views */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ARTab)} className="gap-0">
+          <TabsList className="h-auto p-1 gap-1 bg-slate-100 dark:bg-zinc-900">
+            <TabsTrigger value="overview" className="gap-1.5 text-xs px-3 py-1.5 cursor-pointer">
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="hubspot_companies" className="gap-1.5 text-xs px-3 py-1.5 cursor-pointer">
+              <Building2 className="w-3.5 h-3.5 text-orange-500" />
+              <span>A/R Companies</span>
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 border-none font-bold">
+                {allHubspotCompaniesTotal}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* TAB 1: OVERVIEW */}
         {activeTab === "overview" && (
@@ -1487,14 +1518,41 @@ export default function AccountReceivablePage() {
               </Button>
             </div>
 
-            <div className="relative w-full sm:max-w-md">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <Input
-                value={hubspotSearchTerm}
-                onChange={(e) => setHubspotSearchTerm(e.target.value)}
-                placeholder="Search company, domain, industry, city..."
-                className="pl-8 h-9 text-xs bg-white dark:bg-slate-900"
-              />
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <div className="relative w-full sm:max-w-md">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  value={hubspotSearchTerm}
+                  onChange={(e) => setHubspotSearchTerm(e.target.value)}
+                  placeholder="Search company, domain, industry, city..."
+                  className="pl-8 h-9 text-xs bg-white dark:bg-slate-900"
+                />
+              </div>
+
+              <Select
+                value={hubspotBrand}
+                onValueChange={(v) => {
+                  setHubspotBrand(v);
+                  setHubspotPage(0);
+                }}
+              >
+                <SelectTrigger className="h-9 w-full sm:w-[210px] text-xs bg-white dark:bg-slate-900" aria-label="Filter by brand">
+                  <SelectValue placeholder="All brands" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All brands</SelectItem>
+                  {hubspotBrands.map((b) => (
+                    <SelectItem key={b.brand} value={b.brand}>
+                      <span className="flex items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full border px-2 h-[18px] text-[10px] font-semibold leading-none ${brandColorClass(b.brand)}`}>
+                          {b.brand}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">{b.count.toLocaleString()}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {isHubspotCompaniesLoading ? (
@@ -1543,6 +1601,7 @@ export default function AccountReceivablePage() {
                           <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-orange-600 transition-colors truncate">
                             {comp.name}
                           </h4>
+                          <BrandBadges brand={comp.brand} className="mt-1" />
                           {comp.domain && (
                             <a
                               href={comp.website || `https://${comp.domain}`}
