@@ -1,4 +1,4 @@
-import { FileText, Package, Paperclip, Stamp, AlertTriangle, ShieldAlert, MessageSquare } from "lucide-react";
+import { FileText, Package, Truck, Paperclip, Stamp, AlertTriangle, ShieldAlert, MessageSquare } from "lucide-react";
 import { FilePreviewModal } from "../dialogs/FilePreviewModal";
 import { ChangeLevel1ApproverModal } from "../dialogs/ChangeLevel1ApproverModal";
 import { RequestMessageThread } from "../components/RequestMessageThread";
@@ -42,7 +42,7 @@ import { RedirectApprovalDialog } from "./sections/RedirectApprovalDialog";
 
 export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
   const v = { ...s, ...useRequestDetailTail(s) };
-  const { previewTarget, handleClosePreview, isPreviewOpen, updateWireTransfer, handleUpdateWire, data, setIsEditWireOpen, isEditWireOpen, transition, handleConfirmWire, setIsWireDialogOpen, isWireDialogOpen, id, queryClient, setIsChangeApproverOpen, isChangeApproverOpen, activeForm, submitForm, setActiveForm, setHold, hold, setConfirmGoods, confirmGoods, tracking, setTracking, approval, setApproval, user, setActiveDetailTab, approvals, setIsActivityLogsOpen, isActivityLogsOpen, refetch, request, setIsConvertToRecurringOpen, isConvertToRecurringOpen, setIsEditOpen, isEditOpen, purchase_order, hasPoTab, multiPartsList, isRecurring, activeDetailTab, isSelfApprovalBlocked, flow } = v;
+  const { available_actions, onAction, previewTarget, handleClosePreview, isPreviewOpen, updateWireTransfer, handleUpdateWire, data, setIsEditWireOpen, isEditWireOpen, transition, handleConfirmWire, setIsWireDialogOpen, isWireDialogOpen, id, queryClient, setIsChangeApproverOpen, isChangeApproverOpen, activeForm, submitForm, setActiveForm, setHold, hold, setConfirmGoods, confirmGoods, tracking, setTracking, approval, setApproval, user, setActiveDetailTab, approvals, setIsActivityLogsOpen, isActivityLogsOpen, refetch, request, setIsConvertToRecurringOpen, isConvertToRecurringOpen, setIsEditOpen, isEditOpen, purchase_order, hasPoTab, multiPartsList, isRecurring, activeDetailTab, isSelfApprovalBlocked, flow } = v;
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       {/* Top Navigation & Record Actions */}
@@ -125,6 +125,35 @@ export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
                 <CardContent className="p-5 space-y-6">
                   {/* Top Details Grid */}
                   <TopDetailsGrid v={v} />
+
+                  {/* Tracking number card: filled = green, empty = grey with the add button */}
+                  {(purchase_order || available_actions.includes("UPDATE_TRACKING")) && (() => {
+                    const trackingNo = String(purchase_order?.tracking_number ?? "").trim();
+                    const hasTrackingNo = Boolean(trackingNo) && trackingNo.toUpperCase() !== "SHIPPED";
+                    return (
+                      <div className={`flex items-center gap-3 rounded-lg border p-3.5 ${hasTrackingNo ? "border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/20" : "border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/40"}`}>
+                        <div className={`h-9 w-9 shrink-0 rounded-md flex items-center justify-center ${hasTrackingNo ? "bg-emerald-100 dark:bg-emerald-900/40" : "bg-slate-200/70 dark:bg-zinc-800"}`}>
+                          <Truck className={`h-5 w-5 ${hasTrackingNo ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-zinc-500"}`} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Tracking #</div>
+                          {hasTrackingNo ? (
+                            <div className="text-sm font-mono font-semibold text-slate-900 dark:text-zinc-100 break-all select-all">{trackingNo}</div>
+                          ) : (
+                            <div className="text-sm text-slate-400 dark:text-zinc-500">Not provided yet</div>
+                          )}
+                          {hasTrackingNo && purchase_order?.shipping_note && (
+                            <div className="mt-1 text-xs text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">{purchase_order.shipping_note}</div>
+                          )}
+                        </div>
+                        {!hasTrackingNo && available_actions.includes("UPDATE_TRACKING") && (
+                          <Button size="sm" variant="outline" disabled={transition.isPending} onClick={() => onAction("UPDATE_TRACKING")} className="h-8 text-xs font-medium shrink-0 ml-auto">
+                            Add Tracking Number
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Financial & Accounting Section */}
                   <FinancialAccountingSection v={v} />

@@ -191,7 +191,6 @@ export function PurchaseRequests() {
                 {[
                   { value: "SPEND", label: "Spend Request", icon: ShoppingCart, desc: "Purchases, parts & hardware" },
                   { value: "QUOTE", label: "Quote Request", icon: FileSpreadsheet, desc: "Estimates & RFQs" },
-                  { value: "ADMIN", label: "Admin Triage", icon: FileText, desc: "Administrative & general" },
                 ].map((opt) => {
                   const isSelected = form.request_type === opt.value;
                   return (

@@ -51,7 +51,6 @@ export function RequestFilterBar({ s }: { s: PurchaseRequestsState }) {
               <SelectItem value="SPEND">Spend Request</SelectItem>
               <SelectItem value="QUOTE">Quote Request</SelectItem>
               <SelectItem value="ADMIN">Admin Triage</SelectItem>
-              <SelectItem value="ACCOUNTS_PAYABLE">Wire Transfer</SelectItem>
             </SelectContent>
           </Select>
 

@@ -154,6 +154,7 @@ export function MainRequestHeaderFull({ v }: { v: RequestDetailViewState }) {
           {/* Workflow Transition Action Buttons */}
           {available_actions.filter(a => {
             if (a === "DELETE_REQUEST") return false;
+            if (a === "UPDATE_TRACKING") return false; // shown in the tracking card instead
             if (a === "CREATE_PO" && (isRecurring || isAPRequest || Boolean(purchase_order) || request.status !== "UNDER_REVIEW")) return false;
             return true;
           }).length > 0 && (
@@ -174,6 +175,7 @@ export function MainRequestHeaderFull({ v }: { v: RequestDetailViewState }) {
               {available_actions
                 .filter(a => {
                   if (a === "DELETE_REQUEST") return false;
+                  if (a === "UPDATE_TRACKING") return false; // shown in the tracking card instead
                   if (a === "CREATE_PO" && (isRecurring || isAPRequest || Boolean(purchase_order) || request.status !== "UNDER_REVIEW")) return false;
                   return true;
                 })

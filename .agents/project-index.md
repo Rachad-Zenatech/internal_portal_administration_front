@@ -327,7 +327,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/Invoices.tsx (83 lines) - invoices (pages  purchasing)
 - src/pages/Purchasing/MyApprovals.tsx (367 lines) - my approvals (pages  purchasing)
 - src/pages/Purchasing/PurchaseRequestDetail.tsx (47 lines) - purchase request detail (pages  purchasing)
-- src/pages/Purchasing/PurchaseRequests.tsx (519 lines) - purchase requests (pages  purchasing)
+- src/pages/Purchasing/PurchaseRequests.tsx (518 lines) - purchase requests (pages  purchasing)
 - src/pages/Purchasing/QuickBooksPage.tsx (237 lines) - quick books page (pages  purchasing)
 - src/pages/Purchasing/RecurringPayments.tsx (30 lines) - recurring payments (pages  purchasing)
 - src/pages/Purchasing/RequestDetail.tsx (42 lines) - request detail (pages  purchasing)
@@ -346,7 +346,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/dialogs/ChangeLevel1ApproverModal.tsx (471 lines) - change level1 approver modal (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/ConvertToRecurringDialog.tsx (383 lines) - convert to recurring dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (108 lines) - called after a wire transfer was created (so the wire page can reload its list)
-- src/pages/Purchasing/dialogs/EditCombinedRequestDialog.tsx (244 lines) - edit combined request dialog (pages  purchasing dialogs)
+- src/pages/Purchasing/dialogs/EditCombinedRequestDialog.tsx (247 lines) - edit combined request dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/EditRequestDialog.tsx (231 lines) - edit request dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/FilePreviewModal.tsx (246 lines) - file preview modal (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/ManualPriceDialog.tsx (76 lines) - manual price dialog (pages  purchasing dialogs)
@@ -449,7 +449,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/purchaseRequestDetail/sections/WireTransferDetailsCard.tsx (242 lines) - wire transfer details card (pages  purchasing purchase request detail sections)
 - src/pages/Purchasing/purchaseRequests/components/RequesterAutocomplete.tsx (116 lines) - requester autocomplete (pages  purchasing purchase requests components)
 - src/pages/Purchasing/purchaseRequests/constants.ts (63 lines) - constants (pages  purchasing purchase requests)
-- src/pages/Purchasing/purchaseRequests/hooks/usePurchaseRequestsActions.ts (272 lines) - use purchase requests actions (pages  purchasing purchase requests hooks)
+- src/pages/Purchasing/purchaseRequests/hooks/usePurchaseRequestsActions.ts (274 lines) - use purchase requests actions (pages  purchasing purchase requests hooks)
 - src/pages/Purchasing/purchaseRequests/hooks/usePurchaseRequestsActions2.ts (280 lines) - Handle Quote PDF upload & extraction
 - src/pages/Purchasing/purchaseRequests/hooks/usePurchaseRequestsActions3.ts (182 lines) - use purchase requests actions3 (pages  purchasing purchase requests hooks)
 - src/pages/Purchasing/purchaseRequests/hooks/usePurchaseRequestsPage.ts (13 lines) - use purchase requests page (pages  purchasing purchase requests hooks)
@@ -458,7 +458,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/purchaseRequests/sections/LineItemsPreviewTable.tsx (122 lines) - line items preview table (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/ProductLinkField.tsx (118 lines) - product link field (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/RecurringRequestOptions.tsx (111 lines) - recurring request options (pages  purchasing purchase requests sections)
-- src/pages/Purchasing/purchaseRequests/sections/RequestFilterBar.tsx (86 lines) - request filter bar (pages  purchasing purchase requests sections)
+- src/pages/Purchasing/purchaseRequests/sections/RequestFilterBar.tsx (85 lines) - request filter bar (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/RequestTitleAndPriority.tsx (150 lines) - request title and priority (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/RequestsTableCard.tsx (162 lines) - requests table card (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/SingleItemFields.tsx (73 lines) - single item fields (pages  purchasing purchase requests sections)
@@ -495,7 +495,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/recurringPayments/sections/RecurringRequestsTable.tsx (294 lines) - recurring requests table (pages  purchasing recurring payments sections)
 - src/pages/Purchasing/recurringPayments/types.ts (6 lines) - types (pages  purchasing recurring payments)
 - src/pages/Purchasing/recurringPayments/utils.ts (20 lines) - utils (pages  purchasing recurring payments)
-- src/pages/Purchasing/requestDetail/RequestDetailBody.tsx (536 lines) - request detail body (pages  purchasing request detail)
+- src/pages/Purchasing/requestDetail/RequestDetailBody.tsx (565 lines) - request detail body (pages  purchasing request detail)
 - src/pages/Purchasing/requestDetail/components/AssignedUsersField.tsx (45 lines) - assigned users field (pages  purchasing request detail components)
 - src/pages/Purchasing/requestDetail/components/AttachmentDropzone.tsx (174 lines) - attachment dropzone (pages  purchasing request detail components)
 - src/pages/Purchasing/requestDetail/components/Field.tsx (9 lines) - field (pages  purchasing request detail components)
@@ -515,7 +515,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/requestDetail/sections/CurrentReferenceInfo.tsx (126 lines) - current reference info (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/DedicatedRecurringContractSchedule.tsx (105 lines) - dedicated recurring contract schedule (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/FinancialAccountingSection.tsx (211 lines) - financial accounting section (pages  purchasing request detail sections)
-- src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (238 lines) - main request header full (pages  purchasing request detail sections)
+- src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (240 lines) - main request header full (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (431 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx (84 lines) - product vendor url ai (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/RedirectApprovalDialog.tsx (158 lines) - redirect approval dialog (pages  purchasing request detail sections)
@@ -536,7 +536,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/secureInfoRequest/hooks/useSecureInfoRequestActions.tsx (224 lines) - use secure info request actions (pages  purchasing secure info request hooks)
 - src/pages/Purchasing/secureInfoRequest/types.ts (40 lines) - types (pages  purchasing secure info request)
 - src/pages/Purchasing/secureInfoRequest/utils.ts (23 lines) - True when a regular message looks like it contains a password, so we can suggest the secure form.
-- src/pages/Purchasing/utils/purchasingMeta.ts (329 lines) - Presentation metadata for Purchasing + Tasks.
+- src/pages/Purchasing/utils/purchasingMeta.ts (331 lines) - Presentation metadata for Purchasing + Tasks.
 - src/pages/Purchasing/utils/recurringScheduleUtils.ts (459 lines) - recurring schedule utils (pages  purchasing utils)
 - src/pages/Reports/Reports.tsx (96 lines) - src/pages/Reports.tsx
 - src/pages/Settings/Settings.tsx (12 lines) - src/pages/Settings.tsx
@@ -566,7 +566,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/types/classification.ts (149 lines) - classification (types)
 - src/types/dashboard.ts (45 lines) - dashboard (types)
 - src/types/entity.ts (59 lines) - entity (types)
-- src/types/purchasing.ts (817 lines) - purchasing (types)
+- src/types/purchasing.ts (818 lines) - purchasing (types)
 - src/types/search.ts (8 lines) - search (types)
 - src/types/uploadArchive.ts (26 lines) - upload archive (types)
 - src/utils/compressAttachment.ts (78 lines) - Safely compresses image attachments before upload.

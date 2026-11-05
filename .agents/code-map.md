@@ -1545,7 +1545,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/PurchaseRequestDetail.tsx (47 lines) - purchase request detail (pages  purchasing)
 - `PurchaseRequestDetail` (export function)
 
-## src/pages/Purchasing/PurchaseRequests.tsx (519 lines) - purchase requests (pages  purchasing)
+## src/pages/Purchasing/PurchaseRequests.tsx (518 lines) - purchase requests (pages  purchasing)
 - `PurchaseRequests` (export function)
     - `s` (fn)
 
@@ -1623,7 +1623,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `Props` (interface)
 - `CreateWireTransferDialog` (export function) - Creates a wire transfer (request type "Wire Transfer"); this replaced the "Wire Transfer" option of the purchase request dialog.
 
-## src/pages/Purchasing/dialogs/EditCombinedRequestDialog.tsx (244 lines) - edit combined request dialog (pages  purchasing dialogs)
+## src/pages/Purchasing/dialogs/EditCombinedRequestDialog.tsx (247 lines) - edit combined request dialog (pages  purchasing dialogs)
 - `EditCombinedRequestDialog` (export function)
 
 ## src/pages/Purchasing/dialogs/EditRequestDialog.tsx (231 lines) - edit request dialog (pages  purchasing dialogs)
@@ -2101,7 +2101,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `EMPTY_WIRE_FORM` (export const)
 - `EMPTY_FORM` (export const)
 
-## src/pages/Purchasing/purchaseRequests/hooks/usePurchaseRequestsActions.ts (272 lines) - use purchase requests actions (pages  purchasing purchase requests hooks)
+## src/pages/Purchasing/purchaseRequests/hooks/usePurchaseRequestsActions.ts (274 lines) - use purchase requests actions (pages  purchasing purchase requests hooks)
 - `usePurchaseRequestsActions` (export function)
 
 ## src/pages/Purchasing/purchaseRequests/hooks/usePurchaseRequestsActions2.ts (280 lines) - Handle Quote PDF upload & extraction
@@ -2129,7 +2129,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/purchaseRequests/sections/RecurringRequestOptions.tsx (111 lines) - recurring request options (pages  purchasing purchase requests sections)
 - `RecurringRequestOptions` (export function)
 
-## src/pages/Purchasing/purchaseRequests/sections/RequestFilterBar.tsx (86 lines) - request filter bar (pages  purchasing purchase requests sections)
+## src/pages/Purchasing/purchaseRequests/sections/RequestFilterBar.tsx (85 lines) - request filter bar (pages  purchasing purchase requests sections)
 - `RequestFilterBar` (export function)
 
 ## src/pages/Purchasing/purchaseRequests/sections/RequestTitleAndPriority.tsx (150 lines) - request title and priority (pages  purchasing purchase requests sections)
@@ -2258,7 +2258,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/recurringPayments/utils.ts (20 lines) - utils (pages  purchasing recurring payments)
 - `getDueStatus` (export function)
 
-## src/pages/Purchasing/requestDetail/RequestDetailBody.tsx (536 lines) - request detail body (pages  purchasing request detail)
+## src/pages/Purchasing/requestDetail/RequestDetailBody.tsx (565 lines) - request detail body (pages  purchasing request detail)
 - `RequestDetailBody` (export function)
 
 ## src/pages/Purchasing/requestDetail/components/AssignedUsersField.tsx (45 lines) - assigned users field (pages  purchasing request detail components)
@@ -2325,7 +2325,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/requestDetail/sections/FinancialAccountingSection.tsx (211 lines) - financial accounting section (pages  purchasing request detail sections)
 - `FinancialAccountingSection` (export function)
 
-## src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (238 lines) - main request header full (pages  purchasing request detail sections)
+## src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (240 lines) - main request header full (pages  purchasing request detail sections)
 - `MainRequestHeaderFull` (export function)
 
 ## src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (431 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
@@ -2400,7 +2400,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `errorMessage` (export function)
 - `startReauth` (export function) - Send the admin through a fresh Microsoft sign-in, then back to this request's messages.
 
-## src/pages/Purchasing/utils/purchasingMeta.ts (329 lines) - Presentation metadata for Purchasing + Tasks.
+## src/pages/Purchasing/utils/purchasingMeta.ts (331 lines) - Presentation metadata for Purchasing + Tasks.
 - `STATUS_LABEL` (export const) - spellings are absent on purpose — parseRequestStatus resolves them first.
 - `STATUS_BADGE` (export const)
 - `getStatusLabel` (export function) - Display label for a raw API status.
@@ -2750,7 +2750,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `EntityDeleteResult` (export interface)
 - `EntityBatchDeleteResult` (export interface)
 
-## src/types/purchasing.ts (817 lines) - purchasing (types)
+## src/types/purchasing.ts (818 lines) - purchasing (types)
 - `TaskHistoryItem` (export interface)
 - `RequestType` (export type)
 - `Priority` (export type)

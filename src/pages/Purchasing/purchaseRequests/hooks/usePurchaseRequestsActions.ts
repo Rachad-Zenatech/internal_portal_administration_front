@@ -181,7 +181,9 @@ export function usePurchaseRequestsActions() {
     }),
     [search, statusFilter, typeFilter, projectFilter],
   );
-  const { data: requests = [], isLoading } = usePurchaseRequests(filters);
+  const { data: allRequests = [], isLoading } = usePurchaseRequests(filters);
+  // Wire transfers are managed from their own page, not the All Requests list.
+  const requests = useMemo(() => allRequests.filter((r: any) => r.request_type !== "ACCOUNTS_PAYABLE"), [allRequests]);
   const { data: summary } = usePurchasingSummary();
   const isTaskOwnedByUser = (task: any, currentUser: any) => {
     if (!currentUser) return false;

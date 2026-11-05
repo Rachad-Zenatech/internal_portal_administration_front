@@ -120,7 +120,7 @@ export function Tab2LineItems({ v }: { v: RequestDetailViewState }) {
                                 </TableCell>
                                 <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">{itm.quantity}</TableCell>
                                 <TableCell className="text-right text-xs text-slate-600 dark:text-zinc-400">
-                                  <div>{formatMoney(rawPrice)} {quoteNativeCurrency}</div>
+                                  <div>{formatMoney(rawPrice, quoteNativeCurrency)}</div>
                                   {isForeignQuote && (
                                     <div className="text-[10px] text-slate-400 font-mono">
                                       ({formatMoney(convPrice)})
@@ -128,7 +128,7 @@ export function Tab2LineItems({ v }: { v: RequestDetailViewState }) {
                                   )}
                                 </TableCell>
                                 <TableCell className="text-right text-xs font-semibold font-mono text-slate-900 dark:text-zinc-100 pr-6">
-                                  <div>{formatMoney(rawTot)} {quoteNativeCurrency}</div>
+                                  <div>{formatMoney(rawTot, quoteNativeCurrency)}</div>
                                   {isForeignQuote && (
                                     <div className="text-[10px] text-slate-400 font-mono font-normal">
                                       ({formatMoney(convTot)})
@@ -152,7 +152,7 @@ export function Tab2LineItems({ v }: { v: RequestDetailViewState }) {
                           <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 bg-emerald-50/80 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-900/60 font-medium">
                             <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
                             <span>
-                              Calculated sum matches Grand Total ({formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
+                              Calculated sum matches Grand Total ({formatMoney(statedGrandTotalNative, quoteNativeCurrency)}
                               {isForeignQuote ? ` / ${formatMoney(statedGrandTotalUsd)}` : ""})
                             </span>
                           </div>
@@ -160,7 +160,7 @@ export function Tab2LineItems({ v }: { v: RequestDetailViewState }) {
                           <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md border border-amber-200 dark:border-amber-900/60">
                             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
                             <span>
-                              Discrepancy: Calculated sum is {formatMoney(calculatedQuoteTotalNative)} {quoteNativeCurrency} vs stated {formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
+                              Discrepancy: Calculated sum is {formatMoney(calculatedQuoteTotalNative, quoteNativeCurrency)} vs stated {formatMoney(statedGrandTotalNative, quoteNativeCurrency)}
                             </span>
                           </div>
                         )}
@@ -170,7 +170,7 @@ export function Tab2LineItems({ v }: { v: RequestDetailViewState }) {
                         <div className="text-slate-500 flex justify-between gap-4">
                           <span>Items Subtotal:</span>
                           <span className="font-medium font-mono text-slate-700 dark:text-zinc-300">
-                            {formatMoney(itemsSumNative)} {quoteNativeCurrency}
+                            {formatMoney(itemsSumNative, quoteNativeCurrency)}
                             {isForeignQuote && <span className="text-[10px] text-slate-400 ml-1">({formatMoney(itemsSumNative * quoteExchangeRate)})</span>}
                           </span>
                         </div>
@@ -178,7 +178,7 @@ export function Tab2LineItems({ v }: { v: RequestDetailViewState }) {
                           <div className="text-slate-600 dark:text-zinc-300 flex justify-between gap-4 font-medium">
                             <span className="flex items-center gap-1"><Truck className="h-3 w-3 text-indigo-500" /> Shipping Fee:</span>
                             <span className="font-mono">
-                              {formatMoney(quoteShippingNative)} {quoteNativeCurrency}
+                              {formatMoney(quoteShippingNative, quoteNativeCurrency)}
                               {isForeignQuote && <span className="text-[10px] text-slate-400 ml-1">({formatMoney(quoteShippingNative * quoteExchangeRate)})</span>}
                             </span>
                           </div>
@@ -187,7 +187,7 @@ export function Tab2LineItems({ v }: { v: RequestDetailViewState }) {
                           <div className="text-slate-500 flex justify-between gap-4">
                             <span>Tax &amp; Fees:</span>
                             <span className="font-medium font-mono">
-                              {formatMoney(quoteTaxNative)} {quoteNativeCurrency}
+                              {formatMoney(quoteTaxNative, quoteNativeCurrency)}
                               {isForeignQuote && <span className="text-[10px] text-slate-400 ml-1">({formatMoney(quoteTaxNative * quoteExchangeRate)})</span>}
                             </span>
                           </div>
@@ -196,7 +196,7 @@ export function Tab2LineItems({ v }: { v: RequestDetailViewState }) {
                           <div className="text-emerald-600 flex justify-between gap-4">
                             <span>Discount:</span>
                             <span className="font-medium font-mono">
-                              -{formatMoney(quoteDiscountNative)} {quoteNativeCurrency}
+                              -{formatMoney(quoteDiscountNative, quoteNativeCurrency)}
                               {isForeignQuote && <span className="text-[10px] text-emerald-500 ml-1">(-{formatMoney(quoteDiscountNative * quoteExchangeRate)})</span>}
                             </span>
                           </div>
@@ -205,7 +205,7 @@ export function Tab2LineItems({ v }: { v: RequestDetailViewState }) {
                           <span className="text-slate-900 dark:text-zinc-100 font-semibold">Grand Total:</span>
                           <div className="text-right">
                             <div className="font-bold text-slate-900 dark:text-zinc-100 text-base font-mono">
-                              {formatMoney(statedGrandTotalNative)} {quoteNativeCurrency}
+                              {formatMoney(statedGrandTotalNative, quoteNativeCurrency)}
                             </div>
                             {isForeignQuote && (
                               <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
