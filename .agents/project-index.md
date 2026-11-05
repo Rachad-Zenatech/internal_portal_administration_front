@@ -13,9 +13,9 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/components/AppShell/FloatingChat.tsx (561 lines) - floating chat (components  app shell)
 - src/components/AppShell/GlobalSettingsDialog.tsx (148 lines) - global settings dialog (components  app shell)
 - src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
-- src/components/AppShell/Navigation.tsx (137 lines) - navigation (components  app shell)
+- src/components/AppShell/Navigation.tsx (140 lines) - navigation (components  app shell)
 - src/components/AppShell/NotificationDropdown.tsx (149 lines) - notification dropdown (components  app shell)
-- src/components/AppShell/Sidebar.tsx (466 lines) - sidebar (components  app shell)
+- src/components/AppShell/Sidebar.tsx (476 lines) - sidebar (components  app shell)
 - src/components/AppShell/ThemeSwitch.tsx (41 lines) - theme switch (components  app shell)
 - src/components/AppShell/TopBar.tsx (661 lines) - top bar (components  app shell)
 - src/components/AppShell/globalSettingsDialog/hooks/useGlobalSettingsDialog.ts (11 lines) - use global settings dialog (components  app shell global settings dialog hooks)
@@ -97,6 +97,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/components/ui/toggle-group.tsx (90 lines) - toggle group (components ui)
 - src/components/ui/toggle.tsx (46 lines) - toggle (components ui)
 - src/components/ui/tooltip.tsx (56 lines) - tooltip (components ui)
+- src/hooks/useARStatusCounts.ts (23 lines) - Per-status A/R totals for the sidebar.
 - src/hooks/useBusinessContact.ts (96 lines) - use business contact (hooks)
 - src/hooks/useChartOfAccount.ts (71 lines) - use chart of account (hooks)
 - src/hooks/useDashboard.ts (84 lines) - use dashboard (hooks)
@@ -120,10 +121,11 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/AccountReceivable/GenerateQuotePage.tsx (268 lines) - generate quote page (pages  account receivable)
 - src/pages/AccountReceivable/QuoteDetailPage.tsx (45 lines) - quote detail page (pages  account receivable)
 - src/pages/AccountReceivable/WorkflowDetailPage.tsx (38 lines) - workflow detail page (pages  account receivable)
+- src/pages/AccountReceivable/accountReceivable/arStatusCounts.ts (34 lines) - Single definition of the A/R pipeline statuses, shared by the A/R page tabs and the sidebar sub-menu counts.
 - src/pages/AccountReceivable/accountReceivable/constants.ts (2 lines) - constants (pages  account receivable account receivable)
 - src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivable.ts (11 lines) - use account receivable (pages  account receivable account receivable hooks)
 - src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableData.ts (378 lines) - use account receivable data (pages  account receivable account receivable hooks)
-- src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableDerived.ts (276 lines) - Filter customer invoice groups by search term and status filter
+- src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableDerived.ts (269 lines) - Filter customer invoice groups by search term and status filter
 - src/pages/AccountReceivable/accountReceivable/sections/RecordInvoicePaymentDialog.tsx (161 lines) - record invoice payment dialog (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/Tab1Overview.tsx (180 lines) - tab1 overview (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/Tab2Quotes.tsx (314 lines) - tab2 quotes (pages  account receivable account receivable sections)
@@ -551,7 +553,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/services/entityService.ts (79 lines) - entity service (services)
 - src/services/errorReporting.ts (75 lines) - error reporting (services)
 - src/services/financeService.ts (100 lines) - finance service (services)
-- src/services/helper.ts (65 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
+- src/services/helper.ts (92 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
 - src/services/masterTablesService.ts (180 lines) - master tables service (services)
 - src/services/oauthService.ts (311 lines) - oauth service (services)
 - src/services/purchasingService.ts (770 lines) - API wrappers for the Purchasing + Accounts Payable workflow.

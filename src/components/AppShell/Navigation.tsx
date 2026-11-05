@@ -92,8 +92,11 @@ export const navigation = [
     navigationCode: "ACCOUNT_RECEIVABLE",
     subItems: [
       { label: "Overview & Invoices", path: "/account-receivable" },
-      { label: "Generate Quote", path: "/account-receivable/generate-quote" },
-      { label: "Generate Invoice", path: "/account-receivable/generate" },
+      { label: "Quotes", path: "/account-receivable?tab=quotes" },
+      { label: "To Invoice", path: "/account-receivable?tab=to_invoice" },
+      { label: "Invoices", path: "/account-receivable?tab=invoices" },
+      { label: "Awaiting Payment", path: "/account-receivable?tab=awaiting_payment" },
+      { label: "Completed", path: "/account-receivable?tab=completed" },
     ],
   },
   {

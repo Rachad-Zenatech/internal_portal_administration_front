@@ -3,6 +3,7 @@ import { CheckCircle2, CreditCard, FileText, PenTool, Receipt } from "lucide-rea
 import type { ARQuote } from "../../../../services/arQuoteService";
 import type { ARTab, CustomerInvoiceGroup, QuoteGroupItem, CompletedInvoiceRecord } from "../types";
 import type { useAccountReceivableData } from "./useAccountReceivableData";
+import { isAwaitingPaymentInvoice, isCompletedInvoice, isToInvoiceQuote } from "../arStatusCounts";
 
 export function useAccountReceivableDerived(ctx: ReturnType<typeof useAccountReceivableData>) {
   const { statusFilter, searchTerm, customerInvoiceGroups, quotes, invoices } = ctx;
@@ -161,22 +162,14 @@ export function useAccountReceivableDerived(ctx: ReturnType<typeof useAccountRec
       return true;
     });
   }, [quoteGroups, searchTerm, statusFilter]);
-  const toInvoiceQuotes = quotes.filter(
-    (q) => q.customer_response_state === "SIGNED" && !q.invoice_id
-  );
-  const awaitingPaymentInvoices = invoices.filter(
-    (inv) => !inv.status || !(inv.status.toUpperCase().startsWith("PAID"))
-  );
+  const toInvoiceQuotes = quotes.filter(isToInvoiceQuote);
+  const awaitingPaymentInvoices = invoices.filter(isAwaitingPaymentInvoice);
   const completedRecords = useMemo<CompletedInvoiceRecord[]>(() => {
     const list: CompletedInvoiceRecord[] = [];
 
     // Only fully paid & completed invoices
     invoices.forEach((inv: any) => {
-      const isPaid =
-        (inv.status || "").toUpperCase().startsWith("PAID") ||
-        (inv.status || "").toUpperCase().includes("COMPLETED") ||
-        (Number(inv.balance_due) === 0 && Number(inv.total_amount) > 0 && Number(inv.amount_paid) > 0);
-      if (isPaid) {
+      if (isCompletedInvoice(inv)) {
         const hasRecItems = inv.items?.some((it: any) => {
           const freq = (it.billing_frequency || it.billing_type || "").toLowerCase();
           const badge = (it.badge || "").toLowerCase();

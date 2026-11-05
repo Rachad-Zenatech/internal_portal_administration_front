@@ -10,6 +10,7 @@ import { apiClient } from "@/services/apiClient";
 import type { LucideIcon } from "lucide-react";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import { usePurchasingSummary, useWireStatusCounts } from "@/hooks/usePurchasing";
+import { useARStatusCounts } from "@/hooks/useARStatusCounts";
 
 interface SidebarUser {
   is_super_admin?: boolean;
@@ -65,7 +66,16 @@ export default function Sidebar({
   const { data: purchasingSummary } = usePurchasingSummary();
   const { data: wireStatusCounts } = useWireStatusCounts();
 
+  const canSeeAR = hasPermission("ACCOUNT_RECEIVABLE_READ") || hasPermission("ACCOUNT_RECEIVABLE_VIEW");
+  const arStatusCounts = useARStatusCounts(canSeeAR);
+
   const getSubItemCount = (path: string): number | undefined => {
+    // Account Receivable sub-menu: records per pipeline status (same rules as the A/R page tabs)
+    if (path.startsWith("/account-receivable?tab=")) {
+      if (!arStatusCounts) return undefined;
+      const arTab = new URLSearchParams(path.split("?")[1]).get("tab") as keyof typeof arStatusCounts | null;
+      return arTab ? arStatusCounts[arTab] : undefined;
+    }
     // Wire Transfer sub-menu: records per status on the wire transfer page
     if (path.startsWith("/purchasing/invoices")) {
       if (!wireStatusCounts) return undefined;
@@ -315,7 +325,7 @@ export default function Sidebar({
                     const isSubActive = sub.path.includes("?")
                       ? fullPath === sub.path
                       : (location.pathname === sub.path && !location.search);
-                    const subCount = (sub.path.startsWith("/purchasing/requests") || sub.path.startsWith("/purchasing/recurring") || sub.path.startsWith("/purchasing/invoices")) ? getSubItemCount(sub.path) : undefined;
+                    const subCount = (sub.path.startsWith("/purchasing/requests") || sub.path.startsWith("/purchasing/recurring") || sub.path.startsWith("/purchasing/invoices") || sub.path.startsWith("/account-receivable?tab=")) ? getSubItemCount(sub.path) : undefined;
                     const hasAction = hasActionWaiting(sub.path, sub.label);
                     return (
                       <Link

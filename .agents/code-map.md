@@ -45,19 +45,20 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
 - `HubSpotSyncProgress` (export function) - Small bottom-right card showing the background HubSpot companies sync: percentage while running,  then the result.
 
-## src/components/AppShell/Navigation.tsx (137 lines) - navigation (components  app shell)
+## src/components/AppShell/Navigation.tsx (140 lines) - navigation (components  app shell)
 - `navigation` (export const)
 
 ## src/components/AppShell/NotificationDropdown.tsx (149 lines) - notification dropdown (components  app shell)
 - `NotificationDropdownContent` (export function)
 
-## src/components/AppShell/Sidebar.tsx (466 lines) - sidebar (components  app shell)
+## src/components/AppShell/Sidebar.tsx (476 lines) - sidebar (components  app shell)
 - `SidebarUser` (interface)
 - `SidebarNavigationItem` (interface)
 - `SidebarProps` (interface)
 - `Sidebar` (export function)
     - `location` (fn)
     - `navigate` (fn)
+    - `arStatusCounts` (fn)
     - `getSubItemCount` (fn)
     - `hasActionWaiting` (fn)
     - `toggleExpand` (fn)
@@ -512,6 +513,9 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `TooltipTrigger` (function)
 - `TooltipContent` (function)
 
+## src/hooks/useARStatusCounts.ts (23 lines) - Per-status A/R totals for the sidebar.
+- `useARStatusCounts` (export function) - Per-status A/R totals for the sidebar.
+
 ## src/hooks/useBusinessContact.ts (96 lines) - use business contact (hooks)
 - `BUSINESS_CONTACTS_QUERY_KEY` (export const)
 - `useBusinessContacts` (export function)
@@ -723,6 +727,13 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/AccountReceivable/WorkflowDetailPage.tsx (38 lines) - workflow detail page (pages  account receivable)
 - `WorkflowDetailPage` (export function)
 
+## src/pages/AccountReceivable/accountReceivable/arStatusCounts.ts (34 lines) - Single definition of the A/R pipeline statuses, shared by the A/R page tabs and the sidebar sub-menu counts.
+- `isToInvoiceQuote` (export const)
+- `isAwaitingPaymentInvoice` (export const)
+- `isCompletedInvoice` (export const) - eslint-disable-next-line @typescript-eslint/no-explicit-any
+- `ARStatusCounts` (export interface)
+- `countARStatuses` (export function)
+
 ## src/pages/AccountReceivable/accountReceivable/constants.ts (2 lines) - constants (pages  account receivable account receivable)
 - `HUBSPOT_COMPANIES_PAGE_SIZE` (export const)
 
@@ -733,7 +744,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableData.ts (378 lines) - use account receivable data (pages  account receivable account receivable hooks)
 - `useAccountReceivableData` (export function)
 
-## src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableDerived.ts (276 lines) - Filter customer invoice groups by search term and status filter
+## src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableDerived.ts (269 lines) - Filter customer invoice groups by search term and status filter
 - `useAccountReceivableDerived` (export function)
 
 ## src/pages/AccountReceivable/accountReceivable/sections/RecordInvoicePaymentDialog.tsx (161 lines) - record invoice payment dialog (pages  account receivable account receivable sections)
@@ -2546,7 +2557,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/services/financeService.ts (100 lines) - finance service (services)
 - `financeService` (export const)
 
-## src/services/helper.ts (65 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
+## src/services/helper.ts (92 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
 - `ApiError` (export class)
 - `getApiErrorCode` (export function)
 - `getApiErrorStatus` (export function)
