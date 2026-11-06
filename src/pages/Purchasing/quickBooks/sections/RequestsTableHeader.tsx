@@ -62,8 +62,8 @@ export function RequestsTableHeader({ s }: { s: QuickBooksState }) {
                           : "Matched Invoices & Bank Ref"}
                       </TableHead>
                       <TableHead className="w-28 text-right font-bold text-foreground">Amount (USD)</TableHead>
-                      <TableHead className="w-36 font-bold text-foreground">Pre-Flight Status</TableHead>
-                      <TableHead className="w-32 text-right font-bold text-foreground pr-4">Actions</TableHead>
+                      <TableHead className="w-40 font-bold text-foreground">Pre-Flight Status</TableHead>
+                      <TableHead className="w-44 text-right font-bold text-foreground pr-4">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
   );

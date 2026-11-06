@@ -245,7 +245,7 @@ export function RequestIdTags({ s, rows }: { s: QuickBooksState; rows: QuickBook
                           </TableCell>
 
                           {/* Pre-Flight Status */}
-                          <TableCell className="w-36">
+                          <TableCell className="w-40">
                             {isReady ? (
                               <Badge className="text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 gap-1">
                                 <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
@@ -265,8 +265,8 @@ export function RequestIdTags({ s, rows }: { s: QuickBooksState; rows: QuickBook
                           </TableCell>
 
                           {/* Actions */}
-                          <TableCell className="w-32 text-right pr-4" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-1.5">
+                          <TableCell className="w-44 text-right pr-4" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-2">
                               <Button
                                 variant="ghost"
                                 size="sm"

@@ -114,7 +114,7 @@ export default function QuickBooksPage() {
                   </p>
                 </div>
               ) : (
-                <Table key={`qbo-staging-table-${stagingTab}`} className="text-xs min-w-[1240px]">
+                <Table key={`qbo-staging-table-${stagingTab}`} className="text-xs min-w-[1550px]">
                   <RequestsTableHeader s={s} />
                   <TableBody key={`qbo-staging-body-${stagingTab}`}>
                     <RequestIdTags s={s} rows={shownItems} />
