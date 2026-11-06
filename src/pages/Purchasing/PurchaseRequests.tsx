@@ -162,7 +162,9 @@ export function PurchaseRequests() {
               setShowUnsavedConfirm(true);
             }
           }}
-          className="sm:max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto"
+          // grid-cols-1 caps the dialog's column at the dialog width, so long one-line text (e.g. an auto-filled
+          // product name) truncates instead of widening the dialog; it only ever scrolls up and down
+          className="sm:max-w-4xl w-[95vw] max-h-[90vh] grid-cols-1 overflow-y-auto overflow-x-hidden"
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -181,7 +183,7 @@ export function PurchaseRequests() {
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4 py-1">
+          <form onSubmit={handleSubmit} className="space-y-4 py-1 min-w-0">
             {/* 1. Request Type Selector (Clean Segmented Cards at Top) */}
             <div className="space-y-1.5 pb-3 border-b border-slate-100 dark:border-zinc-800">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">

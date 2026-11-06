@@ -79,7 +79,7 @@ export function ProductLinkField({ s }: { s: PurchaseRequestsState }) {
                       <div className="font-medium text-foreground truncate text-xs" title={extractedProductInfo.name}>
                         {extractedProductInfo.name}
                       </div>
-                      <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                      <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5 break-words">
                         {extractedProductInfo.price && extractedProductInfo.price !== "N/A" && (
                           <span>Price: <strong className="text-foreground font-mono">{extractedProductInfo.price.startsWith("$") ? extractedProductInfo.price : `$${extractedProductInfo.price}`} {extractedProductInfo.currency && extractedProductInfo.currency !== "N/A" ? extractedProductInfo.currency : ""}</strong></span>
                         )}
