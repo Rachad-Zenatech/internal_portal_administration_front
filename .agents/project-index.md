@@ -59,6 +59,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/components/common/ErrorBoundary.tsx (48 lines) - error boundary (components common)
 - src/components/common/GlobalLoadingScreen.tsx (107 lines) - global loading screen (components common)
 - src/components/common/LinkifiedText.tsx (50 lines) - linkified text (components common)
+- src/components/common/ListPagination.tsx (96 lines) - Pages to offer: the first, the last, and one either side of the current one
 - src/components/common/ProtectedRoute.tsx (81 lines) - protected route (components common)
 - src/components/common/QRCodeDisplay.tsx (59 lines) - q r code display (components common)
 - src/components/common/Stepper.tsx (250 lines) - Ordered workflow states (ADMIN_FLOW, SPEND_FLOW, RECURRING_FLOW, QUOTE_FLOW)
@@ -329,8 +330,8 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/Invoices.tsx (83 lines) - invoices (pages  purchasing)
 - src/pages/Purchasing/MyApprovals.tsx (367 lines) - my approvals (pages  purchasing)
 - src/pages/Purchasing/PurchaseRequestDetail.tsx (47 lines) - purchase request detail (pages  purchasing)
-- src/pages/Purchasing/PurchaseRequests.tsx (518 lines) - purchase requests (pages  purchasing)
-- src/pages/Purchasing/QuickBooksPage.tsx (237 lines) - quick books page (pages  purchasing)
+- src/pages/Purchasing/PurchaseRequests.tsx (520 lines) - purchase requests (pages  purchasing)
+- src/pages/Purchasing/QuickBooksPage.tsx (245 lines) - quick books page (pages  purchasing)
 - src/pages/Purchasing/RecurringPayments.tsx (30 lines) - recurring payments (pages  purchasing)
 - src/pages/Purchasing/RequestDetail.tsx (42 lines) - request detail (pages  purchasing)
 - src/pages/Purchasing/SecureInfoRequest.tsx (214 lines) - Secure info requests: an admin asks the requester for account details (e.g.
@@ -343,7 +344,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/components/RequestMessageThread.tsx (657 lines) - request message thread (pages  purchasing components)
 - src/pages/Purchasing/components/masterTransactionsTable/hooks/useMasterTransactionsTable.ts (10 lines) - use master transactions table (pages  purchasing components master transactions table hooks)
 - src/pages/Purchasing/components/masterTransactionsTable/hooks/useMasterTransactionsTableDerived.tsx (342 lines) - Local state for Master View filters and sorting
-- src/pages/Purchasing/components/masterTransactionsTable/sections/MasterTransactionsGrid.tsx (328 lines) - master transactions grid (pages  purchasing components master transactions table sections)
+- src/pages/Purchasing/components/masterTransactionsTable/sections/MasterTransactionsGrid.tsx (334 lines) - master transactions grid (pages  purchasing components master transactions table sections)
 - src/pages/Purchasing/components/masterTransactionsTable/types.ts (40 lines) - types (pages  purchasing components master transactions table)
 - src/pages/Purchasing/dialogs/ChangeLevel1ApproverModal.tsx (471 lines) - change level1 approver modal (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/ConvertToRecurringDialog.tsx (383 lines) - convert to recurring dialog (pages  purchasing dialogs)
@@ -429,7 +430,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx (312 lines) - filters search toolbar (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/KpiSummaryCards.tsx (118 lines) - kpi summary cards (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/ReadOnlyWireInfo.tsx (326 lines) - read only wire info (pages  purchasing invoices sections)
-- src/pages/Purchasing/invoices/sections/TableCard.tsx (284 lines) - table card (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/TableCard.tsx (290 lines) - table card (pages  purchasing invoices sections)
 - src/pages/Purchasing/myApprovals/hooks/useMyApprovals.ts (9 lines) - use my approvals (pages  purchasing my approvals hooks)
 - src/pages/Purchasing/myApprovals/hooks/useMyApprovalsData.ts (176 lines) - Dialog & Drawer state
 - src/pages/Purchasing/myApprovals/sections/MainApprovalsTable.tsx (265 lines) - main approvals table (pages  purchasing my approvals sections)
@@ -462,7 +463,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/purchaseRequests/sections/RecurringRequestOptions.tsx (111 lines) - recurring request options (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/RequestFilterBar.tsx (85 lines) - request filter bar (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/RequestTitleAndPriority.tsx (150 lines) - request title and priority (pages  purchasing purchase requests sections)
-- src/pages/Purchasing/purchaseRequests/sections/RequestsTableCard.tsx (162 lines) - requests table card (pages  purchasing purchase requests sections)
+- src/pages/Purchasing/purchaseRequests/sections/RequestsTableCard.tsx (168 lines) - requests table card (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/SingleItemFields.tsx (73 lines) - single item fields (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/WireTransferDocumentInvoice.tsx (89 lines) - wire transfer document invoice (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/utils.ts (5 lines) - utils (pages  purchasing purchase requests)
@@ -474,7 +475,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/quickBooks/sections/ExportArchiveCard.tsx (94 lines) - export archive card (pages  purchasing quick books sections)
 - src/pages/Purchasing/quickBooks/sections/ExportTimeframeCard.tsx (160 lines) - export timeframe card (pages  purchasing quick books sections)
 - src/pages/Purchasing/quickBooks/sections/FloatingBatchActionBar.tsx (152 lines) - floating batch action bar (pages  purchasing quick books sections)
-- src/pages/Purchasing/quickBooks/sections/RequestIdTags.tsx (355 lines) - request id tags (pages  purchasing quick books sections)
+- src/pages/Purchasing/quickBooks/sections/RequestIdTags.tsx (356 lines) - The staging rows; `rows` is the current page of `s.filteredItems
 - src/pages/Purchasing/quickBooks/sections/RequestsTableHeader.tsx (71 lines) - requests table header (pages  purchasing quick books sections)
 - src/pages/Purchasing/quickBooks/sections/SaasantFilterControlBar.tsx (146 lines) - saasant filter control bar (pages  purchasing quick books sections)
 - src/pages/Purchasing/quickBooks/sections/SqlExplorerTab.tsx (75 lines) - sql explorer tab (pages  purchasing quick books sections)
@@ -494,7 +495,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/recurringPayments/sections/CompactInteractiveKpiFilter.tsx (176 lines) - compact interactive kpi filter (pages  purchasing recurring payments sections)
 - src/pages/Purchasing/recurringPayments/sections/CreateRecurringRequestModal.tsx (299 lines) - create recurring request modal (pages  purchasing recurring payments sections)
 - src/pages/Purchasing/recurringPayments/sections/EditRecurringRequestModal.tsx (306 lines) - edit recurring request modal (pages  purchasing recurring payments sections)
-- src/pages/Purchasing/recurringPayments/sections/RecurringRequestsTable.tsx (294 lines) - recurring requests table (pages  purchasing recurring payments sections)
+- src/pages/Purchasing/recurringPayments/sections/RecurringRequestsTable.tsx (302 lines) - recurring requests table (pages  purchasing recurring payments sections)
 - src/pages/Purchasing/recurringPayments/types.ts (6 lines) - types (pages  purchasing recurring payments)
 - src/pages/Purchasing/recurringPayments/utils.ts (20 lines) - utils (pages  purchasing recurring payments)
 - src/pages/Purchasing/requestDetail/RequestDetailBody.tsx (565 lines) - request detail body (pages  purchasing request detail)
