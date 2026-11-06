@@ -1556,11 +1556,11 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/PurchaseRequestDetail.tsx (47 lines) - purchase request detail (pages  purchasing)
 - `PurchaseRequestDetail` (export function)
 
-## src/pages/Purchasing/PurchaseRequests.tsx (518 lines) - purchase requests (pages  purchasing)
+## src/pages/Purchasing/PurchaseRequests.tsx (520 lines) - purchase requests (pages  purchasing)
 - `PurchaseRequests` (export function)
     - `s` (fn)
 
-## src/pages/Purchasing/QuickBooksPage.tsx (237 lines) - quick books page (pages  purchasing)
+## src/pages/Purchasing/QuickBooksPage.tsx (247 lines) - quick books page (pages  purchasing)
 - `QuickBooksPage` (export function)
 
 ## src/pages/Purchasing/RecurringPayments.tsx (30 lines) - recurring payments (pages  purchasing)
@@ -1609,7 +1609,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/components/masterTransactionsTable/hooks/useMasterTransactionsTableDerived.tsx (342 lines) - Local state for Master View filters and sorting
 - `useMasterTransactionsTableDerived` (export function)
 
-## src/pages/Purchasing/components/masterTransactionsTable/sections/MasterTransactionsGrid.tsx (328 lines) - master transactions grid (pages  purchasing components master transactions table sections)
+## src/pages/Purchasing/components/masterTransactionsTable/sections/MasterTransactionsGrid.tsx (338 lines) - master transactions grid (pages  purchasing components master transactions table sections)
 - `MasterTransactionsGrid` (export function)
 
 ## src/pages/Purchasing/components/masterTransactionsTable/types.ts (40 lines) - types (pages  purchasing components master transactions table)
@@ -2020,7 +2020,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/invoices/sections/ReadOnlyWireInfo.tsx (326 lines) - read only wire info (pages  purchasing invoices sections)
 - `ReadOnlyWireInfo` (export function)
 
-## src/pages/Purchasing/invoices/sections/TableCard.tsx (284 lines) - table card (pages  purchasing invoices sections)
+## src/pages/Purchasing/invoices/sections/TableCard.tsx (294 lines) - table card (pages  purchasing invoices sections)
 - `TableCard` (export function)
 
 ## src/pages/Purchasing/myApprovals/hooks/useMyApprovals.ts (9 lines) - use my approvals (pages  purchasing my approvals hooks)
@@ -2146,7 +2146,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/purchaseRequests/sections/RequestTitleAndPriority.tsx (150 lines) - request title and priority (pages  purchasing purchase requests sections)
 - `RequestTitleAndPriority` (export function)
 
-## src/pages/Purchasing/purchaseRequests/sections/RequestsTableCard.tsx (162 lines) - requests table card (pages  purchasing purchase requests sections)
+## src/pages/Purchasing/purchaseRequests/sections/RequestsTableCard.tsx (172 lines) - requests table card (pages  purchasing purchase requests sections)
 - `RequestsTableCard` (export function)
 
 ## src/pages/Purchasing/purchaseRequests/sections/SingleItemFields.tsx (73 lines) - single item fields (pages  purchasing purchase requests sections)
@@ -2184,8 +2184,8 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/quickBooks/sections/FloatingBatchActionBar.tsx (152 lines) - floating batch action bar (pages  purchasing quick books sections)
 - `FloatingBatchActionBar` (export function)
 
-## src/pages/Purchasing/quickBooks/sections/RequestIdTags.tsx (355 lines) - request id tags (pages  purchasing quick books sections)
-- `RequestIdTags` (export function)
+## src/pages/Purchasing/quickBooks/sections/RequestIdTags.tsx (356 lines) - The staging rows; `rows` is the part of `s.filteredItems` scrolled into view so far
+- `RequestIdTags` (export function) - The staging rows; `rows` is the part of `s.filteredItems` scrolled into view so far
 
 ## src/pages/Purchasing/quickBooks/sections/RequestsTableHeader.tsx (71 lines) - requests table header (pages  purchasing quick books sections)
 - `RequestsTableHeader` (export function)
@@ -2207,8 +2207,9 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `formatDisplayDateTime` (export function)
 - `isMaItem` (export function)
 
-## src/pages/Purchasing/recurringPayments/RecurringPaymentsBody.tsx (407 lines) - recurring payments body (pages  purchasing recurring payments)
+## src/pages/Purchasing/recurringPayments/RecurringPaymentsBody.tsx (409 lines) - recurring payments body (pages  purchasing recurring payments)
 - `RecurringPaymentsBody` (export function)
+    - `fit` (fn)
 
 ## src/pages/Purchasing/recurringPayments/components/RequesterAutocomplete.tsx (115 lines) - requester autocomplete (pages  purchasing recurring payments components)
 - `RequesterAutocomplete` (export function)
@@ -2260,7 +2261,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/recurringPayments/sections/EditRecurringRequestModal.tsx (306 lines) - edit recurring request modal (pages  purchasing recurring payments sections)
 - `EditRecurringRequestModal` (export function)
 
-## src/pages/Purchasing/recurringPayments/sections/RecurringRequestsTable.tsx (294 lines) - recurring requests table (pages  purchasing recurring payments sections)
+## src/pages/Purchasing/recurringPayments/sections/RecurringRequestsTable.tsx (305 lines) - recurring requests table (pages  purchasing recurring payments sections)
 - `RecurringRequestsTable` (export function)
 
 ## src/pages/Purchasing/recurringPayments/types.ts (6 lines) - types (pages  purchasing recurring payments)

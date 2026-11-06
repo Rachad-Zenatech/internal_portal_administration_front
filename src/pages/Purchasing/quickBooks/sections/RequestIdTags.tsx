@@ -9,7 +9,7 @@ import { exportSingleRequestQuickBooksXlsx, exportSingleRequestQuickBooksCsv, ex
 import { isMaItem } from "../utils";
 import type { QuickBooksState } from "../hooks/useQuickBooks";
 
-/** The staging rows; `rows` is the current page of `s.filteredItems` */
+/** The staging rows; `rows` is the part of `s.filteredItems` scrolled into view so far */
 export function RequestIdTags({ s, rows }: { s: QuickBooksState; rows: QuickBooksState["filteredItems"] }) {
   const { deletingId, setDeleteConfirmItem, isConnected, handleSingleSync, setIsInspectorOpen, setInspectorItem, stagingTab, handleToggleSelect, syncingSingleId, currentTabSelectedIds } = s;
   return (

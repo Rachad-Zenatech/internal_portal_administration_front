@@ -7,16 +7,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getStatusBadge, getStatusLabel, formatDate, formatMoney, formatRequestType } from "../../utils/purchasingMeta";
 import PrioritySelector from "../../fields/PrioritySelector";
 import type { PurchaseRequestsState } from "../hooks/usePurchaseRequestsPage";
-import { ListPagination, usePagedRows } from "@/components/common/ListPagination";
+import { FluidListFooter, LoadMoreRow, useFitToScreen, useFluidRows } from "@/components/common/FluidList";
 
 export function RequestsTableCard({ s }: { s: PurchaseRequestsState }) {
   const { setConvertingRequest, navigate, setSearchParams, searchParams, visibleRequests, isLoading } = s;
-  const { pageRows: pagedRequests, setPage, ...paging } = usePagedRows(
+  const { visibleRows: shownRequests, ...fluid } = useFluidRows(
     visibleRequests,
     [s.search, s.statusFilter, s.typeFilter, s.projectFilter].join("|"),
   );
+  const fit = useFitToScreen();
   return (
-    <Card className="w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[350px]">
+    <Card {...fit} className="w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto relative">
           <Table className="w-full min-w-full" containerClassName="overflow-visible">
           <TableHeader>
@@ -41,7 +42,8 @@ export function RequestsTableCard({ s }: { s: PurchaseRequestsState }) {
                 </TableCell>
               </TableRow>
             ) : visibleRequests.length > 0 ? (
-              pagedRequests.map((r) => (
+              <>
+              {shownRequests.map((r) => (
                 <TableRow
                   key={r.id}
                   className="cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/50"
@@ -150,7 +152,9 @@ export function RequestsTableCard({ s }: { s: PurchaseRequestsState }) {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
+              ))}
+              <LoadMoreRow {...fluid} />
+              </>
             ) : (
               <TableRow>
                 <TableCell colSpan={10} className="text-center py-8 text-slate-500">
@@ -161,7 +165,7 @@ export function RequestsTableCard({ s }: { s: PurchaseRequestsState }) {
           </TableBody>
         </Table>
         </div>
-        {!isLoading && <ListPagination {...paging} noun="requests" onPageChange={setPage} />}
+        {!isLoading && <FluidListFooter {...fluid} noun="requests" />}
       </Card>
   );
 }

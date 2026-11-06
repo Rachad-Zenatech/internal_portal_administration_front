@@ -9,11 +9,11 @@ import { CalendarClock, Table as TableIcon, CheckCircle2, Clock, Edit2, Trash2, 
 import { formatRemainingDuration, getRecurringAmounts } from "../../utils/recurringScheduleUtils";
 import { getDueStatus } from "../utils";
 import type { RecurringPaymentsViewState } from "../hooks/useRecurringPaymentsTail";
-import { ListPagination, usePagedRows } from "@/components/common/ListPagination";
+import { FluidListFooter, LoadMoreRow, useFluidRows } from "@/components/common/FluidList";
 
 export function RecurringRequestsTable({ v }: { v: RecurringPaymentsViewState }) {
   const { setRequestToDelete, handleOpenEdit, handleOpenWireModal, canManageRecurring, setScheduleModalRequest, reviewMutation, isSuperAdmin, isAP, isMaTransaction, navigate, filteredRequests, isLoading } = v;
-  const { pageRows: pagedRequests, setPage, ...paging } = usePagedRows(
+  const { visibleRows: shownRequests, ...fluid } = useFluidRows(
     filteredRequests,
     [v.searchTerm, v.cardFilter, v.dueFilter, v.priorityFilter, v.reviewFilter, v.statusFilter].join("|"),
   );
@@ -45,7 +45,8 @@ export function RecurringRequestsTable({ v }: { v: RecurringPaymentsViewState })
                   </TableCell>
                 </TableRow>
               ) : (
-                pagedRequests.map((req) => {
+                <>
+                {shownRequests.map((req) => {
                   const revStatus = req.review_status || "WAITING_FOR_REVIEW";
                   const isRev = revStatus === "REVIEWED";
                   const { nextFormatted, totalFormatted } = getRecurringAmounts(
@@ -290,12 +291,14 @@ export function RecurringRequestsTable({ v }: { v: RecurringPaymentsViewState })
                       </TableCell>
                     </TableRow>
                   );
-                })
+                })}
+                <LoadMoreRow {...fluid} />
+                </>
               )}
             </TableBody>
           </Table>
           </div>
-          {!isLoading && <ListPagination {...paging} noun="recurring payments" onPageChange={setPage} />}
+          {!isLoading && <FluidListFooter {...fluid} noun="recurring payments" />}
     </>
   );
 }

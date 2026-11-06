@@ -6,17 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CalendarClock, CheckCircle2, Clock, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
-import { ListPagination, usePagedRows } from "@/components/common/ListPagination";
+import { LoadMoreRow, useFitToScreen, useFluidRows } from "@/components/common/FluidList";
 import type { MasterTransactionsTableState } from "../hooks/useMasterTransactionsTable";
 
 export function MasterTransactionsGrid({ s }: { s: MasterTransactionsTableState }) {
   const { filteredTotalValue, allTransactions, filteredTransactions, navigate, onOpenBreakdownModal, reviewMutationPending, onToggleReviewStatus, isSuperAdmin, isAP, getUrgencyBadge, isLoading, sortOrder, sortField, toggleSort } = s;
-  const { pageRows: pagedTransactions, setPage, ...paging } = usePagedRows(
+  const { visibleRows: shownTransactions, ...fluid } = useFluidRows(
     filteredTransactions,
     [s.searchTerm, s.dateRangeFilter, s.installmentStatusFilter, s.reviewFilter, sortField, sortOrder].join("|"),
   );
+  const fit = useFitToScreen();
   return (
-    <Card className="border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col max-h-[calc(100vh-220px)] min-h-[400px]">
+    <Card {...fit} className="border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto relative">
           <Table containerClassName="overflow-visible">
             <TableHeader className="sticky top-0 bg-slate-50 dark:bg-zinc-900 z-10 shadow-2xs">
@@ -121,7 +122,8 @@ export function MasterTransactionsGrid({ s }: { s: MasterTransactionsTableState 
                   </TableCell>
                 </TableRow>
               ) : (
-                pagedTransactions.map((t) => {
+                <>
+                {shownTransactions.map((t) => {
                   const isRev = t.reviewStatus === "REVIEWED";
                   return (
                     <TableRow
@@ -306,19 +308,21 @@ export function MasterTransactionsGrid({ s }: { s: MasterTransactionsTableState 
                       </TableCell>
                     </TableRow>
                   );
-                })
+                })}
+                <LoadMoreRow {...fluid} />
+                </>
               )}
             </TableBody>
           </Table>
         </div>
-        {!isLoading && <ListPagination {...paging} noun="transactions" onPageChange={setPage} />}
 
         {/* Table Footer Summary */}
         <div className="bg-slate-50 dark:bg-zinc-900/90 border-t border-slate-200 dark:border-zinc-800 px-4 py-2.5 flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-3">
             <span>
-              <strong className="text-slate-900 dark:text-zinc-100">{filteredTransactions.length}</strong> of{" "}
-              <strong>{allTransactions.length}</strong> scheduled transactions match the filters
+              Showing <strong className="text-slate-900 dark:text-zinc-100">{fluid.shown}</strong> of{" "}
+              <strong>{filteredTransactions.length}</strong> scheduled transactions
+              {filteredTransactions.length < allTransactions.length && ` (${allTransactions.length} in all)`}
             </span>
           </div>
           <div className="flex items-center gap-2">

@@ -5,17 +5,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Landmark, Building2, Copy, Check, RefreshCw, ArrowUpRight, AlertCircle, Clock, Calendar } from "lucide-react";
 import { getStatusBadge, getStatusLabel, formatDate, formatMoney } from "../../utils/purchasingMeta";
 import type { InvoicesState } from "../hooks/useInvoices";
-import { ListPagination, usePagedRows } from "@/components/common/ListPagination";
+import { FluidListFooter, LoadMoreRow, useFitToScreen, useFluidRows } from "@/components/common/FluidList";
 
 export function TableCard({ s }: { s: InvoicesState }) {
   const { clearFilters, hasActiveFilters, navigate, setSelectedWireTask, copiedKey, handleCopy, isWireTransfer, isScheduledPayment, isDueToday, isOverdue, filteredTasks, isLoading } = s;
-  const { pageRows: pagedTasks, setPage, ...paging } = usePagedRows(
+  const { visibleRows: shownTasks, ...fluid } = useFluidRows(
     filteredTasks,
     [s.typeFilter, s.statusFilter, s.wireFilter, s.quickFilter, s.searchQuery].join("|"),
   );
+  const fit = useFitToScreen();
   return (
-    <Card className="w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col p-0">
-        <div className="overflow-x-auto relative">
+    <Card {...fit} className="w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col p-0">
+        <div className="flex-1 min-h-0 overflow-auto relative">
           <Table className="m-0 w-full min-w-[960px]">
             <TableHeader className="bg-slate-50/80 dark:bg-zinc-900/80 sticky top-0 border-b text-[11px] uppercase tracking-wider text-slate-500 dark:text-zinc-400">
               <TableRow>
@@ -40,7 +41,8 @@ export function TableCard({ s }: { s: InvoicesState }) {
                   </TableCell>
                 </TableRow>
               ) : filteredTasks.length ? (
-                pagedTasks.map((task) => {
+                <>
+                {shownTasks.map((task) => {
                   const overdue = isOverdue(task.due_date, task.status);
                   const dueToday = isDueToday(task.due_date, task.status);
                   const wt = task.wire_transfer;
@@ -255,7 +257,9 @@ export function TableCard({ s }: { s: InvoicesState }) {
                       </TableCell>
                     </TableRow>
                   );
-                })
+                })}
+                <LoadMoreRow {...fluid} />
+                </>
               ) : (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-16 text-slate-500">
@@ -283,7 +287,7 @@ export function TableCard({ s }: { s: InvoicesState }) {
             </TableBody>
           </Table>
         </div>
-        {!isLoading && <ListPagination {...paging} noun="wire transfers" onPageChange={setPage} />}
+        {!isLoading && <FluidListFooter {...fluid} noun="wire transfers" />}
       </Card>
   );
 }

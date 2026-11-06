@@ -18,10 +18,12 @@ import { CalendarGrid } from "./sections/CalendarGrid";
 import { CalendarItemQuickPreview } from "./sections/CalendarItemQuickPreview";
 import { CreateRecurringRequestModal } from "./sections/CreateRecurringRequestModal";
 import { EditRecurringRequestModal } from "./sections/EditRecurringRequestModal";
+import { useFitToScreen } from "@/components/common/FluidList";
 
 export function RecurringPaymentsBody({ s }: { s: RecurringPaymentsGuardedState }) {
   const v = { ...s, ...useRecurringPaymentsTail(s) };
   const { handleSaveWire, isUpdatingWire, wireModalRequest, setWireModalRequest, handleOpenWireModal, setScheduleModalRequest, handleOpenEdit, canManageRecurring, scheduleModalRequest, deleteMutation, requestToDelete, setRequestToDelete, month, year, setCurrentCalendarDate, monthName, viewMode, reviewMutation, isSuperAdmin, isAP, isLoading, filteredRequests, setStatusFilter, statusFilter, setReviewFilter, reviewFilter, setPriorityFilter, priorityFilter, setDueFilter, dueFilter, setSearchTerm, searchTerm, kpiRef, handleCardFilterChange, cardFilter, stats, handleOpenCreate, canCreateRecurring, setViewMode } = v;
+  const fit = useFitToScreen();
   return (
     <div className="w-full flex flex-col gap-3 sm:gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       {/* Header */}
@@ -258,7 +260,7 @@ export function RecurringPaymentsBody({ s }: { s: RecurringPaymentsGuardedState 
           reviewMutationPending={reviewMutation.isPending}
         />
       ) : viewMode === "table" ? (
-        <Card className="border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[350px]">
+        <Card {...fit} className="border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col">
           <RecurringRequestsTable v={v} />
         </Card>
       ) : (

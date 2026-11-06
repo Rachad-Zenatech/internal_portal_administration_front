@@ -15,7 +15,7 @@ import { SaasantFilterControlBar } from "./quickBooks/sections/SaasantFilterCont
 import { FloatingBatchActionBar } from "./quickBooks/sections/FloatingBatchActionBar";
 import { RequestsTableHeader } from "./quickBooks/sections/RequestsTableHeader";
 import { RequestIdTags } from "./quickBooks/sections/RequestIdTags";
-import { ListPagination, usePagedRows } from "@/components/common/ListPagination";
+import { FluidListFooter, LoadMoreRow, useFitToScreen, useFluidRows } from "@/components/common/FluidList";
 import { ExportArchiveCard } from "./quickBooks/sections/ExportArchiveCard";
 import { ExportTimeframeCard } from "./quickBooks/sections/ExportTimeframeCard";
 import { SqlExplorerTab } from "./quickBooks/sections/SqlExplorerTab";
@@ -23,10 +23,11 @@ import { SqlExplorerTab } from "./quickBooks/sections/SqlExplorerTab";
 export default function QuickBooksPage() {
   const s = useQuickBooks();
   const { isDisconnecting, handleDisconnect, setIsDisconnectOpen, companyName, isDisconnectOpen, isConnected, inspectorItem, deletingId, handleDeleteFromQuickBooks, syncingSingleId, handleSingleSync, setIsInspectorOpen, isInspectorOpen, deleteConfirmItem, setDeleteConfirmItem, stagingTab, filteredItems, isLoadingPreview, lastExportedAt, totalStaged, setActiveTab, activeTab } = s;
-  const { pageRows: pagedItems, setPage: setItemsPage, ...itemsPaging } = usePagedRows(
+  const { visibleRows: shownItems, ...fluid } = useFluidRows(
     filteredItems,
     [stagingTab, s.statusFilter, s.requestTypeFilter, s.searchQuery, s.startDate, s.endDate, s.datePreset].join("|"),
   );
+  const fit = useFitToScreen();
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-300">
       {/* Breadcrumb & Top Bar */}
@@ -78,8 +79,8 @@ export default function QuickBooksPage() {
           <FloatingBatchActionBar s={s} />
 
           {/* Staging Spreadsheet Table */}
-          <Card className="border-border/70 shadow-xs overflow-hidden bg-card">
-            <div className="overflow-x-auto min-h-[350px]">
+          <Card {...fit} className="border-border/70 shadow-xs overflow-hidden bg-card flex flex-col">
+            <div className="flex-1 min-h-0 overflow-auto">
               {isLoadingPreview ? (
                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground space-y-3">
                   <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -115,13 +116,14 @@ export default function QuickBooksPage() {
                 <Table key={`qbo-staging-table-${stagingTab}`} className="text-xs min-w-[1240px]">
                   <RequestsTableHeader s={s} />
                   <TableBody key={`qbo-staging-body-${stagingTab}`}>
-                    <RequestIdTags s={s} rows={pagedItems} />
+                    <RequestIdTags s={s} rows={shownItems} />
+                    <LoadMoreRow {...fluid} />
                   </TableBody>
                 </Table>
               )}
             </div>
             {!isLoadingPreview && filteredItems.length > 0 && (
-              <ListPagination {...itemsPaging} noun="items" onPageChange={setItemsPage} />
+              <FluidListFooter {...fluid} noun="items" />
             )}
           </Card>
         </TabsContent>
