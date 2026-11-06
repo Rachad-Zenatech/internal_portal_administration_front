@@ -30,7 +30,7 @@ export default function QuickBooksPage() {
   // The summary cards, tabs and filters above take much of the screen; keep the staging table at least 75% tall
   const fit = useFitToScreen(320, 0.75);
   return (
-    <div className="p-3 sm:p-5 space-y-6 w-full max-w-[1920px] mx-auto animate-in fade-in duration-300">
+    <div className="w-full flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       {/* Breadcrumb & Top Bar */}
       <BreadcrumbTopBar s={s} />
 
