@@ -37,8 +37,8 @@ import type {
   PublicQuoteResponse,
 } from "../../services/arQuoteService";
 import { QRCodeDisplay } from "../../components/common/QRCodeDisplay";
-import { QuoteNotesThread } from "./QuoteNotesThread";
-import { calculateRowPricing, formatDateOnly } from "./lineItemPricingUtils";
+import { QuoteNotesThread } from "./components/QuoteNotesThread";
+import { calculateRowPricing, formatDateOnly } from "./utils/lineItemPricingUtils";
 
 export default function CustomerQuoteViewPage() {
   const { token } = useParams<{ token: string }>();

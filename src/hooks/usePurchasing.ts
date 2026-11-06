@@ -151,6 +151,26 @@ export function usePossibleApprovers(requestId: string | undefined) {
   });
 }
 
+/** Payment history of a Rent/Note wire series, for the request detail "Payments" tab. */
+export function useWireSeriesPayments(requestId: string | number | undefined, enabled = true) {
+  return useQuery({
+    queryKey: [...keys.all, "wire-series-payments", String(requestId)],
+    queryFn: () => purchasing.getWireSeriesPayments(requestId as string | number),
+    enabled: enabled && requestId != null,
+    staleTime: 15 * 1000,
+  });
+}
+
+/** Wire transfer page counts per status, for the sidebar sub-menu. Refreshes after any purchasing mutation. */
+export function useWireStatusCounts() {
+  return useQuery({
+    queryKey: [...keys.all, "wire-status-counts"],
+    queryFn: purchasing.getWireStatusCounts,
+    staleTime: 15 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+}
+
 export function useUsersList() {
   return useQuery({
     queryKey: ["configuration", "users", "active"],

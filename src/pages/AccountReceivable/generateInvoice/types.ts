@@ -1,0 +1,71 @@
+export interface InvoiceSubItem {
+  id?: string;
+  date?: string;
+  activity?: string;
+  name?: string;
+  title?: string;
+  product_name?: string;
+  description: string;
+  currency?: string;
+  quantity: string | number;
+  unit_price: string | number;
+  unit_discount?: string | number;
+  discount_type?: "%" | "$";
+  billing_frequency?: string;
+  billing_type?: string;
+  term?: string | number;
+  billing_start_date?: string;
+  service_period?: string;
+  service_period_start?: string;
+  service_period_end?: string;
+  next_billing_date?: string;
+  end_date?: string;
+  tax_rate?: string | number;
+  total: string | number;
+  charge?: number;
+  badge?: string;
+  is_prorated?: boolean;
+  is_reference_only?: boolean;
+  reference_amount?: number;
+  calculation?: string;
+  date_range?: string;
+  full_recurring_label?: string;
+  is_manual_override?: boolean;
+  is_manual_total?: boolean;
+  override_reason?: string;
+  status?: string;
+  service_status?: string;
+}
+
+export interface LineItemFormRow {
+  id?: string;
+  date?: string;
+  activity?: string;
+  name?: string;
+  description: string;
+  currency?: string;
+  quantity: string | number;
+  unit_price: string | number;
+  unit_discount?: string | number;
+  discount_type?: "%" | "$";
+  billing_frequency?: string;
+  billing_type?: string;
+  term?: string | number;
+  billing_start_date?: string;
+  service_period?: string;
+  service_period_start?: string;
+  service_period_end?: string;
+  next_billing_date?: string;
+  end_date?: string;
+  tax_rate?: string | number;
+  total: string | number;
+  badge?: string;
+  is_prorated?: boolean;
+  is_manual_total?: boolean;
+  calculation?: string;
+  status?: string;
+  service_status?: string;
+  sub_items?: InvoiceSubItem[];
+}
+
+export type InvoiceLayoutStyle = 'pace_plus' | 'interlinkone' | 'modern' | 'classic';

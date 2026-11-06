@@ -1,6 +1,6 @@
 import React from "react";
 import { Circle, CheckCircle2, Clock, AlertTriangle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
-import { STATUS_LABEL, SPEND_FLOW } from "@/pages/Purchasing/purchasingMeta";
+import { STATUS_LABEL, SPEND_FLOW } from "@/pages/Purchasing/utils/purchasingMeta";
 import { RequestStatus } from "@/types/purchasing";
 import { isExceptionStatus, parseRequestStatus, pipelineRank } from "@/lib/requestStatus";
 

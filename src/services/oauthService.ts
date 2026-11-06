@@ -67,6 +67,23 @@ export interface HubSpotSyncResult {
   message: string;
 }
 
+export interface HubSpotCompaniesSyncProgress {
+  status: "idle" | "running" | "completed" | "failed";
+  /** True when this call started a new sync; false when one was already running. */
+  started?: boolean;
+  mode: "full" | "incremental" | null;
+  total: number | null;
+  processed: number;
+  /** 0-100, or null while the total is not known yet. */
+  percent: number | null;
+  phase: string | null;
+  message: string | null;
+  error: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  contacts_synced: boolean | null;
+}
+
 export const oauthService = {
   getHubSpotStatus: () => {
     return apiClient.get<HubSpotOAuthStatus>("/api/oauth/hubspot/status");
@@ -115,17 +132,30 @@ export const oauthService = {
     return apiClient.post<HubSpotSyncResult>("/api/oauth/hubspot/sync", {});
   },
 
-  getHubSpotCompanies: (search?: string, limit?: number, offset?: number) => {
+  getHubSpotCompanyBrands: () => {
+    return apiClient.get<{ brands: Array<{ brand: string; count: number }> }>("/api/oauth/hubspot/companies/brands");
+  },
+
+  getHubSpotCompanies: (search?: string, limit?: number, offset?: number, brand?: string) => {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
+    if (brand) params.set("brand", brand);
     if (limit !== undefined) params.set("limit", String(limit));
     if (offset) params.set("offset", String(offset));
     const qs = params.toString();
     return apiClient.get<HubSpotCompaniesResponse>(`/api/oauth/hubspot/companies${qs ? `?${qs}` : ""}`);
   },
 
-  syncHubSpotCompanies: () => {
-    return apiClient.post<{ success: boolean; count: number; message: string }>("/api/oauth/hubspot/sync-companies", {});
+  /** Starts the companies sync in the background and returns immediately; poll getHubSpotCompaniesSyncStatus. */
+  syncHubSpotCompanies: (full = false) => {
+    return apiClient.post<HubSpotCompaniesSyncProgress>(
+      `/api/oauth/hubspot/sync-companies${full ? "?full=true" : ""}`,
+      {},
+    );
+  },
+
+  getHubSpotCompaniesSyncStatus: () => {
+    return apiClient.get<HubSpotCompaniesSyncProgress>("/api/oauth/hubspot/sync-companies/status");
   },
 
   // ── Microsoft Entra (Receivable Mailbox) ──

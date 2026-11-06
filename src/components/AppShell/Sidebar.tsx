@@ -9,7 +9,8 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/services/apiClient";
 import type { LucideIcon } from "lucide-react";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
-import { usePurchasingSummary } from "@/hooks/usePurchasing";
+import { usePurchasingSummary, useWireStatusCounts } from "@/hooks/usePurchasing";
+import { useARStatusCounts } from "@/hooks/useARStatusCounts";
 
 interface SidebarUser {
   is_super_admin?: boolean;
@@ -63,8 +64,28 @@ export default function Sidebar({
   const unreadCount = unreadCountData?.count ?? 0;
 
   const { data: purchasingSummary } = usePurchasingSummary();
+  const { data: wireStatusCounts } = useWireStatusCounts();
+
+  const canSeeAR = hasPermission("ACCOUNT_RECEIVABLE_READ") || hasPermission("ACCOUNT_RECEIVABLE_VIEW");
+  const arStatusCounts = useARStatusCounts(canSeeAR);
 
   const getSubItemCount = (path: string): number | undefined => {
+    // Account Receivable sub-menu: records per pipeline status (same rules as the A/R page tabs)
+    if (path.startsWith("/account-receivable?tab=")) {
+      if (!arStatusCounts) return undefined;
+      const arTab = new URLSearchParams(path.split("?")[1]).get("tab") as keyof typeof arStatusCounts | null;
+      return arTab ? arStatusCounts[arTab] : undefined;
+    }
+    // Wire Transfer sub-menu: records per status on the wire transfer page
+    if (path.startsWith("/purchasing/invoices")) {
+      if (!wireStatusCounts) return undefined;
+      const wireParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
+      const wireQuick = wireParams.get("filter")?.toUpperCase();
+      if (wireQuick === "DUE_TODAY") return wireStatusCounts.due_today ?? 0;
+      if (wireQuick === "OVERDUE") return wireStatusCounts.overdue ?? 0;
+      const wireStatus = wireParams.get("status")?.toUpperCase();
+      return wireStatus ? wireStatusCounts.counts[wireStatus] ?? 0 : wireStatusCounts.total;
+    }
     if (!purchasingSummary) return undefined;
     if (path === "/purchasing/requests") return purchasingSummary.total_requests;
     if (path === "/purchasing/recurring") return purchasingSummary.recurring_total ?? 0;
@@ -304,7 +325,7 @@ export default function Sidebar({
                     const isSubActive = sub.path.includes("?")
                       ? fullPath === sub.path
                       : (location.pathname === sub.path && !location.search);
-                    const subCount = (sub.path.startsWith("/purchasing/requests") || sub.path.startsWith("/purchasing/recurring")) ? getSubItemCount(sub.path) : undefined;
+                    const subCount = (sub.path.startsWith("/purchasing/requests") || sub.path.startsWith("/purchasing/recurring") || sub.path.startsWith("/purchasing/invoices") || sub.path.startsWith("/account-receivable?tab=")) ? getSubItemCount(sub.path) : undefined;
                     const hasAction = hasActionWaiting(sub.path, sub.label);
                     return (
                       <Link

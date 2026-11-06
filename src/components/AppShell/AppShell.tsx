@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import Breadcrumbs from "./Breadcrumbs";
+import HubSpotSyncProgress from "./HubSpotSyncProgress";
 
 interface Props {
   children: ReactNode;
@@ -51,6 +52,7 @@ export default function AppShell({ children }: Props) {
           </div>
         </main>
       </div>
+      <HubSpotSyncProgress />
     </div>
   );
 }

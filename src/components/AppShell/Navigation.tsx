@@ -62,7 +62,7 @@ export const navigation = [
     // Purchase requesters can open the page to see their own recurring requests.
     alternateNavigationCodes: ["PURCHASING"],
     subItems: [
-      { label: "All Subscriptions", path: "/purchasing/recurring" },
+      { label: "All Recurring Payments", path: "/purchasing/recurring" },
       { label: "M&A Scheduled Payments", path: "/purchasing/recurring?filter=MA_SCHEDULED" },
       { label: "Due in 7 Days", path: "/purchasing/recurring?filter=DUE_SOON" },
       { label: "Waiting for Review", path: "/purchasing/recurring?filter=WAITING_REVIEW" },
@@ -78,6 +78,11 @@ export const navigation = [
     icon: ReceiptText,
     section: "MAIN",
     navigationCode: "INVOICES",
+    subItems: [
+      { label: "All Wire Transfers", path: "/purchasing/invoices" },
+      { label: "Due on Today", path: "/purchasing/invoices?filter=DUE_TODAY" },
+      { label: "Overdue Payment", path: "/purchasing/invoices?filter=OVERDUE" },
+    ],
   },
   {
     label: "Account Receivable",
@@ -87,8 +92,11 @@ export const navigation = [
     navigationCode: "ACCOUNT_RECEIVABLE",
     subItems: [
       { label: "Overview & Invoices", path: "/account-receivable" },
-      { label: "Generate Quote", path: "/account-receivable/generate-quote" },
-      { label: "Generate Invoice", path: "/account-receivable/generate" },
+      { label: "Quotes", path: "/account-receivable?tab=quotes" },
+      { label: "To Invoice", path: "/account-receivable?tab=to_invoice" },
+      { label: "Invoices", path: "/account-receivable?tab=invoices" },
+      { label: "Awaiting Payment", path: "/account-receivable?tab=awaiting_payment" },
+      { label: "Completed", path: "/account-receivable?tab=completed" },
     ],
   },
   {

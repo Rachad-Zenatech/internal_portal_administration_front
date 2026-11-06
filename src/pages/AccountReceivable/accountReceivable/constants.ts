@@ -1,0 +1,1 @@
+export const HUBSPOT_COMPANIES_PAGE_SIZE = 100;
