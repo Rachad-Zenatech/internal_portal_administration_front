@@ -52,7 +52,7 @@ export function RequestsTableCard({ s }: { s: PurchaseRequestsState }) {
                   <TableCell className="font-mono text-xs font-semibold text-slate-600 dark:text-zinc-400 whitespace-nowrap">
                     #{r.id}
                   </TableCell>
-                  <TableCell className="font-medium text-slate-900 dark:text-zinc-100 min-w-[220px]">
+                  <TableCell className="text-sm font-medium text-slate-900 dark:text-zinc-100 min-w-[220px]">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span>{r.title}</span>
@@ -93,7 +93,7 @@ export function RequestsTableCard({ s }: { s: PurchaseRequestsState }) {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{r.requester}</TableCell>
+                  <TableCell className="text-sm whitespace-nowrap">{r.requester}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     <Badge variant="secondary" className="text-xs font-normal">
                       {formatRequestType(r.request_type)}
@@ -108,7 +108,7 @@ export function RequestsTableCard({ s }: { s: PurchaseRequestsState }) {
                       <span className="text-xs text-slate-400">Single</span>
                     )}
                   </TableCell>
-                  <TableCell className="font-semibold text-slate-900 dark:text-zinc-100 whitespace-nowrap">
+                  <TableCell className="text-sm font-semibold text-slate-900 dark:text-zinc-100 whitespace-nowrap">
                     {formatMoney(r.amount)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>

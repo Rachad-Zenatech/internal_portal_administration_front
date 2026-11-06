@@ -7,9 +7,11 @@ export const FLUID_BATCH_SIZE = 50;
 /**
  * Sizes a table's box to the space left on screen below whatever sits above it, so its footer ("Showing 23 of 23
  * requests") is visible without scrolling the page; the rows scroll inside the box instead. Re-measures when the
- * window or the content above changes size. Never shrinks below `minHeight` (on a short screen the page scrolls).
+ * window or the content above changes size. Never shrinks below `minHeight` px, nor below `minScreenShare` of the
+ * window's height (e.g. 0.75 keeps a busy page's table at three quarters of the screen, scrolling the page a little
+ * to reach its footer, rather than squeezing it under a tall header).
  */
-export function useFitToScreen(minHeight = 320) {
+export function useFitToScreen(minHeight = 320, minScreenShare = 0) {
   const [node, setNode] = useState<HTMLElement | null>(null);
   const [maxHeight, setMaxHeight] = useState<number>();
 
@@ -23,7 +25,8 @@ export function useFitToScreen(minHeight = 320) {
       // Distance from the top of the page's content, so it doesn't change as the page is scrolled
       const top = node.getBoundingClientRect().top - box.top + scroller.scrollTop;
       const bottomPadding = parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
-      setMaxHeight(Math.max(minHeight, Math.floor(scroller.clientHeight - top - bottomPadding)));
+      const floor = Math.max(minHeight, Math.round(window.innerHeight * minScreenShare));
+      setMaxHeight(Math.max(floor, Math.floor(scroller.clientHeight - top - bottomPadding)));
     };
     measure();
     const resize = new ResizeObserver(measure);
@@ -31,7 +34,7 @@ export function useFitToScreen(minHeight = 320) {
     // The page's content: the cards and filters above the table can change height (wrapping, a banner appearing)
     if (node.parentElement) resize.observe(node.parentElement);
     return () => resize.disconnect();
-  }, [node, minHeight]);
+  }, [node, minHeight, minScreenShare]);
 
   return { ref: setNode, style: maxHeight ? { maxHeight } : undefined };
 }

@@ -97,19 +97,19 @@ export function RequestIdTags({ s, rows }: { s: QuickBooksState; rows: QuickBook
                           </TableCell>
 
                           {/* Txn / Bill / Deposit Date */}
-                          <TableCell className="w-24 text-muted-foreground whitespace-nowrap">
+                          <TableCell className="text-sm w-24 text-muted-foreground whitespace-nowrap">
                             {item.payment_date || item.doc_number}
                           </TableCell>
 
                           {/* Due Date (for Bills) */}
                           {stagingTab === "bills" && (
-                            <TableCell className="w-24 text-muted-foreground whitespace-nowrap font-medium">
+                            <TableCell className="text-sm w-24 text-muted-foreground whitespace-nowrap font-medium">
                               {item.due_date || item.payment_date}
                             </TableCell>
                           )}
 
                           {/* Vendor or Customer */}
-                          <TableCell className="w-48">
+                          <TableCell className="text-sm w-48">
                             <div className="space-y-1">
                               <div className="font-semibold text-foreground flex items-center gap-1.5 truncate max-w-[180px]">
                                 <Building2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -128,7 +128,7 @@ export function RequestIdTags({ s, rows }: { s: QuickBooksState; rows: QuickBook
                           </TableCell>
 
                           {/* Expense / A/R GL Account */}
-                          <TableCell className="w-52">
+                          <TableCell className="text-sm w-52">
                             <div className="space-y-1">
                               <div className="font-medium text-foreground truncate max-w-[200px] flex items-center gap-1.5">
                                 <Tag className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -156,7 +156,7 @@ export function RequestIdTags({ s, rows }: { s: QuickBooksState; rows: QuickBook
 
                           {/* Payment Account (Expenses & M&A) or Location (Bills) or Bank Account (A/R) */}
                           {stagingTab === "expenses" || stagingTab === "ma_payments" ? (
-                            <TableCell className="w-44">
+                            <TableCell className="text-sm w-44">
                               <div className="space-y-1">
                                 <div className="text-muted-foreground truncate max-w-[160px] flex items-center gap-1.5">
                                   {stagingTab === "ma_payments" ? (
@@ -176,7 +176,7 @@ export function RequestIdTags({ s, rows }: { s: QuickBooksState; rows: QuickBook
                               </div>
                             </TableCell>
                           ) : stagingTab === "bills" ? (
-                            <TableCell className="w-44">
+                            <TableCell className="text-sm w-44">
                               <div className="space-y-1">
                                 <div className="text-foreground truncate max-w-[160px] flex items-center gap-1.5 font-medium">
                                   <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -188,7 +188,7 @@ export function RequestIdTags({ s, rows }: { s: QuickBooksState; rows: QuickBook
                               </div>
                             </TableCell>
                           ) : (
-                            <TableCell className="w-44">
+                            <TableCell className="text-sm w-44">
                               <div className="space-y-1">
                                 <div className="text-foreground truncate max-w-[160px] flex items-center gap-1.5 font-medium">
                                   <Banknote className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -202,7 +202,7 @@ export function RequestIdTags({ s, rows }: { s: QuickBooksState; rows: QuickBook
                           )}
 
                           {/* Product / Invoices Description */}
-                          <TableCell className="min-w-[200px]">
+                          <TableCell className="text-sm min-w-[200px]">
                             <div className="max-w-[260px] space-y-1">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="font-semibold text-foreground line-clamp-1">{item.product_name || "Transaction Item"}</span>
@@ -240,7 +240,7 @@ export function RequestIdTags({ s, rows }: { s: QuickBooksState; rows: QuickBook
                           </TableCell>
 
                           {/* Amount */}
-                          <TableCell className="w-28 text-right font-mono font-bold text-foreground">
+                          <TableCell className="text-sm w-28 text-right font-mono font-bold text-foreground">
                             {item.formatted_amount || `$${item.amount?.toFixed(2)}`}
                           </TableCell>
 
