@@ -39,6 +39,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { ListPagination, usePagedRows } from "@/components/common/ListPagination";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -524,6 +525,7 @@ export function PurchaseRequests() {
       return true;
     });
   }, [requests, user]);
+  const { pageRows: pagedRequests, setPage: setRequestsPage, ...requestsPaging } = usePagedRows(visibleRequests, JSON.stringify(filters));
   const createMutation = useCreateRequest();
   const extractQuoteMutation = useExtractQuote();
 
@@ -1235,7 +1237,7 @@ export function PurchaseRequests() {
                 </TableCell>
               </TableRow>
             ) : visibleRequests.length > 0 ? (
-              visibleRequests.map((r) => (
+              pagedRequests.map((r) => (
                 <TableRow
                   key={r.id}
                   className="cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/50"
@@ -1355,6 +1357,7 @@ export function PurchaseRequests() {
           </TableBody>
         </Table>
         </div>
+        {!isLoading && <ListPagination {...requestsPaging} noun="requests" onPageChange={setRequestsPage} />}
       </Card>
 
       {/* New Purchase Request Modal */}

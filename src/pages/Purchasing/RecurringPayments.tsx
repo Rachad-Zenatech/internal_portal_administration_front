@@ -6,6 +6,7 @@ import LocationAutocomplete from "./LocationAutocomplete";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ListPagination, usePagedRows } from "@/components/common/ListPagination";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
 import {
@@ -1182,6 +1183,10 @@ export default function RecurringPayments() {
       return true;
     });
   }, [requests, searchTerm, cardFilter, dueFilter, priorityFilter, reviewFilter, statusFilter]);
+  const { pageRows: pagedRequests, setPage: setRequestsPage, ...requestsPaging } = usePagedRows(
+    filteredRequests,
+    [searchTerm, cardFilter, dueFilter, priorityFilter, reviewFilter, statusFilter].join("|"),
+  );
 
   // Summary statistics
   const stats = useMemo(() => {
@@ -1692,7 +1697,7 @@ export default function RecurringPayments() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredRequests.map((req) => {
+                pagedRequests.map((req) => {
                   const revStatus = req.review_status || "WAITING_FOR_REVIEW";
                   const isRev = revStatus === "REVIEWED";
                   const { nextFormatted, totalFormatted } = getRecurringAmounts(
@@ -1942,6 +1947,7 @@ export default function RecurringPayments() {
             </TableBody>
           </Table>
           </div>
+          {!isLoading && <ListPagination {...requestsPaging} noun="recurring payments" onPageChange={setRequestsPage} />}
         </Card>
       ) : (
         /* Calendar View */

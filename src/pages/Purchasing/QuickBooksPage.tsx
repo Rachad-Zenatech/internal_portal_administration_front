@@ -2,6 +2,7 @@ import { QuickBooksItemDetailsDialog } from "./QuickBooksItemDetailsDialog";
 import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { ListPagination, usePagedRows } from "@/components/common/ListPagination";
 import {
   FileSpreadsheet,
   Paperclip,
@@ -443,6 +444,10 @@ export default function QuickBooksPage() {
       return true;
     });
   }, [currentTabRawItems, statusFilter, requestTypeFilter, searchQuery]);
+  const { pageRows: pagedItems, setPage: setItemsPage, ...itemsPaging } = usePagedRows(
+    filteredItems,
+    [stagingTab, statusFilter, requestTypeFilter, searchQuery, startDate, endDate, datePreset].join("|"),
+  );
 
   // Distinct valid IDs in current filtered items
   const currentTabItemIds = useMemo(() => {
@@ -1413,7 +1418,7 @@ export default function QuickBooksPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody key={`qbo-staging-body-${stagingTab}`}>
-                    {filteredItems.map((item, idx) => {
+                    {pagedItems.map((item, idx) => {
                       const isSelected = currentTabSelectedIds.includes(item.request_id);
                       const isReady = item.readiness === "READY" || item.readiness === "READY_WITH_NOTES";
                       const isSynced = item.readiness === "ALREADY_SYNCED" || item.is_already_synced;
@@ -1753,6 +1758,9 @@ export default function QuickBooksPage() {
                 </Table>
               )}
             </div>
+            {!isLoadingPreview && filteredItems.length > 0 && (
+              <ListPagination {...itemsPaging} noun="items" onPageChange={setItemsPage} />
+            )}
           </Card>
         </TabsContent>
 

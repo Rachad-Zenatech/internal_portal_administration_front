@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { toast } from "sonner";
+import { ListPagination, usePagedRows } from "@/components/common/ListPagination";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -297,6 +298,10 @@ export default function Invoices() {
       return true;
     });
   }, [tasks, typeFilter, statusFilter, wireFilter, quickFilter, searchQuery]);
+  const { pageRows: pagedTasks, setPage: setTasksPage, ...tasksPaging } = usePagedRows(
+    filteredTasks,
+    [typeFilter, statusFilter, wireFilter, quickFilter, searchQuery].join("|"),
+  );
 
   const hasActiveFilters =
     searchQuery.trim() !== "" ||
@@ -786,7 +791,7 @@ export default function Invoices() {
                   </TableCell>
                 </TableRow>
               ) : filteredTasks.length ? (
-                filteredTasks.map((task) => {
+                pagedTasks.map((task) => {
                   const overdue = isOverdue(task.due_date, task.status);
                   const dueToday = isDueToday(task.due_date, task.status);
                   const wt = task.wire_transfer;
@@ -1019,6 +1024,7 @@ export default function Invoices() {
             </TableBody>
           </Table>
         </div>
+        {!isLoading && <ListPagination {...tasksPaging} noun="wire transfers" onPageChange={setTasksPage} />}
       </Card>
 
       {/* ── Read-Only Wire Info Details Dialog ── */}

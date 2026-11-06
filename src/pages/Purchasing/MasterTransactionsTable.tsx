@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { ListPagination, usePagedRows } from "@/components/common/ListPagination";
 
 export interface MasterTransactionItem {
   id: string;
@@ -286,6 +287,11 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
         return sortOrder === "asc" ? cmp : -cmp;
       });
   }, [allTransactions, searchTerm, installmentStatusFilter, reviewFilter, dateRangeFilter, sortField, sortOrder]);
+
+  const { pageRows: pagedTransactions, setPage: setTransactionsPage, ...transactionsPaging } = usePagedRows(
+    filteredTransactions,
+    [searchTerm, dateRangeFilter, installmentStatusFilter, reviewFilter, sortField, sortOrder].join("|"),
+  );
 
   const toggleSort = (field: typeof sortField) => {
     if (sortField === field) {
@@ -698,7 +704,7 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTransactions.map((t) => {
+                pagedTransactions.map((t) => {
                   const isRev = t.reviewStatus === "REVIEWED";
                   return (
                     <TableRow
@@ -888,13 +894,14 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
             </TableBody>
           </Table>
         </div>
+        {!isLoading && <ListPagination {...transactionsPaging} noun="transactions" onPageChange={setTransactionsPage} />}
 
         {/* Table Footer Summary */}
         <div className="bg-slate-50 dark:bg-zinc-900/90 border-t border-slate-200 dark:border-zinc-800 px-4 py-2.5 flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-3">
             <span>
-              Showing <strong className="text-slate-900 dark:text-zinc-100">{filteredTransactions.length}</strong> of{" "}
-              <strong>{allTransactions.length}</strong> scheduled transactions
+              <strong className="text-slate-900 dark:text-zinc-100">{filteredTransactions.length}</strong> of{" "}
+              <strong>{allTransactions.length}</strong> scheduled transactions match the filters
             </span>
           </div>
           <div className="flex items-center gap-2">
