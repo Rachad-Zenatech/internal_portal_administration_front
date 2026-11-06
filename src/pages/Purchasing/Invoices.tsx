@@ -24,7 +24,7 @@ export default function Invoices() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-                  A/P
+                  A/P &amp; Invoices
                 </h1>
                 <HelpIcon text="Track and manage wire payment instructions, vendor bank accounts, and invoices awaiting AP settlement across all purchasing workflows." />
               </div>
