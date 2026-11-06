@@ -73,13 +73,13 @@ export const navigation = [
     ],
   },
   {
-    label: "Wire Transfer",
+    label: "A/P",
     path: "/purchasing/invoices",
     icon: ReceiptText,
     section: "MAIN",
     navigationCode: "INVOICES",
     subItems: [
-      { label: "All Wire Transfers", path: "/purchasing/invoices" },
+      { label: "All A/P", path: "/purchasing/invoices" },
       { label: "Due on Today", path: "/purchasing/invoices?filter=DUE_TODAY" },
       { label: "Overdue Payment", path: "/purchasing/invoices?filter=OVERDUE" },
     ],
