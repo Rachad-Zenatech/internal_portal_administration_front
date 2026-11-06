@@ -67,7 +67,8 @@ export function BreadcrumbTopBar({ s }: { s: QuickBooksState }) {
                 className="h-8 text-xs font-semibold gap-1.5 bg-[#028340] hover:bg-[#027037] text-white shadow-xs"
                 onClick={() => {
                   const apiBase = import.meta.env.VITE_API_BASE_URL || "";
-                  window.location.href = `${apiBase}/api/quickbooks/connect`;
+                  const returnUrl = encodeURIComponent(window.location.origin);
+                  window.location.href = `${apiBase}/api/quickbooks/connect?state=${returnUrl}`;
                 }}
               >
                 <Zap className="h-3.5 w-3.5" />
