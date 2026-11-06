@@ -57,6 +57,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/components/Tasks/taskDetailPanel/sections/OverviewDetailCardsColumn.tsx (255 lines) - overview detail cards column (components  tasks task detail panel sections)
 - src/components/Tasks/taskDetailPanel/types.ts (7 lines) - types (components  tasks task detail panel)
 - src/components/common/ErrorBoundary.tsx (48 lines) - error boundary (components common)
+- src/components/common/FluidList.tsx (125 lines) - The app shell's <main> is the page's scroll area
 - src/components/common/GlobalLoadingScreen.tsx (107 lines) - global loading screen (components common)
 - src/components/common/LinkifiedText.tsx (50 lines) - linkified text (components common)
 - src/components/common/ProtectedRoute.tsx (81 lines) - protected route (components common)

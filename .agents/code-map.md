@@ -262,6 +262,13 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `State` (interface)
 - `ErrorBoundary` (export class)
 
+## src/components/common/FluidList.tsx (125 lines) - The app shell's <main> is the page's scroll area
+- `FLUID_BATCH_SIZE` (export const)
+- `useFitToScreen` (export function) - Sizes a table's box to the space left on screen below whatever sits above it, so its footer ("Showing 23 of 23  requests") is visible wit...
+- `useFluidRows` (export function) - Endless scroll for a list that is already loaded and filtered (as on the M&A dashboard): shows the first batch of  rows and adds the next...
+- `LoadMoreRow` (export function) - The last row of the table while more rows are left; scrolling it into view loads the next batch
+- `FluidListFooter` (export function) - Showing 50 of 230 requests" under the table
+
 ## src/components/common/GlobalLoadingScreen.tsx (107 lines) - global loading screen (components common)
 - `GlobalLoadingScreen` (export function)
 
