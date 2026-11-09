@@ -49,16 +49,15 @@ export default function Invoices() {
           </Button>
           {canCreateWire && (
             <Button
-              variant="outline"
               size="sm"
               onClick={() => {
                 setCreatePrefill(null);
                 setCreateWireTitle("Create a payable");
                 setIsCreateWireOpen(true);
               }}
-              className="h-9 gap-1.5 text-xs font-medium border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs cursor-pointer"
+              className="h-9 gap-1.5 text-xs font-medium shadow-sm bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 cursor-pointer"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-4 w-4" />
               <span>Create a payable</span>
             </Button>
           )}
