@@ -41,15 +41,15 @@ export interface WorkflowConfigResponse {
 
 export const experimentalWorkflowService = {
   async getWorkflowConfig(domain: "purchasing" | "invoices"): Promise<WorkflowConfigResponse> {
-    return apiClient.get<WorkflowConfigResponse>(`/api/workflow-auto/${domain}`);
+    return apiClient.get<WorkflowConfigResponse>(`/workflow-auto/${domain}`);
   },
 
   async saveWorkflowConfig(domain: "purchasing" | "invoices", payload: Partial<WorkflowConfigResponse>): Promise<WorkflowConfigResponse> {
-    return apiClient.post<WorkflowConfigResponse>(`/api/workflow-auto/${domain}`, payload);
+    return apiClient.post<WorkflowConfigResponse>(`/workflow-auto/${domain}`, payload);
   },
 
   async resetWorkflowConfig(domain: "purchasing" | "invoices"): Promise<WorkflowConfigResponse> {
-    return apiClient.post<WorkflowConfigResponse>(`/api/workflow-auto/${domain}/reset`, {});
+    return apiClient.post<WorkflowConfigResponse>(`/workflow-auto/${domain}/reset`, {});
   },
 };
 
