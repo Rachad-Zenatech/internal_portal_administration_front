@@ -126,6 +126,10 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
   // Move Step Modal State (Sandwich / Reorder)
   const [movingNodeIndex, setMovingNodeIndex] = useState<number | null>(null);
 
+  // Drag-and-drop state for card reordering
+  const [draggedNodeIndex, setDraggedNodeIndex] = useState<number | null>(null);
+  const [dragOverNodeIndex, setDragOverNodeIndex] = useState<number | null>(null);
+
   // Editing Action Button Dialog State
   const [editingAction, setEditingAction] = useState<{
     stepId: string;
@@ -428,12 +432,38 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
 
           {nodes.map((node, idx) => {
             const isSimulated = (currentSimulatedNode?.id === node.id);
+            const isDragged = draggedNodeIndex === idx;
+            const isDragOver = dragOverNodeIndex === idx;
+
             return (
               <React.Fragment key={node.id}>
                 {/* Step Card Node */}
                 <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dragOverNodeIndex !== idx) {
+                      setDragOverNodeIndex(idx);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverNodeIndex === idx) {
+                      setDragOverNodeIndex(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedNodeIndex !== null && draggedNodeIndex !== idx) {
+                      handleMoveStep(draggedNodeIndex, idx);
+                    }
+                    setDraggedNodeIndex(null);
+                    setDragOverNodeIndex(null);
+                  }}
                   className={`w-72 shrink-0 rounded-xl border transition-all ${
-                    isSimulated
+                    isDragged
+                      ? "opacity-40 scale-95 border-indigo-400 border-dashed"
+                      : isDragOver
+                      ? "ring-2 ring-indigo-500 border-indigo-500 scale-[1.02] shadow-lg"
+                      : isSimulated
                       ? "ring-2 ring-indigo-500 border-indigo-400 bg-indigo-50/20 dark:bg-indigo-950/20 shadow-md"
                       : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs hover:border-slate-300 dark:hover:border-zinc-700"
                   }`}
@@ -441,24 +471,35 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                   {/* Step Header */}
                   <div className="p-3 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
+                      {/* Drag Handle placed on the left side before the number */}
+                      <button
+                        type="button"
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedNodeIndex(idx);
+                          e.dataTransfer.setData("text/plain", String(idx));
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragEnd={() => {
+                          setDraggedNodeIndex(null);
+                          setDragOverNodeIndex(null);
+                        }}
+                        onClick={() => setMovingNodeIndex(idx)}
+                        title="Drag to reposition stage, or click to move/transfer"
+                        className="cursor-grab active:cursor-grabbing p-0.5 -ml-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        <GripVertical className="w-4 h-4" />
+                      </button>
+
                       <span className="h-5 w-5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-[11px] flex items-center justify-center">
                         {idx + 1}
                       </span>
-                      <h3 className="font-semibold text-xs text-slate-900 dark:text-zinc-100 truncate max-w-[150px]">
+                      <h3 className="font-semibold text-xs text-slate-900 dark:text-zinc-100 truncate max-w-[130px]">
                         {node.title}
                       </h3>
                     </div>
 
                     <div className="flex items-center gap-0.5">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setMovingNodeIndex(idx)}
-                        title="Move / transfer stage position (sandwich handle)"
-                        className="h-6 w-6 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
-                      >
-                        <GripVertical className="w-3.5 h-3.5" />
-                      </Button>
                       <Button
                         size="icon"
                         variant="ghost"
