@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import {
   GitFork,
   Plus,
@@ -42,6 +43,8 @@ interface WorkflowAutoCanvasProps {
 
 export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanvasProps) {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const urlStatus = searchParams.get("status");
 
   const { data: config } = useQuery<WorkflowConfigResponse>({
     queryKey: ["experimental-workflow", domain],
@@ -117,6 +120,16 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
   const [actionFields, setActionFields] = useState<WorkflowActionField[]>([]);
 
   const nodes = config?.nodes || [];
+
+  // Sync active step with URL query param if present
+  useEffect(() => {
+    if (urlStatus && nodes.length > 0) {
+      const match = nodes.find(n => (n.statusKey || "").toUpperCase() === urlStatus.toUpperCase());
+      if (match) {
+        setActiveStepId(match.id);
+      }
+    }
+  }, [urlStatus, nodes]);
 
   // Determine current active simulator step
   const currentSimulatedIndex = nodes.findIndex(n => n.id === (activeStepId || nodes[0]?.id));
