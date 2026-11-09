@@ -29,6 +29,12 @@ export interface WorkflowStepNode {
   assignedRole?: string;
   assignedUser?: string;
   actions: WorkflowActionButton[];
+  reviewControl?: {
+    enabled: boolean;
+    reviewerRole?: string;
+    controlText?: string;
+    passed?: boolean;
+  };
 }
 
 export interface WorkflowConfigResponse {

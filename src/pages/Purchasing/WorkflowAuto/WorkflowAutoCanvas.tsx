@@ -18,6 +18,7 @@ import {
   Shield,
   GripVertical,
   ArrowLeftRight,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -184,6 +185,9 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
   const [nodeDesc, setNodeDesc] = useState("");
   const [nodeBadge, setNodeBadge] = useState("slate");
   const [nodeAssignedRole, setNodeAssignedRole] = useState("");
+  const [nodeReviewControlEnabled, setNodeReviewControlEnabled] = useState(false);
+  const [nodeReviewControlRole, setNodeReviewControlRole] = useState("");
+  const [nodeReviewControlText, setNodeReviewControlText] = useState("");
 
   // Move Step Modal State (Sandwich / Reorder)
   const [movingNodeIndex, setMovingNodeIndex] = useState<number | null>(null);
@@ -318,6 +322,9 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     setNodeDesc(node.description);
     setNodeBadge(node.badgeColor || "slate");
     setNodeAssignedRole(node.assignedRole || "");
+    setNodeReviewControlEnabled(Boolean(node.reviewControl?.enabled));
+    setNodeReviewControlRole(node.reviewControl?.reviewerRole || "Accounting / Controller");
+    setNodeReviewControlText(node.reviewControl?.controlText || "Verify GL code & Category are coded properly");
   };
 
   const handleSaveStep = () => {
@@ -329,6 +336,14 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
       description: nodeDesc.trim(),
       badgeColor: nodeBadge,
       assignedRole: nodeAssignedRole.trim() || undefined,
+      reviewControl: nodeReviewControlEnabled
+        ? {
+            enabled: true,
+            reviewerRole: nodeReviewControlRole.trim() || "Accounting / Controller",
+            controlText: nodeReviewControlText.trim() || "Verify GL code & Category are coded properly",
+            passed: editingNode.node.reviewControl?.passed ?? false,
+          }
+        : undefined,
     };
     saveMutation.mutate(updated);
     setEditingNode(null);
@@ -636,6 +651,24 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                       {node.description || "No description provided."}
                     </p>
 
+                    {/* Stage Review & Control Gate (Underneath stage description) */}
+                    {node.reviewControl?.enabled && (
+                      <div className="p-2.5 rounded-lg bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                            Internal Control Review
+                          </span>
+                          <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/50 px-1.5 py-0.5 rounded">
+                            {node.reviewControl.reviewerRole || "Accounting Review"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-rose-900 dark:text-rose-200 leading-snug font-medium">
+                          {node.reviewControl.controlText || "Verify GL code & Category are coded properly"}
+                        </p>
+                      </div>
+                    )}
+
                     {/* Action Buttons Container */}
                     <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
                       <div className="flex items-center justify-between">
@@ -804,7 +837,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
 
               return (
                 <React.Fragment key={`stepper-node-${node.id}-${i}`}>
-                  <div className="flex items-center shrink-0">
+                  <div className="flex flex-col items-center shrink-0 gap-1">
                     <button
                       type="button"
                       onClick={() => setActiveStepId(node.id)}
@@ -820,6 +853,17 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                       )}
                       <span className="text-center">{node.title}</span>
                     </button>
+
+                    {/* Review Control indicator badge underneath stepper pill */}
+                    {node.reviewControl?.enabled && (
+                      <span
+                        title={`Internal Control Review: ${node.reviewControl.controlText || "Review required"}`}
+                        className="text-[9px] font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-900/60 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-2xs"
+                      >
+                        <AlertCircle className="w-2.5 h-2.5 text-rose-600 dark:text-rose-400" />
+                        Review Control
+                      </span>
+                    )}
                   </div>
 
                   {/* Flexible connector line */}
@@ -1143,6 +1187,53 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                     <SelectItem value="emerald">Emerald (Approved / Completed)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Internal Review / Control Gate Setting */}
+              <div className="pt-3 border-t border-slate-200 dark:border-zinc-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <label className="font-semibold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={nodeReviewControlEnabled}
+                        onChange={(e) => setNodeReviewControlEnabled(e.target.checked)}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      Enable Internal Control Review
+                    </label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Adds a red review / verification control check (e.g. GL coding audit) under this stage.
+                    </p>
+                  </div>
+                </div>
+
+                {nodeReviewControlEnabled && (
+                  <div className="space-y-2.5 p-2.5 rounded-lg bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/50 mt-2">
+                    <div className="space-y-1">
+                      <label className="font-medium text-rose-900 dark:text-rose-200 text-[11px]">
+                        Reviewer Role / Auditor
+                      </label>
+                      <Input
+                        value={nodeReviewControlRole}
+                        onChange={(e) => setNodeReviewControlRole(e.target.value)}
+                        placeholder="e.g. Accounting / Controller / GL Specialist"
+                        className="h-8 text-xs bg-white dark:bg-zinc-900"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-medium text-rose-900 dark:text-rose-200 text-[11px]">
+                        Verification / Review Requirement
+                      </label>
+                      <Input
+                        value={nodeReviewControlText}
+                        onChange={(e) => setNodeReviewControlText(e.target.value)}
+                        placeholder="e.g. Verify GL code & Category are coded properly before approving"
+                        className="h-8 text-xs bg-white dark:bg-zinc-900"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
