@@ -8,6 +8,7 @@ import { FiltersSearchToolbar } from "./invoices/sections/FiltersSearchToolbar";
 import { TableCard } from "./invoices/sections/TableCard";
 import { ReadOnlyWireInfo } from "./invoices/sections/ReadOnlyWireInfo";
 import { CreateWireTransferDialog } from "./dialogs/CreateWireTransferDialog";
+import { AddBusinessContactDialog } from "@/components/Configurations/AddBusinessContactDialog";
 
 export default function Invoices() {
   const s = useInvoices();
@@ -47,6 +48,13 @@ export default function Invoices() {
             <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${isLoading ? "animate-spin text-indigo-600" : ""}`} />
             <span>Refresh</span>
           </Button>
+          {canCreateWire && (
+            <AddBusinessContactDialog
+              accountSide="ap"
+              triggerLabel="pay a payable"
+              triggerClassName="h-9 gap-1.5 text-xs font-medium border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs cursor-pointer"
+            />
+          )}
           {canCreateWire && (
           <Button
             size="sm"

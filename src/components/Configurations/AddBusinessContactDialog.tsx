@@ -28,7 +28,19 @@ const emptyForm = {
   ship_address: "",
 };
 
-export function AddBusinessContactDialog({ accountSide }: { accountSide: "ar" | "ap" }) {
+interface AddBusinessContactDialogProps {
+  accountSide: "ar" | "ap";
+  triggerLabel?: string;
+  triggerClassName?: string;
+  onSuccess?: () => void;
+}
+
+export function AddBusinessContactDialog({
+  accountSide,
+  triggerLabel,
+  triggerClassName,
+  onSuccess,
+}: AddBusinessContactDialogProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("general");
   const [form, setForm] = useState(emptyForm);
@@ -73,6 +85,7 @@ export function AddBusinessContactDialog({ accountSide }: { accountSide: "ar" | 
         swift_code: "",
       });
       setOpen(false);
+      onSuccess?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create business contact.");
     }
@@ -90,9 +103,9 @@ export function AddBusinessContactDialog({ accountSide }: { accountSide: "ar" | 
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1.5">
+        <Button size="sm" className={triggerClassName || "gap-1.5"}>
           <Plus className="h-4 w-4" />
-          {isAr ? "New A/R Customer" : "New A/P Payee"}
+          {triggerLabel || (isAr ? "New A/R Customer" : "New A/P Payee")}
         </Button>
       </DialogTrigger>
       <DialogContent className="w-[96vw] max-w-[96vw] sm:max-w-[760px] max-h-[90vh] overflow-y-auto p-6 rounded-2xl">
