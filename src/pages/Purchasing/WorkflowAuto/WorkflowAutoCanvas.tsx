@@ -959,27 +959,49 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                   <span className="font-semibold text-slate-700 dark:text-zinc-300">
                     Input Fields &amp; Dropdowns ({actionFields.length})
                   </span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setActionFields(prev => [
-                        ...prev,
-                        {
-                          id: `fld_${Date.now()}`,
-                          label: "Selection Field",
-                          type: "dropdown",
-                          options: ["Option A", "Option B", "Option C"],
-                          value: "Option A"
-                        }
-                      ]);
-                    }}
-                    className="h-6 text-[10px] gap-1"
-                  >
-                    <Plus className="w-3 h-3" />
-                    Add Dropdown Field
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setActionFields(prev => [
+                          ...prev,
+                          {
+                            id: `fld_${Date.now()}`,
+                            label: "New Dropdown",
+                            type: "dropdown",
+                            options: ["Option A", "Option B", "Option C"],
+                            value: "Option A"
+                          }
+                        ]);
+                      }}
+                      className="h-6 text-[10px] gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add Dropdown
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setActionFields(prev => [
+                          ...prev,
+                          {
+                            id: `fld_${Date.now()}`,
+                            label: "Text Input",
+                            type: "text",
+                            placeholder: "Enter details..."
+                          }
+                        ]);
+                      }}
+                      className="h-6 text-[10px] gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add Text Field
+                    </Button>
+                  </div>
                 </div>
 
                 {actionFields.map((fld, fldIdx) => (
