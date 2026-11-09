@@ -51,12 +51,29 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
   const saveMutation = useMutation({
     mutationFn: (updatedNodes: WorkflowStepNode[]) =>
       experimentalWorkflowService.saveWorkflowConfig(domain, { nodes: updatedNodes }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["experimental-workflow", domain] });
-      toast.success("Workflow flow configuration saved successfully!");
+    onMutate: async (updatedNodes: WorkflowStepNode[]) => {
+      // Optimistic instant UI update
+      await queryClient.cancelQueries({ queryKey: ["experimental-workflow", domain] });
+      const previous = queryClient.getQueryData<WorkflowConfigResponse>(["experimental-workflow", domain]);
+      if (previous) {
+        queryClient.setQueryData<WorkflowConfigResponse>(["experimental-workflow", domain], {
+          ...previous,
+          nodes: updatedNodes
+        });
+      }
+      return { previous };
     },
-    onError: (err: any) => {
+    onError: (err: any, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["experimental-workflow", domain], context.previous);
+      }
       toast.error(err?.message || "Failed to save workflow");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["experimental-workflow", domain] });
+    },
+    onSuccess: () => {
+      toast.success("Workflow flow configuration saved successfully!");
     },
   });
 
