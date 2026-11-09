@@ -65,7 +65,7 @@ export const navigation = [
       { label: "All Recurring Payments", path: "/purchasing/recurring" },
       { label: "Purchase Requests", path: "/purchasing/recurring?filter=PURCHASE_REQUESTS" },
       { label: "A/P (Accounts Payable)", path: "/purchasing/recurring?filter=AP" },
-      { label: "M&A Scheduled Payments", path: "/purchasing/recurring?filter=MA_SCHEDULED" },
+      { label: "M&A Scheduled Payments", path: "/purchasing/recurring?filter=MA_SCHEDULED", level: 2 },
       { label: "Due in 7 Days", path: "/purchasing/recurring?filter=DUE_SOON" },
       { label: "Waiting for Review", path: "/purchasing/recurring?filter=WAITING_REVIEW" },
       { label: "Reviewed (AP)", path: "/purchasing/recurring?filter=REVIEWED" },

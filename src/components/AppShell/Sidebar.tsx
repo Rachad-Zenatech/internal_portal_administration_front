@@ -28,6 +28,8 @@ interface SidebarNavigationItem {
     label: string;
     path: string;
     navigationCode?: string;
+    /** 2 = sub-sub item rendered nested under the preceding sub item. */
+    level?: number;
   }>;
 }
 
@@ -333,6 +335,7 @@ export default function Sidebar({
                         to={sub.path}
                         className={`
                           flex items-center justify-between h-7.5 px-2.5 rounded-md text-xs font-medium transition-all duration-200
+                          ${sub.level === 2 ? "ml-3 border-l border-sidebar-border/60 rounded-l-none text-[11px]" : ""}
                           ${isSubActive ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-2xs font-semibold" : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/80"}
                         `}
                       >
