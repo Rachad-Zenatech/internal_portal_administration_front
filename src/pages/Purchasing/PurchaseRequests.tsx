@@ -164,7 +164,7 @@ export function PurchaseRequests() {
           }}
           // grid-cols-1 caps the dialog's column at the dialog width, so long one-line text (e.g. an auto-filled
           // product name) truncates instead of widening the dialog; it only ever scrolls up and down
-          className="sm:max-w-4xl w-[95vw] max-h-[90vh] grid-cols-1 overflow-y-auto overflow-x-hidden"
+          className="sm:max-w-6xl 2xl:max-w-7xl w-[95vw] max-h-[90vh] grid-cols-1 overflow-y-auto overflow-x-hidden"
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

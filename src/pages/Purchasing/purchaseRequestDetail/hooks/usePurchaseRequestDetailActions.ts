@@ -434,6 +434,7 @@ export function usePurchaseRequestDetailActions() {
   };
   const handleRecordInvoiceSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const uploadInstallment = selectedInstallment ? String(selectedInstallment.installmentNumber) : undefined;
     const amt = parseFloat(invoiceForm.amount);
     if (isNaN(amt) || amt <= 0) {
       toast.error("Please enter a valid amount");
@@ -468,7 +469,8 @@ export function usePurchaseRequestDetailActions() {
       {
         onSuccess: () => {
           if (invoiceFiles.length > 0) {
-            uploadMutation.mutate(invoiceFiles, {
+            // Tag the receipts with the installment being paid so the next payment does not show them
+            uploadMutation.mutate({ files: invoiceFiles, installment: uploadInstallment }, {
               onSuccess: () => {
                 setInvoiceFiles([]);
               },

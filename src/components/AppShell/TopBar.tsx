@@ -3,6 +3,7 @@ import { ConnectionStatusLight } from "./ConnectionStatusLight";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Bell, Menu, ShieldCheck, LogOut, User, Mail, BellRing, Settings, Settings2, Laptop } from "lucide-react";
+import { MessageHubStatusDropdown } from "./MessageHubStatusDropdown";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -338,7 +339,8 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
 </div>
 
       <div className="flex items-center gap-2.5 sm:gap-3.5 md:gap-4.5 shrink-0">
-                <ConnectionStatusLight />
+        <MessageHubStatusDropdown />
+        <ConnectionStatusLight />
         <TopBarClock />
         <TooltipProvider delayDuration={0}>
           <Tooltip>

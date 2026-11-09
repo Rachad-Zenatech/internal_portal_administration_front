@@ -10,6 +10,11 @@ import type { PurchaseRequestDetailViewState } from "../hooks/usePurchaseRequest
 
 export function RecordInvoiceDialog({ v }: { v: PurchaseRequestDetailViewState }) {
   const { uploadMutation, recordInvoiceMutation, setIsRecordInvoiceOpen, deleteAttachmentMutation, isLoadingPreview, handlePreviewAttachment, attachments, setInvoiceFiles, handlePreviewFile, invoiceFiles, isDraggingPdf, setIsDraggingPdf, invoiceForm, setInvoiceForm, request, handleRecordInvoiceSubmit, selectedInstallment, isRecordInvoiceOpen } = v;
+  // Receipts belong to one payment: an installment only lists the files saved for that installment,
+  // so the next payment does not show (or inherit) the previous payment's receipts.
+  const dialogAttachments = (attachments || []).filter((att) =>
+    selectedInstallment ? att.installment === String(selectedInstallment.installmentNumber) : !att.installment
+  );
   return (
     <>
       {isRecordInvoiceOpen && (
@@ -290,14 +295,14 @@ export function RecordInvoiceDialog({ v }: { v: PurchaseRequestDetailViewState }
                 )}
 
                 {/* Previously saved attachments on this recurring request */}
-                {attachments && attachments.length > 0 && (
+                {dialogAttachments.length > 0 && (
                   <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800">
                     <div className="text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider flex items-center justify-between">
-                      <span>Saved Receipts &amp; Documents ({attachments.length})</span>
+                      <span>Saved Receipts &amp; Documents ({dialogAttachments.length})</span>
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal">Saved in this spot</span>
                     </div>
                     <ul className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                      {attachments.map((att) => (
+                      {dialogAttachments.map((att) => (
                         <li
                           key={att.id}
                           className="flex items-center justify-between gap-2 text-xs bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg px-3 py-1.5 border border-emerald-100 dark:border-emerald-900/30"

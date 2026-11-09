@@ -45,13 +45,31 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
 - `HubSpotSyncProgress` (export function) - Small bottom-right card showing the background HubSpot companies sync: percentage while running,  then the result.
 
-## src/components/AppShell/Navigation.tsx (140 lines) - navigation (components  app shell)
+## src/components/AppShell/MessageHubStatusDropdown.tsx (572 lines) - message hub status dropdown (components  app shell)
+- `HubQueueOrStreamItem` (export interface)
+- `HubChannelGroupStatus` (export interface)
+- `HubConnectedServer` (export interface)
+- `MessageHubStatusResponse` (export interface)
+- `forceServerOffline` (function)
+- `buildOfflineServer` (function)
+    - `q` (fn)
+- `buildAllOfflineFallback` (function)
+- `fetchWithTimeout` (function)
+- `MessageHubStatusDropdown` (export function)
+    - `queryClient` (fn)
+    - `handleActiveTest` (fn)
+    - `getStatusDot` (fn)
+    - `getServerBadge` (fn)
+    - `formatLastSeen` (fn)
+    - `renderMetric` (fn)
+
+## src/components/AppShell/Navigation.tsx (147 lines) - navigation (components  app shell)
 - `navigation` (export const)
 
 ## src/components/AppShell/NotificationDropdown.tsx (149 lines) - notification dropdown (components  app shell)
 - `NotificationDropdownContent` (export function)
 
-## src/components/AppShell/Sidebar.tsx (476 lines) - sidebar (components  app shell)
+## src/components/AppShell/Sidebar.tsx (502 lines) - sidebar (components  app shell)
 - `SidebarUser` (interface)
 - `SidebarNavigationItem` (interface)
 - `SidebarProps` (interface)
@@ -66,7 +84,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/components/AppShell/ThemeSwitch.tsx (41 lines) - theme switch (components  app shell)
 - `ThemeSwitch` (export function)
 
-## src/components/AppShell/TopBar.tsx (661 lines) - top bar (components  app shell)
+## src/components/AppShell/TopBar.tsx (663 lines) - top bar (components  app shell)
 - `TopBarClock` (function)
 - `formatWorkflowRole` (function)
 - `sendWindowsNotification` (function)
@@ -150,7 +168,8 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `accounts` (fn)
     - `table` (fn)
 
-## src/components/Configurations/AddBusinessContactDialog.tsx (206 lines) - add business contact dialog (components  configurations)
+## src/components/Configurations/AddBusinessContactDialog.tsx (342 lines) - add business contact dialog (components  configurations)
+- `AddBusinessContactDialogProps` (interface)
 - `AddBusinessContactDialog` (export function)
 
 ## src/components/Configurations/DeleteBusinessContactDialog.tsx (54 lines) - delete business contact dialog (components  configurations)
@@ -159,7 +178,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/components/Configurations/EditBusinessContactDialog.tsx (210 lines) - edit business contact dialog (components  configurations)
 - `EditBusinessContactDialog` (export function)
 
-## src/components/Configurations/PayeeBankingEditor.tsx (665 lines) - payee banking editor (components  configurations)
+## src/components/Configurations/PayeeBankingEditor.tsx (666 lines) - payee banking editor (components  configurations)
 - `PayeeBankingEditorProps` (export interface)
 - `BankFieldDef` (interface)
 - `getCountryDefaultFields` (function)
@@ -257,12 +276,12 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/components/Tasks/taskDetailPanel/types.ts (7 lines) - types (components  tasks task detail panel)
 - `TaskDetailPanelProps` (export interface)
 
-## src/components/common/ErrorBoundary.tsx (48 lines) - error boundary (components common)
+## src/components/common/ErrorBoundary.tsx (63 lines) - error boundary (components common)
 - `Props` (interface)
 - `State` (interface)
 - `ErrorBoundary` (export class)
 
-## src/components/common/FluidList.tsx (125 lines) - The app shell's <main> is the page's scroll area
+## src/components/common/FluidList.tsx (128 lines) - The app shell's <main> is the page's scroll area
 - `FLUID_BATCH_SIZE` (export const)
 - `useFitToScreen` (export function) - Sizes a table's box to the space left on screen below whatever sits above it, so its footer ("Showing 23 of 23  requests") is visible wit...
 - `useFluidRows` (export function) - Endless scroll for a list that is already loaded and filtered (as on the M&A dashboard): shows the first batch of  rows and adds the next...
@@ -610,7 +629,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `useClearReadNotifications` (export function)
 - `useClearAllNotifications` (export function)
 
-## src/hooks/usePurchasing.ts (433 lines) - use purchasing (hooks)
+## src/hooks/usePurchasing.ts (436 lines) - use purchasing (hooks)
 - `useProjects` (export function)
 - `useDepartments` (export function)
 - `usePurchasingSummary` (export function)
@@ -699,7 +718,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/lib/utils.ts (7 lines) - utils (lib)
 - `cn` (export function)
 
-## src/main.tsx (52 lines) - Create a client
+## src/main.tsx (65 lines) - Automatically reload once if a new deployment removed old hashed chunks
 
 ## src/pages/AccountReceivable/AccountReceivablePage.tsx (501 lines) - account receivable page (pages  account receivable)
 - `AccountReceivablePage` (export function)
@@ -1554,7 +1573,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/BatchApproval.tsx (251 lines) - batch approval (pages  purchasing)
 - `BatchApproval` (export function)
 
-## src/pages/Purchasing/Invoices.tsx (83 lines) - invoices (pages  purchasing)
+## src/pages/Purchasing/Invoices.tsx (165 lines) - invoices (pages  purchasing)
 - `Invoices` (export function)
 
 ## src/pages/Purchasing/MyApprovals.tsx (367 lines) - my approvals (pages  purchasing)
@@ -1567,7 +1586,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `PurchaseRequests` (export function)
     - `s` (fn)
 
-## src/pages/Purchasing/QuickBooksPage.tsx (247 lines) - quick books page (pages  purchasing)
+## src/pages/Purchasing/QuickBooksPage.tsx (248 lines) - quick books page (pages  purchasing)
 - `QuickBooksPage` (export function)
 
 ## src/pages/Purchasing/RecurringPayments.tsx (30 lines) - recurring payments (pages  purchasing)
@@ -1637,9 +1656,9 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `ConvertToRecurringDialogProps` (interface)
 - `ConvertToRecurringDialog` (export function)
 
-## src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (108 lines) - called after a wire transfer was created (so the wire page can reload its list)
+## src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (110 lines) - called after a wire transfer was created (so the wire page can reload its list)
 - `Props` (interface)
-- `CreateWireTransferDialog` (export function) - Creates a wire transfer (request type "Wire Transfer"); this replaced the "Wire Transfer" option of the purchase request dialog.
+- `CreateWireTransferDialog` (export function) - Creates a wire transfer or accounts payable request; captures general payment & full banking clearing fields.
 
 ## src/pages/Purchasing/dialogs/EditCombinedRequestDialog.tsx (247 lines) - edit combined request dialog (pages  purchasing dialogs)
 - `EditCombinedRequestDialog` (export function)
@@ -1884,7 +1903,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `CountryAutocompleteProps` (interface)
 - `CountryAutocomplete` (export function)
 
-## src/pages/Purchasing/fields/CreatableCombobox.tsx (708 lines) - creatable combobox (pages  purchasing fields)
+## src/pages/Purchasing/fields/CreatableCombobox.tsx (711 lines) - creatable combobox (pages  purchasing fields)
 - `CreatableComboboxProps` (interface)
 - `CreatableCombobox` (export function)
     - `queryClient` (fn)
@@ -1973,7 +1992,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/fields/WireBankingFields.tsx (104 lines) - wire banking fields (pages  purchasing fields)
 - `WireBankingFields` (export function)
 
-## src/pages/Purchasing/fields/WireGeneralPaymentFields.tsx (686 lines) - wire general payment fields (pages  purchasing fields)
+## src/pages/Purchasing/fields/WireGeneralPaymentFields.tsx (734 lines) - wire general payment fields (pages  purchasing fields)
 - `COMMON_PAY_FROM` (export const)
 - `COMMON_CURRENCIES` (export const)
 - `CURRENCY_SYMBOLS` (export const)
@@ -1987,7 +2006,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleAmountInputFocus` (fn)
     - `handleAmountInputBlur` (fn)
 
-## src/pages/Purchasing/fields/wireBankingFields/constants.ts (26 lines) - constants (pages  purchasing fields wire banking fields)
+## src/pages/Purchasing/fields/wireBankingFields/constants.ts (28 lines) - constants (pages  purchasing fields wire banking fields)
 - `BANK_DETAILS_CATALOG` (export const)
 - `CLEARING_CODES_CATALOG` (export const)
 
@@ -1998,10 +2017,10 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/fields/wireBankingFields/hooks/useWireBankingFieldsActions.ts (110 lines) - use wire banking fields actions (pages  purchasing fields wire banking fields hooks)
 - `useWireBankingFieldsActions` (export function)
 
-## src/pages/Purchasing/fields/wireBankingFields/sections/Card1BeneficiaryBank.tsx (262 lines) - card1 beneficiary bank (pages  purchasing fields wire banking fields sections)
+## src/pages/Purchasing/fields/wireBankingFields/sections/Card1BeneficiaryBank.tsx (301 lines) - card1 beneficiary bank (pages  purchasing fields wire banking fields sections)
 - `Card1BeneficiaryBank` (export function)
 
-## src/pages/Purchasing/fields/wireBankingFields/sections/RoutingWire.tsx (462 lines) - routing wire (pages  purchasing fields wire banking fields sections)
+## src/pages/Purchasing/fields/wireBankingFields/sections/RoutingWire.tsx (540 lines) - routing wire (pages  purchasing fields wire banking fields sections)
 - `RoutingWire` (export function)
 
 ## src/pages/Purchasing/fields/wireBankingFields/types.ts (18 lines) - types (pages  purchasing fields wire banking fields)
@@ -2015,7 +2034,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `useInvoices` (export function)
 - `InvoicesState` (export type)
 
-## src/pages/Purchasing/invoices/hooks/useInvoicesActions.ts (296 lines) - The sidebar sub-menu links here with ?status=WAITING_PAYMENT, ?status=ON_HOLD, ...
+## src/pages/Purchasing/invoices/hooks/useInvoicesActions.ts (311 lines) - The sidebar sub-menu links here with ?status=WAITING_PAYMENT, ?status=ON_HOLD, ...
 - `useInvoicesActions` (export function)
 
 ## src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx (312 lines) - filters search toolbar (pages  purchasing invoices sections)
@@ -2029,6 +2048,15 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 
 ## src/pages/Purchasing/invoices/sections/TableCard.tsx (294 lines) - table card (pages  purchasing invoices sections)
 - `TableCard` (export function)
+
+## src/pages/Purchasing/invoices/sections/TravelStipendsTable.tsx (428 lines) - travel stipends table (pages  purchasing invoices sections)
+- `TravelStipend` (export interface)
+- `TravelStipendsTableProps` (interface)
+- `TravelStipendsTable` (export function)
+    - `fetchStipends` (fn)
+    - `handleUpdateStatus` (fn)
+    - `filteredStipends` (fn)
+    - `renderStatusBadge` (fn)
 
 ## src/pages/Purchasing/myApprovals/hooks/useMyApprovals.ts (9 lines) - use my approvals (pages  purchasing my approvals hooks)
 - `useMyApprovals` (export function)
@@ -2055,7 +2083,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `Narrowed` (type) - Names tested by the early-return guards are known to be set once the guards have passed.
 - `PurchaseRequestDetailGuardedState` (export type)
 
-## src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailActions.ts (483 lines) - use purchase request detail actions (pages  purchasing purchase request detail hooks)
+## src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailActions.ts (485 lines) - use purchase request detail actions (pages  purchasing purchase request detail hooks)
 - `usePurchaseRequestDetailActions` (export function)
     - `navigate` (fn)
     - `queryClient` (fn)
@@ -2097,7 +2125,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/purchaseRequestDetail/sections/MainRequestHeaderBanner.tsx (362 lines) - main request header banner (pages  purchasing purchase request detail sections)
 - `MainRequestHeaderBanner` (export function)
 
-## src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx (361 lines) - record invoice dialog (pages  purchasing purchase request detail sections)
+## src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx (366 lines) - Receipts belong to one payment: an installment only lists the files saved for that installment,
 - `RecordInvoiceDialog` (export function)
 
 ## src/pages/Purchasing/purchaseRequestDetail/sections/RequestDetailsPropertyTable.tsx (163 lines) - request details property table (pages  purchasing purchase request detail sections)
@@ -2179,7 +2207,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/quickBooks/hooks/useQuickBooksActions2.ts (255 lines) - Distinct valid IDs in current filtered items
 - `useQuickBooksActions2` (export function)
 
-## src/pages/Purchasing/quickBooks/sections/BreadcrumbTopBar.tsx (92 lines) - breadcrumb top bar (pages  purchasing quick books sections)
+## src/pages/Purchasing/quickBooks/sections/BreadcrumbTopBar.tsx (94 lines) - breadcrumb top bar (pages  purchasing quick books sections)
 - `BreadcrumbTopBar` (export function)
 
 ## src/pages/Purchasing/quickBooks/sections/ExportArchiveCard.tsx (94 lines) - export archive card (pages  purchasing quick books sections)
@@ -2214,7 +2242,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `formatDisplayDateTime` (export function)
 - `isMaItem` (export function)
 
-## src/pages/Purchasing/recurringPayments/RecurringPaymentsBody.tsx (409 lines) - recurring payments body (pages  purchasing recurring payments)
+## src/pages/Purchasing/recurringPayments/RecurringPaymentsBody.tsx (423 lines) - recurring payments body (pages  purchasing recurring payments)
 - `RecurringPaymentsBody` (export function)
     - `fit` (fn)
 
@@ -2227,10 +2255,10 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `Narrowed` (type) - Names tested by the early-return guards are known to be set once the guards have passed.
 - `RecurringPaymentsGuardedState` (export type)
 
-## src/pages/Purchasing/recurringPayments/hooks/useRecurringPaymentsActions.ts (356 lines) - Role check: Only TREASURY, AP, and SUPER_ADMIN
+## src/pages/Purchasing/recurringPayments/hooks/useRecurringPaymentsActions.ts (391 lines) - Role check: Only TREASURY, AP, and SUPER_ADMIN
 - `useRecurringPaymentsActions` (export function)
 
-## src/pages/Purchasing/recurringPayments/hooks/useRecurringPaymentsActions2.ts (447 lines) - use recurring payments actions2 (pages  purchasing recurring payments hooks)
+## src/pages/Purchasing/recurringPayments/hooks/useRecurringPaymentsActions2.ts (476 lines) - use recurring payments actions2 (pages  purchasing recurring payments hooks)
 - `useRecurringPaymentsActions2` (export function)
     - `updateMutation` (fn)
     - `deleteMutation` (fn)
@@ -2246,7 +2274,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/recurringPayments/hooks/useRecurringPaymentsActions3.ts (38 lines) - Calendar calculations
 - `useRecurringPaymentsActions3` (export function)
 
-## src/pages/Purchasing/recurringPayments/hooks/useRecurringPaymentsDerived.ts (204 lines) - Helper to check if a recurring request is strictly synced from M&A
+## src/pages/Purchasing/recurringPayments/hooks/useRecurringPaymentsDerived.ts (291 lines) - Helper to check if a recurring request is strictly synced from M&A
 - `useRecurringPaymentsDerived` (export function)
 
 ## src/pages/Purchasing/recurringPayments/hooks/useRecurringPaymentsTail.ts (10 lines) - use recurring payments tail (pages  purchasing recurring payments hooks)
@@ -2259,13 +2287,13 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/recurringPayments/sections/CalendarItemQuickPreview.tsx (183 lines) - calendar item quick preview (pages  purchasing recurring payments sections)
 - `CalendarItemQuickPreview` (export function)
 
-## src/pages/Purchasing/recurringPayments/sections/CompactInteractiveKpiFilter.tsx (176 lines) - compact interactive kpi filter (pages  purchasing recurring payments sections)
+## src/pages/Purchasing/recurringPayments/sections/CompactInteractiveKpiFilter.tsx (268 lines) - compact interactive kpi filter (pages  purchasing recurring payments sections)
 - `CompactInteractiveKpiFilter` (export function)
 
-## src/pages/Purchasing/recurringPayments/sections/CreateRecurringRequestModal.tsx (299 lines) - create recurring request modal (pages  purchasing recurring payments sections)
+## src/pages/Purchasing/recurringPayments/sections/CreateRecurringRequestModal.tsx (320 lines) - create recurring request modal (pages  purchasing recurring payments sections)
 - `CreateRecurringRequestModal` (export function)
 
-## src/pages/Purchasing/recurringPayments/sections/EditRecurringRequestModal.tsx (306 lines) - edit recurring request modal (pages  purchasing recurring payments sections)
+## src/pages/Purchasing/recurringPayments/sections/EditRecurringRequestModal.tsx (327 lines) - edit recurring request modal (pages  purchasing recurring payments sections)
 - `EditRecurringRequestModal` (export function)
 
 ## src/pages/Purchasing/recurringPayments/sections/RecurringRequestsTable.tsx (305 lines) - recurring requests table (pages  purchasing recurring payments sections)
@@ -2319,7 +2347,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions2.ts (279 lines) - use request detail actions2 (pages  purchasing request detail hooks)
 - `useRequestDetailActions2` (export function)
 
-## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions3.ts (341 lines) - use request detail actions3 (pages  purchasing request detail hooks)
+## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions3.ts (357 lines) - use request detail actions3 (pages  purchasing request detail hooks)
 - `useRequestDetailActions3` (export function)
 
 ## src/pages/Purchasing/requestDetail/hooks/useRequestDetailTail.ts (12 lines) - use request detail tail (pages  purchasing request detail hooks)
@@ -2601,7 +2629,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `ReceivableEmailItem` (export interface)
 - `ReceivableEmailsResponse` (export interface)
 
-## src/services/purchasingService.ts (770 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
+## src/services/purchasingService.ts (786 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
 - `RequestListFilters` (export type)
 - `buildQuery` (function)
 - `getSummary` (export function)
@@ -2613,6 +2641,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `getRequest` (export function)
 - `getRequestMessages` (export function)
 - `postRequestMessage` (export function)
+- `recordTaxEstimate` (export function) - Reports this screen's address-based tax rate; the server records the resulting after-tax amount.
 - `deleteRequestMessage` (export function) - Delete a thread message (sender or super admin).
 - `createSecureInfoRequest` (export function) - ─── Secure info requests (account credentials) ───
 - `submitSecureInfo` (export function)
@@ -2661,6 +2690,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `getWireStatusCounts` (export function)
 - `getPreviousWirePayments` (export function) - Latest payment of each Rent/Note wire series (vendor + payment type), to pre-fill the next payment.
 - `getPayFromEntities` (export function)
+- `getVendorLatestPayment` (export function)
 - `updateWireTransfer` (export function)
 - `BankingCountry` (export interface)
 - `BankingFieldSpec` (export interface)
@@ -2769,7 +2799,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `EntityDeleteResult` (export interface)
 - `EntityBatchDeleteResult` (export interface)
 
-## src/types/purchasing.ts (818 lines) - purchasing (types)
+## src/types/purchasing.ts (824 lines) - purchasing (types)
 - `TaskHistoryItem` (export interface)
 - `RequestType` (export type)
 - `Priority` (export type)

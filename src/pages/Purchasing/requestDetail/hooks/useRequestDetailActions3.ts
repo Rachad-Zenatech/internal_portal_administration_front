@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import * as purchasingService from "@/services/purchasingService";
 import { RequestStatus } from "@/types/purchasing";
@@ -149,6 +150,20 @@ export function useRequestDetailActions3(ctx: RequestDetailGuardedState & Return
     vendorName: purchase_order?.vendor || request.quote_data?.vendor?.name,
     currency: hasCrawledForeignPrice ? crawledOrigCurr : request.currency,
   });
+  // Report this screen's tax rate so the server (and the CEO dashboard) hold the same after-tax amount.
+  const reportedTaxRate = useRef<string | null>(null);
+  useEffect(() => {
+    const reqId = (request as any)?.id;
+    if (!reqId || hasCrawledForeignPrice) return;
+    const serverRate = Number((request as any).tax_rate);
+    const serverTotal = Number((request as any).amount_after_tax);
+    const expected = Math.round((Number(request.amount) || 0) * (1 + reqTax.rate) * 100) / 100;
+    if ((request as any).tax_source === "note" && Math.abs(serverTotal - expected) < 0.01 && Math.abs(serverRate - reqTax.rate) < 0.0001) return;
+    const key = `${reqId}:${reqTax.rate}`;
+    if (reportedTaxRate.current === key) return;
+    reportedTaxRate.current = key;
+    void purchasingService.recordTaxEstimate(reqId, reqTax.rate).catch(() => { reportedTaxRate.current = null; });
+  }, [(request as any)?.id, (request as any)?.tax_source, (request as any)?.amount_after_tax, request?.amount, reqTax.rate, hasCrawledForeignPrice]);
   const actualCostInvoice = (data?.invoices || []).find((i) => i.actual_cost_after_tax != null)
     || (inv?.actual_cost_after_tax != null ? inv : null);
   const recalculatePoUsdTotal = (items: any[], shippingFeeNative: number, rate: number) => {
@@ -335,6 +350,7 @@ export function useRequestDetailActions3(ctx: RequestDetailGuardedState & Return
   const isWaitingApproval = (
     [RequestStatus.WaitingApproval, RequestStatus.UnderReview, "WAITING_APPROVAL", "UNDER_REVIEW"] as readonly string[]
   ).includes(request.status);
-  const isSelfApprovalBlocked = isWaitingApproval && isRequester;
+  // Super admins may approve/reject their own requests (the backend allows it too).
+  const isSelfApprovalBlocked = isWaitingApproval && isRequester && !isSuperAdmin;
   return { submitForm, crawledOrigPrice, crawledOrigCurr, hasCrawledForeignPrice, reqTax, actualCostInvoice, recalculatePoUsdTotal, poUsdToNative, poNativeToUsd, poTax, handlePoItemCurrencyChange, isReviewed, canAttachFiles, quoteNativeCurrency, quoteExchangeRate, isForeignQuote, itemsSumNative, quoteShippingNative, quoteTaxNative, quoteDiscountNative, calculatedQuoteTotalNative, statedGrandTotalNative, statedGrandTotalUsd, totalsMatch, vendorCompanyName, customerCompanyName, isPrivilegedPurchasingRole, canEditRequest, isSelfApprovalBlocked };
 }

@@ -285,6 +285,8 @@ export type AttachmentInfo = {
   uploaded_at: string;
   uploaded_by?: string | null;
   uploader_name?: string | null;
+  /** Payment installment of a recurring request this receipt belongs to; absent for request-level files. */
+  installment?: string | null;
 };
 
 export type RequestMessageItem = {

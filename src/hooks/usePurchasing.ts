@@ -214,10 +214,13 @@ export function useAttachments(requestId: string | undefined) {
   });
 }
 
-export function useUploadAttachments(requestId: string) {
+export function useUploadAttachments(requestId: string, installment?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (files: File[]) => purchasing.uploadAttachments(requestId, files),
+    mutationFn: (arg: File[] | { files: File[]; installment?: string }) =>
+      Array.isArray(arg)
+        ? purchasing.uploadAttachments(requestId, arg, installment)
+        : purchasing.uploadAttachments(requestId, arg.files, arg.installment ?? installment),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchasing", "attachments", requestId] });
       qc.invalidateQueries({ queryKey: keys.request(requestId) });

@@ -81,9 +81,9 @@ export function ApprovalsTab({ v }: { v: RequestDetailViewState }) {
                       {/* Level 2 Approver Card */}
                       {(request.requires_second_level || (request.amount && Number(request.amount) >= 10000) || request.level_2_approver_name || request.second_level_requested) && (
                         <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs space-y-2.5">
-                          <div className="flex items-start justify-between gap-2.5">
-                            <div className="flex items-start gap-2.5 min-w-0">
-                              <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 shrink-0 mt-0.5">
+                          <div className="flex items-center justify-between gap-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 shrink-0">
                                 <ShieldCheck className="h-4 w-4" />
                               </div>
                               <div className="min-w-0">
@@ -92,13 +92,13 @@ export function ApprovalsTab({ v }: { v: RequestDetailViewState }) {
                                     ? request.level_2_approver_name
                                     : "Shaun Passley (CEO)"}
                                 </div>
-                                <div className="text-[10.5px] text-purple-600 dark:text-purple-400 mt-0.5 flex items-center gap-1">
-                                  <span>Level 2 • Company Approver</span>
-                                  <span className="text-[9.5px] px-1 py-0.2 rounded bg-purple-100 dark:bg-purple-900/60 font-medium">≥ $10k</span>
+                                <div className="text-[10.5px] text-purple-600 dark:text-purple-400 mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                  <span className="whitespace-nowrap">Level 2 • Company Approver</span>
+                                  <span className="text-[9.5px] px-1 py-0.5 rounded whitespace-nowrap bg-purple-100 dark:bg-purple-900/60 font-medium">≥ $10k</span>
                                 </div>
                               </div>
                             </div>
-                            <div className="shrink-0 flex items-center">
+                            <div className="shrink-0 flex items-center whitespace-nowrap">
                               {request.level_2_approved_at || (request.status === "APPROVED" && (request.current_approval_level || 1) >= 2) || (request.status === "PURCHASED" && request.requires_second_level) ? (
                                 <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-[10px] font-medium gap-1">
                                   <CheckCircle2 className="h-3 w-3" /> Approved

@@ -77,6 +77,11 @@ export function postRequestMessage(id: string, payload: RequestMessageCreate) {
   return apiClient.post<RequestMessageItem>(`${BASE}/requests/${id}/messages`, payload);
 }
 
+/** Reports this screen's address-based tax rate; the server records the resulting after-tax amount. */
+export function recordTaxEstimate(id: string | number, rate: number) {
+  return apiClient.post<{ updated: boolean }>(`${BASE}/requests/${id}/tax-estimate`, { rate });
+}
+
 /** Delete a thread message (sender or super admin). Its text is wiped; a "deleted" marker stays. */
 export function deleteRequestMessage(id: string, messageId: number) {
   return apiClient.delete<void>(`${BASE}/requests/${id}/messages/${messageId}`);
@@ -238,10 +243,11 @@ export function listAttachments(requestId: string) {
   return apiClient.get<AttachmentInfo[]>(`${BASE}/requests/${requestId}/attachments`);
 }
 
-export async function uploadAttachments(requestId: string, files: File[]) {
+export async function uploadAttachments(requestId: string, files: File[], installment?: string) {
   const optimizedFiles = await compressAttachmentsBeforeUpload(files);
   const form = new FormData();
   optimizedFiles.forEach((file) => form.append("files", file));
+  if (installment) form.append("installment", installment);
   return apiClient.post<AttachmentInfo[]>(`${BASE}/requests/${requestId}/attachments`, form);
 }
 
