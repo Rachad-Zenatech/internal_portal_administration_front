@@ -49,13 +49,28 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
   const { data: config } = useQuery<WorkflowConfigResponse>({
     queryKey: ["experimental-workflow", domain],
     queryFn: () => experimentalWorkflowService.getWorkflowConfig(domain),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
+
+  // Local state for nodes so UI updates instantly and reliably
+  const [localNodes, setLocalNodes] = useState<WorkflowStepNode[] | null>(null);
+
+  useEffect(() => {
+    if (config?.nodes) {
+      setLocalNodes(config.nodes);
+    }
+  }, [config?.nodes]);
+
+  const nodes = localNodes ?? config?.nodes ?? [];
 
   const saveMutation = useMutation({
     mutationFn: (updatedNodes: WorkflowStepNode[]) =>
       experimentalWorkflowService.saveWorkflowConfig(domain, { nodes: updatedNodes }),
     onMutate: async (updatedNodes: WorkflowStepNode[]) => {
       // Optimistic instant UI update
+      setLocalNodes(updatedNodes);
       await queryClient.cancelQueries({ queryKey: ["experimental-workflow", domain] });
       const previous = queryClient.getQueryData<WorkflowConfigResponse>(["experimental-workflow", domain]);
       if (previous) {
@@ -68,12 +83,15 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     },
     onError: (err: any, _vars, context) => {
       if (context?.previous) {
+        setLocalNodes(context.previous.nodes);
         queryClient.setQueryData(["experimental-workflow", domain], context.previous);
       }
       toast.error(err?.message || "Failed to save workflow");
     },
     onSuccess: (data: WorkflowConfigResponse) => {
-      // Direct cache update with the confirmed server response
+      if (data?.nodes) {
+        setLocalNodes(data.nodes);
+      }
       queryClient.setQueryData(["experimental-workflow", domain], data);
       toast.success("Workflow flow configuration saved successfully!");
     },
@@ -81,8 +99,11 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
 
   const resetMutation = useMutation({
     mutationFn: () => experimentalWorkflowService.resetWorkflowConfig(domain),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["experimental-workflow", domain] });
+    onSuccess: (data: WorkflowConfigResponse) => {
+      if (data?.nodes) {
+        setLocalNodes(data.nodes);
+      }
+      queryClient.setQueryData(["experimental-workflow", domain], data);
       toast.success("Workflow reset to original baseline template");
     },
     onError: (err: any) => {
@@ -117,8 +138,6 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
   const [actionType, setActionType] = useState<"NEXT_STEP" | "PREV_STEP" | "TRIGGER_API" | "CUSTOM">("NEXT_STEP");
   const [actionTarget, setActionTarget] = useState("");
   const [actionFields, setActionFields] = useState<WorkflowActionField[]>([]);
-
-  const nodes = config?.nodes || [];
 
   // Sync active step with URL query param if present
   useEffect(() => {
