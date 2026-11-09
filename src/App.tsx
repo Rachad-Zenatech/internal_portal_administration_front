@@ -28,6 +28,8 @@ const Companies = lazy(() => import("./pages/Configurations/Companies"));
 
 const AuditLog = lazy(() => import("./pages/Logs/AuditLog"));
 const PurchaseRequests = lazy(() => import("./pages/Purchasing/PurchaseRequests"));
+const PurchaseRequestsWorkflowAuto = lazy(() => import("./pages/Purchasing/WorkflowAuto/PurchaseRequestsWorkflowAuto"));
+const APInvoicesWorkflowAuto = lazy(() => import("./pages/Purchasing/WorkflowAuto/APInvoicesWorkflowAuto"));
 const RequestDetail = lazy(() => import("./pages/Purchasing/RequestDetail"));
 const Invoices = lazy(() => import("./pages/Purchasing/Invoices"));
 const QuickBooksPage = lazy(() => import("./pages/Purchasing/QuickBooksPage"));
@@ -87,6 +89,8 @@ function App() {
               {/* Purchasing + Accounts Payable */}
               <Route path="/purchasing" element={<Navigate to="/purchasing/requests" replace />} />
               <Route path="/purchasing/requests" element={<ProtectedRoute><PurchaseRequests /></ProtectedRoute>} />
+              <Route path="/purchasing/requests-workflow-auto" element={<ProtectedRoute><PurchaseRequestsWorkflowAuto /></ProtectedRoute>} />
+              <Route path="/purchasing/invoices-workflow-auto" element={<ProtectedRoute navigationCode="INVOICES"><APInvoicesWorkflowAuto /></ProtectedRoute>} />
               <Route path="/purchasing/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
               <Route path="/purchasing/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
               {/* No navigationCode: purchase requesters see their own recurring requests; RecurringPayments gates access itself. */}
