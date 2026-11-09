@@ -21,10 +21,13 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
     );
   };
   // Helper to check if a recurring request is an Accounts Payable / Wire transfer request
+  // Includes all level-2 sub-nav items under A/P (such as M&A Scheduled Payments)
   const isApTransaction = (r: PurchaseRequest | any) => {
     if (!r) return false;
     const cat = String(r.category || r.request_type || "").toUpperCase();
     return (
+      isMaTransaction(r) ||
+      cat === "SCHEDULED_PAYMENT" ||
       cat === "ACCOUNTS_PAYABLE" ||
       cat === "AP" ||
       cat === "WIRE_TRANSFER" ||

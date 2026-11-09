@@ -133,6 +133,10 @@ export function useRecurringPaymentsActions() {
     let subTitle: string | undefined;
     if (viewMode === "calendar") {
       subTitle = "Calendar View";
+    } else if (cardFilter === "PURCHASE_REQUESTS" || cardFilter === "REQUESTS") {
+      subTitle = "Purchase Requests";
+    } else if (cardFilter === "AP" || cardFilter === "ACCOUNTS_PAYABLE") {
+      subTitle = "A/P (Accounts Payable)";
     } else if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
       subTitle = "M&A Scheduled Payments";
     } else if (cardFilter === "DUE_SOON") {

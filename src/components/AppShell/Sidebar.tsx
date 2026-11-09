@@ -94,6 +94,8 @@ export default function Sidebar({
     if (path.includes("/purchasing/recurring")) {
       const searchParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
       const filterKey = searchParams.get("filter")?.toUpperCase();
+      if (filterKey === "PURCHASE_REQUESTS" || filterKey === "REQUESTS") return purchasingSummary.recurring_purchase_requests_count ?? 0;
+      if (filterKey === "AP" || filterKey === "ACCOUNTS_PAYABLE") return purchasingSummary.recurring_ap_count ?? 0;
       if (filterKey === "MA_SCHEDULED" || filterKey === "SCHEDULED") return purchasingSummary.recurring_scheduled_count ?? 0;
       if (filterKey === "DUE_SOON") return purchasingSummary.recurring_due_soon_count ?? 0;
       if (filterKey === "WAITING_REVIEW") return purchasingSummary.recurring_waiting_review ?? 0;

@@ -388,6 +388,8 @@ export type PurchasingSummary = {
   status_counts: Record<string, number>;
   status_amounts?: Record<string, number>;
   recurring_total?: number;
+  recurring_purchase_requests_count?: number;
+  recurring_ap_count?: number;
   recurring_scheduled_count?: number;
   recurring_due_soon_count?: number;
   recurring_due_soon_amount?: number;
