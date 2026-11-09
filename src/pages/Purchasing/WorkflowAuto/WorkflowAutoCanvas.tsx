@@ -331,12 +331,17 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
           <Button
             size="sm"
             variant="outline"
-            onClick={() => resetMutation.mutate()}
+            onClick={() => {
+              if (window.confirm("Reset workflow back to the standard Purchase Request production flow?")) {
+                resetMutation.mutate();
+              }
+            }}
             disabled={resetMutation.isPending}
             className="text-xs h-8 gap-1.5"
+            title="Load the standard production purchase request flow"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Reset to Baseline
+            Reset to Standard Flow
           </Button>
           <Button
             size="sm"
