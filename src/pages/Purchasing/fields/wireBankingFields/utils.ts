@@ -11,7 +11,7 @@ export function getLocalCountryDefaults(countryStr?: string) {
     return {
       required: ["bank_name", "bank_country", "bank_account_number", "transit_code_ca", "institution_code"],
       bankFields: ["bank_country", "bank_name", "bank_account_number"],
-      clearingFields: ["transit_code_ca", "institution_code", "swift_code"],
+      clearingFields: ["transit_code_ca", "transit_number_ca", "institution_code", "swift_code"],
     };
   }
   if (c.includes("united kingdom") || c === "gb" || c === "uk") {

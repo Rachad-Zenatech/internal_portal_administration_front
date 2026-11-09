@@ -8,11 +8,10 @@ import { FiltersSearchToolbar } from "./invoices/sections/FiltersSearchToolbar";
 import { TableCard } from "./invoices/sections/TableCard";
 import { ReadOnlyWireInfo } from "./invoices/sections/ReadOnlyWireInfo";
 import { CreateWireTransferDialog } from "./dialogs/CreateWireTransferDialog";
-import { AddBusinessContactDialog } from "@/components/Configurations/AddBusinessContactDialog";
 
 export default function Invoices() {
   const s = useInvoices();
-  const { isLoading, fetchTasks, metrics, canCreateWire, isCreateWireOpen, setIsCreateWireOpen, createPrefill, setCreatePrefill } = s;
+  const { isLoading, fetchTasks, metrics, canCreateWire, isCreateWireOpen, setIsCreateWireOpen, createWireTitle, setCreateWireTitle, createPrefill, setCreatePrefill } = s;
   return (
     <div className="w-full flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out pb-8">
       {/* ── Page Header ── */}
@@ -49,24 +48,33 @@ export default function Invoices() {
             <span>Refresh</span>
           </Button>
           {canCreateWire && (
-            <AddBusinessContactDialog
-              accountSide="ap"
-              triggerLabel="pay a payable"
-              triggerClassName="h-9 gap-1.5 text-xs font-medium border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs cursor-pointer"
-            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCreatePrefill(null);
+                setCreateWireTitle("Create a payable");
+                setIsCreateWireOpen(true);
+              }}
+              className="h-9 gap-1.5 text-xs font-medium border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Create a payable</span>
+            </Button>
           )}
           {canCreateWire && (
-          <Button
-            size="sm"
-            onClick={() => {
-              setCreatePrefill(null);
-              setIsCreateWireOpen(true);
-            }}
-            className="h-9 gap-1.5 text-xs font-medium shadow-sm bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Create Wire Transfer</span>
-          </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setCreatePrefill(null);
+                setCreateWireTitle("Create Wire Transfer");
+                setIsCreateWireOpen(true);
+              }}
+              className="h-9 gap-1.5 text-xs font-medium shadow-sm bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create Wire Transfer</span>
+            </Button>
           )}
         </div>
       </div>
@@ -80,8 +88,16 @@ export default function Invoices() {
       {/* ── Table Card ── */}
       <TableCard s={s} />
 
-      {/* ── Create Wire Transfer ── */}
-      {canCreateWire && <CreateWireTransferDialog open={isCreateWireOpen} onOpenChange={setIsCreateWireOpen} onCreated={fetchTasks} prefill={createPrefill} />}
+      {/* ── Create Wire Transfer / Create a payable ── */}
+      {canCreateWire && (
+        <CreateWireTransferDialog
+          open={isCreateWireOpen}
+          onOpenChange={setIsCreateWireOpen}
+          onCreated={fetchTasks}
+          prefill={createPrefill}
+          dialogTitle={createWireTitle}
+        />
+      )}
 
       {/* ── Read-Only Wire Info Details Dialog ── */}
       <ReadOnlyWireInfo s={s} />

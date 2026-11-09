@@ -14,10 +14,12 @@ interface Props {
   onCreated?: () => void;
   /** start from an earlier Rent/Note payment instead of a blank form */
   prefill?: WirePrefill | null;
+  /** Dialog title override, e.g. "Create a payable" */
+  dialogTitle?: string;
 }
 
-/** Creates a wire transfer (request type "Wire Transfer"); this replaced the "Wire Transfer" option of the purchase request dialog. */
-export function CreateWireTransferDialog({ open, onOpenChange, onCreated, prefill }: Props) {
+/** Creates a wire transfer or accounts payable request; captures general payment & full banking clearing fields. */
+export function CreateWireTransferDialog({ open, onOpenChange, onCreated, prefill, dialogTitle }: Props) {
   const s = useCreateWireTransfer(open, onOpenChange, onCreated, prefill);
   const { wire, setWire, title, setTitle, requester, setRequester, department, setDepartment, setFile, fileInputRef, category, isRecurring, isSubmitting } = s;
 
@@ -30,9 +32,9 @@ export function CreateWireTransferDialog({ open, onOpenChange, onCreated, prefil
             <span className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-sm">
               <Landmark className="h-5 w-5" />
             </span>
-            Create Wire Transfer
+            {dialogTitle || "Create Wire Transfer"}
           </DialogTitle>
-          <DialogDescription className="sr-only">Create a new wire transfer request</DialogDescription>
+          <DialogDescription className="sr-only">{dialogTitle || "Create a new wire transfer request"}</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5">

@@ -217,6 +217,45 @@ export function Card1BeneficiaryBank({ s }: { s: WireBankingFieldsState }) {
             </div>
           )}
 
+          {visibleBankFields.includes("bank_address") && (
+            <div className="space-y-1.5 sm:col-span-2 md:col-span-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Bank Address
+                  {requiredFieldKeys.has("bank_address") && (
+                    <span className="text-red-500 font-bold ml-0.5">*</span>
+                  )}
+                </label>
+                <div className="flex items-center gap-1.5">
+                  {validationErrors.bank_address && (
+                    <span className="text-[10px] text-red-500 font-medium">Required</span>
+                  )}
+                  {!requiredFieldKeys.has("bank_address") && (
+                    <button
+                      type="button"
+                      onClick={() => removeBankField("bank_address")}
+                      className="text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                      title="Remove field"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <Input
+                value={form.bank_address || ""}
+                onChange={(e) => {
+                  setForm({ ...form, bank_address: e.target.value });
+                  setValidationErrors?.((prev) => ({ ...prev, bank_address: false }));
+                }}
+                placeholder="Bank branch street address, city, country"
+                className={`h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50 ${
+                  validationErrors.bank_address ? "border-red-500 focus-visible:ring-red-500" : ""
+                }`}
+              />
+            </div>
+          )}
+
           {visibleBankFields.includes("region") && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">

@@ -42,7 +42,8 @@ const CLEARING_CODES_CATALOG: BankFieldDef[] = [
   { id: "swift_code", label: "SWIFT / BIC Code", category: "clearing", placeholder: "8 or 11 chars (e.g. BOFAUS3N)", description: "ISO 9362 international bank identifier", badge: "GLOBAL" },
   { id: "iban", label: "IBAN", category: "clearing", placeholder: "e.g. GB29 XAAA 2000 0123 4567 89", description: "International Bank Account Number", badge: "EU / UK / INTL" },
   { id: "sort_code", label: "Sort Code", category: "clearing", placeholder: "6 digits (e.g. 20-00-00)", description: "UK 6-digit domestic clearing code", badge: "UK" },
-  { id: "transit_code_ca", label: "Transit Number", category: "clearing", placeholder: "5 digits (e.g. 12345)", description: "Canadian 5-digit branch transit code", badge: "CA" },
+  { id: "transit_code_ca", label: "Transit Code (Canada)", category: "clearing", placeholder: "5 digits (e.g. 12345)", description: "Canadian 5-digit branch transit code", badge: "CA" },
+  { id: "transit_number_ca", label: "Transit Number for Canada", category: "clearing", placeholder: "Canadian Transit Number", description: "Canadian financial transit number", badge: "CA" },
   { id: "institution_code", label: "Institution Code", category: "clearing", placeholder: "3 digits (e.g. 004)", description: "Canadian 3-digit financial institution code", badge: "CA" },
   { id: "branch_code", label: "Branch Code", category: "clearing", placeholder: "Branch / Sub-office Code", description: "Domestic branch clearing identifier", badge: "APAC" },
   { id: "bsb_australia", label: "BSB Number", category: "clearing", placeholder: "6 digits (e.g. 062-000)", description: "Australian Bank State Branch clearing code", badge: "AU" },
@@ -63,7 +64,7 @@ function getCountryDefaultFields(countryName: string) {
   if (c.includes("canada") || c === "ca") {
     return {
       bankFields: ["bank_country", "bank_name", "bank_account_number"],
-      clearingFields: ["transit_code_ca", "institution_code", "swift_code"],
+      clearingFields: ["transit_code_ca", "transit_number_ca", "institution_code", "swift_code"],
     };
   }
   if (c.includes("united kingdom") || c === "gb" || c === "uk") {

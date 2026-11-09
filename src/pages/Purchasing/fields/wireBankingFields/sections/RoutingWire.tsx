@@ -301,6 +301,45 @@ export function RoutingWire({ s }: { s: WireBankingFieldsState }) {
             </div>
           )}
 
+          {visibleClearingFields.includes("transit_number_ca") && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Transit Number for Canada
+                  {requiredFieldKeys.has("transit_number_ca") && (
+                    <span className="text-red-500 font-bold ml-0.5">*</span>
+                  )}
+                </label>
+                <div className="flex items-center gap-1.5">
+                  {validationErrors.transit_number_ca && (
+                    <span className="text-[10px] text-red-500 font-medium">Required</span>
+                  )}
+                  {!requiredFieldKeys.has("transit_number_ca") && (
+                    <button
+                      type="button"
+                      onClick={() => removeClearingField("transit_number_ca")}
+                      className="text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                      title="Remove field"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <Input
+                value={form.transit_number_ca || ""}
+                onChange={(e) => {
+                  setForm({ ...form, transit_number_ca: e.target.value });
+                  setValidationErrors?.((prev) => ({ ...prev, transit_number_ca: false }));
+                }}
+                placeholder="Canadian transit number"
+                className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
+                  validationErrors.transit_number_ca ? "border-red-500 focus-visible:ring-red-500" : ""
+                }`}
+              />
+            </div>
+          )}
+
           {visibleClearingFields.includes("institution_code") && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -452,6 +491,45 @@ export function RoutingWire({ s }: { s: WireBankingFieldsState }) {
                 placeholder="Bank code or CNAPS"
                 className={`h-9 text-xs font-mono bg-slate-50/50 dark:bg-zinc-800/50 ${
                   validationErrors.bank_code ? "border-red-500 focus-visible:ring-red-500" : ""
+                }`}
+              />
+            </div>
+          )}
+
+          {visibleClearingFields.includes("contact_name_china") && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Contact Name (Specifically for China)
+                  {requiredFieldKeys.has("contact_name_china") && (
+                    <span className="text-red-500 font-bold ml-0.5">*</span>
+                  )}
+                </label>
+                <div className="flex items-center gap-1.5">
+                  {validationErrors.contact_name_china && (
+                    <span className="text-[10px] text-red-500 font-medium">Required</span>
+                  )}
+                  {!requiredFieldKeys.has("contact_name_china") && (
+                    <button
+                      type="button"
+                      onClick={() => removeClearingField("contact_name_china")}
+                      className="text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                      title="Remove field"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <Input
+                value={form.contact_name_china || ""}
+                onChange={(e) => {
+                  setForm({ ...form, contact_name_china: e.target.value });
+                  setValidationErrors?.((prev) => ({ ...prev, contact_name_china: false }));
+                }}
+                placeholder="Recipient contact name specifically for China"
+                className={`h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50 ${
+                  validationErrors.contact_name_china ? "border-red-500 focus-visible:ring-red-500" : ""
                 }`}
               />
             </div>

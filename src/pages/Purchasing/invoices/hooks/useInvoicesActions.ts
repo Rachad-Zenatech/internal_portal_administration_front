@@ -22,6 +22,7 @@ export function useInvoicesActions() {
     setStatusFilter(urlStatus);
   }, [urlStatus]);
   const [isCreateWireOpen, setIsCreateWireOpen] = useState(false);
+  const [createWireTitle, setCreateWireTitle] = useState<string>("Create Wire Transfer");
   const [createPrefill, setCreatePrefill] = useState<{ requestId: number; category: string } | null>(null);
   // "Create next payment" on a Rent/Note payment links here: /purchasing/invoices?newFrom=<request id>&category=Rent
   const newFrom = searchParams.get("newFrom");
@@ -291,5 +292,5 @@ export function useInvoicesActions() {
     setTypeFilter("ALL");
     setQuickFilter("ALL");
   };
-  return { navigate, canCreateWire, isCreateWireOpen, setIsCreateWireOpen, createPrefill, setCreatePrefill, tasks, isLoading, searchQuery, setSearchQuery, statusFilter, setStatusFilter, wireFilter, setWireFilter, typeFilter, setTypeFilter, quickFilter, setQuickFilter, selectedWireTask, setSelectedWireTask, copiedKey, isWireTransfer, isScheduledPayment, isDueToday, isOverdue, fetchTasks, handleCopy, handleCopyAllBankingDetails, quickFilterCounts, metrics, filteredTasks, hasActiveFilters, clearFilters };
+  return { navigate, canCreateWire, isCreateWireOpen, setIsCreateWireOpen, createWireTitle, setCreateWireTitle, createPrefill, setCreatePrefill, tasks, isLoading, searchQuery, setSearchQuery, statusFilter, setStatusFilter, wireFilter, setWireFilter, typeFilter, setTypeFilter, quickFilter, setQuickFilter, selectedWireTask, setSelectedWireTask, copiedKey, isWireTransfer, isScheduledPayment, isDueToday, isOverdue, fetchTasks, handleCopy, handleCopyAllBankingDetails, quickFilterCounts, metrics, filteredTasks, hasActiveFilters, clearFilters };
 }
