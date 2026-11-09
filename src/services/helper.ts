@@ -49,6 +49,17 @@ export async function handleResponse<T>(res: Response): Promise<T> {
       const parsed = detail as { code?: string; message?: string };
       code = parsed.code;
       detail = parsed.message;
+    } else if (Array.isArray(detail)) {
+      detail = detail
+        .map((d: any) => {
+          if (typeof d === "string") return d;
+          if (d && typeof d === "object") {
+            const loc = Array.isArray(d.loc) ? d.loc.filter((part: any) => part !== "body").join(".") : "";
+            return loc ? `${loc}: ${d.msg || JSON.stringify(d)}` : d.msg || JSON.stringify(d);
+          }
+          return String(d);
+        })
+        .join("; ");
     }
     let msg = typeof detail === "string" ? detail : "Request failed";
 

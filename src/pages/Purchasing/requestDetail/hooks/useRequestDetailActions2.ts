@@ -239,7 +239,7 @@ export function useRequestDetailActions2(ctx: RequestDetailGuardedState) {
 
       setPo({
         vendor: purchase_order?.vendor || quoteVendor || (info && isUsable(info.vendor) ? info.vendor : ""),
-        item: isMultiReq ? (parsedPoItems.length ? `Multi Parts (${parsedPoItems.length} parts)` : (request.title || "Multi Parts")) : (request.title || (info && isUsable(info.name) ? info.name : "")),
+        item: (isMultiReq ? (parsedPoItems.length ? `Multi Parts (${parsedPoItems.length} parts)` : (request.title || "Multi Parts")) : (request.title || (info && isUsable(info.name) ? info.name : ""))).slice(0, 200),
         quantity: isMultiReq ? (parsedPoItems.length || 1) : (request.quantity ?? 1),
         unit_price: singleUnitPrice,
         amount: usdAmount,

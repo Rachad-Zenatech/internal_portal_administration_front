@@ -502,7 +502,7 @@ export function getWireSeriesPayments(requestId: string | number) {
 }
 
 /** Records per status on the wire transfer page (sidebar badges); keys are canonical statuses such as WAITING_PAYMENT. */
-export type WireStatusCounts = { total: number; counts: Record<string, number>; due_today?: number; overdue?: number };
+export type WireStatusCounts = { total: number; counts: Record<string, number>; due_today?: number; due_soon?: number; overdue?: number };
 
 export function getWireStatusCounts() {
   return apiClient.get<WireStatusCounts>("/api/wire-transfers/status-counts");

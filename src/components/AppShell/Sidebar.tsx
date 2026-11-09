@@ -94,6 +94,7 @@ export default function Sidebar({
       if (!wireStatusCounts) return undefined;
       const wireQuick = wireParams.get("filter")?.toUpperCase();
       if (wireQuick === "DUE_TODAY") return wireStatusCounts.due_today ?? 0;
+      if (wireQuick === "DUE_SOON" || wireQuick === "DUE_7_DAYS") return wireStatusCounts.due_soon ?? 0;
       if (wireQuick === "OVERDUE") return wireStatusCounts.overdue ?? 0;
       const wireStatus = wireParams.get("status")?.toUpperCase();
       return wireStatus ? wireStatusCounts.counts[wireStatus] ?? 0 : wireStatusCounts.total;

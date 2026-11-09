@@ -1,7 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScheduleDatesBuilder } from "../../fields/ScheduleDatesBuilder";
-import { GLCodeAutocomplete } from "../../fields/GLCodeAutocomplete";
 import { CurrencyAutocomplete } from "../../fields/CurrencyAutocomplete";
 import type { PurchaseRequestsState } from "../hooks/usePurchaseRequestsPage";
 
@@ -95,14 +94,6 @@ export function RecurringRequestOptions({ s }: { s: PurchaseRequestsState }) {
                   onScheduleDatesChange={setSchedDates}
                   baseAmount={form.amount || 0}
                 />
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
-                  <GLCodeAutocomplete
-                    value={form.gl_code || ""}
-                    onChange={(val) => setForm((prev) => ({ ...prev, gl_code: val }))}
-                  />
-                </div>
               </div>
             )}
     </>
