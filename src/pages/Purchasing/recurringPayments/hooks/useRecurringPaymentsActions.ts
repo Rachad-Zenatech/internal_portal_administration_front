@@ -139,12 +139,24 @@ export function useRecurringPaymentsActions() {
       subTitle = "A/P (Accounts Payable)";
     } else if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
       subTitle = "M&A Scheduled Payments";
-    } else if (cardFilter === "DUE_SOON") {
+    } else if (cardFilter === "DUE_SOON" || cardFilter === "AP_DUE_SOON") {
+      subTitle = "A/P - Due in 7 Days";
+    } else if (cardFilter === "PR_DUE_SOON") {
+      subTitle = "Purchase Requests - Due in 7 Days";
+    } else if (cardFilter === "ALL_DUE_SOON") {
       subTitle = "Due in 7 Days";
     } else if (cardFilter === "WAITING_REVIEW") {
       subTitle = "Waiting for Review";
+    } else if (cardFilter === "PR_WAITING_REVIEW") {
+      subTitle = "Purchase Requests - Waiting for Review";
+    } else if (cardFilter === "AP_WAITING_REVIEW") {
+      subTitle = "A/P - Waiting for Review";
     } else if (cardFilter === "REVIEWED") {
       subTitle = "Reviewed (AP)";
+    } else if (cardFilter === "PR_REVIEWED") {
+      subTitle = "Purchase Requests - Reviewed (AP)";
+    } else if (cardFilter === "AP_REVIEWED") {
+      subTitle = "A/P - Reviewed (AP)";
     } else if (cardFilter === "ON_HOLD") {
       subTitle = "On Hold";
     } else if (cardFilter === "COMPLETED") {
@@ -255,6 +267,7 @@ export function useRecurringPaymentsActions() {
     gl_code: "",
     priority: "MEDIUM",
     is_scheduled: false,
+    payment_domain: "PURCHASE_REQUEST" as "PURCHASE_REQUEST" | "AP",
     frequency: "MONTHLY" as FrequencyType,
     start_date: initialSchedule.start_date,
     end_date: initialSchedule.end_date,
@@ -276,6 +289,7 @@ export function useRecurringPaymentsActions() {
     gl_code: "",
     priority: "MEDIUM",
     is_scheduled: false,
+    payment_domain: "PURCHASE_REQUEST" as "PURCHASE_REQUEST" | "AP",
     frequency: "MONTHLY" as FrequencyType,
     start_date: "",
     end_date: "",
@@ -297,6 +311,10 @@ export function useRecurringPaymentsActions() {
 
     const todayIso = new Date().toISOString().split("T")[0];
     const sched = getInitialDefaultSchedule(todayIso);
+    const defaultDomain: "PURCHASE_REQUEST" | "AP" =
+      cardFilter === "AP" || cardFilter === "ACCOUNTS_PAYABLE" || cardFilter === "DUE_SOON" || cardFilter.startsWith("AP_")
+        ? "AP"
+        : "PURCHASE_REQUEST";
     setNewForm({
       title: "",
       requester: displayName,
@@ -311,6 +329,7 @@ export function useRecurringPaymentsActions() {
       gl_code: "",
       priority: "MEDIUM",
       is_scheduled: false,
+      payment_domain: defaultDomain,
       frequency: "MONTHLY",
       start_date: sched.start_date,
       end_date: sched.end_date,
@@ -353,6 +372,7 @@ export function useRecurringPaymentsActions() {
         gl_code: "",
         priority: "MEDIUM",
         is_scheduled: false,
+        payment_domain: "PURCHASE_REQUEST",
         frequency: "MONTHLY",
         start_date: sched.start_date,
         end_date: sched.end_date,

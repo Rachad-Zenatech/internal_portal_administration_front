@@ -217,13 +217,34 @@ export function EditRecurringRequestModal({ v }: { v: RecurringPaymentsViewState
                     </div>
                   </div>
 
-                  <div className="w-full">
-                    <LocationAutocomplete
-                      value={editForm.location}
-                      onChange={(val) => setEditForm((prev) => ({ ...prev, location: val }))}
-                      placeholder="Search or enter location..."
-                      label="Location"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Payment Category <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                        value={editForm.payment_domain || "PURCHASE_REQUEST"}
+                        onValueChange={(val: "PURCHASE_REQUEST" | "AP") =>
+                          setEditForm({ ...editForm, payment_domain: val })
+                        }
+                      >
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PURCHASE_REQUEST">Purchase Request (Subscriptions &amp; Scheduled)</SelectItem>
+                          <SelectItem value="AP">A/P (Accounts Payable Scheduled)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="w-full">
+                      <LocationAutocomplete
+                        value={editForm.location}
+                        onChange={(val) => setEditForm((prev) => ({ ...prev, location: val }))}
+                        placeholder="Search or enter location..."
+                        label="Location"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">

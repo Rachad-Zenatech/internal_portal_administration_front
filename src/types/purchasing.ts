@@ -117,6 +117,8 @@ export interface CustomScheduleDate {
 
 export interface RecurringSchedule {
   is_scheduled: boolean;
+  payment_domain?: "PURCHASE_REQUEST" | "AP" | string | null;
+  is_ap?: boolean | null;
   frequency: FrequencyType | string;
   start_date: string;
   end_date?: string | null;

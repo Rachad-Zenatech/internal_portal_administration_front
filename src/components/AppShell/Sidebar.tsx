@@ -67,6 +67,13 @@ export default function Sidebar({
 
   const { data: purchasingSummary } = usePurchasingSummary();
   const { data: wireStatusCounts } = useWireStatusCounts();
+  const canSeeInvoices = isSuperAdmin || hasPermission("INVOICES_READ") || hasPermission("INVOICES_VIEW");
+  const { data: travelStipendSummary } = useQuery({
+    queryKey: ["travel-stipends-summary"],
+    queryFn: () => apiClient.get<{ total_stipends?: number }>("/api/purchasing/travel-stipends/summary"),
+    enabled: canSeeInvoices,
+    staleTime: 30 * 1000,
+  });
 
   const canSeeAR = hasPermission("ACCOUNT_RECEIVABLE_READ") || hasPermission("ACCOUNT_RECEIVABLE_VIEW");
   const arStatusCounts = useARStatusCounts(canSeeAR);
@@ -80,8 +87,11 @@ export default function Sidebar({
     }
     // Wire Transfer sub-menu: records per status on the wire transfer page
     if (path.startsWith("/purchasing/invoices")) {
-      if (!wireStatusCounts) return undefined;
       const wireParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
+      if (wireParams.get("tab")?.toLowerCase() === "stipends") {
+        return travelStipendSummary?.total_stipends ?? 0;
+      }
+      if (!wireStatusCounts) return undefined;
       const wireQuick = wireParams.get("filter")?.toUpperCase();
       if (wireQuick === "DUE_TODAY") return wireStatusCounts.due_today ?? 0;
       if (wireQuick === "OVERDUE") return wireStatusCounts.overdue ?? 0;
@@ -97,13 +107,13 @@ export default function Sidebar({
       if (filterKey === "PURCHASE_REQUESTS" || filterKey === "REQUESTS") return purchasingSummary.recurring_purchase_requests_count ?? 0;
       if (filterKey === "AP" || filterKey === "ACCOUNTS_PAYABLE") return purchasingSummary.recurring_ap_count ?? 0;
       if (filterKey === "MA_SCHEDULED" || filterKey === "SCHEDULED") return purchasingSummary.recurring_scheduled_count ?? 0;
-      if (filterKey === "DUE_SOON") return purchasingSummary.recurring_due_soon_count ?? 0;
+      if (filterKey === "DUE_SOON") return (purchasingSummary as any).recurring_split_counts?.AP_DUE_SOON ?? purchasingSummary.recurring_due_soon_count ?? 0;
       if (filterKey === "WAITING_REVIEW") return purchasingSummary.recurring_waiting_review ?? 0;
       if (filterKey === "REVIEWED") return purchasingSummary.recurring_reviewed ?? 0;
       if (filterKey === "ON_HOLD") return purchasingSummary.recurring_on_hold_count ?? 0;
       if (filterKey === "COMPLETED") return purchasingSummary.recurring_completed_count ?? 0;
       if (filterKey === "REJECTED") return purchasingSummary.recurring_rejected ?? 0;
-      if (filterKey && /^(PR|AP)_(COMPLETED|ON_HOLD|REJECTED)$/.test(filterKey)) {
+      if (filterKey && /^(PR|AP)_(DUE_SOON|WAITING_REVIEW|REVIEWED|COMPLETED|ON_HOLD|REJECTED)$/.test(filterKey)) {
         return (purchasingSummary as any).recurring_split_counts?.[filterKey] ?? 0;
       }
       return purchasingSummary.recurring_total ?? 0;
@@ -138,8 +148,15 @@ export default function Sidebar({
       const searchParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
       const filterKey = searchParams.get("filter")?.toUpperCase();
       if (filterKey === "DUE_SOON") return !!notifMap["RECURRING_DUE_SOON"] || (purchasingSummary.recurring_due_soon_count ?? 0) > 0;
-      if (filterKey === "WAITING_REVIEW") return !!notifMap["RECURRING_WAITING_REVIEW"] || (purchasingSummary.recurring_waiting_review ?? 0) > 0;
-      if (filterKey === "REVIEWED") return !!notifMap["RECURRING_REVIEWED"];
+      if (filterKey === "WAITING_REVIEW" || filterKey === "PR_WAITING_REVIEW" || filterKey === "AP_WAITING_REVIEW") {
+        const splitCnt = filterKey === "WAITING_REVIEW"
+          ? (purchasingSummary.recurring_waiting_review ?? 0)
+          : ((purchasingSummary as any).recurring_split_counts?.[filterKey] ?? 0);
+        return splitCnt > 0 || !!notifMap["RECURRING_WAITING_REVIEW"];
+      }
+      if (filterKey === "REVIEWED" || filterKey === "PR_REVIEWED" || filterKey === "AP_REVIEWED") {
+        return !!notifMap["RECURRING_REVIEWED"];
+      }
       if (
         filterKey === "COMPLETED" ||
         filterKey === "ON_HOLD" ||

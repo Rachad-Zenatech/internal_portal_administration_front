@@ -63,12 +63,26 @@ export function useInvoicesActions() {
     );
   };
   const isScheduledPayment = (task: any) => {
+    const src = String(task.source_portal || "").toLowerCase().trim();
+    const isMa =
+      task.is_ma === true ||
+      task.transaction_type === "MA_TRANSACTION" ||
+      src === "m7a" ||
+      src === "m&a" ||
+      src === "m_and_a" ||
+      src === "ma";
+    if (isMa) return true;
     const cat = String(task.category || task.request_type || "").toUpperCase();
-    return (
-      cat === "SCHEDULED_PAYMENT" ||
-      cat === "RECURRING" ||
-      !!task.recurring_schedule
-    );
+    if (cat === "SCHEDULED_PAYMENT" || cat === "RECURRING" || !!task.recurring_schedule) {
+      const domain = String(
+        task.recurring_schedule?.payment_domain || task.quote_data?.payment_domain || ""
+      )
+        .toUpperCase()
+        .trim();
+      const isApFlag = Boolean(task.recurring_schedule?.is_ap || task.quote_data?.is_ap);
+      return domain === "AP" || isApFlag;
+    }
+    return false;
   };
   const isDueToday = (dueDateStr: string | null | undefined, status: string) => {
     if (!dueDateStr) return false;

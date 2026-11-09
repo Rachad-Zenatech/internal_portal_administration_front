@@ -89,6 +89,14 @@ export function useRecurringPaymentsActions2(ctx: ReturnType<typeof useRecurring
     }
     const reqLoc = (req as any).location || (req as any).from_location || req.quote_data?.location || req.quote_data?.shipped_to_location || "";
     const reqClass = (req as any).class || req.quote_data?.class || "";
+    const rawDomain = String(
+      sched?.payment_domain || req.quote_data?.payment_domain || ""
+    ).toUpperCase().trim();
+    const isApDomain =
+      rawDomain === "AP" ||
+      Boolean(sched?.is_ap || req.quote_data?.is_ap) ||
+      String((req as any).category || req.request_type || "").toUpperCase() === "ACCOUNTS_PAYABLE" ||
+      Boolean((req as any).wire_transfer);
     setEditForm({
       id: req.id,
       title: req.title || "",
@@ -104,6 +112,7 @@ export function useRecurringPaymentsActions2(ctx: ReturnType<typeof useRecurring
       gl_code: req.gl_code || "",
       priority: req.priority || "MEDIUM",
       is_scheduled: isSched,
+      payment_domain: isApDomain ? "AP" : "PURCHASE_REQUEST",
       frequency: (sched?.frequency as FrequencyType) || (isSched ? "CUSTOM" : "MONTHLY"),
       start_date: sched?.start_date ? sched.start_date.split("T")[0] : (schedDates[0]?.date || (req.due_date ? req.due_date.split("T")[0] : "")),
       end_date: sched?.end_date ? sched.end_date.split("T")[0] : (schedDates[schedDates.length - 1]?.date || ""),
@@ -213,9 +222,13 @@ export function useRecurringPaymentsActions2(ctx: ReturnType<typeof useRecurring
             location: newForm.location || "",
             class: newForm.class || "",
             department: newForm.department || "",
+            payment_domain: newForm.payment_domain || "PURCHASE_REQUEST",
+            is_ap: newForm.payment_domain === "AP",
           },
           recurring_schedule: {
             is_scheduled: true,
+            payment_domain: newForm.payment_domain || "PURCHASE_REQUEST",
+            is_ap: newForm.payment_domain === "AP",
             frequency: newForm.frequency,
             start_date: effectiveStartDate,
             end_date: effectiveEndDate,
@@ -256,10 +269,14 @@ export function useRecurringPaymentsActions2(ctx: ReturnType<typeof useRecurring
         location: newForm.location || "",
         class: newForm.class || "",
         department: newForm.department || "",
+        payment_domain: newForm.payment_domain || "PURCHASE_REQUEST",
+        is_ap: newForm.payment_domain === "AP",
       },
       recurring_schedule: isSched
         ? {
             is_scheduled: true,
+            payment_domain: newForm.payment_domain || "PURCHASE_REQUEST",
+            is_ap: newForm.payment_domain === "AP",
             frequency: newForm.frequency,
             start_date: effectiveStartDate,
             end_date: effectiveEndDate,
@@ -272,6 +289,8 @@ export function useRecurringPaymentsActions2(ctx: ReturnType<typeof useRecurring
           }
         : {
             is_scheduled: false,
+            payment_domain: newForm.payment_domain || "PURCHASE_REQUEST",
+            is_ap: newForm.payment_domain === "AP",
             frequency: newForm.frequency || "MONTHLY",
             start_date: newForm.due_date || newForm.start_date || new Date().toISOString().split("T")[0],
             end_date: null,
@@ -369,9 +388,13 @@ export function useRecurringPaymentsActions2(ctx: ReturnType<typeof useRecurring
               location: editForm.location || "",
               class: editForm.class || "",
               department: editForm.department || "",
+              payment_domain: editForm.payment_domain || "PURCHASE_REQUEST",
+              is_ap: editForm.payment_domain === "AP",
             },
             recurring_schedule: {
               is_scheduled: true,
+              payment_domain: editForm.payment_domain || "PURCHASE_REQUEST",
+              is_ap: editForm.payment_domain === "AP",
               frequency: editForm.frequency,
               start_date: effectiveStartDate,
               end_date: effectiveEndDate,
@@ -415,10 +438,14 @@ export function useRecurringPaymentsActions2(ctx: ReturnType<typeof useRecurring
           location: editForm.location || "",
           class: editForm.class || "",
           department: editForm.department || "",
+          payment_domain: editForm.payment_domain || "PURCHASE_REQUEST",
+          is_ap: editForm.payment_domain === "AP",
         },
         recurring_schedule: isSched
           ? {
               is_scheduled: true,
+              payment_domain: editForm.payment_domain || "PURCHASE_REQUEST",
+              is_ap: editForm.payment_domain === "AP",
               frequency: editForm.frequency,
               start_date: effectiveStartDate,
               end_date: effectiveEndDate,
@@ -431,6 +458,8 @@ export function useRecurringPaymentsActions2(ctx: ReturnType<typeof useRecurring
             }
           : {
               is_scheduled: false,
+              payment_domain: editForm.payment_domain || "PURCHASE_REQUEST",
+              is_ap: editForm.payment_domain === "AP",
               frequency: editForm.frequency || "MONTHLY",
               start_date: editForm.start_date || editForm.due_date || new Date().toISOString().split("T")[0],
               end_date: null,

@@ -21,23 +21,31 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
     );
   };
   // Helper to check if a recurring request is an Accounts Payable / Wire transfer request
-  // Includes all level-2 sub-nav items under A/P (such as M&A Scheduled Payments)
+  // Uses the payment_domain / is_ap flag on recurring_schedule or quote_data so Purchase Request scheduled payments stay in Purchase Requests
   const isApTransaction = (r: PurchaseRequest | any) => {
     if (!r) return false;
     const cat = String(r.category || r.request_type || "").toUpperCase();
-    return (
-      isMaTransaction(r) ||
-      cat === "SCHEDULED_PAYMENT" ||
+    if (
       cat === "ACCOUNTS_PAYABLE" ||
       cat === "AP" ||
       cat === "WIRE_TRANSFER" ||
       cat === "WIRE" ||
       Boolean(r.wire_transfer)
-    );
+    ) {
+      return true;
+    }
+    const domain = String(
+      r.recurring_schedule?.payment_domain || r.quote_data?.payment_domain || ""
+    )
+      .toUpperCase()
+      .trim();
+    const isApFlag = Boolean(r.recurring_schedule?.is_ap || r.quote_data?.is_ap);
+    return domain === "AP" || isApFlag;
   };
-  // Helper to check if a recurring request is a Purchase Request (non-AP recurring subscription / standard purchasing)
+  // Helper to check if a recurring request is a Purchase Request (non-AP recurring subscription / purchase request scheduled payment)
   const isPurchaseRequestTransaction = (r: PurchaseRequest | any) => {
     if (!r) return false;
+    if (isMaTransaction(r)) return false;
     return !isApTransaction(r);
   };
   // Helper to check if a recurring request is due within 7 days
@@ -53,9 +61,11 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
     const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     return diffDays <= 7;
   };
+  // Exclude M&A transactions (which belong in /purchasing/invoices) from Recurring Payments
+  const nonMaRequests = useMemo(() => requests.filter((r) => !isMaTransaction(r)), [requests]);
   // Filtered requests
   const filteredRequests = useMemo(() => {
-    return requests.filter((r) => {
+    return nonMaRequests.filter((r) => {
       const parsedStatus = parseRequestStatus(r.status);
       const isRejected = parsedStatus === RequestStatus.Rejected;
 
@@ -113,18 +123,24 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
         // "M&A Scheduled" tab: strictly show M&A transactions
         if (isRejected) return false;
         if (!isMaTransaction(r)) return false;
-      } else if (cardFilter === "DUE_SOON") {
-        // Due in 7 Days: includes all payments (both subscriptions and M&A scheduled payments)
+      } else if (cardFilter === "DUE_SOON" || cardFilter === "AP_DUE_SOON" || cardFilter === "PR_DUE_SOON" || cardFilter === "ALL_DUE_SOON") {
+        // Due in 7 Days: scoped to A/P for DUE_SOON / AP_DUE_SOON, Purchase Requests for PR_DUE_SOON
         if (!isDueSoon(r)) return false;
-      } else if (cardFilter === "WAITING_REVIEW") {
-        // Waiting for Review: includes all payments (both subscriptions and M&A scheduled payments)
-        if (isRejected) return false;
+        if (cardFilter === "PR_DUE_SOON" && !isPurchaseRequestTransaction(r)) return false;
+        if ((cardFilter === "DUE_SOON" || cardFilter === "AP_DUE_SOON") && !isApTransaction(r)) return false;
+      } else if (cardFilter === "WAITING_REVIEW" || cardFilter === "PR_WAITING_REVIEW" || cardFilter === "AP_WAITING_REVIEW") {
+        // Waiting for Review: includes all payments; PR_/AP_ variants are the level-2 sub navs
+        if (isRejected || parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID") return false;
         const rev = r.review_status || "WAITING_FOR_REVIEW";
         if (rev !== "WAITING_FOR_REVIEW") return false;
-      } else if (cardFilter === "REVIEWED") {
-        // Reviewed (AP): includes all payments (both subscriptions and M&A scheduled payments)
-        if (isRejected) return false;
+        if (cardFilter === "PR_WAITING_REVIEW" && !isPurchaseRequestTransaction(r)) return false;
+        if (cardFilter === "AP_WAITING_REVIEW" && !isApTransaction(r)) return false;
+      } else if (cardFilter === "REVIEWED" || cardFilter === "PR_REVIEWED" || cardFilter === "AP_REVIEWED") {
+        // Reviewed (AP): includes all payments; PR_/AP_ variants are the level-2 sub navs
+        if (isRejected || parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID") return false;
         if (r.review_status !== "REVIEWED") return false;
+        if (cardFilter === "PR_REVIEWED" && !isPurchaseRequestTransaction(r)) return false;
+        if (cardFilter === "AP_REVIEWED" && !isApTransaction(r)) return false;
       } else if (cardFilter === "ON_HOLD" || cardFilter === "PR_ON_HOLD" || cardFilter === "AP_ON_HOLD") {
         // On Hold: includes all payments; PR_/AP_ variants are the level-2 sub navs
         if (parsedStatus !== RequestStatus.OnHold && r.status !== "ON_HOLD") return false;
@@ -207,33 +223,68 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
       }
       return true;
     });
-  }, [requests, searchTerm, cardFilter, dueFilter, priorityFilter, reviewFilter, statusFilter]);
-  // Summary statistics
+  }, [nonMaRequests, searchTerm, cardFilter, dueFilter, priorityFilter, reviewFilter, statusFilter]);
+  // Determine active sub-navigation scope ("PR" = Purchase Requests, "AP" = A/P, "ALL" = All Recurring)
+  const activeScope: "PR" | "AP" | "ALL" = useMemo(() => {
+    if (cardFilter === "PURCHASE_REQUESTS" || cardFilter === "REQUESTS" || cardFilter.startsWith("PR_")) {
+      return "PR";
+    }
+    if (
+      cardFilter === "AP" ||
+      cardFilter === "ACCOUNTS_PAYABLE" ||
+      cardFilter === "MA_SCHEDULED" ||
+      cardFilter === "SCHEDULED" ||
+      cardFilter === "DUE_SOON" ||
+      cardFilter.startsWith("AP_")
+    ) {
+      return "AP";
+    }
+    return "ALL";
+  }, [cardFilter]);
+
+  // Summary statistics scoped to the active sub-nav (Purchase Requests vs A/P vs All)
   const stats = useMemo(() => {
-    const maRequests = requests.filter(isMaTransaction);
-
-    const activeAll = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
-
-    const total = activeAll.length; // "All Recurring Payments" card count
+    const activeAll = nonMaRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
     const purchaseRequests = activeAll.filter(isPurchaseRequestTransaction).length;
     const apPayments = activeAll.filter(isApTransaction).length;
-    const maScheduled = maRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected).length; // "M&A Scheduled" card count
-    const dueSoon = requests.filter(isDueSoon).length; // "Due in 7 Days"
-    const waitingReview = activeAll.filter(
+
+    const scopedRequests =
+      activeScope === "PR"
+        ? nonMaRequests.filter(isPurchaseRequestTransaction)
+        : activeScope === "AP"
+        ? nonMaRequests.filter(isApTransaction)
+        : nonMaRequests;
+
+    const activeScoped = scopedRequests.filter(
+      (r) => parseRequestStatus(r.status) !== RequestStatus.Rejected
+    );
+    const activeNotCompletedScoped = activeScoped.filter(
+      (r) =>
+        parseRequestStatus(r.status) !== RequestStatus.Completed &&
+        r.status !== "COMPLETED" &&
+        (r.status as string) !== "PAID"
+    );
+
+    const total = activeAll.length; // "All Recurring Payments" card count
+    const maScheduled = scopedRequests
+      .filter(isMaTransaction)
+      .filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected).length;
+    const dueSoon = scopedRequests.filter(isDueSoon).length; // "Due in 7 Days" within scope
+    const waitingReview = activeNotCompletedScoped.filter(
       (r) => (r.review_status || "WAITING_FOR_REVIEW") === "WAITING_FOR_REVIEW"
-    ).length; // "Waiting for Review"
-    const reviewed = activeAll.filter(
+    ).length; // "Waiting for Review" within scope
+    const reviewed = activeNotCompletedScoped.filter(
       (r) => r.review_status === "REVIEWED"
-    ).length; // "Reviewed (AP)"
-    const onHold = requests.filter(
+    ).length; // "Reviewed (AP)" within scope
+    const onHold = scopedRequests.filter(
       (r) => parseRequestStatus(r.status) === RequestStatus.OnHold || r.status === "ON_HOLD"
-    ).length; // "On Hold"
-    const completed = requests.filter(
+    ).length; // "On Hold" within scope
+    const completed = scopedRequests.filter(
       (r) => parseRequestStatus(r.status) === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID"
-    ).length; // "Completed"
-    const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length; // "Rejected"
-    const totalAmount = activeAll.reduce((sum, r) => sum + (r.amount || 0), 0);
-    return { total, purchaseRequests, apPayments, maScheduled, dueSoon, waitingReview, reviewed, onHold, completed, rejected, totalAmount };
-  }, [requests]);
-  return { isMaTransaction, isApTransaction, isPurchaseRequestTransaction, filteredRequests, stats };
+    ).length; // "Completed" within scope
+    const rejected = scopedRequests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length; // "Rejected" within scope
+    const totalAmount = activeScoped.reduce((sum, r) => sum + (r.amount || 0), 0);
+    return { activeScope, total, purchaseRequests, apPayments, maScheduled, dueSoon, waitingReview, reviewed, onHold, completed, rejected, totalAmount };
+  }, [nonMaRequests, activeScope]);
+  return { activeScope, isMaTransaction, isApTransaction, isPurchaseRequestTransaction, filteredRequests, stats };
 }
