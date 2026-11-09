@@ -125,16 +125,22 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
         // Reviewed (AP): includes all payments (both subscriptions and M&A scheduled payments)
         if (isRejected) return false;
         if (r.review_status !== "REVIEWED") return false;
-      } else if (cardFilter === "ON_HOLD") {
-        // On Hold: includes all payments (both subscriptions and M&A scheduled payments)
+      } else if (cardFilter === "ON_HOLD" || cardFilter === "PR_ON_HOLD" || cardFilter === "AP_ON_HOLD") {
+        // On Hold: includes all payments; PR_/AP_ variants are the level-2 sub navs
         if (parsedStatus !== RequestStatus.OnHold && r.status !== "ON_HOLD") return false;
-      } else if (cardFilter === "COMPLETED") {
-        // Completed: includes all payments (both subscriptions and M&A scheduled payments)
+        if (cardFilter === "PR_ON_HOLD" && !isPurchaseRequestTransaction(r)) return false;
+        if (cardFilter === "AP_ON_HOLD" && !isApTransaction(r)) return false;
+      } else if (cardFilter === "COMPLETED" || cardFilter === "PR_COMPLETED" || cardFilter === "AP_COMPLETED") {
+        // Completed: includes all payments; PR_/AP_ variants are the level-2 sub navs under Purchase Requests / A/P
         const isComp = parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID";
         if (!isComp) return false;
-      } else if (cardFilter === "REJECTED") {
-        // Rejected: includes all payments (both subscriptions and M&A scheduled payments)
+        if (cardFilter === "PR_COMPLETED" && !isPurchaseRequestTransaction(r)) return false;
+        if (cardFilter === "AP_COMPLETED" && !isApTransaction(r)) return false;
+      } else if (cardFilter === "REJECTED" || cardFilter === "PR_REJECTED" || cardFilter === "AP_REJECTED") {
+        // Rejected: includes all payments; PR_/AP_ variants are the level-2 sub navs
         if (!isRejected) return false;
+        if (cardFilter === "PR_REJECTED" && !isPurchaseRequestTransaction(r)) return false;
+        if (cardFilter === "AP_REJECTED" && !isApTransaction(r)) return false;
       }
       if (dueFilter !== "ALL") {
         const isCompOrRej =

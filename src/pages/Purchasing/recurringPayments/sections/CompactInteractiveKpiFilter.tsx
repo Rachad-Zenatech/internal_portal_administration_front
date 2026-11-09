@@ -173,9 +173,9 @@ export function CompactInteractiveKpiFilter({ v }: { v: RecurringPaymentsViewSta
 
         {/* 6. Completed */}
         <Card
-          onClick={() => handleCardFilterChange(cardFilter === "COMPLETED" ? "ALL" : "COMPLETED")}
+          onClick={() => handleCardFilterChange(cardFilter === "COMPLETED" || cardFilter === "PR_COMPLETED" || cardFilter === "AP_COMPLETED" ? "ALL" : "COMPLETED")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-emerald-300 ${
-            cardFilter === "COMPLETED" ? "ring-2 ring-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20" : ""
+            cardFilter === "COMPLETED" || cardFilter === "PR_COMPLETED" || cardFilter === "AP_COMPLETED" ? "ring-2 ring-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20" : ""
           }`}
         >
           <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
@@ -196,9 +196,9 @@ export function CompactInteractiveKpiFilter({ v }: { v: RecurringPaymentsViewSta
 
         {/* 7. Rejected */}
         <Card
-          onClick={() => handleCardFilterChange(cardFilter === "REJECTED" ? "ALL" : "REJECTED")}
+          onClick={() => handleCardFilterChange(cardFilter === "REJECTED" || cardFilter === "PR_REJECTED" || cardFilter === "AP_REJECTED" ? "ALL" : "REJECTED")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-rose-300 ${
-            cardFilter === "REJECTED" ? "ring-2 ring-rose-500 bg-rose-50/20 dark:bg-rose-950/20" : ""
+            cardFilter === "REJECTED" || cardFilter === "PR_REJECTED" || cardFilter === "AP_REJECTED" ? "ring-2 ring-rose-500 bg-rose-50/20 dark:bg-rose-950/20" : ""
           }`}
         >
           <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">

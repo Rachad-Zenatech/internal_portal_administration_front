@@ -149,6 +149,18 @@ export function useRecurringPaymentsActions() {
       subTitle = "On Hold";
     } else if (cardFilter === "COMPLETED") {
       subTitle = "Completed";
+    } else if (cardFilter === "PR_COMPLETED") {
+      subTitle = "Purchase Requests - Completed";
+    } else if (cardFilter === "AP_COMPLETED") {
+      subTitle = "A/P - Completed";
+    } else if (cardFilter === "PR_ON_HOLD") {
+      subTitle = "Purchase Requests - On Hold";
+    } else if (cardFilter === "AP_ON_HOLD") {
+      subTitle = "A/P - On Hold";
+    } else if (cardFilter === "PR_REJECTED") {
+      subTitle = "Purchase Requests - Rejected";
+    } else if (cardFilter === "AP_REJECTED") {
+      subTitle = "A/P - Rejected";
     } else if (cardFilter === "REJECTED") {
       subTitle = "Rejected";
     }
@@ -202,8 +214,7 @@ export function useRecurringPaymentsActions() {
         )
       );
       toast.success(
-        `Request #${variables.id} marked as ${
-          variables.review_status === "REVIEWED" ? "Reviewed" : "Waiting for Review"
+        `Request #${variables.id} marked as ${variables.review_status === "REVIEWED" ? "Reviewed" : "Waiting for Review"
         }`
       );
       queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
