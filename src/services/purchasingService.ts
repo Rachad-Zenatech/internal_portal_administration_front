@@ -521,6 +521,16 @@ export function getPayFromEntities() {
   return apiClient.get<string[]>(BASE + "/pay-from-entities");
 }
 
+export function getVendorLatestPayment(vendor: string) {
+  return apiClient.get<{
+    found: boolean;
+    vendor?: string;
+    department?: string | null;
+    title?: string | null;
+    wire?: Record<string, any>;
+  }>(`${BASE}/vendors/latest-payment?vendor=${encodeURIComponent(vendor)}`);
+}
+
 export function updateWireTransfer(requestId: string | number, payload: WireTransferInput) {
   return apiClient.put<RequestDetail>(`${BASE}/requests/${requestId}/wire-transfer`, payload);
 }

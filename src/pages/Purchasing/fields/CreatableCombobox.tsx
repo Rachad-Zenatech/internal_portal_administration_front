@@ -36,6 +36,7 @@ interface CreatableComboboxProps {
   name?: string;
   enableCreationModal?: boolean;
   onSelectContact?: (contact: BusinessContactReference) => void;
+  onSelect?: (value: string) => void;
 }
 
 export function CreatableCombobox({
@@ -54,6 +55,7 @@ export function CreatableCombobox({
   name,
   enableCreationModal,
   onSelectContact,
+  onSelect,
 }: CreatableComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value || "");
@@ -202,6 +204,7 @@ export function CreatableCombobox({
     setQuery(val);
     onChange(val);
     setOpen(false);
+    onSelect?.(val);
     const matched = customContact || contactMap[val.toLowerCase()];
     if (matched) {
       onSelectContact?.(matched);

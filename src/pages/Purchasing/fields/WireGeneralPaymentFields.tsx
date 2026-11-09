@@ -24,6 +24,7 @@ import {
   getTreasuryUsers,
   getKnownVendors,
   getPayFromEntities,
+  getVendorLatestPayment,
 } from "@/services/purchasingService";
 import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { CreatableCombobox } from "./CreatableCombobox";
@@ -432,6 +433,37 @@ export function WireGeneralPaymentFields({
                 });
                 onVendorChange?.(contact.display_name);
                 onClearValidationError?.("vendor");
+              }}
+              onSelect={(val) => {
+                if (!val || !val.trim()) return;
+                // Query past wire transfer / payable info for this vendor
+                getVendorLatestPayment(val.trim())
+                  .then((res: any) => {
+                    const data = res?.data || res;
+                    if (data?.found && data.wire) {
+                      setForm((prev) => {
+                        const pastWire = data.wire;
+                        const merged: WireTransferInput = {
+                          ...prev,
+                          vendor: val.trim(),
+                        };
+                        // Copy previous banking & payment details if present
+                        Object.keys(pastWire).forEach((k) => {
+                          const v = pastWire[k];
+                          if (
+                            v !== undefined &&
+                            v !== null &&
+                            String(v).trim() !== "" &&
+                            !["id", "request_id", "created_at", "updated_at", "entry_date", "payment_date", "due_date", "amount", "invoice_number", "comments"].includes(k)
+                          ) {
+                            (merged as any)[k] = v;
+                          }
+                        });
+                        return merged;
+                      });
+                    }
+                  })
+                  .catch(() => {});
               }}
               options={knownVendors}
               fetchOptions={getKnownVendors}
