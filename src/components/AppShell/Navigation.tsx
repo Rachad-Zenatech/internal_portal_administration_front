@@ -80,6 +80,7 @@ export const navigation = [
     navigationCode: "INVOICES",
     subItems: [
       { label: "All A/P & Invoices", path: "/purchasing/invoices" },
+      { label: "Travel Stipends", path: "/purchasing/invoices?tab=stipends" },
       { label: "Due on Today", path: "/purchasing/invoices?filter=DUE_TODAY" },
       { label: "Overdue Payment", path: "/purchasing/invoices?filter=OVERDUE" },
     ],
