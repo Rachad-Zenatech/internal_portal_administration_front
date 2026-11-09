@@ -234,27 +234,6 @@ export function AddBusinessContactDialog({
                       className="absolute z-50 left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto overscroll-contain bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg shadow-xl py-1 text-xs"
                       style={{ scrollbarWidth: "thin" }}
                     >
-                      {/* Option to create brand new vendor if typed something */}
-                      {form.display_name.trim().length > 0 &&
-                        !filteredVendorOptions.some(
-                          (o) => o.name.toLowerCase() === form.display_name.trim().toLowerCase()
-                        ) && (
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 border-b border-indigo-100 dark:border-indigo-900/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/40 font-medium transition-colors"
-                            onClick={() => {
-                              setVendorDropdownOpen(false);
-                            }}
-                          >
-                            <div className="w-5 h-5 rounded-md bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center shrink-0">
-                              <Plus className="w-3.5 h-3.5" />
-                            </div>
-                            <span className="truncate">
-                              Create new vendor: <strong>"{form.display_name.trim()}"</strong>
-                            </span>
-                          </button>
-                        )}
-
                       {filteredVendorOptions.map((opt) => {
                         const isSelected =
                           form.display_name.trim().toLowerCase() === opt.name.toLowerCase();
@@ -285,7 +264,7 @@ export function AddBusinessContactDialog({
                               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading contacts...
                             </span>
                           ) : (
-                            "No contacts found. Type a name to create one."
+                            "No contacts found. Type a name to enter one."
                           )}
                         </div>
                       )}
