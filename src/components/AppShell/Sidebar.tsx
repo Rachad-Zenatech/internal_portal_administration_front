@@ -201,6 +201,9 @@ export default function Sidebar({
     if (location.pathname.startsWith("/purchasing/recurring")) {
       setExpandedItems(prev => ({ ...prev, "Recurring Payments": true }));
     }
+    if (location.pathname.includes("workflow-auto")) {
+      setExpandedItems(prev => ({ ...prev, "Workflow Auto": true }));
+    }
   }, [location.pathname]);
 
   const toggleExpand = (label: string) => {

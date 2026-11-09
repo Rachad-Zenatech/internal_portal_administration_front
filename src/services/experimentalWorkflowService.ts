@@ -50,3 +50,4 @@ export const experimentalWorkflowService = {
     return apiClient.post<WorkflowConfigResponse>(`/api/workflow-auto/${domain}/reset`, {});
   },
 };
+

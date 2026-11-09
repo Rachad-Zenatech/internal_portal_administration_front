@@ -8,6 +8,7 @@ import {
   CalendarCheck,
   UserCheck,
   Zap,
+  GitFork,
 } from "lucide-react";
 
 export const navigation = [
@@ -40,7 +41,6 @@ export const navigation = [
     navigationCode: "PURCHASING",
     subItems: [
       { label: "All Requests", path: "/purchasing/requests" },
-      { label: "Workflow Auto", path: "/purchasing/requests-workflow-auto" },
       { label: "Draft", path: "/purchasing/requests?status=INITIAL" },
       { label: "New Request", path: "/purchasing/requests?status=NEW" },
       { label: "Under Review", path: "/purchasing/requests?status=UNDER_REVIEW" },
@@ -87,7 +87,6 @@ export const navigation = [
     navigationCode: "INVOICES",
     subItems: [
       { label: "All A/P & Invoices", path: "/purchasing/invoices" },
-      { label: "Workflow Auto", path: "/purchasing/invoices-workflow-auto" },
       { label: "Travel Stipends", path: "/purchasing/invoices?tab=stipends" },
       { label: "Due on Today", path: "/purchasing/invoices?filter=DUE_TODAY" },
       { label: "Due in 7 Days", path: "/purchasing/invoices?filter=DUE_SOON" },
@@ -115,6 +114,17 @@ export const navigation = [
     icon: Zap,
     section: "MAIN",
     navigationCode: "PURCHASING",
+  },
+  {
+    label: "Workflow Auto",
+    path: "/purchasing/requests-workflow-auto",
+    icon: GitFork,
+    section: "MAIN",
+    navigationCode: "PURCHASING",
+    subItems: [
+      { label: "Purchase Requests Workflow", path: "/purchasing/requests-workflow-auto" },
+      { label: "A/P & Invoices Workflow", path: "/purchasing/invoices-workflow-auto" },
+    ],
   },
 
   {
