@@ -25,6 +25,8 @@ export interface WorkflowStepNode {
   description: string;
   statusKey?: string;
   badgeColor?: string;
+  assignedRole?: string;
+  assignedUser?: string;
   actions: WorkflowActionButton[];
 }
 

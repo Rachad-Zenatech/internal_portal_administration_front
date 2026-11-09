@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   Clock,
   Circle,
+  UserCheck,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +79,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
   const [nodeTitle, setNodeTitle] = useState("");
   const [nodeDesc, setNodeDesc] = useState("");
   const [nodeBadge, setNodeBadge] = useState("slate");
+  const [nodeAssignedRole, setNodeAssignedRole] = useState("");
 
   // Editing Action Button Dialog State
   const [editingAction, setEditingAction] = useState<{
@@ -129,6 +132,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
       description: "Stage description and automated actions.",
       statusKey: "STAGE_" + (insertIndex + 1),
       badgeColor: "indigo",
+      assignedRole: "Procurement / Reviewer",
       actions: [
         {
           id: `act_${Date.now()}`,
@@ -163,6 +167,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     setNodeTitle(node.title);
     setNodeDesc(node.description);
     setNodeBadge(node.badgeColor || "slate");
+    setNodeAssignedRole(node.assignedRole || "");
   };
 
   const handleSaveStep = () => {
@@ -173,6 +178,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
       title: nodeTitle.trim() || editingNode.node.title,
       description: nodeDesc.trim(),
       badgeColor: nodeBadge,
+      assignedRole: nodeAssignedRole.trim() || undefined,
     };
     saveMutation.mutate(updated);
     setEditingNode(null);
@@ -343,9 +349,18 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                     </div>
                   </div>
 
-                  {/* Step Description */}
-                  <div className="p-3 space-y-3">
-                    <p className="text-[11px] text-muted-foreground leading-relaxed min-h-[32px]">
+                  {/* Step Description & Assigned Role */}
+                  <div className="p-3 space-y-2.5">
+                    {/* Role / Owner pill */}
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100/90 dark:bg-zinc-800 border border-slate-200/70 dark:border-zinc-700/60 text-[10px]">
+                      <Shield className="w-3 h-3 text-indigo-500 shrink-0" />
+                      <span className="font-semibold text-slate-500 dark:text-zinc-400">Owner:</span>
+                      <span className="font-medium text-slate-800 dark:text-zinc-200 truncate">
+                        {node.assignedRole || "Unassigned"}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground leading-relaxed min-h-[30px]">
                       {node.description || "No description provided."}
                     </p>
 
@@ -554,11 +569,20 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                 Live Interactive Workflow Simulator
               </h3>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Current Active Stage:</span>
-              <Badge className="bg-indigo-600 text-white font-semibold">
-                {currentSimulatedNode?.title || "None"}
-              </Badge>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-[11px] border border-slate-200 dark:border-zinc-700">
+                <UserCheck className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="text-muted-foreground">Managed By:</span>
+                <span className="font-semibold text-slate-900 dark:text-zinc-100">
+                  {currentSimulatedNode?.assignedRole || "Unassigned"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Stage:</span>
+                <Badge className="bg-indigo-600 text-white font-semibold">
+                  {currentSimulatedNode?.title || "None"}
+                </Badge>
+              </div>
             </div>
           </div>
 
@@ -643,6 +667,17 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                   onChange={(e) => setNodeDesc(e.target.value)}
                   rows={3}
                   placeholder="Explain what occurs during this stage..."
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-zinc-300">
+                  Responsible Manager / Role (Who Manages this Flow Step)
+                </label>
+                <Input
+                  value={nodeAssignedRole}
+                  onChange={(e) => setNodeAssignedRole(e.target.value)}
+                  placeholder="e.g. Procurement Specialist, Dept Manager, CFO, AP Clerk"
                 />
               </div>
 
