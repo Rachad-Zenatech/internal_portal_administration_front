@@ -15,11 +15,11 @@ export function TableCard({ s }: { s: InvoicesState }) {
   );
   const fit = useFitToScreen();
   return (
-    <Card {...fit} className="w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col p-0">
+    <Card {...fit} className="w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto relative">
-          <Table className="m-0 w-full min-w-[960px]">
-            <TableHeader className="bg-slate-50/80 dark:bg-zinc-900/80 sticky top-0 border-b text-[11px] uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-              <TableRow>
+          <Table containerClassName="overflow-visible">
+            <TableHeader>
+              <TableRow className="bg-slate-50/75 dark:bg-zinc-900/75 border-b border-slate-200 dark:border-zinc-800">
                 <TableHead className="w-16">ID</TableHead>
                 <TableHead className="min-w-[220px]">Item / Product &amp; Vendor</TableHead>
                 <TableHead className="min-w-[260px]">Wire Banking Details</TableHead>

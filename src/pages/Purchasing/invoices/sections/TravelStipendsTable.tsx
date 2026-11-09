@@ -12,6 +12,7 @@ import {
   BadgeDollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,6 +26,7 @@ import {
 import { apiClient as api } from "@/services/apiClient";
 import { toast } from "sonner";
 import { formatMoney } from "../../utils/purchasingMeta";
+import { FluidListFooter, LoadMoreRow, useFitToScreen, useFluidRows } from "@/components/common/FluidList";
 
 export interface TravelStipend {
   id: string;
@@ -157,74 +159,114 @@ export function TravelStipendsTable({ onCreatePayableForStipend }: TravelStipend
     }
   };
 
+  const { visibleRows: shownStipends, ...fluid } = useFluidRows(
+    filteredStipends,
+    [statusFilter, searchQuery].join("|"),
+  );
+  const fit = useFitToScreen();
+
   return (
-    <div className="flex flex-col gap-4">
-      {/* ── Metric Highlights ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs">
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400 font-medium">
-            <span>Total Travel Stipends</span>
-            <Plane className="h-4 w-4 text-indigo-500" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-bold text-slate-900 dark:text-zinc-100">
-              {summary ? formatMoney(summary.total_amount) : "$0.00"}
-            </span>
-            <span className="text-xs text-slate-500">{summary?.total_stipends ?? stipends.length} travelers</span>
-          </div>
-        </div>
+    <div className="flex flex-col gap-3 sm:gap-3.5">
+      {/* ── Compact KPI Cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
+        <Card
+          onClick={() => setStatusFilter("ALL")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-indigo-300 ${
+            statusFilter === "ALL" ? "ring-2 ring-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Total Travel Stipends</p>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight mt-0.5">
+                {summary?.total_stipends ?? stipends.length}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {summary ? formatMoney(summary.total_amount) : "$0.00"} total
+              </p>
+            </div>
+            <div className="p-1.5 rounded-md bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 shrink-0">
+              <Plane size={16} />
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs">
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400 font-medium">
-            <span>Approved (Awaiting AP)</span>
-            <BadgeDollarSign className="h-4 w-4 text-emerald-500" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-              {summary ? formatMoney(summary.approved_payable_amount) : "$0.00"}
-            </span>
-            <span className="text-xs text-emerald-600/80 font-medium">
-              {summary?.approved_count ?? 0} ready
-            </span>
-          </div>
-        </div>
+        <Card
+          onClick={() => setStatusFilter(statusFilter === "APPROVED" ? "ALL" : "APPROVED")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-emerald-300 ${
+            statusFilter === "APPROVED" ? "ring-2 ring-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">Approved (Awaiting AP)</p>
+              <h3 className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 leading-tight mt-0.5">
+                {summary?.approved_count ?? 0}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {summary ? formatMoney(summary.approved_payable_amount) : "$0.00"} ready
+              </p>
+            </div>
+            <div className="p-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 shrink-0">
+              <BadgeDollarSign size={16} />
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs">
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400 font-medium">
-            <span>Disbursed & Settled</span>
-            <CheckCircle2 className="h-4 w-4 text-blue-500" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-bold text-slate-900 dark:text-zinc-100">
-              {summary ? formatMoney(summary.disbursed_amount) : "$0.00"}
-            </span>
-            <span className="text-xs text-slate-500">{summary?.disbursed_count ?? 0} settled</span>
-          </div>
-        </div>
+        <Card
+          onClick={() => setStatusFilter(statusFilter === "DISBURSED" ? "ALL" : "DISBURSED")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-blue-300 ${
+            statusFilter === "DISBURSED" ? "ring-2 ring-blue-500 bg-blue-50/20 dark:bg-blue-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-blue-700 dark:text-blue-300">Disbursed &amp; Settled</p>
+              <h3 className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 leading-tight mt-0.5">
+                {summary?.disbursed_count ?? 0}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {summary ? formatMoney(summary.disbursed_amount) : "$0.00"} settled
+              </p>
+            </div>
+            <div className="p-1.5 rounded-md bg-blue-50 dark:bg-blue-950 flex items-center justify-center text-blue-600 shrink-0">
+              <CheckCircle2 size={16} />
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs">
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400 font-medium">
-            <span>Pending Review</span>
-            <Clock className="h-4 w-4 text-amber-500" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-bold text-slate-900 dark:text-zinc-100">
-              {summary ? formatMoney(summary.pending_amount) : "$0.00"}
-            </span>
-            <span className="text-xs text-amber-600 font-medium">{summary?.pending_count ?? 0} pending</span>
-          </div>
-        </div>
+        <Card
+          onClick={() => setStatusFilter(statusFilter === "PENDING_APPROVAL" ? "ALL" : "PENDING_APPROVAL")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-amber-300 ${
+            statusFilter === "PENDING_APPROVAL" ? "ring-2 ring-amber-500 bg-amber-50/20 dark:bg-amber-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-amber-700 dark:text-amber-300">Pending Review</p>
+              <h3 className="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400 leading-tight mt-0.5">
+                {summary?.pending_count ?? 0}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {summary ? formatMoney(summary.pending_amount) : "$0.00"} pending
+              </p>
+            </div>
+            <div className="p-1.5 rounded-md bg-amber-50 dark:bg-amber-950 flex items-center justify-center text-amber-600 shrink-0">
+              <Clock size={16} />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* ── Toolbar ── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      {/* ── Filter Bar ── */}
+      <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="relative flex-1 w-full">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search traveler, email, event title, or destination..."
-            className="pl-9 h-9 text-xs"
+            className="pl-9 h-9"
           />
         </div>
 
@@ -264,11 +306,11 @@ export function TravelStipendsTable({ onCreatePayableForStipend }: TravelStipend
       </div>
 
       {/* ── Main Stipends Table ── */}
-      <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-2xs">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-slate-50/80 dark:bg-zinc-800/40">
-              <TableRow className="border-slate-200 dark:border-zinc-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+      <Card {...fit} className="w-full border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col">
+        <div className="flex-1 min-h-0 overflow-auto relative">
+          <Table containerClassName="overflow-visible">
+            <TableHeader>
+              <TableRow className="bg-slate-50/75 dark:bg-zinc-900/75 border-b border-slate-200 dark:border-zinc-800">
                 <TableHead className="py-3 px-4">Traveler / Payee</TableHead>
                 <TableHead className="py-3 px-4">Event &amp; Mission</TableHead>
                 <TableHead className="py-3 px-4">Rate &amp; Duration</TableHead>
@@ -301,7 +343,8 @@ export function TravelStipendsTable({ onCreatePayableForStipend }: TravelStipend
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredStipends.map((stipend) => {
+                <>
+                {shownStipends.map((stipend) => {
                   const isActionLoading = actionLoadingId === stipend.id;
                   return (
                     <TableRow key={stipend.id} className="hover:bg-slate-50/60 dark:hover:bg-zinc-800/50 transition-colors">
@@ -416,12 +459,15 @@ export function TravelStipendsTable({ onCreatePayableForStipend }: TravelStipend
                       </TableCell>
                     </TableRow>
                   );
-                })
+                })}
+                <LoadMoreRow {...fluid} />
+                </>
               )}
             </TableBody>
           </Table>
         </div>
-      </div>
+        {!isLoading && <FluidListFooter {...fluid} noun="travel stipends" />}
+      </Card>
     </div>
   );
 }

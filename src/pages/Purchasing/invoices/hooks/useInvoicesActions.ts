@@ -44,12 +44,29 @@ export function useInvoicesActions() {
   const [wireFilter, setWireFilter] = useState<string>("ALL");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const urlQuick = (searchParams.get("filter") || "").toUpperCase();
-  const [quickFilter, setQuickFilter] = useState<"ALL" | "DUE_TODAY" | "PENDING" | "OVERDUE">(
-    urlQuick === "DUE_TODAY" || urlQuick === "OVERDUE" ? urlQuick : "ALL",
+  const resolveQuickFilter = (val: string): "ALL" | "DUE_TODAY" | "DUE_SOON" | "PENDING" | "OVERDUE" => {
+    if (val === "DUE_TODAY" || val === "OVERDUE" || val === "PENDING") return val;
+    if (val === "DUE_SOON" || val === "DUE_7_DAYS") return "DUE_SOON";
+    return "ALL";
+  };
+  const [quickFilter, setQuickFilterState] = useState<"ALL" | "DUE_TODAY" | "DUE_SOON" | "PENDING" | "OVERDUE">(
+    resolveQuickFilter(urlQuick),
   );
   useEffect(() => {
-    setQuickFilter(urlQuick === "DUE_TODAY" || urlQuick === "OVERDUE" ? urlQuick : "ALL");
+    setQuickFilterState(resolveQuickFilter(urlQuick));
   }, [urlQuick]);
+  const setQuickFilter = (nextFilter: "ALL" | "DUE_TODAY" | "DUE_SOON" | "PENDING" | "OVERDUE") => {
+    setQuickFilterState(nextFilter);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (nextFilter === "ALL") {
+        next.delete("filter");
+      } else {
+        next.set("filter", nextFilter);
+      }
+      return next;
+    }, { replace: true });
+  };
   const [selectedWireTask, setSelectedWireTask] = useState<any | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const isWireTransfer = (task: any) => {
@@ -97,6 +114,25 @@ export function useInvoicesActions() {
     const d = String(today.getDate()).padStart(2, "0");
     const todayStr = `${y}-${m}-${d}`;
     return cleanDate === todayStr;
+  };
+  const isDueSoon = (dueDateStr: string | null | undefined, status: string) => {
+    if (!dueDateStr) return false;
+    const parsed = parseRequestStatus(status);
+    if (parsed === RequestStatus.Completed || parsed === RequestStatus.Rejected) {
+      return false;
+    }
+    const cleanDate = String(dueDateStr).split("T")[0];
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    const todayStr = `${y}-${m}-${d}`;
+    const plus7 = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+    const y7 = plus7.getFullYear();
+    const m7 = String(plus7.getMonth() + 1).padStart(2, "0");
+    const d7 = String(plus7.getDate()).padStart(2, "0");
+    const plus7Str = `${y7}-${m7}-${d7}`;
+    return cleanDate >= todayStr && cleanDate <= plus7Str;
   };
   const isOverdue = (dueDateStr: string | null | undefined, status: string) => {
     if (!dueDateStr) return false;
@@ -182,6 +218,7 @@ export function useInvoicesActions() {
     return {
       all: eligibleTasks.length,
       dueToday: eligibleTasks.filter((t) => isDueToday(t.due_date, t.status)).length,
+      dueSoon: eligibleTasks.filter((t) => isDueSoon(t.due_date, t.status)).length,
       pending: eligibleTasks.filter((t) => isPendingPayment(t.status)).length,
       overdue: eligibleTasks.filter((t) => isOverdue(t.due_date, t.status)).length,
     };
@@ -194,6 +231,10 @@ export function useInvoicesActions() {
 
     const pendingTasks = eligibleTasks.filter((t) => isPendingPayment(t.status));
     const pendingAmount = pendingTasks.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+    const dueSoonTasks = eligibleTasks.filter((t) => isDueSoon(t.due_date, t.status));
+    const dueSoonCount = dueSoonTasks.length;
+    const dueSoonAmount = dueSoonTasks.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
     const wireTasks = eligibleTasks.filter((t) => !!t.wire_transfer);
     const wireCount = wireTasks.length;
@@ -208,6 +249,8 @@ export function useInvoicesActions() {
       totalVolume,
       pendingCount: pendingTasks.length,
       pendingAmount,
+      dueSoonCount,
+      dueSoonAmount,
       wireCount,
       wirePercent,
       overdueCount,
@@ -279,8 +322,11 @@ export function useInvoicesActions() {
         }
       }
 
-      // Quick Urgency Filter (Due on Today / Pending Payment / Overdue payment)
+      // Quick Urgency Filter (Due on Today / Due in 7 Days / Pending Payment / Overdue payment)
       if (quickFilter === "DUE_TODAY" && !isDueToday(task.due_date, task.status)) {
+        return false;
+      }
+      if (quickFilter === "DUE_SOON" && !isDueSoon(task.due_date, task.status)) {
         return false;
       }
       if (quickFilter === "PENDING" && !isPendingPayment(task.status)) {
@@ -306,5 +352,5 @@ export function useInvoicesActions() {
     setTypeFilter("ALL");
     setQuickFilter("ALL");
   };
-  return { navigate, canCreateWire, isCreateWireOpen, setIsCreateWireOpen, createWireTitle, setCreateWireTitle, createPrefill, setCreatePrefill, tasks, isLoading, searchQuery, setSearchQuery, statusFilter, setStatusFilter, wireFilter, setWireFilter, typeFilter, setTypeFilter, quickFilter, setQuickFilter, selectedWireTask, setSelectedWireTask, copiedKey, isWireTransfer, isScheduledPayment, isDueToday, isOverdue, fetchTasks, handleCopy, handleCopyAllBankingDetails, quickFilterCounts, metrics, filteredTasks, hasActiveFilters, clearFilters };
+  return { navigate, canCreateWire, isCreateWireOpen, setIsCreateWireOpen, createWireTitle, setCreateWireTitle, createPrefill, setCreatePrefill, tasks, isLoading, searchQuery, setSearchQuery, statusFilter, setStatusFilter, wireFilter, setWireFilter, typeFilter, setTypeFilter, quickFilter, setQuickFilter, selectedWireTask, setSelectedWireTask, copiedKey, isWireTransfer, isScheduledPayment, isDueToday, isDueSoon, isOverdue, fetchTasks, handleCopy, handleCopyAllBankingDetails, quickFilterCounts, metrics, filteredTasks, hasActiveFilters, clearFilters };
 }

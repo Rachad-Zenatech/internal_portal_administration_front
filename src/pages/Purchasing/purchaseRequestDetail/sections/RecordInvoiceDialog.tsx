@@ -1,6 +1,7 @@
 import { FileText, Receipt, X, UploadCloud, Trash2, Eye } from "lucide-react";
 import { BankAccountAutocomplete } from "../../fields/BankAccountAutocomplete";
 import { CategoryAutocomplete } from "../../fields/CategoryAutocomplete";
+import LocationAutocomplete from "../../fields/LocationAutocomplete";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -107,6 +108,17 @@ export function RecordInvoiceDialog({ v }: { v: PurchaseRequestDetailViewState }
                   value={invoiceForm.gl_code}
                   onChange={(val) => setInvoiceForm({ ...invoiceForm, gl_code: val })}
                   placeholder="Select Category *"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Region / Location
+                </label>
+                <LocationAutocomplete
+                  value={invoiceForm.from_location}
+                  onChange={(val) => setInvoiceForm({ ...invoiceForm, from_location: val })}
+                  placeholder="Select or enter region / location..."
                 />
               </div>
 

@@ -88,6 +88,7 @@ export const navigation = [
       { label: "All A/P & Invoices", path: "/purchasing/invoices" },
       { label: "Travel Stipends", path: "/purchasing/invoices?tab=stipends" },
       { label: "Due on Today", path: "/purchasing/invoices?filter=DUE_TODAY" },
+      { label: "Due in 7 Days", path: "/purchasing/invoices?filter=DUE_SOON" },
       { label: "Overdue Payment", path: "/purchasing/invoices?filter=OVERDUE" },
     ],
   },

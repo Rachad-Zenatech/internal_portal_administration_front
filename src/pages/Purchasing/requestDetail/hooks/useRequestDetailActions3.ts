@@ -13,12 +13,12 @@ export function useRequestDetailActions3(ctx: RequestDetailGuardedState & Return
     const { action, kind } = activeForm;
     if (kind === "po") {
       if (!po.vendor || !po.item) return toast.error("Vendor and item are required.");
-      if (!po.payment_method) return toast.error("Payment format is required.");
       if (!po.shipped_to_location || !po.shipped_to_location.trim()) return toast.error("Shipped to location is required.");
       void dispatch({
         action,
         purchase_order: {
           ...po,
+          item: po.item.trim().slice(0, 200),
           amount: Number(po.amount) || 0,
           quantity: Number(po.quantity) || 1,
           unit_price: Number(po.unit_price) || 0,
