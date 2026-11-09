@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -65,10 +65,27 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
 
   const nodes = localNodes ?? config?.nodes ?? [];
 
+  // Undo / redo history of the user's own edits (Ctrl+Z / Ctrl+Y). Every edit goes through
+  // saveMutation, so onMutate records the version it replaces.
+  const nodesRef = useRef<WorkflowStepNode[]>(nodes);
+  nodesRef.current = nodes;
+  const undoStack = useRef<WorkflowStepNode[][]>([]);
+  const redoStack = useRef<WorkflowStepNode[][]>([]);
+  const skipHistory = useRef(false);
+  const HISTORY_LIMIT = 50;
+
+  const recordHistory = (before: WorkflowStepNode[]) => {
+    undoStack.current.push(before);
+    if (undoStack.current.length > HISTORY_LIMIT) undoStack.current.shift();
+    redoStack.current = [];
+  };
+
   const saveMutation = useMutation({
     mutationFn: (updatedNodes: WorkflowStepNode[]) =>
       experimentalWorkflowService.saveWorkflowConfig(domain, { nodes: updatedNodes }),
     onMutate: async (updatedNodes: WorkflowStepNode[]) => {
+      if (!skipHistory.current) recordHistory(nodesRef.current);
+      skipHistory.current = false;
       // Optimistic instant UI update
       setLocalNodes(updatedNodes);
       await queryClient.cancelQueries({ queryKey: ["experimental-workflow", domain] });
@@ -101,6 +118,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     mutationFn: () => experimentalWorkflowService.resetWorkflowConfig(domain),
     onSuccess: (data: WorkflowConfigResponse) => {
       if (data?.nodes) {
+        recordHistory(nodesRef.current); // reset itself can be undone with Ctrl+Z
         setLocalNodes(data.nodes);
       }
       queryClient.setQueryData(["experimental-workflow", domain], data);
@@ -109,6 +127,50 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     onError: (err: any) => {
       toast.error(err?.message || "Failed to reset workflow");
     },
+  });
+
+  const undoChange = () => {
+    const prev = undoStack.current.pop();
+    if (!prev) {
+      toast.info("Nothing to undo");
+      return;
+    }
+    redoStack.current.push(nodesRef.current);
+    skipHistory.current = true;
+    saveMutation.mutate(prev);
+    toast.info("Undid last change");
+  };
+
+  const redoChange = () => {
+    const next = redoStack.current.pop();
+    if (!next) {
+      toast.info("Nothing to redo");
+      return;
+    }
+    undoStack.current.push(nodesRef.current);
+    skipHistory.current = true;
+    saveMutation.mutate(next);
+    toast.info("Redid change");
+  };
+
+  // Ctrl+Z (Cmd+Z) undoes the last workflow change; Ctrl+Y or Ctrl+Shift+Z redoes it.
+  // Text fields keep their normal text undo.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const key = e.key.toLowerCase();
+      const isUndo = key === "z" && !e.shiftKey;
+      const isRedo = key === "y" || (key === "z" && e.shiftKey);
+      if (!isUndo && !isRedo) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return;
+      e.preventDefault();
+      if (saveMutation.isPending || resetMutation.isPending) return;
+      if (isUndo) undoChange();
+      else redoChange();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   });
 
   // Active testing simulator state
@@ -437,7 +499,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
             }}
             disabled={resetMutation.isPending}
             className="text-xs h-8 gap-1.5"
-            title="Load the standard production purchase request flow"
+            title="Load the default flow (undo with Ctrl+Z)"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Reset to Standard Flow
@@ -599,16 +661,17 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                               key={act.id}
                               className="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 text-xs space-y-1.5"
                             >
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between gap-1.5">
                                 <Button
                                   size="sm"
                                   variant={act.variant || "default"}
                                   onClick={() => handleSimulateAction(act)}
-                                  className="h-7 text-xs font-semibold px-2.5 truncate max-w-[170px]"
+                                  title={act.label}
+                                  className="h-auto min-h-[28px] py-1 text-xs font-semibold px-2.5 flex-1 whitespace-normal text-left justify-start leading-tight"
                                 >
                                   {act.label}
                                 </Button>
-                                <div className="flex items-center gap-0.5">
+                                <div className="flex items-center gap-0.5 shrink-0">
                                   <button
                                     type="button"
                                     onClick={() => setMovingActionInfo({
