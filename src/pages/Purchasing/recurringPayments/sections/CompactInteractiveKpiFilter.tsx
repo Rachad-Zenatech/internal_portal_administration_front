@@ -1,11 +1,11 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { CalendarClock, AlertTriangle, CheckCircle2, Clock, RefreshCw, XCircle } from "lucide-react";
+import { CalendarClock, AlertTriangle, CheckCircle2, Clock, RefreshCw, XCircle, ShoppingCart, Landmark } from "lucide-react";
 import type { RecurringPaymentsViewState } from "../hooks/useRecurringPaymentsTail";
 
 export function CompactInteractiveKpiFilter({ v }: { v: RecurringPaymentsViewState }) {
   const { stats, cardFilter, handleCardFilterChange, kpiRef } = v;
   return (
-    <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
+    <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
         {/* 1. All Recurring Payments */}
         <Card
           onClick={() => handleCardFilterChange("ALL")}
@@ -16,7 +16,7 @@ export function CompactInteractiveKpiFilter({ v }: { v: RecurringPaymentsViewSta
           <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-medium text-muted-foreground">
-                Active Subscriptions
+                All Recurring
               </p>
               <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight mt-0.5">
                 {stats.total}
@@ -29,7 +29,53 @@ export function CompactInteractiveKpiFilter({ v }: { v: RecurringPaymentsViewSta
           </CardContent>
         </Card>
 
-        {/* 2. M&A Scheduled Payments */}
+        {/* 2. Purchase Requests Sub-Nav */}
+        <Card
+          onClick={() => handleCardFilterChange(cardFilter === "PURCHASE_REQUESTS" ? "ALL" : "PURCHASE_REQUESTS")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-sky-300 ${
+            cardFilter === "PURCHASE_REQUESTS" ? "ring-2 ring-sky-500 bg-sky-50/20 dark:bg-sky-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-sky-700 dark:text-sky-300">
+                Purchase Requests
+              </p>
+              <h3 className="text-base sm:text-lg font-bold text-sky-600 dark:text-sky-400 leading-tight mt-0.5">
+                {(stats as any).purchaseRequests ?? 0}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Subscriptions</p>
+            </div>
+            <div className="p-1.5 rounded-md bg-sky-50 dark:bg-sky-950 flex items-center justify-center text-sky-600 shrink-0">
+              <ShoppingCart size={16} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 3. A/P Sub-Nav */}
+        <Card
+          onClick={() => handleCardFilterChange(cardFilter === "AP" ? "ALL" : "AP")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-emerald-300 ${
+            cardFilter === "AP" ? "ring-2 ring-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                A/P Payables
+              </p>
+              <h3 className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 leading-tight mt-0.5">
+                {(stats as any).apPayments ?? 0}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Wire &amp; Invoices</p>
+            </div>
+            <div className="p-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 shrink-0">
+              <Landmark size={16} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 4. M&A Scheduled Payments */}
         <Card
           onClick={() => handleCardFilterChange(cardFilter === "MA_SCHEDULED" ? "ALL" : "MA_SCHEDULED")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-indigo-300 ${

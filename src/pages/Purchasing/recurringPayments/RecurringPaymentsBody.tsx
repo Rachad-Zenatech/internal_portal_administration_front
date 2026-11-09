@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Calendar as CalendarIcon, CalendarClock, Table as TableIcon, Plus, AlertTriangle, Search, CheckCircle2, Clock, RefreshCw, ChevronLeft, ChevronRight, XCircle, Layers, PauseCircle } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarClock, Table as TableIcon, Plus, AlertTriangle, Search, CheckCircle2, Clock, RefreshCw, ChevronLeft, ChevronRight, XCircle, Layers, PauseCircle, ShoppingCart, Landmark } from "lucide-react";
 import { ScheduleBreakdownModal } from "../dialogs/ScheduleBreakdownModal";
 import { WireTransferDialog } from "../dialogs/WireTransferDialog";
 import { MasterTransactionsTable } from "../components/MasterTransactionsTable";
@@ -109,6 +109,20 @@ export function RecurringPaymentsBody({ s }: { s: RecurringPaymentsGuardedState 
             count: stats.total,
             icon: RefreshCw,
             color: "blue",
+          },
+          {
+            key: "PURCHASE_REQUESTS",
+            label: "Purchase Requests",
+            count: (stats as any).purchaseRequests ?? 0,
+            icon: ShoppingCart,
+            color: "sky",
+          },
+          {
+            key: "AP",
+            label: "A/P (Accounts Payable)",
+            count: (stats as any).apPayments ?? 0,
+            icon: Landmark,
+            color: "green",
           },
           {
             key: "MA_SCHEDULED",

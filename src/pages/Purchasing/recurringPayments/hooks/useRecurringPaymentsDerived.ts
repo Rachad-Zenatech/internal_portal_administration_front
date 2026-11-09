@@ -20,6 +20,23 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
       src === "ma"
     );
   };
+  // Helper to check if a recurring request is an Accounts Payable / Wire transfer request
+  const isApTransaction = (r: PurchaseRequest | any) => {
+    if (!r) return false;
+    const cat = String(r.category || r.request_type || "").toUpperCase();
+    return (
+      cat === "ACCOUNTS_PAYABLE" ||
+      cat === "AP" ||
+      cat === "WIRE_TRANSFER" ||
+      cat === "WIRE" ||
+      Boolean(r.wire_transfer)
+    );
+  };
+  // Helper to check if a recurring request is a Purchase Request (non-AP recurring subscription / standard purchasing)
+  const isPurchaseRequestTransaction = (r: PurchaseRequest | any) => {
+    if (!r) return false;
+    return !isApTransaction(r);
+  };
   // Helper to check if a recurring request is due within 7 days
   const isDueSoon = (r: PurchaseRequest) => {
     const dateStr = r.due_date || r.request_date;
@@ -81,6 +98,14 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
       if (cardFilter === "ALL") {
         // "All Recurring Payments" tab: includes all active recurring subscriptions and M&A scheduled payments
         if (isRejected) return false;
+      } else if (cardFilter === "PURCHASE_REQUESTS" || cardFilter === "REQUESTS") {
+        // "Purchase Requests" sub nav: recurring purchase requests
+        if (isRejected) return false;
+        if (!isPurchaseRequestTransaction(r)) return false;
+      } else if (cardFilter === "AP" || cardFilter === "ACCOUNTS_PAYABLE") {
+        // "A/P (Accounts Payable)" sub nav: recurring wire and AP requests
+        if (isRejected) return false;
+        if (!isApTransaction(r)) return false;
       } else if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
         // "M&A Scheduled" tab: strictly show M&A transactions
         if (isRejected) return false;
@@ -181,6 +206,8 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
     const activeAll = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
 
     const total = activeAll.length; // "All Recurring Payments" card count
+    const purchaseRequests = activeAll.filter(isPurchaseRequestTransaction).length;
+    const apPayments = activeAll.filter(isApTransaction).length;
     const maScheduled = maRequests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected).length; // "M&A Scheduled" card count
     const dueSoon = requests.filter(isDueSoon).length; // "Due in 7 Days"
     const waitingReview = activeAll.filter(
@@ -197,7 +224,7 @@ export function useRecurringPaymentsDerived(ctx: ReturnType<typeof useRecurringP
     ).length; // "Completed"
     const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length; // "Rejected"
     const totalAmount = activeAll.reduce((sum, r) => sum + (r.amount || 0), 0);
-    return { total, maScheduled, dueSoon, waitingReview, reviewed, onHold, completed, rejected, totalAmount };
+    return { total, purchaseRequests, apPayments, maScheduled, dueSoon, waitingReview, reviewed, onHold, completed, rejected, totalAmount };
   }, [requests]);
-  return { isMaTransaction, filteredRequests, stats };
+  return { isMaTransaction, isApTransaction, isPurchaseRequestTransaction, filteredRequests, stats };
 }
