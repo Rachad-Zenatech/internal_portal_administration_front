@@ -126,6 +126,13 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
   // Move Step Modal State (Sandwich / Reorder)
   const [movingNodeIndex, setMovingNodeIndex] = useState<number | null>(null);
 
+  // Move Action Modal State (Sandwich / Move Action between Stages)
+  const [movingActionInfo, setMovingActionInfo] = useState<{
+    sourceStepId: string;
+    actionIndex: number;
+    action: WorkflowActionButton;
+  } | null>(null);
+
   // Drag-and-drop state for card reordering
   const [draggedNodeIndex, setDraggedNodeIndex] = useState<number | null>(null);
   const [dragOverNodeIndex, setDragOverNodeIndex] = useState<number | null>(null);
@@ -365,6 +372,39 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     saveMutation.mutate(updated);
   };
 
+  // Move action button to another stage or reorder within current stage
+  const handleMoveActionToStage = (sourceStepId: string, actionIndex: number, targetStepId: string) => {
+    const sourceNode = nodes.find(n => n.id === sourceStepId);
+    const targetNode = nodes.find(n => n.id === targetStepId);
+    if (!sourceNode || !targetNode) return;
+
+    const actionToMove = sourceNode.actions[actionIndex];
+    if (!actionToMove) return;
+
+    const updated = nodes.map(node => {
+      if (node.id === sourceStepId && node.id === targetStepId) {
+        return node;
+      }
+      if (node.id === sourceStepId) {
+        return {
+          ...node,
+          actions: node.actions.filter((_, idx) => idx !== actionIndex),
+        };
+      }
+      if (node.id === targetStepId) {
+        return {
+          ...node,
+          actions: [...node.actions, actionToMove],
+        };
+      }
+      return node;
+    });
+
+    saveMutation.mutate(updated);
+    toast.success(`Moved action "${actionToMove.label}" to "${targetNode.title}"`);
+    setMovingActionInfo(null);
+  };
+
   return (
     <div className="w-full flex flex-col gap-5 animate-in fade-in duration-300">
       {/* Top Header Card */}
@@ -571,15 +611,29 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                                 <div className="flex items-center gap-0.5">
                                   <button
                                     type="button"
+                                    onClick={() => setMovingActionInfo({
+                                      sourceStepId: node.id,
+                                      actionIndex: actIdx,
+                                      action: act
+                                    })}
+                                    title="Move action to another stage (sandwich handle)"
+                                    className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-750 transition-colors"
+                                  >
+                                    <GripVertical className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
                                     onClick={() => handleOpenEditAction(node.id, actIdx, act)}
-                                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
+                                    title="Edit action settings"
+                                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-750"
                                   >
                                     <Settings2 className="w-3 h-3" />
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteAction(node.id, actIdx)}
-                                    className="p-1 text-slate-400 hover:text-rose-500"
+                                    title="Delete action"
+                                    className="p-1 text-slate-400 hover:text-rose-500 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
                                   >
                                     <Trash2 className="w-3 h-3" />
                                   </button>
@@ -885,6 +939,85 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
             <DialogFooter>
               <Button variant="outline" size="sm" onClick={() => setMovingNodeIndex(null)}>
                 Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Move Action Button to Another Stage Modal */}
+      {movingActionInfo && (
+        <Dialog open={!!movingActionInfo} onOpenChange={(open) => !open && setMovingActionInfo(null)}>
+          <DialogContent className="max-w-md w-full">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <GripVertical className="w-4 h-4 text-indigo-600" />
+                Move Action to Another Stage
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Move action "{movingActionInfo.action.label}" from its current stage to any other stage in the workflow.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-3 text-xs">
+              <div className="p-3 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-2">
+                <div className="font-semibold text-slate-700 dark:text-zinc-300">
+                  Select destination stage:
+                </div>
+                <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                  {nodes.map((targetNode, targetIdx) => {
+                    const isSource = targetNode.id === movingActionInfo.sourceStepId;
+                    return (
+                      <button
+                        key={targetNode.id}
+                        type="button"
+                        disabled={isSource}
+                        onClick={() =>
+                          handleMoveActionToStage(
+                            movingActionInfo.sourceStepId,
+                            movingActionInfo.actionIndex,
+                            targetNode.id
+                          )
+                        }
+                        className={`w-full text-left p-2.5 rounded-lg border flex items-center justify-between transition-colors ${
+                          isSource
+                            ? "bg-slate-100 dark:bg-zinc-800/40 border-slate-200 dark:border-zinc-700 opacity-60 cursor-not-allowed"
+                            : "bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 hover:border-indigo-500 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 cursor-pointer"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="h-5 w-5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-[10px] flex items-center justify-center">
+                            {targetIdx + 1}
+                          </span>
+                          <div>
+                            <span className="font-medium text-slate-900 dark:text-zinc-100 block">
+                              {targetNode.title}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {targetNode.actions.length} action{targetNode.actions.length === 1 ? "" : "s"} currently
+                            </span>
+                          </div>
+                        </div>
+
+                        {isSource ? (
+                          <span className="text-[10px] font-semibold text-slate-400 bg-slate-200/70 dark:bg-zinc-700 px-2 py-0.5 rounded">
+                            Current Stage
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                            Move Here &rarr;
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setMovingActionInfo(null)}>
+                Cancel
               </Button>
             </DialogFooter>
           </DialogContent>
