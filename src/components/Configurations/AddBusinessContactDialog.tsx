@@ -197,17 +197,15 @@ export function AddBusinessContactDialog({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5 sm:col-span-2 relative">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor={`${accountSide}-display-name`} className="text-xs font-semibold flex items-center gap-1.5">
-                      <Building className="h-3.5 w-3.5 text-slate-400" />
-                      <span>Business / Vendor Name <span className="text-red-500">*</span></span>
+                    <Label htmlFor={`${accountSide}-display-name`} className="text-xs font-semibold">
+                      Business / Vendor Name <span className="text-red-500">*</span>
                     </Label>
-                    <span className="text-[10px] text-slate-400">Search existing or type new vendor</span>
                   </div>
                   <div className="relative">
                     <Input
                       id={`${accountSide}-display-name`}
                       required
-                      placeholder="e.g. Acme Corp (search or enter new vendor)"
+                      placeholder="e.g. Acme Corp"
                       value={form.display_name}
                       autoComplete="off"
                       onChange={(e) => {
