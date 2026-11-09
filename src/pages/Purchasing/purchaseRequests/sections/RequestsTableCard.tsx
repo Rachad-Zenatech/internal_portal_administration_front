@@ -1,4 +1,4 @@
-import { FolderKanban, Eye, MoreHorizontal, Repeat, ExternalLink } from "lucide-react";
+import { FolderKanban, Eye, MoreHorizontal, Repeat } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,19 +56,6 @@ export function RequestsTableCard({ s }: { s: PurchaseRequestsState }) {
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span>{r.title}</span>
-                        {r.item_url && (
-                          <a
-                            href={r.item_url.startsWith("http") ? r.item_url : `https://${r.item_url}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 hover:bg-blue-100 hover:underline shrink-0"
-                            title={r.item_url}
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            <span>Link ↗</span>
-                          </a>
-                        )}
                         {(r.source_portal === "m7a" || r.source_portal === "m&a" || r.source_portal === "m_and_a" || r.is_ma) && (
                           <Badge className="text-[10px] px-1.5 py-0 h-4 bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-700 font-bold shrink-0">
                             M&amp;A
