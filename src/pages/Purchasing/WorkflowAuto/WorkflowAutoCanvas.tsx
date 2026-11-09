@@ -621,7 +621,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
 
                 let pillClass = "bg-slate-100/80 text-slate-500 border border-slate-200/80 dark:bg-zinc-800/80 dark:text-zinc-400 dark:border-zinc-700/60";
                 if (isCurrent) {
-                  pillClass = "bg-amber-500/15 text-amber-800 border-2 border-amber-500 dark:bg-amber-500/25 dark:text-amber-300 font-semibold shadow-xs ring-2 ring-amber-400/20";
+                  pillClass = "bg-amber-500/15 text-amber-800 border-2 border-amber-500 dark:bg-amber-500/25 dark:text-amber-300 font-semibold shadow-xs";
                 } else if (isDone) {
                   pillClass = "bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-400 font-medium";
                 }
@@ -633,7 +633,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                         type="button"
                         onClick={() => setActiveStepId(node.id)}
                         title={`Stage ${i + 1}: ${node.title} (Click to jump)`}
-                        className={`w-max px-3 h-8 sm:h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-[11px] sm:text-xs whitespace-nowrap shrink-0 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${pillClass}`}
+                        className={`w-max px-3 h-8 sm:h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-[11px] sm:text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${pillClass}`}
                       >
                         {isDone ? (
                           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
