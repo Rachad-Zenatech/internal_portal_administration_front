@@ -629,68 +629,54 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
         </div>
       </div>
 
-      {/* Dynamic Workflow Pipeline Stepper View (mirrors request detail workflow progress) */}
-      <Card className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-zinc-800">
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
-                Pipeline Stepper View
-              </h3>
-            </div>
-            <span className="text-[11px] text-muted-foreground">
-              Click any stage pill below to jump simulated active state
-            </span>
-          </div>
+      {/* Dynamic Workflow Pipeline Stepper View (matches Request Detail Stepper card exactly) */}
+      <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
+        <CardContent className="py-5 px-6">
+          <div className="relative w-full overflow-x-auto overflow-y-hidden flex items-center justify-between gap-1 sm:gap-1.5 py-1.5 px-0.5 touch-pan-x scroll-smooth [&::-webkit-scrollbar]:hidden">
+            {nodes.map((node, i) => {
+              const isCurrent = node.id === currentSimulatedNode?.id;
+              const isDone = currentSimulatedIndex > -1 && i < currentSimulatedIndex;
 
-          <div className="relative w-full overflow-x-auto py-2">
-            <div className="w-full flex items-center justify-between gap-1 sm:gap-2 px-1 min-w-max">
-              {nodes.map((node, i) => {
-                const isCurrent = node.id === currentSimulatedNode?.id;
-                const isDone = currentSimulatedIndex > -1 && i < currentSimulatedIndex;
+              let pillClass = "bg-slate-100/80 text-slate-500 border border-slate-200/80 dark:bg-zinc-800/80 dark:text-zinc-400 dark:border-zinc-700/60";
+              if (isCurrent) {
+                pillClass = "bg-amber-500/15 text-amber-800 border-2 border-amber-500 dark:bg-amber-500/25 dark:text-amber-300 font-semibold shadow-xs";
+              } else if (isDone) {
+                pillClass = "bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-400 font-medium";
+              }
 
-                let pillClass = "bg-slate-100/80 text-slate-500 border border-slate-200/80 dark:bg-zinc-800/80 dark:text-zinc-400 dark:border-zinc-700/60";
-                if (isCurrent) {
-                  pillClass = "bg-amber-500/15 text-amber-800 border-2 border-amber-500 dark:bg-amber-500/25 dark:text-amber-300 font-semibold shadow-xs";
-                } else if (isDone) {
-                  pillClass = "bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-400 font-medium";
-                }
+              return (
+                <React.Fragment key={`stepper-node-${node.id}-${i}`}>
+                  <div className="flex items-center shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setActiveStepId(node.id)}
+                      title={`Stage ${i + 1}: ${node.title} (Click to jump)`}
+                      className={`w-max px-3 h-8 sm:h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-[11px] sm:text-xs font-medium whitespace-nowrap shrink-0 box-border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${pillClass}`}
+                    >
+                      {isDone ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      ) : isCurrent ? (
+                        <Clock className="h-3.5 w-3.5 text-amber-500 animate-pulse shrink-0" />
+                      ) : (
+                        <Circle className="h-3 w-3 text-slate-400 dark:text-zinc-500 shrink-0" />
+                      )}
+                      <span className="text-center">{node.title}</span>
+                    </button>
+                  </div>
 
-                return (
-                  <React.Fragment key={`stepper-node-${node.id}-${i}`}>
-                    <div className="flex items-center shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setActiveStepId(node.id)}
-                        title={`Stage ${i + 1}: ${node.title} (Click to jump)`}
-                        className={`w-max px-3 h-8 sm:h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-[11px] sm:text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${pillClass}`}
-                      >
-                        {isDone ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                        ) : isCurrent ? (
-                          <Clock className="h-3.5 w-3.5 text-amber-500 animate-pulse shrink-0" />
-                        ) : (
-                          <Circle className="h-3 w-3 text-slate-400 dark:text-zinc-500 shrink-0" />
-                        )}
-                        <span className="text-center">{node.title}</span>
-                      </button>
-                    </div>
-
-                    {/* Flexible connector line */}
-                    {i < nodes.length - 1 && (
-                      <div
-                        className={`h-[2px] flex-1 min-w-[12px] sm:min-w-[20px] rounded-full transition-colors duration-200 shrink-0 ${
-                          isDone
-                            ? "bg-emerald-500/60 dark:bg-emerald-500/40"
-                            : "bg-slate-200 dark:bg-zinc-700/80"
-                        }`}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
+                  {/* Flexible connector line */}
+                  {i < nodes.length - 1 && (
+                    <div
+                      className={`h-[2px] flex-1 min-w-[10px] sm:min-w-[16px] rounded-full transition-colors duration-200 shrink-0 ${
+                        isDone
+                          ? "bg-emerald-500/60 dark:bg-emerald-500/40"
+                          : "bg-slate-200 dark:bg-zinc-700/80"
+                      }`}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
