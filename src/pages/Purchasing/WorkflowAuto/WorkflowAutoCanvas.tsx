@@ -158,20 +158,31 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     setTestExecutionLog(prev => [logEntry, ...prev.slice(0, 19)]);
     toast.success(`Action Triggered: ${action.label}`);
 
-    if (action.targetStep) {
+    // If action explicitly defines a custom jump target and it is not a sequential next/prev step
+    if (action.actionType === "CUSTOM" && action.targetStep) {
       const target = nodes.find(n => n.id === action.targetStep);
       if (target) {
         setActiveStepId(target.id);
+        return;
       }
-    } else if (action.actionType === "NEXT_STEP") {
+    }
+
+    if (action.actionType === "NEXT_STEP") {
+      // Always transition to the stage immediately following the current stage in the active layout
       const currIdx = nodes.findIndex(n => n.id === currentSimulatedNode?.id);
       if (currIdx >= 0 && currIdx < nodes.length - 1) {
         setActiveStepId(nodes[currIdx + 1].id);
       }
     } else if (action.actionType === "PREV_STEP") {
+      // Transition to the stage immediately preceding the current stage
       const currIdx = nodes.findIndex(n => n.id === currentSimulatedNode?.id);
       if (currIdx > 0) {
         setActiveStepId(nodes[currIdx - 1].id);
+      }
+    } else if (action.targetStep) {
+      const target = nodes.find(n => n.id === action.targetStep);
+      if (target) {
+        setActiveStepId(target.id);
       }
     }
   };
