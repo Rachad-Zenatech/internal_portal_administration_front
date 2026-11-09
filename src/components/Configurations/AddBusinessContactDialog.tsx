@@ -1,5 +1,5 @@
 import { useState, useMemo, type FormEvent } from "react";
-import { Plus, User, Landmark, Building, Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import { Plus, User, Landmark, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {

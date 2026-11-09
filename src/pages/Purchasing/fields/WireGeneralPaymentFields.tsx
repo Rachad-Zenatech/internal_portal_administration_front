@@ -390,22 +390,11 @@ export function WireGeneralPaymentFields({
                 <Building className="h-3.5 w-3.5 text-slate-400" />
                 <span>Vendor / Beneficiary Name <span className="text-red-500">*</span></span>
               </label>
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-zinc-300 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={!!form.is_new_vendor}
-                    onChange={(e) => setForm((prev) => ({ ...prev, is_new_vendor: e.target.checked }))}
-                    className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span>New Vendor?</span>
-                </label>
-                {validationErrors.vendor && (
-                  <span className="text-[10px] text-red-500 font-medium flex items-center gap-0.5">
-                    <AlertCircle className="w-3 h-3" /> Required
-                  </span>
-                )}
-              </div>
+              {validationErrors.vendor && (
+                <span className="text-[10px] text-red-500 font-medium flex items-center gap-0.5">
+                  <AlertCircle className="w-3 h-3" /> Required
+                </span>
+              )}
             </div>
             <CreatableCombobox
               required
