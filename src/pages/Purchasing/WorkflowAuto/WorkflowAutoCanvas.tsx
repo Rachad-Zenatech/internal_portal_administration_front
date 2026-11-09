@@ -154,6 +154,19 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
   const currentSimulatedNode = currentSimulatedIndex >= 0 ? nodes[currentSimulatedIndex] : nodes[0];
 
   const handleSimulateAction = (action: WorkflowActionButton) => {
+    // Check if any required field on this action is empty
+    if (action.fields && action.fields.length > 0) {
+      for (const fld of action.fields) {
+        if (fld.required) {
+          const val = testFieldValues[`${action.id}_${fld.id}`] ?? fld.value;
+          if (val === undefined || val === null || String(val).trim() === "") {
+            toast.error(`"${fld.label}" is required to execute "${action.label}".`);
+            return;
+          }
+        }
+      }
+    }
+
     const logEntry = `[${new Date().toLocaleTimeString()}] Executed "${action.label}" from Step "${currentSimulatedNode?.title}"`;
     setTestExecutionLog(prev => [logEntry, ...prev.slice(0, 19)]);
     toast.success(`Action Triggered: ${action.label}`);
@@ -544,8 +557,15 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                                   {act.fields.map((fld) => (
                                     <div key={fld.id} className="space-y-0.5">
                                       <label className="text-[10px] font-medium text-slate-600 dark:text-zinc-400 flex items-center justify-between">
-                                        <span>{fld.label}</span>
-                                        <span className="text-[9px] text-slate-400">{fld.type}</span>
+                                        <span className="flex items-center gap-1">
+                                          {fld.label}
+                                          {fld.required && (
+                                            <span className="text-rose-500 font-bold">*</span>
+                                          )}
+                                        </span>
+                                        <span className="text-[9px] text-slate-400">
+                                          {fld.required ? "required " : ""}{fld.type}
+                                        </span>
                                       </label>
                                       {fld.type === "dropdown" ? (
                                         <Select
@@ -1063,19 +1083,37 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                           });
                         }}
                         placeholder="Field Label (e.g. Region, Priority)"
-                        className="h-7 text-xs font-semibold w-2/3"
+                        className="h-7 text-xs font-semibold w-1/2"
                       />
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setActionFields(prev => prev.filter((_, i) => i !== fldIdx));
-                        }}
-                        className="h-6 w-6 text-slate-400 hover:text-rose-500"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-zinc-300 font-medium cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(fld.required)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setActionFields(prev => {
+                                const next = [...prev];
+                                next[fldIdx].required = checked;
+                                return next;
+                              });
+                            }}
+                            className="rounded border-slate-300 text-indigo-600 h-3.5 w-3.5 focus:ring-indigo-500"
+                          />
+                          <span>Required</span>
+                        </label>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setActionFields(prev => prev.filter((_, i) => i !== fldIdx));
+                          }}
+                          className="h-6 w-6 text-slate-400 hover:text-rose-500"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="space-y-1">

@@ -7,6 +7,7 @@ export interface WorkflowActionField {
   options?: string[];
   placeholder?: string;
   value?: any;
+  required?: boolean;
 }
 
 export interface WorkflowActionButton {
