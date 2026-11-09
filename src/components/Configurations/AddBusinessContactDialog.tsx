@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { Plus, User, Landmark } from "lucide-react";
+import { useState, useMemo, type FormEvent } from "react";
+import { Plus, User, Landmark, Building, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,9 +15,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCreateBusinessContact } from "@/hooks/useBusinessContact";
+import { useBusinessContacts, useCreateBusinessContact } from "@/hooks/useBusinessContact";
+import { useKnownVendors } from "@/hooks/usePurchasing";
 import { PayeeBankingEditor } from "./PayeeBankingEditor";
-import type { BankingDetails } from "@/types/businessContact";
+import type { BankingDetails, BusinessContactReference } from "@/types/businessContact";
 
 const emptyForm = {
   display_name: "",
@@ -53,8 +54,69 @@ export function AddBusinessContactDialog({
     swift_code: "",
   });
   const [error, setError] = useState<string | null>(null);
+  const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const mutation = useCreateBusinessContact();
   const isAr = accountSide === "ar";
+
+  const { data: contactsData, isLoading: isLoadingContacts } = useBusinessContacts(undefined, isAr ? "ar" : "ap");
+  const { data: knownVendors = [] } = useKnownVendors();
+
+  const existingContacts = useMemo<BusinessContactReference[]>(() => {
+    return contactsData?.items || [];
+  }, [contactsData]);
+
+  // Combined options: existing contacts + known vendors
+  const autocompleteOptions = useMemo(() => {
+    const map = new Map<string, BusinessContactReference | null>();
+    existingContacts.forEach((c) => {
+      if (c.display_name?.trim()) {
+        map.set(c.display_name.trim().toLowerCase(), c);
+      }
+    });
+    if (!isAr) {
+      knownVendors.forEach((v) => {
+        if (v && v.trim() && !map.has(v.trim().toLowerCase())) {
+          map.set(v.trim().toLowerCase(), null);
+        }
+      });
+    }
+    return map;
+  }, [existingContacts, knownVendors, isAr]);
+
+  const filteredVendorOptions = useMemo(() => {
+    const q = (form.display_name || "").trim().toLowerCase();
+    const list: Array<{ name: string; contact: BusinessContactReference | null }> = [];
+    autocompleteOptions.forEach((contact, key) => {
+      const displayName = contact?.display_name || key;
+      if (!q || displayName.toLowerCase().includes(q)) {
+        list.push({ name: contact?.display_name || displayName, contact });
+      }
+    });
+    return list.slice(0, 50);
+  }, [autocompleteOptions, form.display_name]);
+
+  const selectExistingContact = (name: string, contact: BusinessContactReference | null) => {
+    if (contact) {
+      setForm((prev) => ({
+        ...prev,
+        display_name: contact.display_name || name,
+        full_name: contact.full_name || prev.full_name,
+        email: contact.email || prev.email,
+        phone_numbers: contact.phone_numbers || prev.phone_numbers,
+        bill_address: contact.bill_address || prev.bill_address,
+        ship_address: contact.ship_address || prev.ship_address,
+      }));
+      if (contact.banking_details && Object.keys(contact.banking_details).length > 0) {
+        setBanking((prev) => ({
+          ...prev,
+          ...(contact.banking_details as any),
+        }));
+      }
+    } else {
+      setForm((prev) => ({ ...prev, display_name: name }));
+    }
+    setVendorDropdownOpen(false);
+  };
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -133,18 +195,102 @@ export function AddBusinessContactDialog({
 
             <TabsContent value="general" className="space-y-4 pt-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label htmlFor={`${accountSide}-display-name`} className="text-xs font-semibold">
-                    Business / Vendor Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`${accountSide}-display-name`}
-                    required
-                    placeholder="e.g. Acme Corp"
-                    value={form.display_name}
-                    onChange={(e) => setForm({ ...form, display_name: e.target.value })}
-                    className="h-9 text-xs"
-                  />
+                <div className="space-y-1.5 sm:col-span-2 relative">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor={`${accountSide}-display-name`} className="text-xs font-semibold flex items-center gap-1.5">
+                      <Building className="h-3.5 w-3.5 text-slate-400" />
+                      <span>Business / Vendor Name <span className="text-red-500">*</span></span>
+                    </Label>
+                    <span className="text-[10px] text-slate-400">Search existing or type new vendor</span>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id={`${accountSide}-display-name`}
+                      required
+                      placeholder="e.g. Acme Corp (search or enter new vendor)"
+                      value={form.display_name}
+                      autoComplete="off"
+                      onChange={(e) => {
+                        setForm({ ...form, display_name: e.target.value });
+                        setVendorDropdownOpen(true);
+                      }}
+                      onFocus={() => setVendorDropdownOpen(true)}
+                      className="h-9 text-xs pr-8"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setVendorDropdownOpen(!vendorDropdownOpen)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
+                    >
+                      <ChevronsUpDown className="h-3.5 w-3.5 opacity-60" />
+                    </button>
+                  </div>
+
+                  {vendorDropdownOpen && (
+                    <div
+                      data-radix-scroll-lock-ignore=""
+                      onMouseDown={(e) => e.preventDefault()}
+                      className="absolute z-50 left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto overscroll-contain bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg shadow-xl py-1 text-xs"
+                      style={{ scrollbarWidth: "thin" }}
+                    >
+                      {/* Option to create brand new vendor if typed something */}
+                      {form.display_name.trim().length > 0 &&
+                        !filteredVendorOptions.some(
+                          (o) => o.name.toLowerCase() === form.display_name.trim().toLowerCase()
+                        ) && (
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 border-b border-indigo-100 dark:border-indigo-900/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/40 font-medium transition-colors"
+                            onClick={() => {
+                              setVendorDropdownOpen(false);
+                            }}
+                          >
+                            <div className="w-5 h-5 rounded-md bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center shrink-0">
+                              <Plus className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="truncate">
+                              Create new vendor: <strong>"{form.display_name.trim()}"</strong>
+                            </span>
+                          </button>
+                        )}
+
+                      {filteredVendorOptions.map((opt) => {
+                        const isSelected =
+                          form.display_name.trim().toLowerCase() === opt.name.toLowerCase();
+                        return (
+                          <button
+                            key={opt.name}
+                            type="button"
+                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors ${
+                              isSelected ? "font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-950/20" : "text-slate-700 dark:text-zinc-300"
+                            }`}
+                            onClick={() => selectExistingContact(opt.name, opt.contact)}
+                          >
+                            <div className="truncate">
+                              <span className="font-medium text-slate-800 dark:text-zinc-200">{opt.name}</span>
+                              {opt.contact?.email && (
+                                <span className="text-[10px] text-muted-foreground ml-2">({opt.contact.email})</span>
+                              )}
+                            </div>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 ml-2" />}
+                          </button>
+                        );
+                      })}
+
+                      {filteredVendorOptions.length === 0 && !form.display_name.trim() && (
+                        <div className="px-3 py-2 text-slate-400 text-center text-xs">
+                          {isLoadingContacts ? (
+                            <span className="flex items-center justify-center gap-1.5">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading contacts...
+                            </span>
+                          ) : (
+                            "No contacts found. Type a name to create one."
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Contact Person</Label>
