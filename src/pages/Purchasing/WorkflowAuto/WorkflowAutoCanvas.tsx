@@ -72,10 +72,9 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
       }
       toast.error(err?.message || "Failed to save workflow");
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["experimental-workflow", domain] });
-    },
-    onSuccess: () => {
+    onSuccess: (data: WorkflowConfigResponse) => {
+      // Direct cache update with the confirmed server response
+      queryClient.setQueryData(["experimental-workflow", domain], data);
       toast.success("Workflow flow configuration saved successfully!");
     },
   });
