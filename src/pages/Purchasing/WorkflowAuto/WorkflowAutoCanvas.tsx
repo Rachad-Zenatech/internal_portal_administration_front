@@ -254,6 +254,8 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                 onOpenEditAction={handleOpenEditAction}
                 onDeleteAction={handleDeleteAction}
                 onInsertStepAfter={handleInsertStep}
+                onMoveActionToStage={handleMoveActionToStage}
+                onMoveField={handleMoveField}
               />
             );
           })}

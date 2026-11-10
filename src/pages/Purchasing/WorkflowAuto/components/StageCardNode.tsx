@@ -54,6 +54,14 @@ interface StageCardNodeProps {
   onOpenEditAction: (stepId: string, actionIndex: number, action: WorkflowActionButton) => void;
   onDeleteAction: (stepId: string, actionIndex: number) => void;
   onInsertStepAfter: (idx: number) => void;
+  onMoveActionToStage: (sourceStepId: string, actionIndex: number, targetStepId: string) => void;
+  onMoveField: (
+    sourceStepId: string,
+    sourceActionId: string,
+    fieldIndex: number,
+    targetStepId: string,
+    targetActionId: string
+  ) => void;
 }
 
 export function StageCardNode({
@@ -81,6 +89,8 @@ export function StageCardNode({
   onOpenEditAction,
   onDeleteAction,
   onInsertStepAfter,
+  onMoveActionToStage,
+  onMoveField,
 }: StageCardNodeProps) {
   return (
     <React.Fragment>
@@ -93,6 +103,19 @@ export function StageCardNode({
         onDragLeave={onDragLeaveNode}
         onDrop={(e) => {
           e.preventDefault();
+          // Check if an action button was dropped onto this stage card
+          const actionData = e.dataTransfer.getData("application/json-action");
+          if (actionData) {
+            try {
+              const { sourceStepId, actionIndex } = JSON.parse(actionData);
+              if (sourceStepId !== node.id) {
+                onMoveActionToStage(sourceStepId, actionIndex, node.id);
+                return;
+              }
+            } catch {
+              // ignore json parse error
+            }
+          }
           onDropNode(idx);
         }}
         className={`relative w-72 shrink-0 rounded-xl border transition-all ${
@@ -245,83 +268,123 @@ export function StageCardNode({
             ) : (
               <div className="space-y-2">
                 {node.actions.map((act, actIdx) => (
+                  /* Step Action Item */
                   <div
                     key={act.id}
-                    className="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 text-xs space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between gap-1.5">
-                      <Button
-                        size="sm"
-                        variant={act.variant || "default"}
-                        onClick={() => onSimulateAction(act, node)}
-                        title={act.label}
-                        className="h-auto min-h-[28px] py-1 text-xs font-semibold px-2.5 flex-1 whitespace-normal text-left justify-start leading-tight"
-                      >
-                        {act.label}
-                      </Button>
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onStartMoveAction(node.id, actIdx, act)
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const fieldData = e.dataTransfer.getData("application/json-field");
+                        if (fieldData) {
+                          try {
+                            const { sourceStepId, sourceActionId, fieldIndex } = JSON.parse(fieldData);
+                            onMoveField(sourceStepId, sourceActionId, fieldIndex, node.id, act.id);
+                          } catch {
+                            // ignore json parse errors
                           }
-                          title="Move action to another stage (sandwich handle)"
-                          className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-750 transition-colors"
+                        }
+                      }}
+                      className="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 text-xs space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-1.5">
+                        <Button
+                          size="sm"
+                          variant={act.variant || "default"}
+                          onClick={() => onSimulateAction(act, node)}
+                          title={act.label}
+                          className="h-auto min-h-[28px] py-1 text-xs font-semibold px-2.5 flex-1 whitespace-normal text-left justify-start leading-tight"
                         >
-                          <GripVertical className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onOpenEditAction(node.id, actIdx, act)}
-                          title="Edit action settings"
-                          className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-750"
-                        >
-                          <Settings2 className="w-3 h-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDeleteAction(node.id, actIdx)}
-                          title="Delete action"
-                          className="p-1 text-slate-400 hover:text-rose-500 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                          {act.label}
+                        </Button>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <button
+                            type="button"
+                            draggable
+                            onDragStart={(e) => {
+                              e.stopPropagation();
+                              e.dataTransfer.setData(
+                                "application/json-action",
+                                JSON.stringify({ sourceStepId: node.id, actionIndex: actIdx })
+                              );
+                              e.dataTransfer.effectAllowed = "move";
+                            }}
+                            onClick={() =>
+                              onStartMoveAction(node.id, actIdx, act)
+                            }
+                            title="Drag action to another stage or click to open transfer modal"
+                            className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-750 transition-colors"
+                          >
+                            <GripVertical className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onOpenEditAction(node.id, actIdx, act)}
+                            title="Edit action settings"
+                            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-750"
+                          >
+                            <Settings2 className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteAction(node.id, actIdx)}
+                            title="Delete action"
+                            className="p-1 text-slate-400 hover:text-rose-500 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
 
-                    {act.description && (
-                      <p className="text-[10px] text-slate-500 dark:text-zinc-400 italic">
-                        {act.description}
-                      </p>
-                    )}
+                      {act.description && (
+                        <p className="text-[10px] text-slate-500 dark:text-zinc-400 italic">
+                          {act.description}
+                        </p>
+                      )}
 
-                    {/* Form Fields & Dropdowns attached to this action button */}
-                    {act.fields && act.fields.length > 0 && (
-                      <div className="pt-1.5 border-t border-slate-200/60 dark:border-zinc-700/50 space-y-1.5">
-                        {act.fields.map((fld, fldIdx) => (
-                          <div key={fld.id} className="space-y-0.5">
-                            <label className="text-[10px] font-medium text-slate-600 dark:text-zinc-400 flex items-center justify-between">
-                              <span className="flex items-center gap-1 min-w-0">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    onStartMoveField(node.id, act.id, fldIdx, fld)
-                                  }
-                                  title={`Move field "${fld.label}" to another action (sandwich handle)`}
-                                  className="p-0.5 -ml-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-700 transition-colors shrink-0"
-                                >
-                                  <GripVertical className="w-2.5 h-2.5" />
-                                </button>
-                                <span className="truncate">{fld.label}</span>
-                                {fld.required && (
-                                  <span className="text-rose-500 font-bold">*</span>
-                                )}
-                              </span>
-                              <span className="text-[9px] text-slate-400 shrink-0">
-                                {fld.required ? "required " : ""}
-                                {fld.type}
-                              </span>
-                            </label>
+                      {/* Form Fields & Dropdowns attached to this action button */}
+                      {act.fields && act.fields.length > 0 && (
+                        <div className="pt-1.5 border-t border-slate-200/60 dark:border-zinc-700/50 space-y-1.5">
+                          {act.fields.map((fld, fldIdx) => (
+                            <div key={fld.id} className="space-y-0.5">
+                              <label className="text-[10px] font-medium text-slate-600 dark:text-zinc-400 flex items-center justify-between">
+                                <span className="flex items-center gap-1 min-w-0">
+                                  <button
+                                    type="button"
+                                    draggable
+                                    onDragStart={(e) => {
+                                      e.stopPropagation();
+                                      e.dataTransfer.setData(
+                                        "application/json-field",
+                                        JSON.stringify({
+                                          sourceStepId: node.id,
+                                          sourceActionId: act.id,
+                                          fieldIndex: fldIdx,
+                                        })
+                                      );
+                                      e.dataTransfer.effectAllowed = "move";
+                                    }}
+                                    onClick={() =>
+                                      onStartMoveField(node.id, act.id, fldIdx, fld)
+                                    }
+                                    title={`Drag field "${fld.label}" into any action button or click to open transfer modal`}
+                                    className="cursor-grab active:cursor-grabbing p-0.5 -ml-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-700 transition-colors shrink-0"
+                                  >
+                                    <GripVertical className="w-2.5 h-2.5" />
+                                  </button>
+                                  <span className="truncate">{fld.label}</span>
+                                  {fld.required && (
+                                    <span className="text-rose-500 font-bold">*</span>
+                                  )}
+                                </span>
+                                <span className="text-[9px] text-slate-400 shrink-0">
+                                  {fld.required ? "required " : ""}
+                                  {fld.type}
+                                </span>
+                              </label>
                             {fld.type === "dropdown" ? (
                               <Select
                                 value={
