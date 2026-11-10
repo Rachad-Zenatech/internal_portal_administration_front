@@ -3,7 +3,7 @@ import { apiClient } from "@/services/apiClient";
 export interface WorkflowActionField {
   id: string;
   label: string;
-  type: "text" | "dropdown" | "number" | "checkbox";
+  type: "text" | "dropdown" | "number" | "checkbox" | "date" | "textarea" | "file";
   options?: string[];
   placeholder?: string;
   value?: any;
@@ -57,6 +57,11 @@ export const experimentalWorkflowService = {
 
   async resetWorkflowConfig(domain: "purchasing" | "invoices"): Promise<WorkflowConfigResponse> {
     return apiClient.post<WorkflowConfigResponse>(`/workflow-auto/${domain}/reset`, {});
+  },
+
+  /** Store these nodes as the domain's default workflow (what "Reset" restores), kept in the database. */
+  async saveAsDefaultWorkflowConfig(domain: "purchasing" | "invoices", payload: Partial<WorkflowConfigResponse>): Promise<WorkflowConfigResponse> {
+    return apiClient.post<WorkflowConfigResponse>(`/workflow-auto/${domain}/save-as-default`, payload);
   },
 };
 

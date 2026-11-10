@@ -41,7 +41,7 @@ interface StageCardNodeProps {
   onDeleteStep: (index: number) => void;
   onOpenOwnerModal: (node: WorkflowStepNode, index: number) => void;
   onAddActionButton: (stepId: string) => void;
-  onSimulateAction: (action: WorkflowActionButton) => void;
+  onSimulateAction: (action: WorkflowActionButton, sourceNode?: WorkflowStepNode) => void;
   onStartMoveAction: (sourceStepId: string, actionIndex: number, action: WorkflowActionButton) => void;
   onOpenEditAction: (stepId: string, actionIndex: number, action: WorkflowActionButton) => void;
   onDeleteAction: (stepId: string, actionIndex: number) => void;
@@ -231,7 +231,7 @@ export function StageCardNode({
                       <Button
                         size="sm"
                         variant={act.variant || "default"}
-                        onClick={() => onSimulateAction(act)}
+                        onClick={() => onSimulateAction(act, node)}
                         title={act.label}
                         className="h-auto min-h-[28px] py-1 text-xs font-semibold px-2.5 flex-1 whitespace-normal text-left justify-start leading-tight"
                       >
@@ -315,8 +315,63 @@ export function StageCardNode({
                                   ))}
                                 </SelectContent>
                               </Select>
+                            ) : fld.type === "checkbox" ? (
+                              <label className="flex items-center gap-1.5 text-[11px] text-slate-700 dark:text-zinc-300">
+                                <input
+                                  type="checkbox"
+                                  className="h-3.5 w-3.5"
+                                  checked={
+                                    (testFieldValues[`${act.id}_${fld.id}`] ??
+                                      String(Boolean(fld.value))) === "true"
+                                  }
+                                  onChange={(e) =>
+                                    setTestFieldValues((prev) => ({
+                                      ...prev,
+                                      [`${act.id}_${fld.id}`]: String(e.target.checked),
+                                    }))
+                                  }
+                                />
+                                {fld.placeholder || fld.label}
+                              </label>
+                            ) : fld.type === "textarea" ? (
+                              <textarea
+                                rows={2}
+                                placeholder={fld.placeholder || fld.label}
+                                value={
+                                  testFieldValues[`${act.id}_${fld.id}`] ??
+                                  fld.value ??
+                                  ""
+                                }
+                                onChange={(e) =>
+                                  setTestFieldValues((prev) => ({
+                                    ...prev,
+                                    [`${act.id}_${fld.id}`]: e.target.value,
+                                  }))
+                                }
+                                className="w-full rounded-md border border-input px-2 py-1 text-[11px] bg-white dark:bg-zinc-900"
+                              />
+                            ) : fld.type === "file" ? (
+                              <label className="flex flex-col items-center justify-center rounded-md border border-dashed border-slate-300 dark:border-zinc-700 px-2 py-2 text-[10px] text-slate-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 cursor-pointer text-center">
+                                <input
+                                  type="file"
+                                  multiple
+                                  className="hidden"
+                                  onChange={(e) =>
+                                    setTestFieldValues((prev) => ({
+                                      ...prev,
+                                      [`${act.id}_${fld.id}`]: Array.from(e.target.files ?? [])
+                                        .map((f) => f.name)
+                                        .join(", "),
+                                    }))
+                                  }
+                                />
+                                {testFieldValues[`${act.id}_${fld.id}`] ||
+                                  fld.placeholder ||
+                                  "Click to browse"}
+                              </label>
                             ) : (
                               <Input
+                                type={fld.type === "date" ? "date" : fld.type === "number" ? "number" : "text"}
                                 placeholder={fld.placeholder || fld.label}
                                 value={
                                   testFieldValues[`${act.id}_${fld.id}`] ??

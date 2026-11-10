@@ -226,7 +226,14 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
   const currentSimulatedIndex = nodes.findIndex((n) => n.id === (activeStepId || nodes[0]?.id));
   const currentSimulatedNode = currentSimulatedIndex >= 0 ? nodes[currentSimulatedIndex] : nodes[0];
 
-  const handleSimulateAction = (action: WorkflowActionButton) => {
+  const handleSimulateAction = (
+    action: WorkflowActionButton,
+    sourceNode?: WorkflowStepNode
+  ) => {
+    // If the action was clicked on a specific card node, that node is the origin step.
+    // If clicked inside the simulator panel, sourceNode is currentSimulatedNode.
+    const originNode = sourceNode ?? currentSimulatedNode;
+
     if (action.fields && action.fields.length > 0) {
       for (const fld of action.fields) {
         if (fld.required) {
@@ -240,7 +247,7 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     }
 
     const logEntry = `[${new Date().toLocaleTimeString()}] Executed "${action.label}" from Step "${
-      currentSimulatedNode?.title
+      originNode?.title
     }"`;
     setTestExecutionLog((prev) => [logEntry, ...prev.slice(0, 19)]);
     toast.success(`Action Triggered: ${action.label}`);
@@ -254,12 +261,12 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     }
 
     if (action.actionType === "NEXT_STEP") {
-      const currIdx = nodes.findIndex((n) => n.id === currentSimulatedNode?.id);
+      const currIdx = nodes.findIndex((n) => n.id === originNode?.id);
       if (currIdx >= 0 && currIdx < nodes.length - 1) {
         setActiveStepId(nodes[currIdx + 1].id);
       }
     } else if (action.actionType === "PREV_STEP") {
-      const currIdx = nodes.findIndex((n) => n.id === currentSimulatedNode?.id);
+      const currIdx = nodes.findIndex((n) => n.id === originNode?.id);
       if (currIdx > 0) {
         setActiveStepId(nodes[currIdx - 1].id);
       }

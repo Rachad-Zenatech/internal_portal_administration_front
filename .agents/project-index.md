@@ -5,7 +5,7 @@
 Scan this index first to locate the right file and description without loading symbol trees or line numbers.
 For detailed function and route definitions, see `.agents/code-map.md`.
 
-- src/App.tsx (194 lines) - app
+- src/App.tsx (198 lines) - app
 - src/components/AppShell/AppShell.tsx (59 lines) - Set initial state
 - src/components/AppShell/Breadcrumbs.tsx (178 lines) - breadcrumbs (components  app shell)
 - src/components/AppShell/ChatMessageRenderer.tsx (356 lines) - chat message renderer (components  app shell)
@@ -14,9 +14,9 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/components/AppShell/GlobalSettingsDialog.tsx (148 lines) - global settings dialog (components  app shell)
 - src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
 - src/components/AppShell/MessageHubStatusDropdown.tsx (572 lines) - message hub status dropdown (components  app shell)
-- src/components/AppShell/Navigation.tsx (147 lines) - navigation (components  app shell)
+- src/components/AppShell/Navigation.tsx (160 lines) - navigation (components  app shell)
 - src/components/AppShell/NotificationDropdown.tsx (149 lines) - notification dropdown (components  app shell)
-- src/components/AppShell/Sidebar.tsx (502 lines) - sidebar (components  app shell)
+- src/components/AppShell/Sidebar.tsx (506 lines) - sidebar (components  app shell)
 - src/components/AppShell/ThemeSwitch.tsx (41 lines) - theme switch (components  app shell)
 - src/components/AppShell/TopBar.tsx (663 lines) - top bar (components  app shell)
 - src/components/AppShell/globalSettingsDialog/hooks/useGlobalSettingsDialog.ts (11 lines) - use global settings dialog (components  app shell global settings dialog hooks)
@@ -328,7 +328,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Logs/systemLogsPage/types.ts (19 lines) - types (pages  logs system logs page)
 - src/pages/Logs/systemLogsPage/utils.ts (181 lines) - Helper to format human-readable action details
 - src/pages/Purchasing/BatchApproval.tsx (251 lines) - batch approval (pages  purchasing)
-- src/pages/Purchasing/Invoices.tsx (165 lines) - invoices (pages  purchasing)
+- src/pages/Purchasing/Invoices.tsx (161 lines) - invoices (pages  purchasing)
 - src/pages/Purchasing/MyApprovals.tsx (367 lines) - my approvals (pages  purchasing)
 - src/pages/Purchasing/PurchaseRequestDetail.tsx (47 lines) - purchase request detail (pages  purchasing)
 - src/pages/Purchasing/PurchaseRequests.tsx (520 lines) - purchase requests (pages  purchasing)
@@ -336,6 +336,18 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/RecurringPayments.tsx (30 lines) - recurring payments (pages  purchasing)
 - src/pages/Purchasing/RequestDetail.tsx (42 lines) - request detail (pages  purchasing)
 - src/pages/Purchasing/SecureInfoRequest.tsx (214 lines) - Secure info requests: an admin asks the requester for account details (e.g.
+- src/pages/Purchasing/WorkflowAuto/APInvoicesWorkflowAuto.tsx (12 lines) - a p invoices workflow auto (pages  purchasing  workflow auto)
+- src/pages/Purchasing/WorkflowAuto/PurchaseRequestsWorkflowAuto.tsx (12 lines) - purchase requests workflow auto (pages  purchasing  workflow auto)
+- src/pages/Purchasing/WorkflowAuto/WorkflowAutoCanvas.tsx (330 lines) - workflow auto canvas (pages  purchasing  workflow auto)
+- src/pages/Purchasing/WorkflowAuto/components/PipelineStepperCard.tsx (87 lines) - pipeline stepper card (pages  purchasing  workflow auto components)
+- src/pages/Purchasing/WorkflowAuto/components/SimulatorPanel.tsx (104 lines) - simulator panel (pages  purchasing  workflow auto components)
+- src/pages/Purchasing/WorkflowAuto/components/StageCardNode.tsx (419 lines) - stage card node (pages  purchasing  workflow auto components)
+- src/pages/Purchasing/WorkflowAuto/dialogs/ChangeOwnerModal.tsx (164 lines) - change owner modal (pages  purchasing  workflow auto dialogs)
+- src/pages/Purchasing/WorkflowAuto/dialogs/EditActionModal.tsx (287 lines) - edit action modal (pages  purchasing  workflow auto dialogs)
+- src/pages/Purchasing/WorkflowAuto/dialogs/EditStageModal.tsx (182 lines) - edit stage modal (pages  purchasing  workflow auto dialogs)
+- src/pages/Purchasing/WorkflowAuto/dialogs/MoveActionModal.tsx (115 lines) - move action modal (pages  purchasing  workflow auto dialogs)
+- src/pages/Purchasing/WorkflowAuto/dialogs/MoveStageModal.tsx (133 lines) - move stage modal (pages  purchasing  workflow auto dialogs)
+- src/pages/Purchasing/WorkflowAuto/hooks/useWorkflowAutoCanvas.ts (630 lines) - use workflow auto canvas (pages  purchasing  workflow auto hooks)
 - src/pages/Purchasing/batchApproval/components/RoleAutocomplete.tsx (99 lines) - role autocomplete (pages  purchasing batch approval components)
 - src/pages/Purchasing/batchApproval/hooks/useBatchApproval.ts (9 lines) - use batch approval (pages  purchasing batch approval hooks)
 - src/pages/Purchasing/batchApproval/hooks/useBatchApprovalData.ts (170 lines) - Fetch all requests in WAITING_APPROVAL
@@ -427,12 +439,12 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/fields/wireBankingFields/types.ts (18 lines) - types (pages  purchasing fields wire banking fields)
 - src/pages/Purchasing/fields/wireBankingFields/utils.ts (58 lines) - utils (pages  purchasing fields wire banking fields)
 - src/pages/Purchasing/invoices/hooks/useInvoices.ts (9 lines) - use invoices (pages  purchasing invoices hooks)
-- src/pages/Purchasing/invoices/hooks/useInvoicesActions.ts (311 lines) - The sidebar sub-menu links here with ?status=WAITING_PAYMENT, ?status=ON_HOLD, ...
-- src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx (312 lines) - filters search toolbar (pages  purchasing invoices sections)
-- src/pages/Purchasing/invoices/sections/KpiSummaryCards.tsx (118 lines) - kpi summary cards (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/hooks/useInvoicesActions.ts (357 lines) - The sidebar sub-menu links here with ?status=WAITING_PAYMENT, ?status=ON_HOLD, ...
+- src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx (100 lines) - filters search toolbar (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/KpiSummaryCards.tsx (168 lines) - kpi summary cards (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/ReadOnlyWireInfo.tsx (326 lines) - read only wire info (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/TableCard.tsx (294 lines) - table card (pages  purchasing invoices sections)
-- src/pages/Purchasing/invoices/sections/TravelStipendsTable.tsx (428 lines) - travel stipends table (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/TravelStipendsTable.tsx (474 lines) - travel stipends table (pages  purchasing invoices sections)
 - src/pages/Purchasing/myApprovals/hooks/useMyApprovals.ts (9 lines) - use my approvals (pages  purchasing my approvals hooks)
 - src/pages/Purchasing/myApprovals/hooks/useMyApprovalsData.ts (176 lines) - Dialog & Drawer state
 - src/pages/Purchasing/myApprovals/sections/MainApprovalsTable.tsx (265 lines) - main approvals table (pages  purchasing my approvals sections)
@@ -447,7 +459,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/purchaseRequestDetail/sections/EditRequestModal.tsx (257 lines) - edit request modal (pages  purchasing purchase request detail sections)
 - src/pages/Purchasing/purchaseRequestDetail/sections/InvoiceDetailsCardOption.tsx (321 lines) - invoice details card option (pages  purchasing purchase request detail sections)
 - src/pages/Purchasing/purchaseRequestDetail/sections/MainRequestHeaderBanner.tsx (362 lines) - main request header banner (pages  purchasing purchase request detail sections)
-- src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx (366 lines) - Receipts belong to one payment: an installment only lists the files saved for that installment,
+- src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx (378 lines) - Receipts belong to one payment: an installment only lists the files saved for that installment,
 - src/pages/Purchasing/purchaseRequestDetail/sections/RequestDetailsPropertyTable.tsx (163 lines) - request details property table (pages  purchasing purchase request detail sections)
 - src/pages/Purchasing/purchaseRequestDetail/sections/ScheduledRangePaymentHorizon.tsx (124 lines) - scheduled range payment horizon (pages  purchasing purchase request detail sections)
 - src/pages/Purchasing/purchaseRequestDetail/sections/TabsApprovalsAttachmentsHistory.tsx (335 lines) - tabs approvals attachments history (pages  purchasing purchase request detail sections)
@@ -462,11 +474,11 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/purchaseRequests/sections/FullScreenLineItems.tsx (180 lines) - full screen line items (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/LineItemsPreviewTable.tsx (122 lines) - line items preview table (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/ProductLinkField.tsx (118 lines) - product link field (pages  purchasing purchase requests sections)
-- src/pages/Purchasing/purchaseRequests/sections/RecurringRequestOptions.tsx (111 lines) - recurring request options (pages  purchasing purchase requests sections)
+- src/pages/Purchasing/purchaseRequests/sections/RecurringRequestOptions.tsx (102 lines) - recurring request options (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/RequestFilterBar.tsx (85 lines) - request filter bar (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/RequestTitleAndPriority.tsx (150 lines) - request title and priority (pages  purchasing purchase requests sections)
-- src/pages/Purchasing/purchaseRequests/sections/RequestsTableCard.tsx (172 lines) - requests table card (pages  purchasing purchase requests sections)
-- src/pages/Purchasing/purchaseRequests/sections/SingleItemFields.tsx (73 lines) - single item fields (pages  purchasing purchase requests sections)
+- src/pages/Purchasing/purchaseRequests/sections/RequestsTableCard.tsx (159 lines) - requests table card (pages  purchasing purchase requests sections)
+- src/pages/Purchasing/purchaseRequests/sections/SingleItemFields.tsx (64 lines) - single item fields (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/sections/WireTransferDocumentInvoice.tsx (89 lines) - wire transfer document invoice (pages  purchasing purchase requests sections)
 - src/pages/Purchasing/purchaseRequests/utils.ts (5 lines) - utils (pages  purchasing purchase requests)
 - src/pages/Purchasing/quickBooks/constants.ts (18 lines) - constants (pages  purchasing quick books)
@@ -521,7 +533,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Purchasing/requestDetail/sections/DedicatedRecurringContractSchedule.tsx (105 lines) - dedicated recurring contract schedule (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/FinancialAccountingSection.tsx (211 lines) - financial accounting section (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (240 lines) - main request header full (pages  purchasing request detail sections)
-- src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (431 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
+- src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (420 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx (84 lines) - product vendor url ai (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/RedirectApprovalDialog.tsx (158 lines) - redirect approval dialog (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/RequestOverview.tsx (107 lines) - request overview (pages  purchasing request detail sections)
@@ -555,8 +567,9 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/services/arService.ts (150 lines) - ar service (services)
 - src/services/entityService.ts (79 lines) - entity service (services)
 - src/services/errorReporting.ts (75 lines) - error reporting (services)
+- src/services/experimentalWorkflowService.ts (68 lines) - experimental workflow service (services)
 - src/services/financeService.ts (100 lines) - finance service (services)
-- src/services/helper.ts (92 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
+- src/services/helper.ts (103 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
 - src/services/masterTablesService.ts (180 lines) - master tables service (services)
 - src/services/oauthService.ts (311 lines) - oauth service (services)
 - src/services/purchasingService.ts (786 lines) - API wrappers for the Purchasing + Accounts Payable workflow.

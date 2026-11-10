@@ -1,4 +1,4 @@
-import { GitFork, Plus, RotateCcw } from "lucide-react";
+import { GitFork, Plus, RotateCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWorkflowAutoCanvas } from "./hooks/useWorkflowAutoCanvas";
@@ -23,6 +23,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     usersList,
     rolesList,
     resetMutation,
+    saveAsDefaultMutation,
     // Simulator
     activeStepId: _activeStepId,
     setActiveStepId,
@@ -136,6 +137,21 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Reset to Standard Flow
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (window.confirm("Save the current workflow as the default? \"Reset to Standard Flow\" will restore this version from now on.")) {
+                saveAsDefaultMutation.mutate();
+              }
+            }}
+            disabled={saveAsDefaultMutation.isPending}
+            className="text-xs h-8 gap-1.5"
+            title="Store this workflow in the database as the default"
+          >
+            <Save className="w-3.5 h-3.5" />
+            Save as Default
           </Button>
           <Button
             size="sm"
