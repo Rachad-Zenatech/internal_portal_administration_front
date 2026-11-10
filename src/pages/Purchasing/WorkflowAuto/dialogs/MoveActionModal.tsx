@@ -46,7 +46,8 @@ interface MoveActionModalProps {
 const AVAILABLE_FLOWS: { domain: WorkflowDomain; label: string }[] = [
   { domain: "purchasing", label: "Spend Request Workflow" },
   { domain: "purchasing_quote", label: "Quote Request (RFQ) Workflow" },
-  { domain: "invoices", label: "A/P & Invoices Workflow" },
+  { domain: "invoices_payable", label: "Create a Payable Workflow" },
+  { domain: "invoices", label: "Wire Transfer Workflow" },
 ];
 
 export function MoveActionModal({

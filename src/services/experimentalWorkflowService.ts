@@ -37,7 +37,7 @@ export interface WorkflowStepNode {
   };
 }
 
-export type WorkflowDomain = "purchasing" | "purchasing_quote" | "invoices" | (string & {});
+export type WorkflowDomain = "purchasing" | "purchasing_quote" | "invoices" | "invoices_payable" | (string & {});
 
 export interface WorkflowConfigResponse {
   id: string;

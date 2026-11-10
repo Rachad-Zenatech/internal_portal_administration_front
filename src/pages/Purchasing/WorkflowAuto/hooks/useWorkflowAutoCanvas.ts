@@ -457,7 +457,8 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
   const getDomainDisplayName = (d: WorkflowDomain) => {
     if (d === "purchasing") return "Spend Requests Workflow";
     if (d === "purchasing_quote") return "Quote Requests Workflow";
-    if (d === "invoices") return "A/P & Invoices Workflow";
+    if (d === "invoices") return "Wire Transfer Workflow";
+    if (d === "invoices_payable") return "Create a Payable Workflow";
     return `${d} Workflow`;
   };
 
