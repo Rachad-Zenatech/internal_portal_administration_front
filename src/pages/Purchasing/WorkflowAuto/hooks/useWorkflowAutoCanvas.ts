@@ -108,6 +108,17 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     },
   });
 
+  const saveAsDefaultMutation = useMutation({
+    mutationFn: () =>
+      experimentalWorkflowService.saveAsDefaultWorkflowConfig(domain, { nodes: nodesRef.current }),
+    onSuccess: () => {
+      toast.success("Current workflow saved as the default (Reset will now restore it)");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to save default workflow");
+    },
+  });
+
   const undoChange = () => {
     const prev = undoStack.current.pop();
     if (!prev) {
@@ -192,6 +203,7 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
   // Drag-and-drop state for card reordering
   const [draggedNodeIndex, setDraggedNodeIndex] = useState<number | null>(null);
   const [dragOverNodeIndex, setDragOverNodeIndex] = useState<number | null>(null);
+  const [dropSide, setDropSide] = useState<"left" | "right" | null>(null);
 
   // Editing Action Button Dialog State
   const [editingAction, setEditingAction] = useState<{
@@ -404,13 +416,26 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     setEditingOwnerNode(null);
   };
 
-  const handleMoveStep = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= nodes.length || fromIndex === toIndex) return;
+  const handleMoveStep = (fromIndex: number, targetIndex: number, side?: "left" | "right") => {
+    if (fromIndex < 0 || fromIndex >= nodes.length) return;
+    
+    // Calculate final destination based on drop side
+    let destinationIndex = targetIndex;
+    if (side === "right") {
+      destinationIndex = fromIndex < targetIndex ? targetIndex : targetIndex + 1;
+    } else if (side === "left") {
+      destinationIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    }
+
+    if (destinationIndex < 0) destinationIndex = 0;
+    if (destinationIndex >= nodes.length) destinationIndex = nodes.length - 1;
+    if (destinationIndex === fromIndex) return;
+
     const updated = [...nodes];
     const [moved] = updated.splice(fromIndex, 1);
-    updated.splice(toIndex, 0, moved);
+    updated.splice(destinationIndex, 0, moved);
     saveMutation.mutate(updated);
-    toast.success(`Moved "${moved.title}" to position ${toIndex + 1}`);
+    toast.success(`Moved "${moved.title}" to position ${destinationIndex + 1}`);
     setMovingNodeIndex(null);
   };
 
@@ -544,6 +569,7 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     rolesList,
     saveMutation,
     resetMutation,
+    saveAsDefaultMutation,
     // Simulator
     activeStepId,
     setActiveStepId,
@@ -619,6 +645,8 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     setDraggedNodeIndex,
     dragOverNodeIndex,
     setDragOverNodeIndex,
+    dropSide,
+    setDropSide,
   };
 }
 

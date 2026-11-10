@@ -99,6 +99,8 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     setDraggedNodeIndex,
     dragOverNodeIndex,
     setDragOverNodeIndex,
+    dropSide,
+    setDropSide,
   } = useWorkflowAutoCanvas({ domain });
 
   return (
@@ -194,20 +196,31 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                 isSimulated={isSimulated}
                 isDragged={isDragged}
                 isDragOver={isDragOver}
+                dropSide={isDragOver ? dropSide : null}
                 testFieldValues={testFieldValues}
                 setTestFieldValues={setTestFieldValues}
-                onDragOverNode={(targetIdx) => {
-                  if (dragOverNodeIndex !== targetIdx) setDragOverNodeIndex(targetIdx);
+                onDragOverNode={(targetIdx, e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const midX = rect.left + rect.width / 2;
+                  const side = e.clientX < midX ? "left" : "right";
+                  if (dragOverNodeIndex !== targetIdx || dropSide !== side) {
+                    setDragOverNodeIndex(targetIdx);
+                    setDropSide(side);
+                  }
                 }}
                 onDragLeaveNode={() => {
-                  if (dragOverNodeIndex === idx) setDragOverNodeIndex(null);
+                  if (dragOverNodeIndex === idx) {
+                    setDragOverNodeIndex(null);
+                    setDropSide(null);
+                  }
                 }}
                 onDropNode={(targetIdx) => {
-                  if (draggedNodeIndex !== null && draggedNodeIndex !== targetIdx) {
-                    handleMoveStep(draggedNodeIndex, targetIdx);
+                  if (draggedNodeIndex !== null) {
+                    handleMoveStep(draggedNodeIndex, targetIdx, dropSide || "right");
                   }
                   setDraggedNodeIndex(null);
                   setDragOverNodeIndex(null);
+                  setDropSide(null);
                 }}
                 onDragStartNode={(sourceIdx, e) => {
                   setDraggedNodeIndex(sourceIdx);
@@ -217,6 +230,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                 onDragEndNode={() => {
                   setDraggedNodeIndex(null);
                   setDragOverNodeIndex(null);
+                  setDropSide(null);
                 }}
                 onOpenMoveModal={(stageIdx) => setMovingNodeIndex(stageIdx)}
                 onOpenEditStep={handleOpenEditStep}

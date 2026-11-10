@@ -29,9 +29,10 @@ interface StageCardNodeProps {
   isSimulated: boolean;
   isDragged: boolean;
   isDragOver: boolean;
+  dropSide: "left" | "right" | null;
   testFieldValues: Record<string, string>;
   setTestFieldValues: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  onDragOverNode: (idx: number) => void;
+  onDragOverNode: (idx: number, e: React.DragEvent<HTMLDivElement>) => void;
   onDragLeaveNode: () => void;
   onDropNode: (idx: number) => void;
   onDragStartNode: (idx: number, e: React.DragEvent) => void;
@@ -54,6 +55,7 @@ export function StageCardNode({
   isSimulated,
   isDragged,
   isDragOver,
+  dropSide,
   testFieldValues,
   setTestFieldValues,
   onDragOverNode,
@@ -78,23 +80,35 @@ export function StageCardNode({
       <div
         onDragOver={(e) => {
           e.preventDefault();
-          onDragOverNode(idx);
+          onDragOverNode(idx, e);
         }}
         onDragLeave={onDragLeaveNode}
         onDrop={(e) => {
           e.preventDefault();
           onDropNode(idx);
         }}
-        className={`w-72 shrink-0 rounded-xl border transition-all ${
+        className={`relative w-72 shrink-0 rounded-xl border transition-all ${
           isDragged
             ? "opacity-40 scale-95 border-indigo-400 border-dashed"
             : isDragOver
-            ? "ring-2 ring-indigo-500 border-indigo-500 scale-[1.02] shadow-lg"
+            ? dropSide === "left"
+              ? "border-l-4 border-l-indigo-600 border-slate-300 dark:border-zinc-700 shadow-md translate-x-1"
+              : "border-r-4 border-r-indigo-600 border-slate-300 dark:border-zinc-700 shadow-md -translate-x-1"
             : isSimulated
             ? "ring-2 ring-indigo-500 border-indigo-400 bg-indigo-50/20 dark:bg-indigo-950/20 shadow-md"
             : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs hover:border-slate-300 dark:hover:border-zinc-700"
         }`}
       >
+        {/* Drop indicator banner badge when hovering left or right */}
+        {isDragOver && dropSide && !isDragged && (
+          <div
+            className={`absolute -top-3 z-20 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-md uppercase tracking-wider text-white bg-indigo-600 flex items-center gap-1 ${
+              dropSide === "left" ? "left-2" : "right-2"
+            }`}
+          >
+            Insert {dropSide === "left" ? "← Before" : "After →"}
+          </div>
+        )}
         {/* Step Header */}
         <div className="p-3 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
