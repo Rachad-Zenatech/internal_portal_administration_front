@@ -4,7 +4,7 @@
 
 How to use: check `.agents/project-index.md` first to locate the file, then inspect its symbols below.
 
-## src/App.tsx (194 lines) - app
+## src/App.tsx (198 lines) - app
 - `NotFoundAlert` (function)
 - `App` (function)
 
@@ -45,7 +45,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
 - `HubSpotSyncProgress` (export function) - Small bottom-right card showing the background HubSpot companies sync: percentage while running,  then the result.
 
-## src/components/AppShell/MessageHubStatusDropdown.tsx (572 lines) - message hub status dropdown (components  app shell)
+## src/components/AppShell/MessageHubStatusDropdown.tsx (571 lines) - message hub status dropdown (components  app shell)
 - `HubQueueOrStreamItem` (export interface)
 - `HubChannelGroupStatus` (export interface)
 - `HubConnectedServer` (export interface)
@@ -63,13 +63,13 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `formatLastSeen` (fn)
     - `renderMetric` (fn)
 
-## src/components/AppShell/Navigation.tsx (147 lines) - navigation (components  app shell)
+## src/components/AppShell/Navigation.tsx (160 lines) - navigation (components  app shell)
 - `navigation` (export const)
 
 ## src/components/AppShell/NotificationDropdown.tsx (149 lines) - notification dropdown (components  app shell)
 - `NotificationDropdownContent` (export function)
 
-## src/components/AppShell/Sidebar.tsx (502 lines) - sidebar (components  app shell)
+## src/components/AppShell/Sidebar.tsx (506 lines) - sidebar (components  app shell)
 - `SidebarUser` (interface)
 - `SidebarNavigationItem` (interface)
 - `SidebarProps` (interface)
@@ -1573,7 +1573,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/BatchApproval.tsx (251 lines) - batch approval (pages  purchasing)
 - `BatchApproval` (export function)
 
-## src/pages/Purchasing/Invoices.tsx (165 lines) - invoices (pages  purchasing)
+## src/pages/Purchasing/Invoices.tsx (161 lines) - invoices (pages  purchasing)
 - `Invoices` (export function)
 
 ## src/pages/Purchasing/MyApprovals.tsx (367 lines) - my approvals (pages  purchasing)
@@ -1597,6 +1597,31 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 
 ## src/pages/Purchasing/SecureInfoRequest.tsx (214 lines) - Secure info requests: an admin asks the requester for account details (e.g.
 - `SecureInfoRequestCard` (export const)
+
+## src/pages/Purchasing/WorkflowAuto/APInvoicesWorkflowAuto.tsx (12 lines) - a p invoices workflow auto (pages  purchasing  workflow auto)
+- `APInvoicesWorkflowAuto` (export function)
+
+## src/pages/Purchasing/WorkflowAuto/PurchaseRequestsWorkflowAuto.tsx (12 lines) - purchase requests workflow auto (pages  purchasing  workflow auto)
+- `PurchaseRequestsWorkflowAuto` (export function)
+
+## src/pages/Purchasing/WorkflowAuto/WorkflowAutoCanvas.tsx (1316 lines) - workflow auto canvas (pages  purchasing  workflow auto)
+- `WorkflowAutoCanvasProps` (interface)
+- `WorkflowAutoCanvas` (export function)
+    - `queryClient` (fn)
+    - `saveMutation` (fn)
+    - `resetMutation` (fn)
+    - `handleSimulateAction` (fn)
+    - `handleInsertStep` (fn) - Insert step at index (to left or right)
+    - `handleDeleteStep` (fn) - Delete a step
+    - `handleOpenEditStep` (fn) - Open Step Editor
+    - `handleSaveStep` (fn)
+    - `handleMoveStep` (fn) - Move / Reorder Step
+    - `handleTransferToOtherDomain` (fn) - Move directly to the other workflow domain
+    - `handleAddActionButton` (fn) - Add Action Button to Step
+    - `handleOpenEditAction` (fn) - Open Action Editor
+    - `handleSaveAction` (fn)
+    - `handleDeleteAction` (fn)
+    - `handleMoveActionToStage` (fn) - Move action button to another stage or reorder within current stage
 
 ## src/pages/Purchasing/batchApproval/components/RoleAutocomplete.tsx (99 lines) - role autocomplete (pages  purchasing batch approval components)
 - `RoleAutocomplete` (export function)
@@ -2034,13 +2059,13 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `useInvoices` (export function)
 - `InvoicesState` (export type)
 
-## src/pages/Purchasing/invoices/hooks/useInvoicesActions.ts (311 lines) - The sidebar sub-menu links here with ?status=WAITING_PAYMENT, ?status=ON_HOLD, ...
+## src/pages/Purchasing/invoices/hooks/useInvoicesActions.ts (357 lines) - The sidebar sub-menu links here with ?status=WAITING_PAYMENT, ?status=ON_HOLD, ...
 - `useInvoicesActions` (export function)
 
-## src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx (312 lines) - filters search toolbar (pages  purchasing invoices sections)
+## src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx (100 lines) - filters search toolbar (pages  purchasing invoices sections)
 - `FiltersSearchToolbar` (export function)
 
-## src/pages/Purchasing/invoices/sections/KpiSummaryCards.tsx (118 lines) - kpi summary cards (pages  purchasing invoices sections)
+## src/pages/Purchasing/invoices/sections/KpiSummaryCards.tsx (168 lines) - kpi summary cards (pages  purchasing invoices sections)
 - `KpiSummaryCards` (export function)
 
 ## src/pages/Purchasing/invoices/sections/ReadOnlyWireInfo.tsx (326 lines) - read only wire info (pages  purchasing invoices sections)
@@ -2049,7 +2074,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/invoices/sections/TableCard.tsx (294 lines) - table card (pages  purchasing invoices sections)
 - `TableCard` (export function)
 
-## src/pages/Purchasing/invoices/sections/TravelStipendsTable.tsx (428 lines) - travel stipends table (pages  purchasing invoices sections)
+## src/pages/Purchasing/invoices/sections/TravelStipendsTable.tsx (474 lines) - travel stipends table (pages  purchasing invoices sections)
 - `TravelStipend` (export interface)
 - `TravelStipendsTableProps` (interface)
 - `TravelStipendsTable` (export function)
@@ -2057,6 +2082,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleUpdateStatus` (fn)
     - `filteredStipends` (fn)
     - `renderStatusBadge` (fn)
+    - `fit` (fn)
 
 ## src/pages/Purchasing/myApprovals/hooks/useMyApprovals.ts (9 lines) - use my approvals (pages  purchasing my approvals hooks)
 - `useMyApprovals` (export function)
@@ -2125,7 +2151,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/purchaseRequestDetail/sections/MainRequestHeaderBanner.tsx (362 lines) - main request header banner (pages  purchasing purchase request detail sections)
 - `MainRequestHeaderBanner` (export function)
 
-## src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx (366 lines) - Receipts belong to one payment: an installment only lists the files saved for that installment,
+## src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx (378 lines) - Receipts belong to one payment: an installment only lists the files saved for that installment,
 - `RecordInvoiceDialog` (export function)
 
 ## src/pages/Purchasing/purchaseRequestDetail/sections/RequestDetailsPropertyTable.tsx (163 lines) - request details property table (pages  purchasing purchase request detail sections)
@@ -2172,7 +2198,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/purchaseRequests/sections/ProductLinkField.tsx (118 lines) - product link field (pages  purchasing purchase requests sections)
 - `ProductLinkField` (export function)
 
-## src/pages/Purchasing/purchaseRequests/sections/RecurringRequestOptions.tsx (111 lines) - recurring request options (pages  purchasing purchase requests sections)
+## src/pages/Purchasing/purchaseRequests/sections/RecurringRequestOptions.tsx (102 lines) - recurring request options (pages  purchasing purchase requests sections)
 - `RecurringRequestOptions` (export function)
 
 ## src/pages/Purchasing/purchaseRequests/sections/RequestFilterBar.tsx (85 lines) - request filter bar (pages  purchasing purchase requests sections)
@@ -2184,7 +2210,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/purchaseRequests/sections/RequestsTableCard.tsx (172 lines) - requests table card (pages  purchasing purchase requests sections)
 - `RequestsTableCard` (export function)
 
-## src/pages/Purchasing/purchaseRequests/sections/SingleItemFields.tsx (73 lines) - single item fields (pages  purchasing purchase requests sections)
+## src/pages/Purchasing/purchaseRequests/sections/SingleItemFields.tsx (64 lines) - single item fields (pages  purchasing purchase requests sections)
 - `SingleItemFields` (export function)
 
 ## src/pages/Purchasing/purchaseRequests/sections/WireTransferDocumentInvoice.tsx (89 lines) - wire transfer document invoice (pages  purchasing purchase requests sections)
@@ -2375,7 +2401,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (240 lines) - main request header full (pages  purchasing request detail sections)
 - `MainRequestHeaderFull` (export function)
 
-## src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (431 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
+## src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (420 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
 - `MultiplePartsInteractiveEditable` (export function)
 
 ## src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx (84 lines) - product vendor url ai (pages  purchasing request detail sections)
@@ -2590,10 +2616,17 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `reportClientError` (export function)
 - `installGlobalErrorReporting` (export function)
 
+## src/services/experimentalWorkflowService.ts (57 lines) - experimental workflow service (services)
+- `WorkflowActionField` (export interface)
+- `WorkflowActionButton` (export interface)
+- `WorkflowStepNode` (export interface)
+- `WorkflowConfigResponse` (export interface)
+- `experimentalWorkflowService` (export const)
+
 ## src/services/financeService.ts (100 lines) - finance service (services)
 - `financeService` (export const)
 
-## src/services/helper.ts (92 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
+## src/services/helper.ts (103 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
 - `ApiError` (export class)
 - `getApiErrorCode` (export function)
 - `getApiErrorStatus` (export function)
