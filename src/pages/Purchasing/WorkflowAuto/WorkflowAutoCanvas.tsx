@@ -1214,8 +1214,8 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
       {/* Quick Change Owner & Role Modal */}
       {editingOwnerNode && (
         <Dialog open={!!editingOwnerNode} onOpenChange={(open) => !open && setEditingOwnerNode(null)}>
-          <DialogContent className="sm:max-w-md w-full p-6">
-            <DialogHeader>
+          <DialogContent className="w-[95vw] sm:max-w-[500px] p-6 max-h-[90vh] flex flex-col gap-0 rounded-2xl overflow-hidden">
+            <DialogHeader className="pb-3 border-b border-slate-100 dark:border-zinc-800">
               <DialogTitle className="text-base font-bold flex items-center gap-2">
                 <Shield className="w-4 h-4 text-indigo-600" />
                 Change Stage Owner: {editingOwnerNode.node.title}
@@ -1225,7 +1225,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-3 py-2 text-xs">
+            <div className="flex-1 min-h-0 overflow-y-auto py-3 space-y-3 text-xs pr-1">
               <div className="space-y-1">
                 <label className="font-semibold text-slate-700 dark:text-zinc-300">
                   Search Users
@@ -1253,6 +1253,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                       const role = (u.role || "").toLowerCase();
                       return name.includes(q) || email.includes(q) || dept.includes(q) || role.includes(q);
                     })
+                    .slice(0, 100)
                     .map((u: any) => {
                       const fullName = u.full_name || u.email || "Unnamed User";
                       const roleStr = u.is_super_admin
@@ -1318,7 +1319,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
               </div>
             </div>
 
-            <DialogFooter className="mt-2">
+            <DialogFooter className="pt-3 border-t border-slate-100 dark:border-zinc-800">
               <Button variant="outline" size="sm" onClick={() => setEditingOwnerNode(null)}>
                 Close
               </Button>
