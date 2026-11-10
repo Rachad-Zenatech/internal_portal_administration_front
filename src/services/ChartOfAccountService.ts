@@ -39,4 +39,29 @@ export const ChartOfAccountService = {
       { is_active: isActive }
     );
   },
+
+  async getPredictedGLSuggestions(params: {
+    product_name?: string;
+    vendor?: string;
+    amount?: number;
+    category?: string;
+    description?: string;
+    item_url?: string;
+  }): Promise<{
+    best_category: string;
+    best_account_number: string;
+    best_account_name: string;
+    suggestions: Array<{
+      account_number: string;
+      account_name: string;
+      confidence: number;
+      reason: string;
+      source: string;
+      is_best_match: boolean;
+    }>;
+    evidence_summary: string;
+    source: string;
+  }> {
+    return apiClient.post("/api/chart-of-accounts/suggest", params);
+  },
 };
