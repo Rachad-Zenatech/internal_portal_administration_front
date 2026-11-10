@@ -15,7 +15,7 @@ export interface WorkflowActionButton {
   label: string;
   variant?: "default" | "outline" | "secondary" | "destructive";
   description?: string;
-  actionType: "NEXT_STEP" | "PREV_STEP" | "TRIGGER_API" | "CUSTOM";
+  actionType: "NEXT_STEP" | "PREV_STEP" | "TRIGGER_API" | "UPDATE_DATABASE" | "CUSTOM";
   targetStep?: string;
   fields?: WorkflowActionField[];
 }

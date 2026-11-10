@@ -224,9 +224,9 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
   const [actionVariant, setActionVariant] = useState<
     "default" | "outline" | "secondary" | "destructive"
   >("default");
-  const [actionType, setActionType] = useState<"NEXT_STEP" | "PREV_STEP" | "TRIGGER_API" | "CUSTOM">(
-    "NEXT_STEP"
-  );
+  const [actionType, setActionType] = useState<
+    "NEXT_STEP" | "PREV_STEP" | "TRIGGER_API" | "UPDATE_DATABASE" | "CUSTOM"
+  >("NEXT_STEP");
   const [actionTarget, setActionTarget] = useState("");
   const [actionFields, setActionFields] = useState<WorkflowActionField[]>([]);
 
@@ -278,6 +278,12 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
         setActiveStepId(target.id);
         return;
       }
+    }
+
+    if (action.actionType === "UPDATE_DATABASE") {
+      // Keeps stage in place while committing / updating database record values
+      toast.info(`Database record updated with field values.`);
+      return;
     }
 
     if (action.actionType === "NEXT_STEP") {

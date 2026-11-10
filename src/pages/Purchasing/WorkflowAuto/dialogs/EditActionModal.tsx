@@ -36,8 +36,8 @@ interface EditActionModalProps {
   setActionDesc: (val: string) => void;
   actionVariant: "default" | "outline" | "secondary" | "destructive";
   setActionVariant: (val: "default" | "outline" | "secondary" | "destructive") => void;
-  actionType: "NEXT_STEP" | "PREV_STEP" | "TRIGGER_API" | "CUSTOM";
-  setActionType: (val: "NEXT_STEP" | "PREV_STEP" | "TRIGGER_API" | "CUSTOM") => void;
+  actionType: "NEXT_STEP" | "PREV_STEP" | "TRIGGER_API" | "UPDATE_DATABASE" | "CUSTOM";
+  setActionType: (val: "NEXT_STEP" | "PREV_STEP" | "TRIGGER_API" | "UPDATE_DATABASE" | "CUSTOM") => void;
   actionTarget: string;
   setActionTarget: (val: string) => void;
   actionFields: WorkflowActionField[];
@@ -123,6 +123,7 @@ export function EditActionModal({
                   <SelectItem value="NEXT_STEP">Move to Next Stage</SelectItem>
                   <SelectItem value="PREV_STEP">Return to Previous Stage</SelectItem>
                   <SelectItem value="TRIGGER_API">Trigger API / Event</SelectItem>
+                  <SelectItem value="UPDATE_DATABASE">Update Database</SelectItem>
                   <SelectItem value="CUSTOM">Custom Target</SelectItem>
                 </SelectContent>
               </Select>
