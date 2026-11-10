@@ -1598,30 +1598,99 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/SecureInfoRequest.tsx (214 lines) - Secure info requests: an admin asks the requester for account details (e.g.
 - `SecureInfoRequestCard` (export const)
 
-## src/pages/Purchasing/WorkflowAuto/APInvoicesWorkflowAuto.tsx (12 lines) - a p invoices workflow auto (pages  purchasing  workflow auto)
+## src/pages/Purchasing/WorkflowAuto/APInvoicesWorkflowAuto.tsx (90 lines) - a p invoices workflow auto (pages  purchasing  workflow auto)
+- `FlowOption` (interface)
 - `APInvoicesWorkflowAuto` (export function)
 
-## src/pages/Purchasing/WorkflowAuto/PurchaseRequestsWorkflowAuto.tsx (12 lines) - purchase requests workflow auto (pages  purchasing  workflow auto)
+## src/pages/Purchasing/WorkflowAuto/PurchaseRequestsWorkflowAuto.tsx (90 lines) - purchase requests workflow auto (pages  purchasing  workflow auto)
+- `FlowOption` (interface)
 - `PurchaseRequestsWorkflowAuto` (export function)
 
-## src/pages/Purchasing/WorkflowAuto/WorkflowAutoCanvas.tsx (1316 lines) - workflow auto canvas (pages  purchasing  workflow auto)
+## src/pages/Purchasing/WorkflowAuto/WorkflowAutoCanvas.tsx (385 lines) - workflow auto canvas (pages  purchasing  workflow auto)
 - `WorkflowAutoCanvasProps` (interface)
 - `WorkflowAutoCanvas` (export function)
+
+## src/pages/Purchasing/WorkflowAuto/components/PipelineStepperCard.tsx (87 lines) - pipeline stepper card (pages  purchasing  workflow auto components)
+- `PipelineStepperCardProps` (interface)
+- `PipelineStepperCard` (export function)
+
+## src/pages/Purchasing/WorkflowAuto/components/SimulatorPanel.tsx (104 lines) - simulator panel (pages  purchasing  workflow auto components)
+- `SimulatorPanelProps` (interface)
+- `SimulatorPanel` (export function)
+
+## src/pages/Purchasing/WorkflowAuto/components/StageCardNode.tsx (558 lines) - stage card node (pages  purchasing  workflow auto components)
+- `StageCardNodeProps` (interface)
+- `StageCardNode` (export function)
+
+## src/pages/Purchasing/WorkflowAuto/constants/workflowFieldCatalog.ts (771 lines) - workflow field catalog (pages  purchasing  workflow auto constants)
+- `CatalogFieldType` (export type)
+- `CatalogWorkflowField` (export interface)
+- `WORKFLOW_FIELD_CATALOG` (export const)
+
+## src/pages/Purchasing/WorkflowAuto/dialogs/ChangeOwnerModal.tsx (164 lines) - change owner modal (pages  purchasing  workflow auto dialogs)
+- `ChangeOwnerModalProps` (interface)
+- `ChangeOwnerModal` (export function)
+
+## src/pages/Purchasing/WorkflowAuto/dialogs/EditActionModal.tsx (408 lines) - edit action modal (pages  purchasing  workflow auto dialogs)
+- `EditActionModalProps` (interface)
+- `EditActionModal` (export function)
+    - `handleAddFromCatalog` (fn)
+
+## src/pages/Purchasing/WorkflowAuto/dialogs/EditStageModal.tsx (517 lines) - edit stage modal (pages  purchasing  workflow auto dialogs)
+- `EditStageModalProps` (interface)
+- `EditStageModal` (export function)
+    - `variableOptions` (fn) - Extract variables dynamically from current workflow flow (all fields defined across all stages/actions)
+    - `addVar` (fn)
+    - `filteredUsers` (fn) - Filtered users for specific reviewer selection
+    - `handleAddReviewCheckItem` (fn)
+    - `handleUpdateCheckItem` (fn)
+    - `handleRemoveCheckItem` (fn)
+
+## src/pages/Purchasing/WorkflowAuto/dialogs/MoveActionModal.tsx (248 lines) - move action modal (pages  purchasing  workflow auto dialogs)
+- `MovingActionInfo` (interface)
+- `MoveActionModalProps` (interface)
+- `MoveActionModal` (export function)
+
+## src/pages/Purchasing/WorkflowAuto/dialogs/MoveFieldModal.tsx (270 lines) - move field modal (pages  purchasing  workflow auto dialogs)
+- `MovingFieldInfo` (export interface)
+- `MoveFieldModalProps` (interface)
+- `MoveFieldModal` (export function)
+
+## src/pages/Purchasing/WorkflowAuto/dialogs/MoveStageModal.tsx (166 lines) - move stage modal (pages  purchasing  workflow auto dialogs)
+- `MoveStageModalProps` (interface)
+- `MoveStageModal` (export function)
+
+## src/pages/Purchasing/WorkflowAuto/hooks/useWorkflowAutoCanvas.ts (926 lines) - use workflow auto canvas (pages  purchasing  workflow auto hooks)
+- `UseWorkflowAutoCanvasProps` (export interface)
+- `useWorkflowAutoCanvas` (export function)
     - `queryClient` (fn)
+    - `skipHistory` (fn)
+    - `recordHistory` (fn)
     - `saveMutation` (fn)
     - `resetMutation` (fn)
+    - `saveAsDefaultMutation` (fn)
+    - `undoChange` (fn)
+    - `redoChange` (fn)
+    - `onKeyDown` (fn)
     - `handleSimulateAction` (fn)
-    - `handleInsertStep` (fn) - Insert step at index (to left or right)
-    - `handleDeleteStep` (fn) - Delete a step
-    - `handleOpenEditStep` (fn) - Open Step Editor
+    - `handleInsertStep` (fn)
+    - `handleDeleteStep` (fn)
+    - `handleOpenEditStep` (fn)
     - `handleSaveStep` (fn)
-    - `handleMoveStep` (fn) - Move / Reorder Step
-    - `handleTransferToOtherDomain` (fn) - Move directly to the other workflow domain
-    - `handleAddActionButton` (fn) - Add Action Button to Step
-    - `handleOpenEditAction` (fn) - Open Action Editor
+    - `handleOpenOwnerModal` (fn)
+    - `handleSelectOwnerUser` (fn)
+    - `handleSaveCustomOwnerRole` (fn)
+    - `handleMoveStep` (fn)
+    - `getDomainDisplayName` (fn)
+    - `handleTransferToOtherDomain` (fn)
+    - `handleAddActionButton` (fn)
+    - `handleOpenEditAction` (fn)
     - `handleSaveAction` (fn)
     - `handleDeleteAction` (fn)
-    - `handleMoveActionToStage` (fn) - Move action button to another stage or reorder within current stage
+    - `handleMoveActionToStage` (fn)
+    - `handleTransferActionToOtherDomain` (fn) - Transfer action button directly to a stage in the other workflow domain
+    - `handleMoveField` (fn) - Move a form field to another action button within the current workflow
+    - `handleTransferFieldToOtherDomain` (fn) - Transfer a form field directly to an action button in the other workflow domain
 
 ## src/pages/Purchasing/batchApproval/components/RoleAutocomplete.tsx (99 lines) - role autocomplete (pages  purchasing batch approval components)
 - `RoleAutocomplete` (export function)
@@ -2207,7 +2276,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Purchasing/purchaseRequests/sections/RequestTitleAndPriority.tsx (150 lines) - request title and priority (pages  purchasing purchase requests sections)
 - `RequestTitleAndPriority` (export function)
 
-## src/pages/Purchasing/purchaseRequests/sections/RequestsTableCard.tsx (172 lines) - requests table card (pages  purchasing purchase requests sections)
+## src/pages/Purchasing/purchaseRequests/sections/RequestsTableCard.tsx (159 lines) - requests table card (pages  purchasing purchase requests sections)
 - `RequestsTableCard` (export function)
 
 ## src/pages/Purchasing/purchaseRequests/sections/SingleItemFields.tsx (64 lines) - single item fields (pages  purchasing purchase requests sections)
@@ -2557,7 +2626,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/services/api.ts (6 lines) - api (services)
 - `getAnnualReport` (export function)
 
-## src/services/apiClient.ts (777 lines) - api client (services)
+## src/services/apiClient.ts (856 lines) - api client (services)
 - `ActiveApiAction` (export interface)
 - `subscribeToApiActions` (export function)
 - `notifyActionListeners` (function)
@@ -2616,10 +2685,12 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `reportClientError` (export function)
 - `installGlobalErrorReporting` (export function)
 
-## src/services/experimentalWorkflowService.ts (57 lines) - experimental workflow service (services)
+## src/services/experimentalWorkflowService.ts (83 lines) - experimental workflow service (services)
 - `WorkflowActionField` (export interface)
 - `WorkflowActionButton` (export interface)
+- `ReviewCheckItem` (export interface)
 - `WorkflowStepNode` (export interface)
+- `WorkflowDomain` (export type)
 - `WorkflowConfigResponse` (export interface)
 - `experimentalWorkflowService` (export const)
 

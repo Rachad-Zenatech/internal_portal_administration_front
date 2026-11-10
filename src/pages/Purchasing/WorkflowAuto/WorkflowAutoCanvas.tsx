@@ -1,409 +1,122 @@
-import React, { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
-import {
-  GitFork,
-  Plus,
-  Play,
-  RotateCcw,
-  Trash2,
-  Edit2,
-  ArrowRight,
-  Settings2,
-  Sparkles,
-  CheckCircle2,
-  Clock,
-  Circle,
-  UserCheck,
-  Shield,
-  GripVertical,
-  ArrowLeftRight,
-} from "lucide-react";
+import { GitFork, Plus, RotateCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
-import {
-  experimentalWorkflowService,
-  type WorkflowConfigResponse,
-  type WorkflowStepNode,
-  type WorkflowActionButton,
-  type WorkflowActionField
-} from "@/services/experimentalWorkflowService";
+import { useWorkflowAutoCanvas } from "./hooks/useWorkflowAutoCanvas";
+import { StageCardNode } from "./components/StageCardNode";
+import { PipelineStepperCard } from "./components/PipelineStepperCard";
+import { SimulatorPanel } from "./components/SimulatorPanel";
+import { MoveStageModal } from "./dialogs/MoveStageModal";
+import { MoveActionModal } from "./dialogs/MoveActionModal";
+import { ChangeOwnerModal } from "./dialogs/ChangeOwnerModal";
+import { EditStageModal } from "./dialogs/EditStageModal";
+import { EditActionModal } from "./dialogs/EditActionModal";
+import { MoveFieldModal } from "./dialogs/MoveFieldModal";
+
+import type { WorkflowDomain } from "@/services/experimentalWorkflowService";
 
 interface WorkflowAutoCanvasProps {
-  domain: "purchasing" | "invoices";
+  domain: WorkflowDomain;
   title: string;
   subtitle: string;
 }
 
 export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanvasProps) {
-  const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
-  const urlStatus = searchParams.get("status");
-
-  const { data: config } = useQuery<WorkflowConfigResponse>({
-    queryKey: ["experimental-workflow", domain],
-    queryFn: () => experimentalWorkflowService.getWorkflowConfig(domain),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  });
-
-  // Local state for nodes so UI updates instantly and reliably
-  const [localNodes, setLocalNodes] = useState<WorkflowStepNode[] | null>(null);
-
-  useEffect(() => {
-    if (config?.nodes) {
-      setLocalNodes(config.nodes);
-    }
-  }, [config?.nodes]);
-
-  const nodes = localNodes ?? config?.nodes ?? [];
-
-  const saveMutation = useMutation({
-    mutationFn: (updatedNodes: WorkflowStepNode[]) =>
-      experimentalWorkflowService.saveWorkflowConfig(domain, { nodes: updatedNodes }),
-    onMutate: async (updatedNodes: WorkflowStepNode[]) => {
-      // Optimistic instant UI update
-      setLocalNodes(updatedNodes);
-      await queryClient.cancelQueries({ queryKey: ["experimental-workflow", domain] });
-      const previous = queryClient.getQueryData<WorkflowConfigResponse>(["experimental-workflow", domain]);
-      if (previous) {
-        queryClient.setQueryData<WorkflowConfigResponse>(["experimental-workflow", domain], {
-          ...previous,
-          nodes: updatedNodes
-        });
-      }
-      return { previous };
-    },
-    onError: (err: any, _vars, context) => {
-      if (context?.previous) {
-        setLocalNodes(context.previous.nodes);
-        queryClient.setQueryData(["experimental-workflow", domain], context.previous);
-      }
-      toast.error(err?.message || "Failed to save workflow");
-    },
-    onSuccess: (data: WorkflowConfigResponse) => {
-      if (data?.nodes) {
-        setLocalNodes(data.nodes);
-      }
-      queryClient.setQueryData(["experimental-workflow", domain], data);
-      toast.success("Workflow flow configuration saved successfully!");
-    },
-  });
-
-  const resetMutation = useMutation({
-    mutationFn: () => experimentalWorkflowService.resetWorkflowConfig(domain),
-    onSuccess: (data: WorkflowConfigResponse) => {
-      if (data?.nodes) {
-        setLocalNodes(data.nodes);
-      }
-      queryClient.setQueryData(["experimental-workflow", domain], data);
-      toast.success("Workflow reset to original baseline template");
-    },
-    onError: (err: any) => {
-      toast.error(err?.message || "Failed to reset workflow");
-    },
-  });
-
-  // Active testing simulator state
-  const [activeStepId, setActiveStepId] = useState<string>("");
-  const [testExecutionLog, setTestExecutionLog] = useState<string[]>([]);
-  const [testFieldValues, setTestFieldValues] = useState<Record<string, any>>({});
-
-  // Editing Step Node Dialog State
-  const [editingNode, setEditingNode] = useState<{ node: WorkflowStepNode; index: number } | null>(null);
-  const [nodeTitle, setNodeTitle] = useState("");
-  const [nodeDesc, setNodeDesc] = useState("");
-  const [nodeBadge, setNodeBadge] = useState("slate");
-  const [nodeAssignedRole, setNodeAssignedRole] = useState("");
-
-  // Move Step Modal State (Sandwich / Reorder)
-  const [movingNodeIndex, setMovingNodeIndex] = useState<number | null>(null);
-
-  // Move Action Modal State (Sandwich / Move Action between Stages)
-  const [movingActionInfo, setMovingActionInfo] = useState<{
-    sourceStepId: string;
-    actionIndex: number;
-    action: WorkflowActionButton;
-  } | null>(null);
-
-  // Drag-and-drop state for card reordering
-  const [draggedNodeIndex, setDraggedNodeIndex] = useState<number | null>(null);
-  const [dragOverNodeIndex, setDragOverNodeIndex] = useState<number | null>(null);
-
-  // Editing Action Button Dialog State
-  const [editingAction, setEditingAction] = useState<{
-    stepId: string;
-    actionIndex: number;
-    action: WorkflowActionButton;
-  } | null>(null);
-  const [actionLabel, setActionLabel] = useState("");
-  const [actionDesc, setActionDesc] = useState("");
-  const [actionVariant, setActionVariant] = useState<"default" | "outline" | "secondary" | "destructive">("default");
-  const [actionType, setActionType] = useState<"NEXT_STEP" | "PREV_STEP" | "TRIGGER_API" | "CUSTOM">("NEXT_STEP");
-  const [actionTarget, setActionTarget] = useState("");
-  const [actionFields, setActionFields] = useState<WorkflowActionField[]>([]);
-
-  // Sync active step with URL query param if present
-  useEffect(() => {
-    if (urlStatus && nodes.length > 0) {
-      const match = nodes.find(n => (n.statusKey || "").toUpperCase() === urlStatus.toUpperCase());
-      if (match) {
-        setActiveStepId(match.id);
-      }
-    }
-  }, [urlStatus, nodes]);
-
-  // Determine current active simulator step
-  const currentSimulatedIndex = nodes.findIndex(n => n.id === (activeStepId || nodes[0]?.id));
-  const currentSimulatedNode = currentSimulatedIndex >= 0 ? nodes[currentSimulatedIndex] : nodes[0];
-
-  const handleSimulateAction = (action: WorkflowActionButton) => {
-    // Check if any required field on this action is empty
-    if (action.fields && action.fields.length > 0) {
-      for (const fld of action.fields) {
-        if (fld.required) {
-          const val = testFieldValues[`${action.id}_${fld.id}`] ?? fld.value;
-          if (val === undefined || val === null || String(val).trim() === "") {
-            toast.error(`"${fld.label}" is required to execute "${action.label}".`);
-            return;
-          }
-        }
-      }
-    }
-
-    const logEntry = `[${new Date().toLocaleTimeString()}] Executed "${action.label}" from Step "${currentSimulatedNode?.title}"`;
-    setTestExecutionLog(prev => [logEntry, ...prev.slice(0, 19)]);
-    toast.success(`Action Triggered: ${action.label}`);
-
-    // If action explicitly defines a custom jump target and it is not a sequential next/prev step
-    if (action.actionType === "CUSTOM" && action.targetStep) {
-      const target = nodes.find(n => n.id === action.targetStep);
-      if (target) {
-        setActiveStepId(target.id);
-        return;
-      }
-    }
-
-    if (action.actionType === "NEXT_STEP") {
-      // Always transition to the stage immediately following the current stage in the active layout
-      const currIdx = nodes.findIndex(n => n.id === currentSimulatedNode?.id);
-      if (currIdx >= 0 && currIdx < nodes.length - 1) {
-        setActiveStepId(nodes[currIdx + 1].id);
-      }
-    } else if (action.actionType === "PREV_STEP") {
-      // Transition to the stage immediately preceding the current stage
-      const currIdx = nodes.findIndex(n => n.id === currentSimulatedNode?.id);
-      if (currIdx > 0) {
-        setActiveStepId(nodes[currIdx - 1].id);
-      }
-    } else if (action.targetStep) {
-      const target = nodes.find(n => n.id === action.targetStep);
-      if (target) {
-        setActiveStepId(target.id);
-      }
-    }
-  };
-
-  // Insert step at index (to left or right)
-  const handleInsertStep = (insertIndex: number) => {
-    const newStepId = `step_${Date.now()}`;
-    const newStep: WorkflowStepNode = {
-      id: newStepId,
-      title: "New Automated Stage",
-      description: "Stage description and automated actions.",
-      statusKey: "STAGE_" + (insertIndex + 1),
-      badgeColor: "indigo",
-      assignedRole: "Procurement / Reviewer",
-      actions: [
-        {
-          id: `act_${Date.now()}`,
-          label: "Advance Stage",
-          variant: "default",
-          description: "Proceeds to subsequent stage",
-          actionType: "NEXT_STEP",
-          fields: [
-            { id: "decision", label: "Review Outcome", type: "dropdown", options: ["Approved", "Flagged"], value: "Approved" }
-          ]
-        }
-      ]
-    };
-    const updated = [...nodes];
-    updated.splice(insertIndex, 0, newStep);
-    saveMutation.mutate(updated);
-  };
-
-  // Delete a step
-  const handleDeleteStep = (index: number) => {
-    if (nodes.length <= 1) {
-      toast.error("Workflow must have at least one step.");
-      return;
-    }
-    const updated = nodes.filter((_, i) => i !== index);
-    saveMutation.mutate(updated);
-  };
-
-  // Open Step Editor
-  const handleOpenEditStep = (node: WorkflowStepNode, index: number) => {
-    setEditingNode({ node, index });
-    setNodeTitle(node.title);
-    setNodeDesc(node.description);
-    setNodeBadge(node.badgeColor || "slate");
-    setNodeAssignedRole(node.assignedRole || "");
-  };
-
-  const handleSaveStep = () => {
-    if (!editingNode) return;
-    const updated = [...nodes];
-    updated[editingNode.index] = {
-      ...editingNode.node,
-      title: nodeTitle.trim() || editingNode.node.title,
-      description: nodeDesc.trim(),
-      badgeColor: nodeBadge,
-      assignedRole: nodeAssignedRole.trim() || undefined,
-    };
-    saveMutation.mutate(updated);
-    setEditingNode(null);
-  };
-
-  // Move / Reorder Step
-  const handleMoveStep = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= nodes.length || fromIndex === toIndex) return;
-    const updated = [...nodes];
-    const [moved] = updated.splice(fromIndex, 1);
-    updated.splice(toIndex, 0, moved);
-    saveMutation.mutate(updated);
-    toast.success(`Moved "${moved.title}" to position ${toIndex + 1}`);
-    setMovingNodeIndex(null);
-  };
-
-  // Move directly to the other workflow domain
-  const handleTransferToOtherDomain = async (fromIndex: number) => {
-    const targetDomain = domain === "purchasing" ? "invoices" : "purchasing";
-    const targetName = targetDomain === "purchasing" ? "Purchase Requests Workflow" : "A/P & Invoices Workflow";
-    const nodeToTransfer = nodes[fromIndex];
-
-    try {
-      // 1. Fetch other domain's config
-      const targetConfig = await experimentalWorkflowService.getWorkflowConfig(targetDomain);
-      const targetNodes = [...(targetConfig.nodes || [])];
-      targetNodes.push(nodeToTransfer);
-
-      // 2. Save target domain
-      await experimentalWorkflowService.saveWorkflowConfig(targetDomain, { nodes: targetNodes });
-
-      // 3. Remove from current domain
-      const updated = nodes.filter((_, idx) => idx !== fromIndex);
-      await saveMutation.mutateAsync(updated);
-
-      queryClient.invalidateQueries({ queryKey: ["experimental-workflow", targetDomain] });
-      toast.success(`Transferred "${nodeToTransfer.title}" into ${targetName}!`);
-      setMovingNodeIndex(null);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to transfer step to other workflow.");
-    }
-  };
-
-  // Add Action Button to Step
-  const handleAddActionButton = (stepId: string) => {
-    const newAction: WorkflowActionButton = {
-      id: `act_${Date.now()}`,
-      label: "New Action",
-      variant: "default",
-      description: "Perform action and trigger workflow event",
-      actionType: "NEXT_STEP",
-      fields: []
-    };
-    const updated = nodes.map(n => {
-      if (n.id === stepId) {
-        return { ...n, actions: [...n.actions, newAction] };
-      }
-      return n;
-    });
-    saveMutation.mutate(updated);
-  };
-
-  // Open Action Editor
-  const handleOpenEditAction = (stepId: string, actionIndex: number, action: WorkflowActionButton) => {
-    setEditingAction({ stepId, actionIndex, action });
-    setActionLabel(action.label);
-    setActionDesc(action.description || "");
-    setActionVariant(action.variant || "default");
-    setActionType(action.actionType || "NEXT_STEP");
-    setActionTarget(action.targetStep || "");
-    setActionFields(action.fields ? JSON.parse(JSON.stringify(action.fields)) : []);
-  };
-
-  const handleSaveAction = () => {
-    if (!editingAction) return;
-    const updated = nodes.map(n => {
-      if (n.id === editingAction.stepId) {
-        const nextActs = [...n.actions];
-        nextActs[editingAction.actionIndex] = {
-          ...editingAction.action,
-          label: actionLabel.trim() || editingAction.action.label,
-          description: actionDesc.trim(),
-          variant: actionVariant,
-          actionType,
-          targetStep: actionTarget || undefined,
-          fields: actionFields,
-        };
-        return { ...n, actions: nextActs };
-      }
-      return n;
-    });
-    saveMutation.mutate(updated);
-    setEditingAction(null);
-  };
-
-  const handleDeleteAction = (stepId: string, actionIndex: number) => {
-    const updated = nodes.map(n => {
-      if (n.id === stepId) {
-        return { ...n, actions: n.actions.filter((_, idx) => idx !== actionIndex) };
-      }
-      return n;
-    });
-    saveMutation.mutate(updated);
-  };
-
-  // Move action button to another stage or reorder within current stage
-  const handleMoveActionToStage = (sourceStepId: string, actionIndex: number, targetStepId: string) => {
-    const sourceNode = nodes.find(n => n.id === sourceStepId);
-    const targetNode = nodes.find(n => n.id === targetStepId);
-    if (!sourceNode || !targetNode) return;
-
-    const actionToMove = sourceNode.actions[actionIndex];
-    if (!actionToMove) return;
-
-    const updated = nodes.map(node => {
-      if (node.id === sourceStepId && node.id === targetStepId) {
-        return node;
-      }
-      if (node.id === sourceStepId) {
-        return {
-          ...node,
-          actions: node.actions.filter((_, idx) => idx !== actionIndex),
-        };
-      }
-      if (node.id === targetStepId) {
-        return {
-          ...node,
-          actions: [...node.actions, actionToMove],
-        };
-      }
-      return node;
-    });
-
-    saveMutation.mutate(updated);
-    toast.success(`Moved action "${actionToMove.label}" to "${targetNode.title}"`);
-    setMovingActionInfo(null);
-  };
+  const {
+    nodes,
+    usersList,
+    rolesList,
+    resetMutation,
+    saveAsDefaultMutation,
+    // Simulator
+    activeStepId: _activeStepId,
+    setActiveStepId,
+    testExecutionLog,
+    setTestExecutionLog,
+    testFieldValues,
+    setTestFieldValues,
+    currentSimulatedIndex,
+    currentSimulatedNode,
+    handleSimulateAction,
+    // Stage crud & reorder
+    handleInsertStep,
+    handleDeleteStep,
+    handleMoveStep,
+    handleTransferToOtherDomain,
+    // Stage edit dialog
+    editingNode,
+    setEditingNode,
+    nodeTitle,
+    setNodeTitle,
+    nodeDesc,
+    setNodeDesc,
+    nodeBadge,
+    setNodeBadge,
+    nodeAssignedRole,
+    setNodeAssignedRole,
+    nodeReviewControlEnabled,
+    setNodeReviewControlEnabled,
+    nodeReviewControlRole,
+    setNodeReviewControlRole,
+    nodeReviewControlUser,
+    setNodeReviewControlUser,
+    nodeReviewControlVariable,
+    setNodeReviewControlVariable,
+    nodeReviewControlText,
+    setNodeReviewControlText,
+    nodeReviewControlItems,
+    setNodeReviewControlItems,
+    handleOpenEditStep,
+    handleSaveStep,
+    // Owner modal
+    editingOwnerNode,
+    setEditingOwnerNode,
+    ownerSearch,
+    setOwnerSearch,
+    customRoleInput,
+    setCustomRoleInput,
+    handleOpenOwnerModal,
+    handleSelectOwnerUser,
+    handleSaveCustomOwnerRole,
+    // Move stage modal
+    movingNodeIndex,
+    setMovingNodeIndex,
+    // Move action modal
+    movingActionInfo,
+    setMovingActionInfo,
+    handleMoveActionToStage,
+    handleTransferActionToOtherDomain,
+    // Move field modal
+    movingFieldInfo,
+    setMovingFieldInfo,
+    handleMoveField,
+    handleTransferFieldToOtherDomain,
+    // Action edit dialog
+    editingAction,
+    setEditingAction,
+    actionLabel,
+    setActionLabel,
+    actionDesc,
+    setActionDesc,
+    actionVariant,
+    setActionVariant,
+    actionType,
+    setActionType,
+    actionTarget,
+    setActionTarget,
+    actionFields,
+    setActionFields,
+    handleAddActionButton,
+    handleOpenEditAction,
+    handleSaveAction,
+    handleDeleteAction,
+    // Drag-and-drop
+    draggedNodeIndex,
+    setDraggedNodeIndex,
+    dragOverNodeIndex,
+    setDragOverNodeIndex,
+    dropSide,
+    setDropSide,
+  } = useWorkflowAutoCanvas({ domain });
 
   return (
     <div className="w-full flex flex-col gap-5 animate-in fade-in duration-300">
@@ -437,10 +150,25 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
             }}
             disabled={resetMutation.isPending}
             className="text-xs h-8 gap-1.5"
-            title="Load the standard production purchase request flow"
+            title="Load the default flow (undo with Ctrl+Z)"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Reset to Standard Flow
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (window.confirm("Save the current workflow as the default? \"Reset to Standard Flow\" will restore this version from now on.")) {
+                saveAsDefaultMutation.mutate();
+              }
+            }}
+            disabled={saveAsDefaultMutation.isPending}
+            className="text-xs h-8 gap-1.5"
+            title="Store this workflow in the database as the default"
+          >
+            <Save className="w-3.5 h-3.5" />
+            Save as Default
           </Button>
           <Button
             size="sm"
@@ -471,845 +199,186 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
           </div>
 
           {nodes.map((node, idx) => {
-            const isSimulated = (currentSimulatedNode?.id === node.id);
+            const isSimulated = currentSimulatedNode?.id === node.id;
             const isDragged = draggedNodeIndex === idx;
             const isDragOver = dragOverNodeIndex === idx;
 
             return (
-              <React.Fragment key={node.id}>
-                {/* Step Card Node */}
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (dragOverNodeIndex !== idx) {
-                      setDragOverNodeIndex(idx);
-                    }
-                  }}
-                  onDragLeave={() => {
-                    if (dragOverNodeIndex === idx) {
-                      setDragOverNodeIndex(null);
-                    }
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (draggedNodeIndex !== null && draggedNodeIndex !== idx) {
-                      handleMoveStep(draggedNodeIndex, idx);
-                    }
-                    setDraggedNodeIndex(null);
+              <StageCardNode
+                key={node.id}
+                node={node}
+                idx={idx}
+                isSimulated={isSimulated}
+                isDragged={isDragged}
+                isDragOver={isDragOver}
+                dropSide={isDragOver ? dropSide : null}
+                testFieldValues={testFieldValues}
+                setTestFieldValues={setTestFieldValues}
+                onDragOverNode={(targetIdx, e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const midX = rect.left + rect.width / 2;
+                  const side = e.clientX < midX ? "left" : "right";
+                  if (dragOverNodeIndex !== targetIdx || dropSide !== side) {
+                    setDragOverNodeIndex(targetIdx);
+                    setDropSide(side);
+                  }
+                }}
+                onDragLeaveNode={() => {
+                  if (dragOverNodeIndex === idx) {
                     setDragOverNodeIndex(null);
-                  }}
-                  className={`w-72 shrink-0 rounded-xl border transition-all ${
-                    isDragged
-                      ? "opacity-40 scale-95 border-indigo-400 border-dashed"
-                      : isDragOver
-                      ? "ring-2 ring-indigo-500 border-indigo-500 scale-[1.02] shadow-lg"
-                      : isSimulated
-                      ? "ring-2 ring-indigo-500 border-indigo-400 bg-indigo-50/20 dark:bg-indigo-950/20 shadow-md"
-                      : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs hover:border-slate-300 dark:hover:border-zinc-700"
-                  }`}
-                >
-                  {/* Step Header */}
-                  <div className="p-3 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      {/* Drag Handle placed on the left side before the number */}
-                      <button
-                        type="button"
-                        draggable
-                        onDragStart={(e) => {
-                          setDraggedNodeIndex(idx);
-                          e.dataTransfer.setData("text/plain", String(idx));
-                          e.dataTransfer.effectAllowed = "move";
-                        }}
-                        onDragEnd={() => {
-                          setDraggedNodeIndex(null);
-                          setDragOverNodeIndex(null);
-                        }}
-                        onClick={() => setMovingNodeIndex(idx)}
-                        title="Drag to reposition stage, or click to move/transfer"
-                        className="cursor-grab active:cursor-grabbing p-0.5 -ml-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-                      >
-                        <GripVertical className="w-4 h-4" />
-                      </button>
-
-                      <span className="h-5 w-5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-[11px] flex items-center justify-center">
-                        {idx + 1}
-                      </span>
-                      <h3 className="font-semibold text-xs text-slate-900 dark:text-zinc-100 truncate max-w-[130px]">
-                        {node.title}
-                      </h3>
-                    </div>
-
-                    <div className="flex items-center gap-0.5">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleOpenEditStep(node, idx)}
-                        className="h-6 w-6 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
-                      >
-                        <Edit2 className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDeleteStep(idx)}
-                        className="h-6 w-6 text-slate-400 hover:text-rose-500"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Step Description & Assigned Role */}
-                  <div className="p-3 space-y-2.5">
-                    {/* Role / Owner pill */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100/90 dark:bg-zinc-800 border border-slate-200/70 dark:border-zinc-700/60 text-[10px]">
-                      <Shield className="w-3 h-3 text-indigo-500 shrink-0" />
-                      <span className="font-semibold text-slate-500 dark:text-zinc-400">Owner:</span>
-                      <span className="font-medium text-slate-800 dark:text-zinc-200 truncate">
-                        {node.assignedRole || "Unassigned"}
-                      </span>
-                    </div>
-
-                    <p className="text-[11px] text-muted-foreground leading-relaxed min-h-[30px]">
-                      {node.description || "No description provided."}
-                    </p>
-
-                    {/* Action Buttons Container */}
-                    <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                          Step Actions ({node.actions.length})
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleAddActionButton(node.id)}
-                          className="text-[10px] text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-0.5"
-                        >
-                          <Plus className="w-3 h-3" />
-                          Add Action
-                        </button>
-                      </div>
-
-                      {node.actions.length === 0 ? (
-                        <div className="text-[11px] text-slate-400 italic py-1">No action buttons defined.</div>
-                      ) : (
-                        <div className="space-y-2">
-                          {node.actions.map((act, actIdx) => (
-                            <div
-                              key={act.id}
-                              className="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 text-xs space-y-1.5"
-                            >
-                              <div className="flex items-center justify-between">
-                                <Button
-                                  size="sm"
-                                  variant={act.variant || "default"}
-                                  onClick={() => handleSimulateAction(act)}
-                                  className="h-7 text-xs font-semibold px-2.5 truncate max-w-[170px]"
-                                >
-                                  {act.label}
-                                </Button>
-                                <div className="flex items-center gap-0.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => setMovingActionInfo({
-                                      sourceStepId: node.id,
-                                      actionIndex: actIdx,
-                                      action: act
-                                    })}
-                                    title="Move action to another stage (sandwich handle)"
-                                    className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-750 transition-colors"
-                                  >
-                                    <GripVertical className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenEditAction(node.id, actIdx, act)}
-                                    title="Edit action settings"
-                                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-750"
-                                  >
-                                    <Settings2 className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteAction(node.id, actIdx)}
-                                    title="Delete action"
-                                    className="p-1 text-slate-400 hover:text-rose-500 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </div>
-
-                              {act.description && (
-                                <p className="text-[10px] text-slate-500 dark:text-zinc-400 italic">
-                                  {act.description}
-                                </p>
-                              )}
-
-                              {/* Form Fields & Dropdowns attached to this action button */}
-                              {act.fields && act.fields.length > 0 && (
-                                <div className="pt-1.5 border-t border-slate-200/60 dark:border-zinc-700/50 space-y-1.5">
-                                  {act.fields.map((fld) => (
-                                    <div key={fld.id} className="space-y-0.5">
-                                      <label className="text-[10px] font-medium text-slate-600 dark:text-zinc-400 flex items-center justify-between">
-                                        <span className="flex items-center gap-1">
-                                          {fld.label}
-                                          {fld.required && (
-                                            <span className="text-rose-500 font-bold">*</span>
-                                          )}
-                                        </span>
-                                        <span className="text-[9px] text-slate-400">
-                                          {fld.required ? "required " : ""}{fld.type}
-                                        </span>
-                                      </label>
-                                      {fld.type === "dropdown" ? (
-                                        <Select
-                                          value={testFieldValues[`${act.id}_${fld.id}`] || fld.value || fld.options?.[0]}
-                                          onValueChange={(val) =>
-                                            setTestFieldValues(prev => ({ ...prev, [`${act.id}_${fld.id}`]: val }))
-                                          }
-                                        >
-                                          <SelectTrigger className="h-6 text-[11px] bg-white dark:bg-zinc-900">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {fld.options?.map((opt) => (
-                                              <SelectItem key={opt} value={opt} className="text-xs">
-                                                {opt}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      ) : (
-                                        <Input
-                                          placeholder={fld.placeholder || fld.label}
-                                          value={testFieldValues[`${act.id}_${fld.id}`] ?? fld.value ?? ""}
-                                          onChange={(e) =>
-                                            setTestFieldValues(prev => ({
-                                              ...prev,
-                                              [`${act.id}_${fld.id}`]: e.target.value
-                                            }))
-                                          }
-                                          className="h-6 text-[11px] bg-white dark:bg-zinc-900"
-                                        />
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Connector Arrow + Inline "+" Button between steps */}
-                <div className="self-center flex flex-col items-center px-1">
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    onClick={() => handleInsertStep(idx + 1)}
-                    title={`Insert stage between ${node.title} and next step`}
-                    className="h-7 w-7 rounded-full border-dashed border-slate-300 text-slate-500 hover:border-indigo-500 hover:text-indigo-600 shadow-2xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </Button>
-                  <ArrowRight className="w-4 h-4 text-slate-300 dark:text-zinc-700 mt-1" />
-                </div>
-              </React.Fragment>
+                    setDropSide(null);
+                  }
+                }}
+                onDropNode={(targetIdx) => {
+                  if (draggedNodeIndex !== null) {
+                    handleMoveStep(draggedNodeIndex, targetIdx, dropSide || "right");
+                  }
+                  setDraggedNodeIndex(null);
+                  setDragOverNodeIndex(null);
+                  setDropSide(null);
+                }}
+                onDragStartNode={(sourceIdx, e) => {
+                  setDraggedNodeIndex(sourceIdx);
+                  e.dataTransfer.setData("text/plain", String(sourceIdx));
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragEndNode={() => {
+                  setDraggedNodeIndex(null);
+                  setDragOverNodeIndex(null);
+                  setDropSide(null);
+                }}
+                onOpenMoveModal={(stageIdx) => setMovingNodeIndex(stageIdx)}
+                onOpenEditStep={handleOpenEditStep}
+                onDeleteStep={handleDeleteStep}
+                onOpenOwnerModal={handleOpenOwnerModal}
+                onAddActionButton={handleAddActionButton}
+                onSimulateAction={handleSimulateAction}
+                onStartMoveAction={(sourceStepId, actionIndex, action) =>
+                  setMovingActionInfo({ sourceStepId, actionIndex, action })
+                }
+                onStartMoveField={(sourceStepId, sourceActionId, fieldIndex, field) =>
+                  setMovingFieldInfo({ sourceStepId, sourceActionId, fieldIndex, field })
+                }
+                onOpenEditAction={handleOpenEditAction}
+                onDeleteAction={handleDeleteAction}
+                onInsertStepAfter={handleInsertStep}
+                onMoveActionToStage={handleMoveActionToStage}
+                onMoveField={handleMoveField}
+              />
             );
           })}
         </div>
       </div>
 
-      {/* Dynamic Workflow Pipeline Stepper View (matches Request Detail Stepper card exactly) */}
-      <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
-        <CardContent className="py-5 px-6">
-          <div className="relative w-full overflow-x-auto overflow-y-hidden flex items-center justify-between gap-1 sm:gap-1.5 py-1.5 px-0.5 touch-pan-x scroll-smooth [&::-webkit-scrollbar]:hidden">
-            {nodes.map((node, i) => {
-              const isCurrent = node.id === currentSimulatedNode?.id;
-              const isDone = currentSimulatedIndex > -1 && i < currentSimulatedIndex;
-
-              let pillClass = "bg-slate-100/80 text-slate-500 border border-slate-200/80 dark:bg-zinc-800/80 dark:text-zinc-400 dark:border-zinc-700/60";
-              if (isCurrent) {
-                pillClass = "bg-amber-500/15 text-amber-800 border-2 border-amber-500 dark:bg-amber-500/25 dark:text-amber-300 font-semibold shadow-xs";
-              } else if (isDone) {
-                pillClass = "bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-400 font-medium";
-              }
-
-              return (
-                <React.Fragment key={`stepper-node-${node.id}-${i}`}>
-                  <div className="flex items-center shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setActiveStepId(node.id)}
-                      title={`Stage ${i + 1}: ${node.title} (Click to jump)`}
-                      className={`w-max px-3 h-8 sm:h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-[11px] sm:text-xs font-medium whitespace-nowrap shrink-0 box-border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${pillClass}`}
-                    >
-                      {isDone ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                      ) : isCurrent ? (
-                        <Clock className="h-3.5 w-3.5 text-amber-500 animate-pulse shrink-0" />
-                      ) : (
-                        <Circle className="h-3 w-3 text-slate-400 dark:text-zinc-500 shrink-0" />
-                      )}
-                      <span className="text-center">{node.title}</span>
-                    </button>
-                  </div>
-
-                  {/* Flexible connector line */}
-                  {i < nodes.length - 1 && (
-                    <div
-                      className={`h-[2px] flex-1 min-w-[10px] sm:min-w-[16px] rounded-full transition-colors duration-200 shrink-0 ${
-                        isDone
-                          ? "bg-emerald-500/60 dark:bg-emerald-500/40"
-                          : "bg-slate-200 dark:bg-zinc-700/80"
-                      }`}
-                    />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Dynamic Workflow Pipeline Stepper View */}
+      <PipelineStepperCard
+        nodes={nodes}
+        currentSimulatedNode={currentSimulatedNode}
+        currentSimulatedIndex={currentSimulatedIndex}
+        onSelectStep={setActiveStepId}
+      />
 
       {/* Simulator & Live Test Panel */}
-      <Card className="border border-slate-200 dark:border-zinc-800 shadow-xs">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-2">
-            <div className="flex items-center gap-2">
-              <Play className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
-                Live Interactive Workflow Simulator
-              </h3>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-[11px] border border-slate-200 dark:border-zinc-700">
-                <UserCheck className="w-3.5 h-3.5 text-indigo-500" />
-                <span className="text-muted-foreground">Managed By:</span>
-                <span className="font-semibold text-slate-900 dark:text-zinc-100">
-                  {currentSimulatedNode?.assignedRole || "Unassigned"}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Stage:</span>
-                <Badge className="bg-indigo-600 text-white font-semibold">
-                  {currentSimulatedNode?.title || "None"}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-2 p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700">
-              <div className="font-semibold text-slate-800 dark:text-zinc-200">
-                Available Actions for Stage: "{currentSimulatedNode?.title}"
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Click any action button to test state changes, dropdown values, and transitions.
-              </p>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {currentSimulatedNode?.actions.map(act => (
-                  <Button
-                    key={act.id}
-                    size="sm"
-                    variant={act.variant || "default"}
-                    onClick={() => handleSimulateAction(act)}
-                    className="h-8 text-xs font-semibold gap-1.5"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {act.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2 p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700 font-mono">
-              <div className="font-sans font-semibold text-slate-800 dark:text-zinc-200 flex items-center justify-between">
-                <span>Execution Trace Log</span>
-                {testExecutionLog.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setTestExecutionLog([])}
-                    className="text-[10px] text-slate-400 hover:text-slate-600"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <div className="h-24 overflow-y-auto space-y-1 text-[11px] text-slate-600 dark:text-zinc-400">
-                {testExecutionLog.length === 0 ? (
-                  <span className="text-slate-400 italic">No events executed yet. Click an action above to test.</span>
-                ) : (
-                  testExecutionLog.map((log, i) => (
-                    <div key={i} className="leading-tight">
-                      {log}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <SimulatorPanel
+        currentSimulatedNode={currentSimulatedNode}
+        testExecutionLog={testExecutionLog}
+        onClearLog={() => setTestExecutionLog([])}
+        onSimulateAction={handleSimulateAction}
+      />
 
       {/* Move / Reorder / Transfer Stage Modal */}
-      {movingNodeIndex !== null && nodes[movingNodeIndex] && (
-        <Dialog open={movingNodeIndex !== null} onOpenChange={(open) => !open && setMovingNodeIndex(null)}>
-          <DialogContent className="max-w-md w-full">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold flex items-center gap-2">
-                <GripVertical className="w-4 h-4 text-indigo-600" />
-                Move or Transfer Stage
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                Reposition stage "{nodes[movingNodeIndex].title}" within this pipeline or relocate it to a different workflow.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-3 text-xs">
-              <div className="p-3 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-2">
-                <div className="font-semibold text-slate-700 dark:text-zinc-300">
-                  Reorder within current flow:
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={movingNodeIndex === 0}
-                    onClick={() => handleMoveStep(movingNodeIndex, movingNodeIndex - 1)}
-                    className="flex-1 text-xs"
-                  >
-                    Move Left (Step {movingNodeIndex})
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={movingNodeIndex === nodes.length - 1}
-                    onClick={() => handleMoveStep(movingNodeIndex, movingNodeIndex + 1)}
-                    className="flex-1 text-xs"
-                  >
-                    Move Right (Step {movingNodeIndex + 2})
-                  </Button>
-                </div>
-                <div className="pt-2">
-                  <label className="text-[11px] text-muted-foreground block mb-1">
-                    Or jump directly to stage slot:
-                  </label>
-                  <Select
-                    value={String(movingNodeIndex)}
-                    onValueChange={(val) => handleMoveStep(movingNodeIndex, parseInt(val, 10))}
-                  >
-                    <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {nodes.map((n, i) => (
-                        <SelectItem key={n.id} value={String(i)}>
-                          Position {i + 1}: {n.title} {i === movingNodeIndex ? "(Current)" : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Cross-Flow Transfer */}
-              <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-lg border border-indigo-200 dark:border-indigo-800/50 space-y-2">
-                <div className="font-semibold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
-                  <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
-                  Transfer to Other Workflow
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Move this entire step and its actions into the {domain === "purchasing" ? "A/P & Invoices Workflow" : "Purchase Requests Workflow"}.
-                </p>
-                <Button
-                  size="sm"
-                  onClick={() => handleTransferToOtherDomain(movingNodeIndex)}
-                  className="w-full text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
-                >
-                  Transfer to {domain === "purchasing" ? "A/P & Invoices" : "Purchase Requests"}
-                </Button>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" size="sm" onClick={() => setMovingNodeIndex(null)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      <MoveStageModal
+        movingNodeIndex={movingNodeIndex}
+        nodes={nodes}
+        domain={domain}
+        onClose={() => setMovingNodeIndex(null)}
+        onMoveStep={handleMoveStep}
+        onTransferToOtherDomain={handleTransferToOtherDomain}
+      />
 
       {/* Move Action Button to Another Stage Modal */}
-      {movingActionInfo && (
-        <Dialog open={!!movingActionInfo} onOpenChange={(open) => !open && setMovingActionInfo(null)}>
-          <DialogContent className="max-w-md w-full">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold flex items-center gap-2">
-                <GripVertical className="w-4 h-4 text-indigo-600" />
-                Move Action to Another Stage
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                Move action "{movingActionInfo.action.label}" from its current stage to any other stage in the workflow.
-              </DialogDescription>
-            </DialogHeader>
+      <MoveActionModal
+        movingActionInfo={movingActionInfo}
+        nodes={nodes}
+        domain={domain}
+        onClose={() => setMovingActionInfo(null)}
+        onMoveActionToStage={handleMoveActionToStage}
+        onTransferActionToOtherDomain={handleTransferActionToOtherDomain}
+      />
 
-            <div className="space-y-4 py-3 text-xs">
-              <div className="p-3 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-2">
-                <div className="font-semibold text-slate-700 dark:text-zinc-300">
-                  Select destination stage:
-                </div>
-                <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-                  {nodes.map((targetNode, targetIdx) => {
-                    const isSource = targetNode.id === movingActionInfo.sourceStepId;
-                    return (
-                      <button
-                        key={targetNode.id}
-                        type="button"
-                        disabled={isSource}
-                        onClick={() =>
-                          handleMoveActionToStage(
-                            movingActionInfo.sourceStepId,
-                            movingActionInfo.actionIndex,
-                            targetNode.id
-                          )
-                        }
-                        className={`w-full text-left p-2.5 rounded-lg border flex items-center justify-between transition-colors ${
-                          isSource
-                            ? "bg-slate-100 dark:bg-zinc-800/40 border-slate-200 dark:border-zinc-700 opacity-60 cursor-not-allowed"
-                            : "bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 hover:border-indigo-500 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 cursor-pointer"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="h-5 w-5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-[10px] flex items-center justify-center">
-                            {targetIdx + 1}
-                          </span>
-                          <div>
-                            <span className="font-medium text-slate-900 dark:text-zinc-100 block">
-                              {targetNode.title}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {targetNode.actions.length} action{targetNode.actions.length === 1 ? "" : "s"} currently
-                            </span>
-                          </div>
-                        </div>
+      {/* Move Form Field Modal */}
+      <MoveFieldModal
+        movingFieldInfo={movingFieldInfo}
+        nodes={nodes}
+        domain={domain}
+        onClose={() => setMovingFieldInfo(null)}
+        onMoveField={handleMoveField}
+        onTransferFieldToOtherDomain={handleTransferFieldToOtherDomain}
+      />
 
-                        {isSource ? (
-                          <span className="text-[10px] font-semibold text-slate-400 bg-slate-200/70 dark:bg-zinc-700 px-2 py-0.5 rounded">
-                            Current Stage
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                            Move Here &rarr;
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" size="sm" onClick={() => setMovingActionInfo(null)}>
-                Cancel
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Quick Change Owner & Role Modal */}
+      <ChangeOwnerModal
+        editingOwnerNode={editingOwnerNode}
+        usersList={usersList}
+        rolesList={rolesList}
+        ownerSearch={ownerSearch}
+        setOwnerSearch={setOwnerSearch}
+        customRoleInput={customRoleInput}
+        setCustomRoleInput={setCustomRoleInput}
+        onClose={() => setEditingOwnerNode(null)}
+        onSelectOwnerUser={handleSelectOwnerUser}
+        onSaveCustomOwnerRole={handleSaveCustomOwnerRole}
+      />
 
       {/* Edit Stage Node Modal */}
-      {editingNode && (
-        <Dialog open={!!editingNode} onOpenChange={(open) => !open && setEditingNode(null)}>
-          <DialogContent className="max-w-md w-full">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold">Edit Stage Details</DialogTitle>
-              <DialogDescription className="text-xs">
-                Configure stage title, description, and status badge color.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 py-2 text-xs">
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-zinc-300">Stage Title</label>
-                <Input
-                  value={nodeTitle}
-                  onChange={(e) => setNodeTitle(e.target.value)}
-                  placeholder="e.g. Under Review / Executive Approval"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-zinc-300">Description</label>
-                <Textarea
-                  value={nodeDesc}
-                  onChange={(e) => setNodeDesc(e.target.value)}
-                  rows={3}
-                  placeholder="Explain what occurs during this stage..."
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-zinc-300">
-                  Responsible Manager / Role (Who Manages this Flow Step)
-                </label>
-                <Input
-                  value={nodeAssignedRole}
-                  onChange={(e) => setNodeAssignedRole(e.target.value)}
-                  placeholder="e.g. Procurement Specialist, Dept Manager, CFO, AP Clerk"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-zinc-300">Badge Color Style</label>
-                <Select value={nodeBadge} onValueChange={setNodeBadge}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="slate">Slate (Default / New)</SelectItem>
-                    <SelectItem value="blue">Blue (Review / In Progress)</SelectItem>
-                    <SelectItem value="amber">Amber (Waiting Sign-off)</SelectItem>
-                    <SelectItem value="indigo">Indigo (Order / Settle)</SelectItem>
-                    <SelectItem value="emerald">Emerald (Approved / Completed)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <DialogFooter className="gap-2">
-              <Button variant="outline" size="sm" onClick={() => setEditingNode(null)}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleSaveStep}>
-                Save Changes
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      <EditStageModal
+        editingNode={editingNode}
+        nodeTitle={nodeTitle}
+        setNodeTitle={setNodeTitle}
+        nodeDesc={nodeDesc}
+        setNodeDesc={setNodeDesc}
+        nodeAssignedRole={nodeAssignedRole}
+        setNodeAssignedRole={setNodeAssignedRole}
+        nodeBadge={nodeBadge}
+        setNodeBadge={setNodeBadge}
+        nodeReviewControlEnabled={nodeReviewControlEnabled}
+        setNodeReviewControlEnabled={setNodeReviewControlEnabled}
+        nodeReviewControlRole={nodeReviewControlRole}
+        setNodeReviewControlRole={setNodeReviewControlRole}
+        nodeReviewControlUser={nodeReviewControlUser}
+        setNodeReviewControlUser={setNodeReviewControlUser}
+        nodeReviewControlVariable={nodeReviewControlVariable}
+        setNodeReviewControlVariable={setNodeReviewControlVariable}
+        nodeReviewControlText={nodeReviewControlText}
+        setNodeReviewControlText={setNodeReviewControlText}
+        nodeReviewControlItems={nodeReviewControlItems}
+        setNodeReviewControlItems={setNodeReviewControlItems}
+        nodes={nodes}
+        usersList={usersList}
+        rolesList={rolesList}
+        onClose={() => setEditingNode(null)}
+        onSave={handleSaveStep}
+      />
 
       {/* Edit Action Button Modal */}
-      {editingAction && (
-        <Dialog open={!!editingAction} onOpenChange={(open) => !open && setEditingAction(null)}>
-          <DialogContent className="max-w-lg w-full max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold">Configure Action Button &amp; Dropdowns</DialogTitle>
-              <DialogDescription className="text-xs">
-                Customize action trigger, behavior, button color, and dynamic drop-down fields.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 py-2 text-xs">
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-zinc-300">Button Label</label>
-                <Input
-                  value={actionLabel}
-                  onChange={(e) => setActionLabel(e.target.value)}
-                  placeholder="e.g. Approve & Record PO"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-zinc-300">Description / Tooltip</label>
-                <Input
-                  value={actionDesc}
-                  onChange={(e) => setActionDesc(e.target.value)}
-                  placeholder="Brief description of what this button executes"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-zinc-300">Button Styling</label>
-                  <Select value={actionVariant} onValueChange={(v: any) => setActionVariant(v)}>
-                    <SelectTrigger className="h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="default">Solid Primary (Dark/Blue)</SelectItem>
-                      <SelectItem value="outline">Outline</SelectItem>
-                      <SelectItem value="secondary">Secondary</SelectItem>
-                      <SelectItem value="destructive">Destructive (Red / Reject)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-zinc-300">Flow Action Type</label>
-                  <Select value={actionType} onValueChange={(v: any) => setActionType(v)}>
-                    <SelectTrigger className="h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NEXT_STEP">Move to Next Stage</SelectItem>
-                      <SelectItem value="PREV_STEP">Return to Previous Stage</SelectItem>
-                      <SelectItem value="TRIGGER_API">Trigger API / Event</SelectItem>
-                      <SelectItem value="CUSTOM">Custom Target</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {actionType === "CUSTOM" && (
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-zinc-300">Jump to Specific Stage</label>
-                  <Select value={actionTarget} onValueChange={setActionTarget}>
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Select target stage..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {nodes.map(n => (
-                        <SelectItem key={n.id} value={n.id}>
-                          {n.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Action Dropdown / Custom Fields List */}
-              <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-700 dark:text-zinc-300">
-                    Input Fields &amp; Dropdowns ({actionFields.length})
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setActionFields(prev => [
-                          ...prev,
-                          {
-                            id: `fld_${Date.now()}`,
-                            label: "New Dropdown",
-                            type: "dropdown",
-                            options: ["Option A", "Option B", "Option C"],
-                            value: "Option A"
-                          }
-                        ]);
-                      }}
-                      className="h-6 text-[10px] gap-1"
-                    >
-                      <Plus className="w-3 h-3" />
-                      Add Dropdown
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setActionFields(prev => [
-                          ...prev,
-                          {
-                            id: `fld_${Date.now()}`,
-                            label: "Text Input",
-                            type: "text",
-                            placeholder: "Enter details..."
-                          }
-                        ]);
-                      }}
-                      className="h-6 text-[10px] gap-1"
-                    >
-                      <Plus className="w-3 h-3" />
-                      Add Text Field
-                    </Button>
-                  </div>
-                </div>
-
-                {actionFields.map((fld, fldIdx) => (
-                  <div
-                    key={fld.id}
-                    className="p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/40 space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <Input
-                        value={fld.label}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setActionFields(prev => {
-                            const next = [...prev];
-                            next[fldIdx].label = val;
-                            return next;
-                          });
-                        }}
-                        placeholder="Field Label (e.g. Region, Priority)"
-                        className="h-7 text-xs font-semibold w-1/2"
-                      />
-                      <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-zinc-300 font-medium cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(fld.required)}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setActionFields(prev => {
-                                const next = [...prev];
-                                next[fldIdx].required = checked;
-                                return next;
-                              });
-                            }}
-                            className="rounded border-slate-300 text-indigo-600 h-3.5 w-3.5 focus:ring-indigo-500"
-                          />
-                          <span>Required</span>
-                        </label>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setActionFields(prev => prev.filter((_, i) => i !== fldIdx));
-                          }}
-                          className="h-6 w-6 text-slate-400 hover:text-rose-500"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-slate-500">
-                        Dropdown Options (comma separated)
-                      </label>
-                      <Input
-                        value={(fld.options || []).join(", ")}
-                        onChange={(e) => {
-                          const opts = e.target.value.split(",").map(o => o.trim()).filter(Boolean);
-                          setActionFields(prev => {
-                            const next = [...prev];
-                            next[fldIdx].options = opts;
-                            return next;
-                          });
-                        }}
-                        placeholder="Option 1, Option 2, Option 3"
-                        className="h-7 text-xs"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <DialogFooter className="gap-2">
-              <Button variant="outline" size="sm" onClick={() => setEditingAction(null)}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleSaveAction}>
-                Save Action Button
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      <EditActionModal
+        editingAction={editingAction}
+        nodes={nodes}
+        actionLabel={actionLabel}
+        setActionLabel={setActionLabel}
+        actionDesc={actionDesc}
+        setActionDesc={setActionDesc}
+        actionVariant={actionVariant}
+        setActionVariant={setActionVariant}
+        actionType={actionType}
+        setActionType={setActionType}
+        actionTarget={actionTarget}
+        setActionTarget={setActionTarget}
+        actionFields={actionFields}
+        setActionFields={setActionFields}
+        onClose={() => setEditingAction(null)}
+        onSave={handleSaveAction}
+      />
     </div>
   );
 }
