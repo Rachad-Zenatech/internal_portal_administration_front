@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, Package, Sparkles, Check, ArrowRight } from "lucide-react";
+import { ExternalLink, Package, Sparkles, Check, ArrowRight, RefreshCw, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney } from "../../utils/purchasingMeta";
 import { ChartOfAccountService } from "@/services/ChartOfAccountService";
+import { extractProductInfo } from "@/services/purchasingService";
 import { toast } from "sonner";
 import type { RequestDetailViewState } from "../hooks/useRequestDetailTail";
 
 export function ProductVendorUrlAi({ v }: { v: RequestDetailViewState }) {
-  const { request, crawledOrigCurr, crawledOrigPrice, hasCrawledForeignPrice, isDraft, purchase_order, setInvoice, setInvoiceItems } = v;
+  const { request, crawledOrigCurr, crawledOrigPrice, hasCrawledForeignPrice, isDraft, purchase_order, setInvoice, setInvoiceItems, refetch } = v;
 
   const [predictionData, setPredictionData] = useState<{
     best_category: string;
@@ -27,25 +28,53 @@ export function ProductVendorUrlAi({ v }: { v: RequestDetailViewState }) {
   } | null>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [isRetryingExtraction, setIsRetryingExtraction] = useState(false);
 
-  // Auto-fetch Top 3 GL suggestions when product info is present
+  const activeUrl = request.item_url || purchase_order?.item_url || "";
+  const hasExtractedInfo = Boolean(request.product_info && request.product_info.name && request.product_info.name !== "N/A");
+
+  // Auto-retry extraction down the road if an item URL exists but extraction hasn't completed or failed
   useEffect(() => {
-    if (!request.product_info) return;
+    if (!activeUrl || isDraft || hasExtractedInfo || isRetryingExtraction) return;
 
+    let isMounted = true;
+    setIsRetryingExtraction(true);
+
+    extractProductInfo(String(request.id))
+      .then(() => {
+        if (isMounted) {
+          toast.success("Background product details successfully retrieved!");
+          if (refetch) refetch();
+        }
+      })
+      .catch((err) => {
+        console.warn("Background auto-extraction retry:", err);
+      })
+      .finally(() => {
+        if (isMounted) setIsRetryingExtraction(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeUrl, isDraft, hasExtractedInfo, request.id, refetch]);
+
+  // Fallback prediction when extraction is pending/missing but URL or request title exists
+  useEffect(() => {
     let isMounted = true;
     setLoadingPrediction(true);
 
-    const priceNum = request.product_info.price
+    const priceNum = request.product_info?.price
       ? parseFloat(String(request.product_info.price).replace(/[^0-9.]/g, ""))
       : request.amount || undefined;
 
     ChartOfAccountService.getPredictedGLSuggestions({
-      product_name: request.product_info.name || request.title,
-      vendor: request.product_info.vendor || purchase_order?.vendor || "",
+      product_name: request.product_info?.name || request.title,
+      vendor: request.product_info?.vendor || purchase_order?.vendor || "",
       amount: isNaN(priceNum as any) ? undefined : priceNum,
-      category: request.product_info.category || undefined,
-      description: request.product_info.description || request.description || undefined,
-      item_url: request.item_url || purchase_order?.item_url || undefined,
+      category: request.product_info?.category || undefined,
+      description: request.product_info?.description || request.description || undefined,
+      item_url: activeUrl || undefined,
     })
       .then((res) => {
         if (isMounted) {
@@ -67,9 +96,8 @@ export function ProductVendorUrlAi({ v }: { v: RequestDetailViewState }) {
     request.title,
     request.amount,
     request.description,
-    request.item_url,
+    activeUrl,
     purchase_order?.vendor,
-    purchase_order?.item_url,
   ]);
 
   const handleApplyGLCode = (accountNumber: string, accountName: string) => {
@@ -104,6 +132,39 @@ export function ProductVendorUrlAi({ v }: { v: RequestDetailViewState }) {
                           <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                           <span className="min-w-0 truncate">Open Vendor Product Page</span>
                         </a>
+
+                        {!isDraft && !hasExtractedInfo && (
+                          <div className="flex items-center justify-between p-3 rounded-lg border border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/20 text-xs">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 text-indigo-500 animate-pulse" />
+                              <span className="text-slate-600 dark:text-zinc-300">
+                                {isRetryingExtraction
+                                  ? "Retrieving live product specifications and pricing in background..."
+                                  : "Product extraction has not completed yet."}
+                              </span>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={isRetryingExtraction}
+                              onClick={() => {
+                                setIsRetryingExtraction(true);
+                                extractProductInfo(String(request.id))
+                                  .then(() => {
+                                    toast.success("Product specifications retrieved!");
+                                    if (refetch) refetch();
+                                  })
+                                  .catch(() => toast.error("Could not fetch product information"))
+                                  .finally(() => setIsRetryingExtraction(false));
+                              }}
+                              className="h-7 text-xs border-indigo-300 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:text-indigo-300"
+                            >
+                              <RefreshCw className={`w-3 h-3 mr-1 ${isRetryingExtraction ? "animate-spin" : ""}`} />
+                              {isRetryingExtraction ? "Extracting..." : "Retrieve Info Now"}
+                            </Button>
+                          </div>
+                        )}
 
                         {!isDraft && request.product_info && (
                           <Card className="border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/50 dark:bg-indigo-950/20 shadow-sm">
