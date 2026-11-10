@@ -32,6 +32,8 @@ export interface WorkflowStepNode {
   reviewControl?: {
     enabled: boolean;
     reviewerRole?: string;
+    reviewerUser?: string;
+    targetVariable?: string; // e.g. "gl_code", "amount", "vendor", etc.
     controlText?: string;
     passed?: boolean;
   };

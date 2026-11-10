@@ -232,14 +232,23 @@ export function StageCardNode({
           {/* Stage Review & Control Gate (Underneath stage description) */}
           {node.reviewControl?.enabled && (
             <div className="p-2.5 rounded-lg bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs space-y-1.5">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-1 flex-wrap">
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
                   <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                   Internal Control Review
                 </span>
-                <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/50 px-1.5 py-0.5 rounded">
-                  {node.reviewControl.reviewerRole || "Accounting Review"}
-                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  {node.reviewControl.targetVariable && (
+                    <span className="text-[9px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200/50">
+                      Variable: {node.reviewControl.targetVariable}
+                    </span>
+                  )}
+                  <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/50 px-1.5 py-0.5 rounded">
+                    {node.reviewControl.reviewerUser
+                      ? `${node.reviewControl.reviewerUser} (${node.reviewControl.reviewerRole || "Reviewer"})`
+                      : node.reviewControl.reviewerRole || "Accounting Review"}
+                  </span>
+                </div>
               </div>
               <p className="text-[11px] text-rose-900 dark:text-rose-200 leading-snug font-medium">
                 {node.reviewControl.controlText || "Verify GL code & Category are coded properly"}

@@ -181,6 +181,8 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
   const [nodeAssignedUser, setNodeAssignedUser] = useState("");
   const [nodeReviewControlEnabled, setNodeReviewControlEnabled] = useState(false);
   const [nodeReviewControlRole, setNodeReviewControlRole] = useState("");
+  const [nodeReviewControlUser, setNodeReviewControlUser] = useState("");
+  const [nodeReviewControlVariable, setNodeReviewControlVariable] = useState("");
   const [nodeReviewControlText, setNodeReviewControlText] = useState("");
 
   // Quick Owner Edit Modal State (Pencil on Owner pill)
@@ -356,6 +358,8 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     setNodeAssignedUser(node.assignedUser || "");
     setNodeReviewControlEnabled(Boolean(node.reviewControl?.enabled));
     setNodeReviewControlRole(node.reviewControl?.reviewerRole || "Accounting / Controller");
+    setNodeReviewControlUser(node.reviewControl?.reviewerUser || "");
+    setNodeReviewControlVariable(node.reviewControl?.targetVariable || "");
     setNodeReviewControlText(
       node.reviewControl?.controlText || "Verify GL code & Category are coded properly"
     );
@@ -375,6 +379,8 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
         ? {
             enabled: true,
             reviewerRole: nodeReviewControlRole.trim() || "Accounting / Controller",
+            reviewerUser: nodeReviewControlUser.trim() || undefined,
+            targetVariable: nodeReviewControlVariable.trim() || undefined,
             controlText:
               nodeReviewControlText.trim() || "Verify GL code & Category are coded properly",
             passed: editingNode.node.reviewControl?.passed ?? false,
@@ -825,6 +831,10 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     setNodeReviewControlEnabled,
     nodeReviewControlRole,
     setNodeReviewControlRole,
+    nodeReviewControlUser,
+    setNodeReviewControlUser,
+    nodeReviewControlVariable,
+    setNodeReviewControlVariable,
     nodeReviewControlText,
     setNodeReviewControlText,
     handleOpenEditStep,
