@@ -458,21 +458,28 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     const targetName =
       targetDomain === "purchasing" ? "Purchase Requests Workflow" : "A/P & Invoices Workflow";
     const nodeToTransfer = nodes[fromIndex];
+    if (!nodeToTransfer) return;
+
+    // Optimistically update local view immediately
+    const updated = nodes.filter((_, idx) => idx !== fromIndex);
+    setLocalNodes(updated);
+    setMovingNodeIndex(null);
 
     try {
       const targetConfig = await experimentalWorkflowService.getWorkflowConfig(targetDomain);
       const targetNodes = [...(targetConfig.nodes || [])];
       targetNodes.push(nodeToTransfer);
 
-      await experimentalWorkflowService.saveWorkflowConfig(targetDomain, { nodes: targetNodes });
-
-      const updated = nodes.filter((_, idx) => idx !== fromIndex);
-      await saveMutation.mutateAsync(updated);
+      // Run both backend saves in parallel for instant execution
+      await Promise.all([
+        experimentalWorkflowService.saveWorkflowConfig(targetDomain, { nodes: targetNodes }),
+        saveMutation.mutateAsync(updated),
+      ]);
 
       queryClient.invalidateQueries({ queryKey: ["experimental-workflow", targetDomain] });
       toast.success(`Transferred "${nodeToTransfer.title}" into ${targetName}!`);
-      setMovingNodeIndex(null);
     } catch (err: any) {
+      setLocalNodes(nodes);
       toast.error(err?.message || "Failed to transfer step to other workflow.");
     }
   };
@@ -591,12 +598,26 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     const actionToMove = sourceNode.actions[actionIndex];
     if (!actionToMove) return;
 
+    // Optimistically update current workflow and close modal immediately
+    const updated = nodes.map((node) => {
+      if (node.id === sourceStepId) {
+        return {
+          ...node,
+          actions: node.actions.filter((_, idx) => idx !== actionIndex),
+        };
+      }
+      return node;
+    });
+    setLocalNodes(updated);
+    setMovingActionInfo(null);
+
     try {
       // 1. Fetch other domain's config
       const targetConfig = await experimentalWorkflowService.getWorkflowConfig(targetDomain);
       const targetNodes = [...(targetConfig.nodes || [])];
       const destIndex = targetNodes.findIndex((n) => n.id === targetStepId);
       if (destIndex === -1) {
+        setLocalNodes(nodes);
         toast.error("Destination stage not found in other workflow.");
         return;
       }
@@ -606,26 +627,19 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
         ...targetNodes[destIndex],
         actions: [...targetNodes[destIndex].actions, actionToMove],
       };
-      await experimentalWorkflowService.saveWorkflowConfig(targetDomain, { nodes: targetNodes });
 
-      // 3. Remove action from current workflow
-      const updated = nodes.map((node) => {
-        if (node.id === sourceStepId) {
-          return {
-            ...node,
-            actions: node.actions.filter((_, idx) => idx !== actionIndex),
-          };
-        }
-        return node;
-      });
-      await saveMutation.mutateAsync(updated);
+      // Run both saves in parallel
+      await Promise.all([
+        experimentalWorkflowService.saveWorkflowConfig(targetDomain, { nodes: targetNodes }),
+        saveMutation.mutateAsync(updated),
+      ]);
 
       queryClient.invalidateQueries({ queryKey: ["experimental-workflow", targetDomain] });
       toast.success(
         `Transferred action "${actionToMove.label}" to "${targetNodes[destIndex].title}" in ${targetName}!`
       );
-      setMovingActionInfo(null);
     } catch (err: any) {
+      setLocalNodes(nodes);
       toast.error(err?.message || "Failed to transfer action to other workflow.");
     }
   };
@@ -701,18 +715,41 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     const fieldToMove = sourceAction?.fields?.[fieldIndex];
     if (!fieldToMove) return;
 
+    // Optimistically update current workflow and close modal immediately
+    const updated = nodes.map((node) => {
+      if (node.id === sourceStepId) {
+        return {
+          ...node,
+          actions: node.actions.map((act) => {
+            if (act.id === sourceActionId) {
+              return {
+                ...act,
+                fields: (act.fields || []).filter((_, idx) => idx !== fieldIndex),
+              };
+            }
+            return act;
+          }),
+        };
+      }
+      return node;
+    });
+    setLocalNodes(updated);
+    setMovingFieldInfo(null);
+
     try {
       // 1. Fetch other domain
       const targetConfig = await experimentalWorkflowService.getWorkflowConfig(targetDomain);
       const targetNodes = [...(targetConfig.nodes || [])];
       const destStepIdx = targetNodes.findIndex((n) => n.id === targetStepId);
       if (destStepIdx === -1) {
+        setLocalNodes(nodes);
         toast.error("Destination stage not found in other workflow.");
         return;
       }
       const targetStep = targetNodes[destStepIdx];
       const destActionIdx = targetStep.actions.findIndex((a) => a.id === targetActionId);
       if (destActionIdx === -1) {
+        setLocalNodes(nodes);
         toast.error("Destination action not found in other workflow.");
         return;
       }
@@ -726,34 +763,19 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
       const updatedDestActions = [...targetStep.actions];
       updatedDestActions[destActionIdx] = updatedDestAction;
       targetNodes[destStepIdx] = { ...targetStep, actions: updatedDestActions };
-      await experimentalWorkflowService.saveWorkflowConfig(targetDomain, { nodes: targetNodes });
 
-      // 3. Remove field from current workflow
-      const updated = nodes.map((node) => {
-        if (node.id === sourceStepId) {
-          return {
-            ...node,
-            actions: node.actions.map((act) => {
-              if (act.id === sourceActionId) {
-                return {
-                  ...act,
-                  fields: (act.fields || []).filter((_, idx) => idx !== fieldIndex),
-                };
-              }
-              return act;
-            }),
-          };
-        }
-        return node;
-      });
-      await saveMutation.mutateAsync(updated);
+      // Run saves in parallel
+      await Promise.all([
+        experimentalWorkflowService.saveWorkflowConfig(targetDomain, { nodes: targetNodes }),
+        saveMutation.mutateAsync(updated),
+      ]);
 
       queryClient.invalidateQueries({ queryKey: ["experimental-workflow", targetDomain] });
       toast.success(
         `Transferred field "${fieldToMove.label}" into "${destAction.label}" in ${targetName}!`
       );
-      setMovingFieldInfo(null);
     } catch (err: any) {
+      setLocalNodes(nodes);
       toast.error(err?.message || "Failed to transfer field to other workflow.");
     }
   };
