@@ -10,6 +10,7 @@ import { MoveActionModal } from "./dialogs/MoveActionModal";
 import { ChangeOwnerModal } from "./dialogs/ChangeOwnerModal";
 import { EditStageModal } from "./dialogs/EditStageModal";
 import { EditActionModal } from "./dialogs/EditActionModal";
+import { MoveFieldModal } from "./dialogs/MoveFieldModal";
 
 interface WorkflowAutoCanvasProps {
   domain: "purchasing" | "invoices";
@@ -76,6 +77,11 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     setMovingActionInfo,
     handleMoveActionToStage,
     handleTransferActionToOtherDomain,
+    // Move field modal
+    movingFieldInfo,
+    setMovingFieldInfo,
+    handleMoveField,
+    handleTransferFieldToOtherDomain,
     // Action edit dialog
     editingAction,
     setEditingAction,
@@ -242,6 +248,9 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                 onStartMoveAction={(sourceStepId, actionIndex, action) =>
                   setMovingActionInfo({ sourceStepId, actionIndex, action })
                 }
+                onStartMoveField={(sourceStepId, sourceActionId, fieldIndex, field) =>
+                  setMovingFieldInfo({ sourceStepId, sourceActionId, fieldIndex, field })
+                }
                 onOpenEditAction={handleOpenEditAction}
                 onDeleteAction={handleDeleteAction}
                 onInsertStepAfter={handleInsertStep}
@@ -285,6 +294,16 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
         onClose={() => setMovingActionInfo(null)}
         onMoveActionToStage={handleMoveActionToStage}
         onTransferActionToOtherDomain={handleTransferActionToOtherDomain}
+      />
+
+      {/* Move Form Field Modal */}
+      <MoveFieldModal
+        movingFieldInfo={movingFieldInfo}
+        nodes={nodes}
+        domain={domain}
+        onClose={() => setMovingFieldInfo(null)}
+        onMoveField={handleMoveField}
+        onTransferFieldToOtherDomain={handleTransferFieldToOtherDomain}
       />
 
       {/* Quick Change Owner & Role Modal */}

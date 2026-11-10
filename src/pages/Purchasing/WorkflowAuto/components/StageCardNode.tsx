@@ -21,6 +21,7 @@ import {
 import type {
   WorkflowStepNode,
   WorkflowActionButton,
+  WorkflowActionField,
 } from "@/services/experimentalWorkflowService";
 
 interface StageCardNodeProps {
@@ -44,6 +45,12 @@ interface StageCardNodeProps {
   onAddActionButton: (stepId: string) => void;
   onSimulateAction: (action: WorkflowActionButton, sourceNode?: WorkflowStepNode) => void;
   onStartMoveAction: (sourceStepId: string, actionIndex: number, action: WorkflowActionButton) => void;
+  onStartMoveField: (
+    sourceStepId: string,
+    sourceActionId: string,
+    fieldIndex: number,
+    field: WorkflowActionField
+  ) => void;
   onOpenEditAction: (stepId: string, actionIndex: number, action: WorkflowActionButton) => void;
   onDeleteAction: (stepId: string, actionIndex: number) => void;
   onInsertStepAfter: (idx: number) => void;
@@ -70,6 +77,7 @@ export function StageCardNode({
   onAddActionButton,
   onSimulateAction,
   onStartMoveAction,
+  onStartMoveField,
   onOpenEditAction,
   onDeleteAction,
   onInsertStepAfter,
@@ -290,16 +298,26 @@ export function StageCardNode({
                     {/* Form Fields & Dropdowns attached to this action button */}
                     {act.fields && act.fields.length > 0 && (
                       <div className="pt-1.5 border-t border-slate-200/60 dark:border-zinc-700/50 space-y-1.5">
-                        {act.fields.map((fld) => (
+                        {act.fields.map((fld, fldIdx) => (
                           <div key={fld.id} className="space-y-0.5">
                             <label className="text-[10px] font-medium text-slate-600 dark:text-zinc-400 flex items-center justify-between">
-                              <span className="flex items-center gap-1">
-                                {fld.label}
+                              <span className="flex items-center gap-1 min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    onStartMoveField(node.id, act.id, fldIdx, fld)
+                                  }
+                                  title={`Move field "${fld.label}" to another action (sandwich handle)`}
+                                  className="p-0.5 -ml-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-700 transition-colors shrink-0"
+                                >
+                                  <GripVertical className="w-2.5 h-2.5" />
+                                </button>
+                                <span className="truncate">{fld.label}</span>
                                 {fld.required && (
                                   <span className="text-rose-500 font-bold">*</span>
                                 )}
                               </span>
-                              <span className="text-[9px] text-slate-400">
+                              <span className="text-[9px] text-slate-400 shrink-0">
                                 {fld.required ? "required " : ""}
                                 {fld.type}
                               </span>

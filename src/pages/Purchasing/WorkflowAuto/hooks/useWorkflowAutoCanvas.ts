@@ -200,6 +200,14 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     action: WorkflowActionButton;
   } | null>(null);
 
+  // Move Field Modal State (Sandwich / Move Field between Action Buttons)
+  const [movingFieldInfo, setMovingFieldInfo] = useState<{
+    sourceStepId: string;
+    sourceActionId: string;
+    fieldIndex: number;
+    field: WorkflowActionField;
+  } | null>(null);
+
   // Drag-and-drop state for card reordering
   const [draggedNodeIndex, setDraggedNodeIndex] = useState<number | null>(null);
   const [dragOverNodeIndex, setDragOverNodeIndex] = useState<number | null>(null);
@@ -616,6 +624,134 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     }
   };
 
+  // Move a form field to another action button within the current workflow
+  const handleMoveField = (
+    sourceStepId: string,
+    sourceActionId: string,
+    fieldIndex: number,
+    targetStepId: string,
+    targetActionId: string
+  ) => {
+    const sourceNode = nodes.find((n) => n.id === sourceStepId);
+    const sourceAction = sourceNode?.actions.find((a) => a.id === sourceActionId);
+    const fieldToMove = sourceAction?.fields?.[fieldIndex];
+    if (!fieldToMove) return;
+
+    const targetNode = nodes.find((n) => n.id === targetStepId);
+    const targetAction = targetNode?.actions.find((a) => a.id === targetActionId);
+    if (!targetAction) return;
+
+    const updated = nodes.map((node) => {
+      let nodeActions = node.actions;
+
+      // Remove from source action
+      if (node.id === sourceStepId) {
+        nodeActions = nodeActions.map((act) => {
+          if (act.id === sourceActionId) {
+            return {
+              ...act,
+              fields: (act.fields || []).filter((_, idx) => idx !== fieldIndex),
+            };
+          }
+          return act;
+        });
+      }
+
+      // Add to target action
+      if (node.id === targetStepId) {
+        nodeActions = nodeActions.map((act) => {
+          if (act.id === targetActionId) {
+            return {
+              ...act,
+              fields: [...(act.fields || []), fieldToMove],
+            };
+          }
+          return act;
+        });
+      }
+
+      return { ...node, actions: nodeActions };
+    });
+
+    saveMutation.mutate(updated);
+    toast.success(`Moved field "${fieldToMove.label}" into action "${targetAction.label}"`);
+    setMovingFieldInfo(null);
+  };
+
+  // Transfer a form field directly to an action button in the other workflow domain
+  const handleTransferFieldToOtherDomain = async (
+    sourceStepId: string,
+    sourceActionId: string,
+    fieldIndex: number,
+    targetStepId: string,
+    targetActionId: string
+  ) => {
+    const targetDomain = domain === "purchasing" ? "invoices" : "purchasing";
+    const targetName =
+      targetDomain === "purchasing" ? "Purchase Requests Workflow" : "A/P & Invoices Workflow";
+
+    const sourceNode = nodes.find((n) => n.id === sourceStepId);
+    const sourceAction = sourceNode?.actions.find((a) => a.id === sourceActionId);
+    const fieldToMove = sourceAction?.fields?.[fieldIndex];
+    if (!fieldToMove) return;
+
+    try {
+      // 1. Fetch other domain
+      const targetConfig = await experimentalWorkflowService.getWorkflowConfig(targetDomain);
+      const targetNodes = [...(targetConfig.nodes || [])];
+      const destStepIdx = targetNodes.findIndex((n) => n.id === targetStepId);
+      if (destStepIdx === -1) {
+        toast.error("Destination stage not found in other workflow.");
+        return;
+      }
+      const targetStep = targetNodes[destStepIdx];
+      const destActionIdx = targetStep.actions.findIndex((a) => a.id === targetActionId);
+      if (destActionIdx === -1) {
+        toast.error("Destination action not found in other workflow.");
+        return;
+      }
+
+      // 2. Append field to destination action
+      const destAction = targetStep.actions[destActionIdx];
+      const updatedDestAction = {
+        ...destAction,
+        fields: [...(destAction.fields || []), fieldToMove],
+      };
+      const updatedDestActions = [...targetStep.actions];
+      updatedDestActions[destActionIdx] = updatedDestAction;
+      targetNodes[destStepIdx] = { ...targetStep, actions: updatedDestActions };
+      await experimentalWorkflowService.saveWorkflowConfig(targetDomain, { nodes: targetNodes });
+
+      // 3. Remove field from current workflow
+      const updated = nodes.map((node) => {
+        if (node.id === sourceStepId) {
+          return {
+            ...node,
+            actions: node.actions.map((act) => {
+              if (act.id === sourceActionId) {
+                return {
+                  ...act,
+                  fields: (act.fields || []).filter((_, idx) => idx !== fieldIndex),
+                };
+              }
+              return act;
+            }),
+          };
+        }
+        return node;
+      });
+      await saveMutation.mutateAsync(updated);
+
+      queryClient.invalidateQueries({ queryKey: ["experimental-workflow", targetDomain] });
+      toast.success(
+        `Transferred field "${fieldToMove.label}" into "${destAction.label}" in ${targetName}!`
+      );
+      setMovingFieldInfo(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to transfer field to other workflow.");
+    }
+  };
+
   return {
     nodes,
     usersList,
@@ -675,6 +811,11 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     setMovingActionInfo,
     handleMoveActionToStage,
     handleTransferActionToOtherDomain,
+    // Move field modal
+    movingFieldInfo,
+    setMovingFieldInfo,
+    handleMoveField,
+    handleTransferFieldToOtherDomain,
     // Action edit dialog
     editingAction,
     setEditingAction,
