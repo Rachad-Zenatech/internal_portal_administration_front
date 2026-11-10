@@ -35,6 +35,8 @@ import {
   type WorkflowActionButton,
   type WorkflowActionField
 } from "@/services/experimentalWorkflowService";
+import { useUsersList, useRolesList } from "@/hooks/usePurchasing";
+import { resolveUserDepartment } from "@/lib/userDepartment";
 
 interface WorkflowAutoCanvasProps {
   domain: "purchasing" | "invoices";
@@ -46,6 +48,9 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const urlStatus = searchParams.get("status");
+
+  const { data: usersList = [] } = useUsersList();
+  const { data: rolesList = [] } = useRolesList();
 
   const { data: config } = useQuery<WorkflowConfigResponse>({
     queryKey: ["experimental-workflow", domain],
@@ -185,9 +190,15 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
   const [nodeDesc, setNodeDesc] = useState("");
   const [nodeBadge, setNodeBadge] = useState("slate");
   const [nodeAssignedRole, setNodeAssignedRole] = useState("");
+  const [nodeAssignedUser, setNodeAssignedUser] = useState("");
   const [nodeReviewControlEnabled, setNodeReviewControlEnabled] = useState(false);
   const [nodeReviewControlRole, setNodeReviewControlRole] = useState("");
   const [nodeReviewControlText, setNodeReviewControlText] = useState("");
+
+  // Quick Owner Edit Modal State (Pencil on Owner pill)
+  const [editingOwnerNode, setEditingOwnerNode] = useState<{ node: WorkflowStepNode; index: number } | null>(null);
+  const [ownerSearch, setOwnerSearch] = useState("");
+  const [customRoleInput, setCustomRoleInput] = useState("");
 
   // Move Step Modal State (Sandwich / Reorder)
   const [movingNodeIndex, setMovingNodeIndex] = useState<number | null>(null);
@@ -322,6 +333,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     setNodeDesc(node.description);
     setNodeBadge(node.badgeColor || "slate");
     setNodeAssignedRole(node.assignedRole || "");
+    setNodeAssignedUser(node.assignedUser || "");
     setNodeReviewControlEnabled(Boolean(node.reviewControl?.enabled));
     setNodeReviewControlRole(node.reviewControl?.reviewerRole || "Accounting / Controller");
     setNodeReviewControlText(node.reviewControl?.controlText || "Verify GL code & Category are coded properly");
@@ -336,6 +348,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
       description: nodeDesc.trim(),
       badgeColor: nodeBadge,
       assignedRole: nodeAssignedRole.trim() || undefined,
+      assignedUser: nodeAssignedUser.trim() || undefined,
       reviewControl: nodeReviewControlEnabled
         ? {
             enabled: true,
@@ -347,6 +360,49 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     };
     saveMutation.mutate(updated);
     setEditingNode(null);
+  };
+
+  // Open Quick Owner Modal
+  const handleOpenOwnerModal = (node: WorkflowStepNode, index: number) => {
+    setEditingOwnerNode({ node, index });
+    setOwnerSearch("");
+    setCustomRoleInput(node.assignedRole || "");
+  };
+
+  const handleSelectOwnerUser = (userItem: any) => {
+    if (!editingOwnerNode) return;
+    const fullName = userItem.full_name || userItem.email || "User";
+    const userRole = userItem.is_super_admin
+      ? "Super Admin"
+      : userItem.role ||
+        userItem.assigned_roles?.map((r: any) => r.name || r.code).join(", ") ||
+        resolveUserDepartment(userItem, rolesList) ||
+        userItem.department ||
+        "Team Member";
+
+    const updated = [...nodes];
+    updated[editingOwnerNode.index] = {
+      ...editingOwnerNode.node,
+      assignedUser: fullName,
+      assignedRole: userRole,
+    };
+    saveMutation.mutate(updated);
+    toast.success(`Owner for "${editingOwnerNode.node.title}" updated to ${fullName} (${userRole})`);
+    setEditingOwnerNode(null);
+  };
+
+  const handleSaveCustomOwnerRole = () => {
+    if (!editingOwnerNode) return;
+    const roleText = customRoleInput.trim();
+    const updated = [...nodes];
+    updated[editingOwnerNode.index] = {
+      ...editingOwnerNode.node,
+      assignedRole: roleText || undefined,
+      assignedUser: undefined,
+    };
+    saveMutation.mutate(updated);
+    toast.success(`Owner role for "${editingOwnerNode.node.title}" set to ${roleText || "Unassigned"}`);
+    setEditingOwnerNode(null);
   };
 
   // Move / Reorder Step
@@ -638,13 +694,37 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
 
                   {/* Step Description & Assigned Role */}
                   <div className="p-3 space-y-2.5">
-                    {/* Role / Owner pill */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100/90 dark:bg-zinc-800 border border-slate-200/70 dark:border-zinc-700/60 text-[10px]">
-                      <Shield className="w-3 h-3 text-indigo-500 shrink-0" />
-                      <span className="font-semibold text-slate-500 dark:text-zinc-400">Owner:</span>
-                      <span className="font-medium text-slate-800 dark:text-zinc-200 truncate">
-                        {node.assignedRole || "Unassigned"}
-                      </span>
+                    {/* Role / Owner pill with edit pencil */}
+                    <div className="flex items-center justify-between gap-1 px-2 py-1 rounded-md bg-slate-100/90 dark:bg-zinc-800 border border-slate-200/70 dark:border-zinc-700/60 text-[10px]">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Shield className="w-3 h-3 text-indigo-500 shrink-0" />
+                        <span className="font-semibold text-slate-500 dark:text-zinc-400 shrink-0">Owner:</span>
+                        <span
+                          className="font-medium text-slate-800 dark:text-zinc-200 truncate"
+                          title={node.assignedUser ? `${node.assignedUser} (${node.assignedRole || "User"})` : node.assignedRole || "Unassigned"}
+                        >
+                          {node.assignedUser ? (
+                            <>
+                              <span className="font-semibold text-indigo-700 dark:text-indigo-300">{node.assignedUser}</span>
+                              {node.assignedRole && (
+                                <span className="text-[9px] text-slate-400 dark:text-zinc-500 ml-1">
+                                  ({node.assignedRole})
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            node.assignedRole || "Unassigned"
+                          )}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenOwnerModal(node, idx)}
+                        title="Change stage owner & role"
+                        className="p-0.5 -mr-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-700 transition-colors shrink-0"
+                      >
+                        <Edit2 className="w-2.5 h-2.5" />
+                      </button>
                     </div>
 
                     <p className="text-[11px] text-muted-foreground leading-relaxed min-h-[30px]">
@@ -1125,6 +1205,122 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
             <DialogFooter>
               <Button variant="outline" size="sm" onClick={() => setMovingActionInfo(null)}>
                 Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Quick Change Owner & Role Modal */}
+      {editingOwnerNode && (
+        <Dialog open={!!editingOwnerNode} onOpenChange={(open) => !open && setEditingOwnerNode(null)}>
+          <DialogContent className="max-w-md w-full">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <Shield className="w-4 h-4 text-indigo-600" />
+                Change Stage Owner: {editingOwnerNode.node.title}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Select a user from your organization to be responsible for this stage. Their assigned role will be updated automatically.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2 text-xs">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-zinc-300">
+                  Search Users
+                </label>
+                <Input
+                  value={ownerSearch}
+                  onChange={(e) => setOwnerSearch(e.target.value)}
+                  placeholder="Search user by name, email, or role..."
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                  Assign to User ({usersList.length} available)
+                </label>
+                <div className="max-h-52 overflow-y-auto space-y-1 border border-slate-200 dark:border-zinc-800 rounded-lg p-1">
+                  {usersList
+                    .filter((u: any) => {
+                      if (!ownerSearch.trim()) return true;
+                      const q = ownerSearch.toLowerCase();
+                      const name = (u.full_name || "").toLowerCase();
+                      const email = (u.email || "").toLowerCase();
+                      const dept = (u.department || "").toLowerCase();
+                      const role = (u.role || "").toLowerCase();
+                      return name.includes(q) || email.includes(q) || dept.includes(q) || role.includes(q);
+                    })
+                    .map((u: any) => {
+                      const fullName = u.full_name || u.email || "Unnamed User";
+                      const roleStr = u.is_super_admin
+                        ? "Super Admin"
+                        : u.role ||
+                          u.assigned_roles?.map((r: any) => r.name || r.code).join(", ") ||
+                          resolveUserDepartment(u, rolesList) ||
+                          u.department ||
+                          "Team Member";
+                      const isSelected = editingOwnerNode.node.assignedUser === fullName;
+
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => handleSelectOwnerUser(u)}
+                          className={`w-full text-left p-2 rounded-md flex items-center justify-between text-xs transition-colors ${
+                            isSelected
+                              ? "bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-300 dark:border-indigo-800"
+                              : "hover:bg-slate-100 dark:hover:bg-zinc-800"
+                          }`}
+                        >
+                          <div className="min-w-0 pr-2">
+                            <span className="font-medium text-slate-900 dark:text-zinc-100 truncate block">
+                              {fullName}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground truncate block">
+                              {u.email}
+                            </span>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-slate-50 dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 shrink-0 font-normal"
+                          >
+                            {roleStr}
+                          </Badge>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 space-y-1.5">
+                <label className="font-semibold text-slate-700 dark:text-zinc-300 block">
+                  Or Set Custom Role / Team Description
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={customRoleInput}
+                    onChange={(e) => setCustomRoleInput(e.target.value)}
+                    placeholder="e.g. Procurement Specialist, Department Manager"
+                    className="h-8 text-xs flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleSaveCustomOwnerRole}
+                    className="h-8 text-xs px-3"
+                  >
+                    Save Role
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setEditingOwnerNode(null)}>
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>
