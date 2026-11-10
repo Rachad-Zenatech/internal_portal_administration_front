@@ -140,7 +140,7 @@ export function EditStageModal({
 
   return (
     <Dialog open={!!editingNode} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg w-full max-h-[88vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-bold">Edit Stage Details &amp; Controls</DialogTitle>
           <DialogDescription className="text-xs">
@@ -258,15 +258,15 @@ export function EditStageModal({
                     <Variable className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                     Target Variable Being Reviewed (What is Getting Reviewed)
                   </label>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <Select
                       value={nodeReviewControlVariable || "gl_code"}
                       onValueChange={(val) => {
                         if (setNodeReviewControlVariable) setNodeReviewControlVariable(val);
                       }}
                     >
-                      <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900 flex-1">
-                        <SelectValue placeholder="Select variable being reviewed..." />
+                      <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900 w-full truncate">
+                        <SelectValue placeholder="Select variable..." />
                       </SelectTrigger>
                       <SelectContent className="max-h-56">
                         {variableOptions.map((v) => (
@@ -282,7 +282,7 @@ export function EditStageModal({
                         if (setNodeReviewControlVariable) setNodeReviewControlVariable(e.target.value);
                       }}
                       placeholder="Or custom variable slug..."
-                      className="h-8 text-xs w-44 bg-white dark:bg-zinc-900"
+                      className="h-8 text-xs w-full bg-white dark:bg-zinc-900"
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground">
