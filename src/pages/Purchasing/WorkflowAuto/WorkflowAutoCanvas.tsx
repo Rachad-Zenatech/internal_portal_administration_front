@@ -1214,7 +1214,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
       {/* Quick Change Owner & Role Modal */}
       {editingOwnerNode && (
         <Dialog open={!!editingOwnerNode} onOpenChange={(open) => !open && setEditingOwnerNode(null)}>
-          <DialogContent className="max-w-md w-full">
+          <DialogContent className="sm:max-w-md w-full p-6">
             <DialogHeader>
               <DialogTitle className="text-base font-bold flex items-center gap-2">
                 <Shield className="w-4 h-4 text-indigo-600" />
@@ -1234,7 +1234,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                   value={ownerSearch}
                   onChange={(e) => setOwnerSearch(e.target.value)}
                   placeholder="Search user by name, email, or role..."
-                  className="h-8 text-xs"
+                  className="h-9 text-xs"
                 />
               </div>
 
@@ -1242,7 +1242,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
                   Assign to User ({usersList.length} available)
                 </label>
-                <div className="max-h-52 overflow-y-auto space-y-1 border border-slate-200 dark:border-zinc-800 rounded-lg p-1">
+                <div className="max-h-56 overflow-y-auto space-y-1 border border-slate-200 dark:border-zinc-800 rounded-lg p-1">
                   {usersList
                     .filter((u: any) => {
                       if (!ownerSearch.trim()) return true;
@@ -1304,13 +1304,13 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
                     value={customRoleInput}
                     onChange={(e) => setCustomRoleInput(e.target.value)}
                     placeholder="e.g. Procurement Specialist, Department Manager"
-                    className="h-8 text-xs flex-1"
+                    className="h-9 text-xs flex-1"
                   />
                   <Button
                     size="sm"
                     variant="secondary"
                     onClick={handleSaveCustomOwnerRole}
-                    className="h-8 text-xs px-3"
+                    className="h-9 text-xs px-3"
                   >
                     Save Role
                   </Button>
@@ -1318,7 +1318,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="mt-2">
               <Button variant="outline" size="sm" onClick={() => setEditingOwnerNode(null)}>
                 Close
               </Button>
