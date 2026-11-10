@@ -75,6 +75,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     movingActionInfo,
     setMovingActionInfo,
     handleMoveActionToStage,
+    handleTransferActionToOtherDomain,
     // Action edit dialog
     editingAction,
     setEditingAction,
@@ -280,8 +281,10 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
       <MoveActionModal
         movingActionInfo={movingActionInfo}
         nodes={nodes}
+        domain={domain}
         onClose={() => setMovingActionInfo(null)}
         onMoveActionToStage={handleMoveActionToStage}
+        onTransferActionToOtherDomain={handleTransferActionToOtherDomain}
       />
 
       {/* Quick Change Owner & Role Modal */}

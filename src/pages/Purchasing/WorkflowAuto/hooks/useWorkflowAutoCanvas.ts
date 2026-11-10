@@ -563,6 +563,59 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     setMovingActionInfo(null);
   };
 
+  // Transfer action button directly to a stage in the other workflow domain
+  const handleTransferActionToOtherDomain = async (
+    sourceStepId: string,
+    actionIndex: number,
+    targetStepId: string
+  ) => {
+    const targetDomain = domain === "purchasing" ? "invoices" : "purchasing";
+    const targetName =
+      targetDomain === "purchasing" ? "Purchase Requests Workflow" : "A/P & Invoices Workflow";
+    const sourceNode = nodes.find((n) => n.id === sourceStepId);
+    if (!sourceNode) return;
+    const actionToMove = sourceNode.actions[actionIndex];
+    if (!actionToMove) return;
+
+    try {
+      // 1. Fetch other domain's config
+      const targetConfig = await experimentalWorkflowService.getWorkflowConfig(targetDomain);
+      const targetNodes = [...(targetConfig.nodes || [])];
+      const destIndex = targetNodes.findIndex((n) => n.id === targetStepId);
+      if (destIndex === -1) {
+        toast.error("Destination stage not found in other workflow.");
+        return;
+      }
+
+      // 2. Append action to selected stage in destination workflow
+      targetNodes[destIndex] = {
+        ...targetNodes[destIndex],
+        actions: [...targetNodes[destIndex].actions, actionToMove],
+      };
+      await experimentalWorkflowService.saveWorkflowConfig(targetDomain, { nodes: targetNodes });
+
+      // 3. Remove action from current workflow
+      const updated = nodes.map((node) => {
+        if (node.id === sourceStepId) {
+          return {
+            ...node,
+            actions: node.actions.filter((_, idx) => idx !== actionIndex),
+          };
+        }
+        return node;
+      });
+      await saveMutation.mutateAsync(updated);
+
+      queryClient.invalidateQueries({ queryKey: ["experimental-workflow", targetDomain] });
+      toast.success(
+        `Transferred action "${actionToMove.label}" to "${targetNodes[destIndex].title}" in ${targetName}!`
+      );
+      setMovingActionInfo(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to transfer action to other workflow.");
+    }
+  };
+
   return {
     nodes,
     usersList,
@@ -621,6 +674,7 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     movingActionInfo,
     setMovingActionInfo,
     handleMoveActionToStage,
+    handleTransferActionToOtherDomain,
     // Action edit dialog
     editingAction,
     setEditingAction,
