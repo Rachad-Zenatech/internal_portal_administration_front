@@ -519,7 +519,63 @@ function resolveActionMeta(
     }
   }
 
-  // 17. Safe General Fallbacks Based on HTTP Method
+  // 17. Workflow Auto Designer
+  if (lower.includes("/workflow-auto")) {
+    if (lower.includes("/reset")) {
+      return {
+        title: "Resetting Workflow",
+        subtitle: "Restoring standard workflow flow and stage settings...",
+      };
+    }
+    if (lower.includes("/save-as-default")) {
+      return {
+        title: "Saving Default Workflow",
+        subtitle: "Storing current layout as production baseline default...",
+      };
+    }
+    return {
+      title: "Updating Workflow",
+      subtitle: "Saving stage layout, step actions, and field configurations...",
+    };
+  }
+
+  // 18. Configurations & Master Data (Entities, Locations, Classes, Products, Projects, Contacts)
+  if (
+    lower.includes("/configurations/entities") ||
+    lower.includes("/api/master/locations") ||
+    lower.includes("/api/master/classes") ||
+    lower.includes("/api/master/products") ||
+    lower.includes("/projects") ||
+    lower.includes("/business-contacts") ||
+    lower.includes("/payable-contacts") ||
+    lower.includes("/companies")
+  ) {
+    if (m === "DELETE") {
+      return {
+        title: "Deleting Record",
+        subtitle: "Please wait while the record is removed...",
+      };
+    }
+    if (m === "PUT" || m === "PATCH") {
+      return {
+        title: "Updating Record",
+        subtitle: "Please wait while record changes are being saved...",
+      };
+    }
+    // Check if ID is in URL for POST update endpoints
+    if (/\/(locations|classes|products|entities|projects|companies|contacts)\/\d+/.test(lower)) {
+      return {
+        title: "Updating Record",
+        subtitle: "Please wait while record changes are being saved...",
+      };
+    }
+    return {
+      title: "Saving Record",
+      subtitle: "Please wait while the record is being processed...",
+    };
+  }
+
+  // 19. Safe General Fallbacks Based on HTTP Method
   if (m === "DELETE") {
     return {
       title: "Deleting Record",
@@ -527,10 +583,33 @@ function resolveActionMeta(
     };
   }
 
-  if (m === "POST") {
+  if (m === "PUT" || m === "PATCH") {
     return {
-      title: "Creating Record",
-      subtitle: "Please wait while the new record is created...",
+      title: "Updating Record",
+      subtitle: "Please wait while your changes are being saved...",
+    };
+  }
+
+  if (m === "POST") {
+    // If the endpoint or payload contains update, edit, sync, or an ID, it's updating
+    if (
+      lower.includes("/update") ||
+      lower.includes("/edit") ||
+      lower.includes("/save") ||
+      lower.includes("/sync") ||
+      lower.includes("/modify") ||
+      parsedBody?.id ||
+      parsedBody?.uuid ||
+      parsedBody?.requestId
+    ) {
+      return {
+        title: "Updating Record",
+        subtitle: "Please wait while record changes are being saved...",
+      };
+    }
+    return {
+      title: "Saving Record",
+      subtitle: "Please wait while the record is being processed...",
     };
   }
 
