@@ -231,28 +231,63 @@ export function StageCardNode({
 
           {/* Stage Review & Control Gate (Underneath stage description) */}
           {node.reviewControl?.enabled && (
-            <div className="p-2.5 rounded-lg bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs space-y-1.5">
-              <div className="flex items-center justify-between gap-1 flex-wrap">
+            <div className="p-2.5 rounded-lg bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs space-y-2">
+              <div className="flex items-center justify-between gap-1">
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
                   <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                  Internal Control Review
+                  Internal Control Review ({node.reviewControl.items?.length || 1})
                 </span>
-                <div className="flex items-center gap-1 shrink-0">
-                  {node.reviewControl.targetVariable && (
-                    <span className="text-[9px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200/50">
-                      Variable: {node.reviewControl.targetVariable}
-                    </span>
-                  )}
-                  <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/50 px-1.5 py-0.5 rounded">
-                    {node.reviewControl.reviewerUser
-                      ? `${node.reviewControl.reviewerUser} (${node.reviewControl.reviewerRole || "Reviewer"})`
-                      : node.reviewControl.reviewerRole || "Accounting Review"}
-                  </span>
-                </div>
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full font-semibold bg-rose-200/70 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300">
+                  Required Checkpoints
+                </span>
               </div>
-              <p className="text-[11px] text-rose-900 dark:text-rose-200 leading-snug font-medium">
-                {node.reviewControl.controlText || "Verify GL code & Category are coded properly"}
-              </p>
+
+              {/* Render Multiple Review Check Items if available */}
+              {node.reviewControl.items && node.reviewControl.items.length > 0 ? (
+                <div className="space-y-1.5 pt-0.5">
+                  {node.reviewControl.items.map((chk, cIdx) => (
+                    <div
+                      key={chk.id || cIdx}
+                      className="p-1.5 rounded bg-white/90 dark:bg-zinc-900/90 border border-rose-200/80 dark:border-rose-800/60 space-y-1"
+                    >
+                      <div className="flex items-center justify-between gap-1 flex-wrap">
+                        <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/80 px-1.5 py-0.5 rounded border border-indigo-200/50 font-mono">
+                          {chk.variable}
+                        </span>
+                        <span className="text-[9px] font-medium text-rose-700 dark:text-rose-300 bg-rose-100/70 dark:bg-rose-950/60 px-1.5 py-0.5 rounded">
+                          {chk.reviewerUser
+                            ? `${chk.reviewerUser} (${chk.reviewerRole || "Reviewer"})`
+                            : chk.reviewerRole || "Assigned Reviewer"}
+                        </span>
+                      </div>
+                      {chk.instructions && (
+                        <p className="text-[10px] text-slate-600 dark:text-zinc-300 leading-snug">
+                          {chk.instructions}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* Fallback single review item display */
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                    {node.reviewControl.targetVariable && (
+                      <span className="text-[9px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200/50">
+                        Variable: {node.reviewControl.targetVariable}
+                      </span>
+                    )}
+                    <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/50 px-1.5 py-0.5 rounded">
+                      {node.reviewControl.reviewerUser
+                        ? `${node.reviewControl.reviewerUser} (${node.reviewControl.reviewerRole || "Reviewer"})`
+                        : node.reviewControl.reviewerRole || "Accounting Review"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-rose-900 dark:text-rose-200 leading-snug font-medium">
+                    {node.reviewControl.controlText || "Verify details before approving"}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

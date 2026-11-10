@@ -20,6 +20,16 @@ export interface WorkflowActionButton {
   fields?: WorkflowActionField[];
 }
 
+export interface ReviewCheckItem {
+  id: string;
+  variable: string; // e.g. "gl_code", "amount", "vendor"
+  label?: string; // Display label e.g. "Category / GL Code"
+  reviewerRole?: string; // e.g. "Accounting / Controller"
+  reviewerUser?: string; // e.g. "David Hernandez"
+  instructions?: string; // e.g. "Verify GL code & Category are coded properly"
+  passed?: boolean;
+}
+
 export interface WorkflowStepNode {
   id: string;
   title: string;
@@ -33,8 +43,9 @@ export interface WorkflowStepNode {
     enabled: boolean;
     reviewerRole?: string;
     reviewerUser?: string;
-    targetVariable?: string; // e.g. "gl_code", "amount", "vendor", etc.
+    targetVariable?: string; // legacy single target variable
     controlText?: string;
+    items?: ReviewCheckItem[]; // Multiple variables to check and by who
     passed?: boolean;
   };
 }

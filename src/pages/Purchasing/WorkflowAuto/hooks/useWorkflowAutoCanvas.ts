@@ -184,6 +184,7 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
   const [nodeReviewControlUser, setNodeReviewControlUser] = useState("");
   const [nodeReviewControlVariable, setNodeReviewControlVariable] = useState("");
   const [nodeReviewControlText, setNodeReviewControlText] = useState("");
+  const [nodeReviewControlItems, setNodeReviewControlItems] = useState<import("@/services/experimentalWorkflowService").ReviewCheckItem[]>([]);
 
   // Quick Owner Edit Modal State (Pencil on Owner pill)
   const [editingOwnerNode, setEditingOwnerNode] = useState<{
@@ -363,6 +364,23 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     setNodeReviewControlText(
       node.reviewControl?.controlText || "Verify GL code & Category are coded properly"
     );
+    // Initialize multiple review control check items if available, or synthesize from single field
+    if (node.reviewControl?.items && node.reviewControl.items.length > 0) {
+      setNodeReviewControlItems(node.reviewControl.items);
+    } else if (node.reviewControl?.enabled) {
+      setNodeReviewControlItems([
+        {
+          id: `chk_${Date.now()}_1`,
+          variable: node.reviewControl.targetVariable || "unit_price",
+          label: node.reviewControl.targetVariable || "Unit Price",
+          reviewerRole: node.reviewControl.reviewerRole || "Procurement Specialist",
+          reviewerUser: node.reviewControl.reviewerUser || "",
+          instructions: node.reviewControl.controlText || "Verify unit price matches quote/contract",
+        },
+      ]);
+    } else {
+      setNodeReviewControlItems([]);
+    }
   };
 
   const handleSaveStep = () => {
@@ -378,11 +396,23 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
       reviewControl: nodeReviewControlEnabled
         ? {
             enabled: true,
-            reviewerRole: nodeReviewControlRole.trim() || "Accounting / Controller",
-            reviewerUser: nodeReviewControlUser.trim() || undefined,
-            targetVariable: nodeReviewControlVariable.trim() || undefined,
+            reviewerRole:
+              nodeReviewControlItems[0]?.reviewerRole ||
+              nodeReviewControlRole.trim() ||
+              "Accounting / Controller",
+            reviewerUser:
+              nodeReviewControlItems[0]?.reviewerUser ||
+              nodeReviewControlUser.trim() ||
+              undefined,
+            targetVariable:
+              nodeReviewControlItems[0]?.variable ||
+              nodeReviewControlVariable.trim() ||
+              undefined,
             controlText:
-              nodeReviewControlText.trim() || "Verify GL code & Category are coded properly",
+              nodeReviewControlItems[0]?.instructions ||
+              nodeReviewControlText.trim() ||
+              "Verify details before approving",
+            items: nodeReviewControlItems,
             passed: editingNode.node.reviewControl?.passed ?? false,
           }
         : undefined,
@@ -837,6 +867,8 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     setNodeReviewControlVariable,
     nodeReviewControlText,
     setNodeReviewControlText,
+    nodeReviewControlItems,
+    setNodeReviewControlItems,
     handleOpenEditStep,
     handleSaveStep,
     // Owner modal

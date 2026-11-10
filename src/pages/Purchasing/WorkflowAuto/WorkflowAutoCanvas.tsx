@@ -63,6 +63,8 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     setNodeReviewControlVariable,
     nodeReviewControlText,
     setNodeReviewControlText,
+    nodeReviewControlItems,
+    setNodeReviewControlItems,
     handleOpenEditStep,
     handleSaveStep,
     // Owner modal
@@ -349,6 +351,9 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
         setNodeReviewControlVariable={setNodeReviewControlVariable}
         nodeReviewControlText={nodeReviewControlText}
         setNodeReviewControlText={setNodeReviewControlText}
+        nodeReviewControlItems={nodeReviewControlItems}
+        setNodeReviewControlItems={setNodeReviewControlItems}
+        nodes={nodes}
         usersList={usersList}
         rolesList={rolesList}
         onClose={() => setEditingNode(null)}
