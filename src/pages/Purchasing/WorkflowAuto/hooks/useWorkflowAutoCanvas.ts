@@ -8,12 +8,13 @@ import {
   type WorkflowStepNode,
   type WorkflowActionButton,
   type WorkflowActionField,
+  type WorkflowDomain,
 } from "@/services/experimentalWorkflowService";
 import { useUsersList, useRolesList } from "@/hooks/usePurchasing";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 
 export interface UseWorkflowAutoCanvasProps {
-  domain: "purchasing" | "invoices";
+  domain: WorkflowDomain;
 }
 
 export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
@@ -453,10 +454,16 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     setMovingNodeIndex(null);
   };
 
-  const handleTransferToOtherDomain = async (fromIndex: number) => {
-    const targetDomain = domain === "purchasing" ? "invoices" : "purchasing";
-    const targetName =
-      targetDomain === "purchasing" ? "Purchase Requests Workflow" : "A/P & Invoices Workflow";
+  const getDomainDisplayName = (d: WorkflowDomain) => {
+    if (d === "purchasing") return "Spend Requests Workflow";
+    if (d === "purchasing_quote") return "Quote Requests Workflow";
+    if (d === "invoices") return "A/P & Invoices Workflow";
+    return `${d} Workflow`;
+  };
+
+  const handleTransferToOtherDomain = async (fromIndex: number, specificTargetDomain?: WorkflowDomain) => {
+    const targetDomain: WorkflowDomain = specificTargetDomain || (domain === "purchasing" ? "purchasing_quote" : "purchasing");
+    const targetName = getDomainDisplayName(targetDomain);
     const nodeToTransfer = nodes[fromIndex];
     if (!nodeToTransfer) return;
 
@@ -588,11 +595,11 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
   const handleTransferActionToOtherDomain = async (
     sourceStepId: string,
     actionIndex: number,
-    targetStepId: string
+    targetStepId: string,
+    specificTargetDomain?: WorkflowDomain
   ) => {
-    const targetDomain = domain === "purchasing" ? "invoices" : "purchasing";
-    const targetName =
-      targetDomain === "purchasing" ? "Purchase Requests Workflow" : "A/P & Invoices Workflow";
+    const targetDomain: WorkflowDomain = specificTargetDomain || (domain === "purchasing" ? "purchasing_quote" : "purchasing");
+    const targetName = getDomainDisplayName(targetDomain);
     const sourceNode = nodes.find((n) => n.id === sourceStepId);
     if (!sourceNode) return;
     const actionToMove = sourceNode.actions[actionIndex];
@@ -704,11 +711,11 @@ export function useWorkflowAutoCanvas({ domain }: UseWorkflowAutoCanvasProps) {
     sourceActionId: string,
     fieldIndex: number,
     targetStepId: string,
-    targetActionId: string
+    targetActionId: string,
+    specificTargetDomain?: WorkflowDomain
   ) => {
-    const targetDomain = domain === "purchasing" ? "invoices" : "purchasing";
-    const targetName =
-      targetDomain === "purchasing" ? "Purchase Requests Workflow" : "A/P & Invoices Workflow";
+    const targetDomain: WorkflowDomain = specificTargetDomain || (domain === "purchasing" ? "purchasing_quote" : "purchasing");
+    const targetName = getDomainDisplayName(targetDomain);
 
     const sourceNode = nodes.find((n) => n.id === sourceStepId);
     const sourceAction = sourceNode?.actions.find((a) => a.id === sourceActionId);

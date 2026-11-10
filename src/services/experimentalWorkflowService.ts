@@ -37,9 +37,11 @@ export interface WorkflowStepNode {
   };
 }
 
+export type WorkflowDomain = "purchasing" | "purchasing_quote" | "invoices" | (string & {});
+
 export interface WorkflowConfigResponse {
   id: string;
-  domain: "purchasing" | "invoices";
+  domain: WorkflowDomain;
   name: string;
   description?: string;
   nodes: WorkflowStepNode[];
@@ -47,20 +49,20 @@ export interface WorkflowConfigResponse {
 }
 
 export const experimentalWorkflowService = {
-  async getWorkflowConfig(domain: "purchasing" | "invoices"): Promise<WorkflowConfigResponse> {
+  async getWorkflowConfig(domain: WorkflowDomain): Promise<WorkflowConfigResponse> {
     return apiClient.get<WorkflowConfigResponse>(`/workflow-auto/${domain}`);
   },
 
-  async saveWorkflowConfig(domain: "purchasing" | "invoices", payload: Partial<WorkflowConfigResponse>): Promise<WorkflowConfigResponse> {
+  async saveWorkflowConfig(domain: WorkflowDomain, payload: Partial<WorkflowConfigResponse>): Promise<WorkflowConfigResponse> {
     return apiClient.post<WorkflowConfigResponse>(`/workflow-auto/${domain}`, payload);
   },
 
-  async resetWorkflowConfig(domain: "purchasing" | "invoices"): Promise<WorkflowConfigResponse> {
+  async resetWorkflowConfig(domain: WorkflowDomain): Promise<WorkflowConfigResponse> {
     return apiClient.post<WorkflowConfigResponse>(`/workflow-auto/${domain}/reset`, {});
   },
 
   /** Store these nodes as the domain's default workflow (what "Reset" restores), kept in the database. */
-  async saveAsDefaultWorkflowConfig(domain: "purchasing" | "invoices", payload: Partial<WorkflowConfigResponse>): Promise<WorkflowConfigResponse> {
+  async saveAsDefaultWorkflowConfig(domain: WorkflowDomain, payload: Partial<WorkflowConfigResponse>): Promise<WorkflowConfigResponse> {
     return apiClient.post<WorkflowConfigResponse>(`/workflow-auto/${domain}/save-as-default`, payload);
   },
 };

@@ -1,4 +1,5 @@
 import { GripVertical, ArrowLeftRight } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,16 +16,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { WorkflowStepNode } from "@/services/experimentalWorkflowService";
+import type { WorkflowStepNode, WorkflowDomain } from "@/services/experimentalWorkflowService";
 
 interface MoveStageModalProps {
   movingNodeIndex: number | null;
   nodes: WorkflowStepNode[];
-  domain: "purchasing" | "invoices";
+  domain: WorkflowDomain;
   onClose: () => void;
   onMoveStep: (fromIndex: number, toIndex: number) => void;
-  onTransferToOtherDomain: (fromIndex: number) => void;
+  onTransferToOtherDomain: (fromIndex: number, targetDomain?: WorkflowDomain) => void;
 }
+
+const AVAILABLE_FLOWS: { domain: WorkflowDomain; label: string }[] = [
+  { domain: "purchasing", label: "Spend Request Workflow" },
+  { domain: "purchasing_quote", label: "Quote Request (RFQ) Workflow" },
+  { domain: "invoices", label: "A/P & Invoices Workflow" },
+];
 
 export function MoveStageModal({
   movingNodeIndex,
@@ -34,11 +41,17 @@ export function MoveStageModal({
   onMoveStep,
   onTransferToOtherDomain,
 }: MoveStageModalProps) {
+  const otherFlows = AVAILABLE_FLOWS.filter((f) => f.domain !== domain);
+  const [selectedTargetDomain, setSelectedTargetDomain] = useState<WorkflowDomain>(
+    otherFlows[0]?.domain || "invoices"
+  );
+
   if (movingNodeIndex === null || !nodes[movingNodeIndex]) {
     return null;
   }
 
   const currentNode = nodes[movingNodeIndex];
+  const targetFlowLabel = AVAILABLE_FLOWS.find((f) => f.domain === selectedTargetDomain)?.label || "Other Workflow";
 
   return (
     <Dialog open={movingNodeIndex !== null} onOpenChange={(open) => !open && onClose()}>
@@ -101,21 +114,40 @@ export function MoveStageModal({
           </div>
 
           {/* Cross-Flow Transfer */}
-          <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-lg border border-indigo-200 dark:border-indigo-800/50 space-y-2">
+          <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-lg border border-indigo-200 dark:border-indigo-800/50 space-y-2.5">
             <div className="font-semibold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
               <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
-              Transfer to Other Workflow
+              Transfer to Another Workflow
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Move this entire step and its actions into the{" "}
-              {domain === "purchasing" ? "A/P & Invoices Workflow" : "Purchase Requests Workflow"}.
+              Move this entire stage and all its actions to another active workflow.
             </p>
+            <div>
+              <label className="text-[11px] font-semibold text-indigo-950 dark:text-indigo-300 block mb-1">
+                Target Workflow:
+              </label>
+              <Select
+                value={selectedTargetDomain}
+                onValueChange={(val) => setSelectedTargetDomain(val as WorkflowDomain)}
+              >
+                <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {otherFlows.map((f) => (
+                    <SelectItem key={f.domain} value={f.domain}>
+                      {f.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button
               size="sm"
-              onClick={() => onTransferToOtherDomain(movingNodeIndex)}
+              onClick={() => onTransferToOtherDomain(movingNodeIndex, selectedTargetDomain)}
               className="w-full text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
             >
-              Transfer to {domain === "purchasing" ? "A/P & Invoices" : "Purchase Requests"}
+              Transfer to {targetFlowLabel}
             </Button>
           </div>
         </div>

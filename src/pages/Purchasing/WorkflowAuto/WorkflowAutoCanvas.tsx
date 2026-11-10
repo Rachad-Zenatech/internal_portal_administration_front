@@ -12,8 +12,10 @@ import { EditStageModal } from "./dialogs/EditStageModal";
 import { EditActionModal } from "./dialogs/EditActionModal";
 import { MoveFieldModal } from "./dialogs/MoveFieldModal";
 
+import type { WorkflowDomain } from "@/services/experimentalWorkflowService";
+
 interface WorkflowAutoCanvasProps {
-  domain: "purchasing" | "invoices";
+  domain: WorkflowDomain;
   title: string;
   subtitle: string;
 }
