@@ -1,5 +1,5 @@
-import React from "react";
-import { Plus, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+import { Plus, Trash2, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +13,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -22,6 +24,10 @@ import type {
   WorkflowActionButton,
   WorkflowActionField,
 } from "@/services/experimentalWorkflowService";
+import {
+  WORKFLOW_FIELD_CATALOG,
+  type CatalogWorkflowField,
+} from "../constants/workflowFieldCatalog";
 
 interface EditActionModalProps {
   editingAction: {
@@ -64,17 +70,50 @@ export function EditActionModal({
   onClose,
   onSave,
 }: EditActionModalProps) {
+  const [selectedCatalogField, setSelectedCatalogField] = useState<string>("");
+
   if (!editingAction) {
     return null;
   }
 
+  // Group catalog fields by category
+  const catalogByCategory = WORKFLOW_FIELD_CATALOG.reduce<Record<string, CatalogWorkflowField[]>>(
+    (acc, field) => {
+      const cat = field.category || "Other Fields";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(field);
+      return acc;
+    },
+    {}
+  );
+
+  const handleAddFromCatalog = (fieldLabel: string) => {
+    if (!fieldLabel) return;
+    const matched = WORKFLOW_FIELD_CATALOG.find((f) => f.label === fieldLabel);
+    if (!matched) return;
+
+    setActionFields((prev) => [
+      ...prev,
+      {
+        id: `fld_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        label: matched.label,
+        type: matched.type,
+        placeholder: matched.placeholder || "",
+        options: matched.options ? [...matched.options] : [],
+        required: Boolean(matched.required),
+        value: matched.type === "dropdown" && matched.options?.length ? matched.options[0] : "",
+      },
+    ]);
+    setSelectedCatalogField("");
+  };
+
   return (
     <Dialog open={!!editingAction} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg w-full max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-xl w-full max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold">Configure Action Button &amp; Dropdowns</DialogTitle>
+          <DialogTitle className="text-base font-bold">Configure Action Button &amp; Form Fields</DialogTitle>
           <DialogDescription className="text-xs">
-            Customize action trigger, behavior, button color, and dynamic drop-down fields.
+            Customize action trigger, behavior, button styling, and all input fields or dropdowns.
           </DialogDescription>
         </DialogHeader>
 
@@ -149,10 +188,10 @@ export function EditActionModal({
           )}
 
           {/* Action Dropdown / Custom Fields List */}
-          <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 space-y-2">
+          <div className="pt-3 border-t border-slate-200 dark:border-zinc-800 space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-700 dark:text-zinc-300">
-                Input Fields &amp; Dropdowns ({actionFields.length})
+              <span className="font-semibold text-slate-800 dark:text-zinc-200">
+                Action Form Fields ({actionFields.length})
               </span>
               <div className="flex items-center gap-1.5">
                 <Button
@@ -174,7 +213,7 @@ export function EditActionModal({
                   className="h-6 text-[10px] gap-1"
                 >
                   <Plus className="w-3 h-3" />
-                  Add Dropdown
+                  + Dropdown
                 </Button>
                 <Button
                   type="button"
@@ -185,7 +224,7 @@ export function EditActionModal({
                       ...prev,
                       {
                         id: `fld_${Date.now()}`,
-                        label: "Text Input",
+                        label: "Text Field",
                         type: "text",
                         placeholder: "Enter details...",
                       },
@@ -194,17 +233,51 @@ export function EditActionModal({
                   className="h-6 text-[10px] gap-1"
                 >
                   <Plus className="w-3 h-3" />
-                  Add Text Field
+                  + Text
                 </Button>
               </div>
             </div>
 
+            {/* Catalog Preset Selector */}
+            <div className="p-2 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/70 dark:border-indigo-800/40 flex items-center gap-2">
+              <Library className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <div className="flex-1">
+                <Select
+                  value={selectedCatalogField}
+                  onValueChange={(val) => {
+                    setSelectedCatalogField(val);
+                    handleAddFromCatalog(val);
+                  }}
+                >
+                  <SelectTrigger className="h-7 text-xs bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800">
+                    <SelectValue placeholder="Add from existing workflow fields (73 available)..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {Object.entries(catalogByCategory).map(([category, fields]) => (
+                      <SelectGroup key={category}>
+                        <SelectLabel className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                          {category} ({fields.length})
+                        </SelectLabel>
+                        {fields.map((f) => (
+                          <SelectItem key={`${category}-${f.label}`} value={f.label} className="text-xs">
+                            <span className="font-medium">{f.label}</span>
+                            <span className="ml-2 text-[10px] text-slate-400">({f.type})</span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* List of existing fields */}
             {actionFields.map((fld, fldIdx) => (
               <div
                 key={fld.id}
                 className="p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/40 space-y-2"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <Input
                     value={fld.label}
                     onChange={(e) => {
@@ -216,10 +289,39 @@ export function EditActionModal({
                       });
                     }}
                     placeholder="Field Label (e.g. Region, Priority)"
-                    className="h-7 text-xs font-semibold w-1/2"
+                    className="h-7 text-xs font-semibold flex-1"
                   />
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-zinc-300 font-medium cursor-pointer">
+                  
+                  {/* Field Type Selector */}
+                  <Select
+                    value={fld.type || "text"}
+                    onValueChange={(newType: any) => {
+                      setActionFields((prev) => {
+                        const next = [...prev];
+                        next[fldIdx].type = newType;
+                        if (newType === "dropdown" && (!next[fldIdx].options || next[fldIdx].options.length === 0)) {
+                          next[fldIdx].options = ["Option A", "Option B"];
+                        }
+                        return next;
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-[11px] w-28 bg-white dark:bg-zinc-900">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="text">Text</SelectItem>
+                      <SelectItem value="dropdown">Dropdown</SelectItem>
+                      <SelectItem value="number">Number</SelectItem>
+                      <SelectItem value="date">Date</SelectItem>
+                      <SelectItem value="textarea">Textarea</SelectItem>
+                      <SelectItem value="file">File Upload</SelectItem>
+                      <SelectItem value="checkbox">Checkbox</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <label className="flex items-center gap-1 text-[11px] text-slate-600 dark:text-zinc-300 font-medium cursor-pointer">
                       <input
                         type="checkbox"
                         checked={Boolean(fld.required)}
@@ -233,7 +335,7 @@ export function EditActionModal({
                         }}
                         className="rounded border-slate-300 text-indigo-600 h-3.5 w-3.5 focus:ring-indigo-500"
                       />
-                      <span>Required</span>
+                      <span>Req</span>
                     </label>
                     <Button
                       type="button"
@@ -249,24 +351,43 @@ export function EditActionModal({
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] text-slate-500">
-                    Dropdown Options (comma separated)
-                  </label>
-                  <Input
-                    value={(fld.options || []).join(", ")}
-                    onChange={(e) => {
-                      const opts = e.target.value.split(",").map((o) => o.trim()).filter(Boolean);
-                      setActionFields((prev) => {
-                        const next = [...prev];
-                        next[fldIdx].options = opts;
-                        return next;
-                      });
-                    }}
-                    placeholder="Option 1, Option 2, Option 3"
-                    className="h-7 text-xs"
-                  />
-                </div>
+                {fld.type === "dropdown" ? (
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-500">
+                      Dropdown Options (comma separated)
+                    </label>
+                    <Input
+                      value={(fld.options || []).join(", ")}
+                      onChange={(e) => {
+                        const opts = e.target.value.split(",").map((o) => o.trim()).filter(Boolean);
+                        setActionFields((prev) => {
+                          const next = [...prev];
+                          next[fldIdx].options = opts;
+                          return next;
+                        });
+                      }}
+                      placeholder="Option 1, Option 2, Option 3"
+                      className="h-7 text-xs bg-white dark:bg-zinc-900"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-500">Placeholder / Hint Text</label>
+                    <Input
+                      value={fld.placeholder || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setActionFields((prev) => {
+                          const next = [...prev];
+                          next[fldIdx].placeholder = val;
+                          return next;
+                        });
+                      }}
+                      placeholder="Enter placeholder text..."
+                      className="h-7 text-xs bg-white dark:bg-zinc-900"
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -284,4 +405,3 @@ export function EditActionModal({
     </Dialog>
   );
 }
-
