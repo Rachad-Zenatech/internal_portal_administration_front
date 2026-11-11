@@ -46,6 +46,11 @@ export async function getSummary(): Promise<PurchasingSummary> {
   return apiClient.get<PurchasingSummary>("/api/purchasing/summary");
 }
 
+export async function getNextPurchaseOrderNumber(): Promise<string> {
+  const res = await apiClient.get<{ next_po_number: string }>("/api/purchasing/purchase-orders/next-number");
+  return res.next_po_number;
+}
+
 export async function listDepartments(): Promise<string[]> {
   return apiClient.get<string[]>("/api/purchasing/departments");
 }

@@ -169,6 +169,13 @@ export function useRequestDetailActions2(ctx: RequestDetailGuardedState) {
         data?.request?.quote_data?.quote_number ||
         "";
       setInvoicePoNumber(defaultPoNum);
+      if (!defaultPoNum) {
+        purchasingService.getNextPurchaseOrderNumber()
+          .then((nextPo) => {
+            if (nextPo) setInvoicePoNumber((curr) => curr || nextPo);
+          })
+          .catch(() => {});
+      }
       setPendingFiles([]);
     }
     if (meta.form === "po") {
@@ -237,13 +244,15 @@ export function useRequestDetailActions2(ctx: RequestDetailGuardedState) {
         request.department?.toLowerCase().includes("m&a")
       );
 
+      const existingPoNum = purchase_order?.quote_number || quoteNum || "";
+
       setPo({
         vendor: purchase_order?.vendor || quoteVendor || (info && isUsable(info.vendor) ? info.vendor : ""),
         item: (isMultiReq ? (parsedPoItems.length ? `Multi Parts (${parsedPoItems.length} parts)` : (request.title || "Multi Parts")) : (request.title || (info && isUsable(info.name) ? info.name : ""))).slice(0, 200),
         quantity: isMultiReq ? (parsedPoItems.length || 1) : (request.quantity ?? 1),
         unit_price: singleUnitPrice,
         amount: usdAmount,
-        quote_number: purchase_order?.quote_number || quoteNum || "",
+        quote_number: existingPoNum,
         description: (info && isUsable(info.description) ? info.description : (request.description || "")),
         currency: "USD",
         payment_method: ((purchase_order?.payment_method || (request as any)?.payment_method) as PaymentMethod | undefined) || (isMaTxn ? "WIRE" : undefined),
@@ -251,6 +260,16 @@ export function useRequestDetailActions2(ctx: RequestDetailGuardedState) {
         expected_delivery_date: purchase_order?.expected_delivery_date || "",
         item_url: purchase_order?.item_url || request.item_url || "",
       });
+
+      if (!existingPoNum) {
+        purchasingService.getNextPurchaseOrderNumber()
+          .then((nextPo) => {
+            if (nextPo) {
+              setPo((prev) => (prev.quote_number ? prev : { ...prev, quote_number: nextPo }));
+            }
+          })
+          .catch(() => {});
+      }
 
       // Quote has a foreign currency but no stored conversion rate: fetch a live rate so USD totals are correct
       if (isForeign && !Number(quoteConv?.exchange_rate)) {
