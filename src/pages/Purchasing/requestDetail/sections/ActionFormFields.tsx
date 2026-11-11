@@ -83,12 +83,12 @@ export function ActionFormFields({ v }: { v: RequestDetailViewState }) {
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
-                      From Location <span className="text-red-500">*</span>
+                      Region / Location <span className="text-red-500">*</span>
                     </label>
                     <LocationAutocomplete
                       value={invoice.from_location || ""}
                       onChange={(v) => setInvoice({ ...invoice, from_location: v })}
-                      placeholder="Select or enter location *"
+                      placeholder="Select or enter region / location *"
                       required
                     />
                   </div>

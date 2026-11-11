@@ -125,12 +125,12 @@ export function Tab3InvoiceReceipts({ s }: { s: EditCombinedRequestState }) {
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                      From Location <span className="text-rose-500">*</span>
+                      Region / Location <span className="text-rose-500">*</span>
                     </label>
                     <LocationAutocomplete
                       value={invFromLocation}
                       onChange={setInvFromLocation}
-                      placeholder="Location *"
+                      placeholder="Select or enter region / location *"
                       required
                     />
                   </div>
