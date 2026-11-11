@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "../../utils/purchasingMeta";
+import { TwoUp } from "../components/TwoUp";
 import { FieldInput } from "../components/FieldInput";
 import type { RequestDetailViewState } from "../hooks/useRequestDetailTail";
 
@@ -15,16 +16,28 @@ export function MultiplePartsInteractiveEditable({ v }: { v: RequestDetailViewSt
     <>
       {activeForm?.kind === "po" && (
               <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Vendor <span className="text-red-500">*</span>
-                  </label>
-                  <VendorAutocomplete
-                    value={po.vendor}
-                    onChange={(v) => setPo({ ...po, vendor: v })}
-                    placeholder="Search or enter vendor name..."
+                <TwoUp>
+                  <FieldInput
+                    label={
+                      <span>
+                        Quote / PO # <span className="text-slate-400 text-xs font-normal">(Auto-generated if empty)</span>
+                      </span>
+                    }
+                    placeholder="e.g. PO-2026-00452 or QT-88910"
+                    value={po.quote_number ?? ""}
+                    onChange={(val) => setPo({ ...po, quote_number: val })}
                   />
-                </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Vendor <span className="text-red-500">*</span>
+                    </label>
+                    <VendorAutocomplete
+                      value={po.vendor}
+                      onChange={(v) => setPo({ ...po, vendor: v })}
+                      placeholder="Search or enter vendor name..."
+                    />
+                  </div>
+                </TwoUp>
                 <div className="space-y-2">
                   <FieldInput
                     label={

@@ -370,7 +370,15 @@ export function useEditCombinedRequestActions(props: EditCombinedRequestDialogPr
           (request as any)?.is_ma ||
           request?.department?.toLowerCase().includes("m&a")
         );
-        setPoQuoteNumber(purchaseOrder.quote_number || "");
+        const existingPoQuote = purchaseOrder.quote_number || "";
+        setPoQuoteNumber(existingPoQuote);
+        if (!existingPoQuote) {
+          purchasingService.getNextPurchaseOrderNumber()
+            .then((nextPo) => {
+              if (nextPo) setPoQuoteNumber((curr) => curr || nextPo);
+            })
+            .catch(() => {});
+        }
         setPoVendor(purchaseOrder.vendor || "");
         setPoItem(purchaseOrder.item || request?.title || "");
         setPoPaymentMethod(purchaseOrder.payment_method || (isMaTxn ? "WIRE" : "CC"));
