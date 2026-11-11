@@ -4,12 +4,16 @@ import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import Breadcrumbs from "./Breadcrumbs";
 import HubSpotSyncProgress from "./HubSpotSyncProgress";
+import { useHeartbeat } from "@/hooks/useHeartbeat";
 
 interface Props {
   children: ReactNode;
 }
 
 export default function AppShell({ children }: Props) {
+  // Keep active user session alive via heartbeat
+  useHeartbeat(true);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
