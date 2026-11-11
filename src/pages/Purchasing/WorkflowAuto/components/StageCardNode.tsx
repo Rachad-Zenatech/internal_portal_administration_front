@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import {
   Plus,
   Trash2,
@@ -8,6 +9,7 @@ import {
   Shield,
   GripVertical,
   AlertCircle,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -422,6 +424,19 @@ export function StageCardNode({
                                   <span className="truncate">{fld.label}</span>
                                   {fld.required && (
                                     <span className="text-rose-500 font-bold">*</span>
+                                  )}
+                                  {(fld.label.toLowerCase().includes("vendor") || fld.id === "vendor") && (
+                                    <Link
+                                      to="/configurations/payable-contacts"
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-0.5 ml-1 text-[9px] text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-medium hover:underline shrink-0"
+                                      title="Open System & Security > Payable Contacts directory"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <span>(Payable Contacts)</span>
+                                      <ExternalLink className="w-2.5 h-2.5" />
+                                    </Link>
                                   )}
                                 </span>
                                 <span className="text-[9px] text-slate-400 shrink-0">
