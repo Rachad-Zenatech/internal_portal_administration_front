@@ -279,6 +279,16 @@ export const WORKFLOW_FIELD_CATALOG: CatalogWorkflowField[] = [
     "category": "Shipping & Logistics"
   },
   {
+    "label": "Tariffs / Customs Duty",
+    "type": "number",
+    "placeholder": "0.00",
+    "options": [],
+    "required": false,
+    "sourceCategory": "Purchasing",
+    "exampleStage": null,
+    "category": "Shipping & Logistics"
+  },
+  {
     "label": "Total Pre-Tax",
     "type": "number",
     "placeholder": "0.00",
