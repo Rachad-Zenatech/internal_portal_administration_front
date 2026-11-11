@@ -5,6 +5,7 @@ import { useWorkflowAutoCanvas } from "./hooks/useWorkflowAutoCanvas";
 import { StageCardNode } from "./components/StageCardNode";
 import { PipelineStepperCard } from "./components/PipelineStepperCard";
 import { SimulatorPanel } from "./components/SimulatorPanel";
+import { WorkflowCompletenessCard } from "./components/WorkflowCompletenessCard";
 import { MoveStageModal } from "./dialogs/MoveStageModal";
 import { MoveActionModal } from "./dialogs/MoveActionModal";
 import { ChangeOwnerModal } from "./dialogs/ChangeOwnerModal";
@@ -116,6 +117,7 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
     setDragOverNodeIndex,
     dropSide,
     setDropSide,
+    saveMutation,
   } = useWorkflowAutoCanvas({ domain });
 
   return (
@@ -180,6 +182,14 @@ export function WorkflowAutoCanvas({ domain, title, subtitle }: WorkflowAutoCanv
           </Button>
         </div>
       </div>
+
+      {/* Alignment checklist (% complete vs. the real request forms) */}
+      <WorkflowCompletenessCard
+        nodes={nodes}
+        domain={domain}
+        saving={saveMutation.isPending}
+        onApplyFix={(next) => saveMutation.mutate(next)}
+      />
 
       {/* Horizontal Visual Canvas */}
       <div className="w-full overflow-x-auto pb-4 pt-1">

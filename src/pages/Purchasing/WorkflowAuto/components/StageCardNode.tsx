@@ -25,6 +25,7 @@ import type {
   WorkflowActionButton,
   WorkflowActionField,
 } from "@/services/experimentalWorkflowService";
+import { WorkflowComboboxField } from "./WorkflowComboboxField";
 
 interface StageCardNodeProps {
   node: WorkflowStepNode;
@@ -444,7 +445,20 @@ export function StageCardNode({
                                   {fld.type}
                                 </span>
                               </label>
-                            {fld.type === "dropdown" ? (
+                            {fld.type === "combobox" && fld.source ? (
+                              <WorkflowComboboxField
+                                source={fld.source}
+                                placeholder={fld.placeholder}
+                                value={testFieldValues[`${act.id}_${fld.id}`] ?? fld.value ?? ""}
+                                onChange={(val) =>
+                                  setTestFieldValues((prev) => ({
+                                    ...prev,
+                                    [`${act.id}_${fld.id}`]: val,
+                                  }))
+                                }
+                                className="h-6 text-[11px] bg-white dark:bg-zinc-900"
+                              />
+                            ) : fld.type === "dropdown" ? (
                               <Select
                                 value={
                                   testFieldValues[`${act.id}_${fld.id}`] ||

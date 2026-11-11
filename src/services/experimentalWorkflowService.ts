@@ -1,10 +1,17 @@
 import { apiClient } from "@/services/apiClient";
 
+/** Live directory a combobox field pulls its options from (same sources as the real request forms). */
+export type WorkflowComboSource =
+  | "vendor" | "department" | "user" | "ap_user" | "class" | "location"
+  | "bank_account" | "gl_code" | "project" | "pay_from" | "bank_country" | "currency";
+
 export interface WorkflowActionField {
   id: string;
   label: string;
-  type: "text" | "dropdown" | "number" | "checkbox" | "date" | "textarea" | "file";
+  type: "text" | "dropdown" | "combobox" | "number" | "checkbox" | "date" | "textarea" | "file";
   options?: string[];
+  /** For type "combobox": which directory supplies the options. */
+  source?: WorkflowComboSource;
   placeholder?: string;
   value?: any;
   required?: boolean;

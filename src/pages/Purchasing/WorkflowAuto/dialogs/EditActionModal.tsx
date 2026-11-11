@@ -48,6 +48,8 @@ import {
   WORKFLOW_FIELD_CATALOG,
   type CatalogWorkflowField,
 } from "../constants/workflowFieldCatalog";
+import { inferComboSource } from "../constants/workflowComboSources";
+import { COMBO_SOURCE_LABELS } from "../components/WorkflowComboboxField";
 
 interface EditActionModalProps {
   editingAction: {
@@ -111,13 +113,15 @@ export function EditActionModal({
     if (!fieldLabel) return;
     const matched = WORKFLOW_FIELD_CATALOG.find((f) => f.label === fieldLabel);
     if (!matched) return;
+    const src = inferComboSource({ id: "", label: matched.label });
 
     setActionFields((prev) => [
       ...prev,
       {
         id: `fld_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         label: matched.label,
-        type: matched.type,
+        type: src ? "combobox" : matched.type,
+        ...(src ? { source: src } : {}),
         placeholder: matched.placeholder || "",
         options: matched.options ? [...matched.options] : [],
         required: Boolean(matched.required),
@@ -132,6 +136,15 @@ export function EditActionModal({
     let newField: WorkflowActionField;
 
     switch (fieldType) {
+      case "combobox":
+        newField = {
+          id: `fld_${timestamp}`,
+          label: "Vendor",
+          type: "combobox",
+          source: "vendor",
+          placeholder: "Search vendors...",
+        };
+        break;
       case "dropdown":
         newField = {
           id: `fld_${timestamp}`,
@@ -314,6 +327,13 @@ export function EditActionModal({
                       <span>Dropdown Select</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
+                      onClick={() => handleAddNewField("combobox")}
+                      className="gap-2 cursor-pointer text-xs"
+                    >
+                      <ListFilter className="w-3.5 h-3.5 text-sky-500" />
+                      <span>Combobox (Directory)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
                       onClick={() => handleAddNewField("number")}
                       className="gap-2 cursor-pointer text-xs"
                     >
@@ -438,6 +458,9 @@ export function EditActionModal({
                         if (newType === "dropdown" && (!next[fldIdx].options || next[fldIdx].options.length === 0)) {
                           next[fldIdx].options = ["Option A", "Option B"];
                         }
+                        if (newType === "combobox" && !next[fldIdx].source) {
+                          next[fldIdx].source = inferComboSource(next[fldIdx]) ?? "vendor";
+                        }
                         return next;
                       });
                     }}
@@ -447,6 +470,7 @@ export function EditActionModal({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="text">Text</SelectItem>
+                      <SelectItem value="combobox">Combobox (Directory)</SelectItem>
                       <SelectItem value="dropdown">Dropdown</SelectItem>
                       <SelectItem value="number">Number</SelectItem>
                       <SelectItem value="date">Date</SelectItem>
@@ -487,7 +511,30 @@ export function EditActionModal({
                   </div>
                 </div>
 
-                {fld.type === "dropdown" ? (
+                {fld.type === "combobox" ? (
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-500">Options Source (live directory)</label>
+                    <Select
+                      value={fld.source || "vendor"}
+                      onValueChange={(val: any) =>
+                        setActionFields((prev) => {
+                          const next = [...prev];
+                          next[fldIdx].source = val;
+                          return next;
+                        })
+                      }
+                    >
+                      <SelectTrigger className="h-7 text-xs bg-white dark:bg-zinc-900">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(COMBO_SOURCE_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : fld.type === "dropdown" ? (
                   <div className="space-y-1">
                     <label className="text-[10px] text-slate-500">
                       Dropdown Options (comma separated)
