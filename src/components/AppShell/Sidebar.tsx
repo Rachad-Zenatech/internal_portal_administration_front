@@ -86,7 +86,8 @@ export default function Sidebar({
       return arTab ? arStatusCounts[arTab] : undefined;
     }
     // Wire Transfer sub-menu: records per status on the wire transfer page
-    if (path.startsWith("/purchasing/invoices")) {
+    // Exclude workflow builder page (/purchasing/invoices-workflow-auto)
+    if (path.startsWith("/purchasing/invoices") && !path.includes("workflow")) {
       const wireParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
       if (wireParams.get("tab")?.toLowerCase() === "stipends") {
         return travelStipendSummary?.total_stipends ?? 0;
