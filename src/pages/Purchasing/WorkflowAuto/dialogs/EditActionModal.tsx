@@ -1,7 +1,27 @@
 import React, { useState } from "react";
-import { Plus, Trash2, Library } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Library,
+  ChevronDown,
+  Type,
+  ListFilter,
+  Hash,
+  Calendar,
+  AlignLeft,
+  Paperclip,
+  CheckSquare,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -107,6 +127,73 @@ export function EditActionModal({
     setSelectedCatalogField("");
   };
 
+  const handleAddNewField = (fieldType: WorkflowActionField["type"]) => {
+    const timestamp = Date.now();
+    let newField: WorkflowActionField;
+
+    switch (fieldType) {
+      case "dropdown":
+        newField = {
+          id: `fld_${timestamp}`,
+          label: "New Dropdown",
+          type: "dropdown",
+          options: ["Option A", "Option B", "Option C"],
+          value: "Option A",
+        };
+        break;
+      case "number":
+        newField = {
+          id: `fld_${timestamp}`,
+          label: "New Number Field",
+          type: "number",
+          placeholder: "0.00",
+        };
+        break;
+      case "date":
+        newField = {
+          id: `fld_${timestamp}`,
+          label: "New Date Field",
+          type: "date",
+        };
+        break;
+      case "textarea":
+        newField = {
+          id: `fld_${timestamp}`,
+          label: "New Text Area",
+          type: "textarea",
+          placeholder: "Enter details or notes...",
+        };
+        break;
+      case "file":
+        newField = {
+          id: `fld_${timestamp}`,
+          label: "New File Attachment",
+          type: "file",
+          placeholder: "Upload document...",
+        };
+        break;
+      case "checkbox":
+        newField = {
+          id: `fld_${timestamp}`,
+          label: "New Checkbox / Flag",
+          type: "checkbox",
+          value: false,
+        };
+        break;
+      case "text":
+      default:
+        newField = {
+          id: `fld_${timestamp}`,
+          label: "New Text Field",
+          type: "text",
+          placeholder: "Enter details...",
+        };
+        break;
+    }
+
+    setActionFields((prev) => [...prev, newField]);
+  };
+
   return (
     <Dialog open={!!editingAction} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-xl w-full max-h-[85vh] overflow-y-auto">
@@ -194,22 +281,81 @@ export function EditActionModal({
                 Action Form Fields ({actionFields.length})
               </span>
               <div className="flex items-center gap-1.5">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[10px] gap-1 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add Field
+                      <ChevronDown className="w-2.5 h-2.5 opacity-60 ml-0.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 text-xs">
+                    <DropdownMenuLabel className="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500">
+                      Select Field Type
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => handleAddNewField("text")}
+                      className="gap-2 cursor-pointer text-xs"
+                    >
+                      <Type className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Text Field</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleAddNewField("dropdown")}
+                      className="gap-2 cursor-pointer text-xs"
+                    >
+                      <ListFilter className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Dropdown Select</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleAddNewField("number")}
+                      className="gap-2 cursor-pointer text-xs"
+                    >
+                      <Hash className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Number / Amount</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleAddNewField("date")}
+                      className="gap-2 cursor-pointer text-xs"
+                    >
+                      <Calendar className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Date Picker</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleAddNewField("textarea")}
+                      className="gap-2 cursor-pointer text-xs"
+                    >
+                      <AlignLeft className="w-3.5 h-3.5 text-purple-500" />
+                      <span>Text Area (Multi-line)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleAddNewField("file")}
+                      className="gap-2 cursor-pointer text-xs"
+                    >
+                      <Paperclip className="w-3.5 h-3.5 text-pink-500" />
+                      <span>File / Attachment</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleAddNewField("checkbox")}
+                      className="gap-2 cursor-pointer text-xs"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5 text-teal-500" />
+                      <span>Checkbox / Flag</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    setActionFields((prev) => [
-                      ...prev,
-                      {
-                        id: `fld_${Date.now()}`,
-                        label: "New Dropdown",
-                        type: "dropdown",
-                        options: ["Option A", "Option B", "Option C"],
-                        value: "Option A",
-                      },
-                    ]);
-                  }}
+                  onClick={() => handleAddNewField("dropdown")}
                   className="h-6 text-[10px] gap-1"
                 >
                   <Plus className="w-3 h-3" />
@@ -219,17 +365,7 @@ export function EditActionModal({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    setActionFields((prev) => [
-                      ...prev,
-                      {
-                        id: `fld_${Date.now()}`,
-                        label: "Text Field",
-                        type: "text",
-                        placeholder: "Enter details...",
-                      },
-                    ]);
-                  }}
+                  onClick={() => handleAddNewField("text")}
                   className="h-6 text-[10px] gap-1"
                 >
                   <Plus className="w-3 h-3" />
