@@ -56,6 +56,7 @@ export const ChartOfAccountService = {
       account_name: string;
       confidence: number;
       reason: string;
+      account_description?: string;
       source: string;
       is_best_match: boolean;
     }>;

@@ -21,6 +21,7 @@ export function ProductVendorUrlAi({ v }: { v: RequestDetailViewState }) {
       account_name: string;
       confidence: number;
       reason: string;
+      account_description?: string;
       source: string;
       is_best_match: boolean;
     }>;
@@ -256,6 +257,12 @@ export function ProductVendorUrlAi({ v }: { v: RequestDetailViewState }) {
                                             <div className="text-xs font-semibold text-slate-800 dark:text-zinc-200 line-clamp-1" title={s.account_name}>
                                               {s.account_name}
                                             </div>
+                                            {s.account_description && (
+                                              <p className="text-[10px] text-indigo-900/80 dark:text-indigo-300/80 mt-1 line-clamp-2 leading-tight bg-indigo-50/60 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-100/60 dark:border-indigo-900/40">
+                                                <span className="font-semibold text-indigo-700 dark:text-indigo-300">Policy: </span>
+                                                {s.account_description}
+                                              </p>
+                                            )}
                                             <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1 line-clamp-2 leading-tight">
                                               {s.reason}
                                             </p>
