@@ -1,0 +1,165 @@
+{
+  "limit": 500,
+  "files": {
+    "src/components/AppShell/FloatingChat.tsx": {
+      "max_lines": 560,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/components/AppShell/MessageHubStatusDropdown.tsx": {
+      "max_lines": 570,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/components/AppShell/notificationDropdown/sections/NotificationListView.tsx": {
+      "max_lines": 605,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/components/AppShell/Sidebar.tsx": {
+      "max_lines": 506,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/components/AppShell/TopBar.tsx": {
+      "max_lines": 662,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/components/ChartOfAccounts/COATable.tsx": {
+      "max_lines": 521,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/components/Configurations/PayeeBankingEditor.tsx": {
+      "max_lines": 665,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/AccountReceivable/CustomerQuoteViewPage.tsx": {
+      "max_lines": 971,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/AccountReceivable/fields/ARCustomerAutocomplete.tsx": {
+      "max_lines": 676,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/AccountReceivable/generateInvoice/hooks/useGenerateInvoiceActions2.ts": {
+      "max_lines": 837,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/ParentLineItemRow.tsx": {
+      "max_lines": 627,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/AccountReceivable/GenerateInvoicePage.tsx": {
+      "max_lines": 882,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Configurations/Classes.tsx": {
+      "max_lines": 620,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Configurations/Locations.tsx": {
+      "max_lines": 620,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Configurations/PayableContacts.tsx": {
+      "max_lines": 749,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Configurations/Projects.tsx": {
+      "max_lines": 631,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Configurations/RoleGroupPermissions.tsx": {
+      "max_lines": 510,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/components/RequestMessageThread.tsx": {
+      "max_lines": 656,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequestActions2.ts": {
+      "max_lines": 521,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/dialogs/ScheduleBreakdownModal.tsx": {
+      "max_lines": 578,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/dialogs/wireTransferDialog/sections/DynamicClearingCodesGrid.tsx": {
+      "max_lines": 554,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/fields/CreatableCombobox.tsx": {
+      "max_lines": 710,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/fields/ScheduleDatesBuilder.tsx": {
+      "max_lines": 564,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/fields/ShippingDeliveryAddressField.tsx": {
+      "max_lines": 664,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/fields/wireBankingFields/sections/RoutingWire.tsx": {
+      "max_lines": 539,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/fields/WireGeneralPaymentFields.tsx": {
+      "max_lines": 733,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/PurchaseRequests.tsx": {
+      "max_lines": 519,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/requestDetail/RequestDetailBody.tsx": {
+      "max_lines": 564,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/WorkflowAuto/components/StageCardNode.tsx": {
+      "max_lines": 586,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/WorkflowAuto/constants/workflowFieldCatalog.ts": {
+      "max_lines": 780,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/WorkflowAuto/dialogs/EditActionModal.tsx": {
+      "max_lines": 590,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/WorkflowAuto/dialogs/EditStageModal.tsx": {
+      "max_lines": 516,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/WorkflowAuto/hooks/useWorkflowAutoCanvas.ts": {
+      "max_lines": 925,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/UploadFiles/UploadFiles.tsx": {
+      "max_lines": 513,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/services/apiClient.ts": {
+      "max_lines": 855,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/services/arInvoiceService.ts": {
+      "max_lines": 643,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/services/purchasingService.ts": {
+      "max_lines": 790,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/types/purchasing.ts": {
+      "max_lines": 823,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/utils/glAccountUtils.tsx": {
+      "max_lines": 743,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/utils/taxRates.ts": {
+      "max_lines": 606,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    }
+  }
+}
