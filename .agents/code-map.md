@@ -140,7 +140,7 @@ to find the right file.
 | .agents/code-map/src__pages__Purchasing__requestDetail.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__requestDetail__components.md | 7 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__requestDetail__hooks.md | 5 | 1 KB |
-| .agents/code-map/src__pages__Purchasing__requestDetail__sections.md | 18 | 4 KB |
+| .agents/code-map/src__pages__Purchasing__requestDetail__sections.md | 19 | 4 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest.md | 3 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest__components.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest__hooks.md | 2 | 1 KB |
@@ -154,6 +154,6 @@ to find the right file.
 | .agents/code-map/src__pages__Settings.md | 1 | 1 KB |
 | .agents/code-map/src__pages__Tasks.md | 1 | 1 KB |
 | .agents/code-map/src__pages__UploadFiles.md | 1 | 1 KB |
-| .agents/code-map/src__services.md | 16 | 10 KB |
-| .agents/code-map/src__types.md | 12 | 7 KB |
+| .agents/code-map/src__services.md | 17 | 10 KB |
+| .agents/code-map/src__types.md | 13 | 7 KB |
 | .agents/code-map/src__utils.md | 4 | 4 KB |

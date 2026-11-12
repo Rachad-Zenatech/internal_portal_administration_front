@@ -1,4 +1,6 @@
 export type { GLCodeOption } from "./chartOfAccount";
+import type { ProductInfo, GLSuggestions } from "./productAi";
+export type { ProductInfo, GLSuggestion, GLSuggestions } from "./productAi";
 
 export interface TaskHistoryItem {
   id: number;
@@ -83,18 +85,6 @@ export type WorkflowAction =
   | "RESUME_WORKFLOW"
   | "COMPLETE";
 
-export type ProductInfo = {
-  name: string;
-  price: string;
-  category: string;
-  brand: string;
-  description: string;
-  vendor: string;
-  currency: string;
-  original_price?: string | null;
-  original_currency?: string | null;
-};
-
 export type FrequencyType =
   | "DAILY"
   | "WEEKLY"
@@ -153,6 +143,7 @@ export type PurchaseRequest = {
   description: string | null;
   item_url?: string | null;
   product_info?: ProductInfo | null;
+  gl_suggestions?: GLSuggestions | null;
   quantity: number;
   unit_price: number;
   amount: number;

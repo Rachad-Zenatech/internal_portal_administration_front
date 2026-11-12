@@ -537,9 +537,10 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/requestDetail/sections/CurrentReferenceInfo.tsx (126 lines) - current reference info (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/DedicatedRecurringContractSchedule.tsx (105 lines) - dedicated recurring contract schedule (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/FinancialAccountingSection.tsx (211 lines) - financial accounting section (pages  purchasing request detail sections)
+- src/pages/Purchasing/requestDetail/sections/GlSuggestionsPanel.tsx (138 lines) - The saved AI chart-of-accounts suggestions (worked out once on the server), with a button to work them out again.
 - src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (240 lines) - main request header full (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (433 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
-- src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx (308 lines) - product vendor url ai (pages  purchasing request detail sections)
+- src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx (151 lines) - Extraction and the chart-of-accounts suggestions run once on the server (when the request is created, or in
 - src/pages/Purchasing/requestDetail/sections/RedirectApprovalDialog.tsx (158 lines) - redirect approval dialog (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/RequestOverview.tsx (107 lines) - request overview (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/Tab2LineItems.tsx (226 lines) - tab2 line items (pages  purchasing request detail sections)
@@ -577,7 +578,8 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/services/helper.ts (103 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
 - src/services/masterTablesService.ts (180 lines) - master tables service (services)
 - src/services/oauthService.ts (311 lines) - oauth service (services)
-- src/services/purchasingService.ts (791 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
+- src/services/productAiService.ts (18 lines) - Product extraction from a request's vendor URL and its AI chart-of-accounts suggestions (each run again on request).
+- src/services/purchasingService.ts (786 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
 - src/services/queryKeys.ts (26 lines) - All React Query cache keys live here so that invalidation calls in
 - src/services/uploadArchiveService.ts (22 lines) - upload archive service (services)
 - src/types/aiAssistant.ts (5 lines) - ai assistant (types)
@@ -589,7 +591,8 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/types/classification.ts (149 lines) - classification (types)
 - src/types/dashboard.ts (45 lines) - dashboard (types)
 - src/types/entity.ts (59 lines) - entity (types)
-- src/types/purchasing.ts (824 lines) - purchasing (types)
+- src/types/productAi.ts (33 lines) - Product details extracted from a vendor URL, and the AI chart-of-accounts suggestions saved on a request.
+- src/types/purchasing.ts (815 lines) - purchasing (types)
 - src/types/search.ts (8 lines) - search (types)
 - src/types/uploadArchive.ts (26 lines) - upload archive (types)
 - src/utils/compressAttachment.ts (78 lines) - Safely compresses image attachments before upload.

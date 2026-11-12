@@ -1,104 +1,33 @@
-import { useEffect, useState } from "react";
-import { ExternalLink, Package, Sparkles, Check, ArrowRight, RefreshCw, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { ExternalLink, Package, RefreshCw, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney } from "../../utils/purchasingMeta";
-import { ChartOfAccountService } from "@/services/ChartOfAccountService";
 import { extractProductInfo } from "@/services/purchasingService";
 import { toast } from "sonner";
 import type { RequestDetailViewState } from "../hooks/useRequestDetailTail";
+import { GlSuggestionsPanel } from "./GlSuggestionsPanel";
 
 export function ProductVendorUrlAi({ v }: { v: RequestDetailViewState }) {
   const { request, crawledOrigCurr, crawledOrigPrice, hasCrawledForeignPrice, isDraft, purchase_order, setInvoice, setInvoiceItems, refetch } = v;
 
-  const [predictionData, setPredictionData] = useState<{
-    best_category: string;
-    best_account_number: string;
-    best_account_name: string;
-    suggestions: Array<{
-      account_number: string;
-      account_name: string;
-      confidence: number;
-      reason: string;
-      source: string;
-      is_best_match: boolean;
-    }>;
-    evidence_summary: string;
-  } | null>(null);
-  const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
   const [isRetryingExtraction, setIsRetryingExtraction] = useState(false);
 
-  const activeUrl = request.item_url || purchase_order?.item_url || "";
   const hasExtractedInfo = Boolean(request.product_info && request.product_info.name && request.product_info.name !== "N/A");
-
-  // Auto-retry extraction down the road if an item URL exists but extraction hasn't completed or failed
-  useEffect(() => {
-    if (!activeUrl || isDraft || hasExtractedInfo || isRetryingExtraction) return;
-
-    let isMounted = true;
+  // Extraction and the chart-of-accounts suggestions run once on the server (when the request is created, or in
+  // the one-time startup pass for older requests) and are saved on it; the buttons below run them again.
+  const runExtraction = () => {
     setIsRetryingExtraction(true);
-
     extractProductInfo(String(request.id))
       .then(() => {
-        if (isMounted) {
-          toast.success("Background product details successfully retrieved!");
-          if (refetch) refetch();
-        }
+        toast.success("Product specifications retrieved!");
+        refetch?.();
       })
-      .catch((err) => {
-        console.warn("Background auto-extraction retry:", err);
-      })
-      .finally(() => {
-        if (isMounted) setIsRetryingExtraction(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeUrl, isDraft, hasExtractedInfo, request.id, refetch]);
-
-  // Fallback prediction when extraction is pending/missing but URL or request title exists
-  useEffect(() => {
-    let isMounted = true;
-    setLoadingPrediction(true);
-
-    const priceNum = request.product_info?.price
-      ? parseFloat(String(request.product_info.price).replace(/[^0-9.]/g, ""))
-      : request.amount || undefined;
-
-    ChartOfAccountService.getPredictedGLSuggestions({
-      product_name: request.product_info?.name || request.title,
-      vendor: request.product_info?.vendor || purchase_order?.vendor || "",
-      amount: isNaN(priceNum as any) ? undefined : priceNum,
-      category: request.product_info?.category || undefined,
-      description: request.product_info?.description || request.description || undefined,
-      item_url: activeUrl || undefined,
-    })
-      .then((res) => {
-        if (isMounted) {
-          setPredictionData(res);
-        }
-      })
-      .catch((err) => {
-        console.warn("Could not fetch GL predictions:", err);
-      })
-      .finally(() => {
-        if (isMounted) setLoadingPrediction(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [
-    request.product_info,
-    request.title,
-    request.amount,
-    request.description,
-    activeUrl,
-    purchase_order?.vendor,
-  ]);
+      .catch(() => toast.error("Could not fetch product information"))
+      .finally(() => setIsRetryingExtraction(false));
+  };
 
   const handleApplyGLCode = (accountNumber: string, accountName: string) => {
     const formattedCode = `${accountNumber} - ${accountName}`;
@@ -148,16 +77,7 @@ export function ProductVendorUrlAi({ v }: { v: RequestDetailViewState }) {
                               size="sm"
                               variant="outline"
                               disabled={isRetryingExtraction}
-                              onClick={() => {
-                                setIsRetryingExtraction(true);
-                                extractProductInfo(String(request.id))
-                                  .then(() => {
-                                    toast.success("Product specifications retrieved!");
-                                    if (refetch) refetch();
-                                  })
-                                  .catch(() => toast.error("Could not fetch product information"))
-                                  .finally(() => setIsRetryingExtraction(false));
-                              }}
+                              onClick={runExtraction}
                               className="h-7 text-xs border-indigo-300 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:text-indigo-300"
                             >
                               <RefreshCw className={`w-3 h-3 mr-1 ${isRetryingExtraction ? "animate-spin" : ""}`} />
@@ -174,6 +94,10 @@ export function ProductVendorUrlAi({ v }: { v: RequestDetailViewState }) {
                                   <Package className="h-4 w-4 text-indigo-600" />
                                   <span>Extracted Product Information</span>
                                 </div>
+                                <Button type="button" size="sm" variant="ghost" disabled={isRetryingExtraction} onClick={runExtraction} className="h-6 px-2 text-[10px] text-indigo-700 dark:text-indigo-300">
+                                  <RefreshCw className={`w-3 h-3 mr-1 ${isRetryingExtraction ? "animate-spin" : ""}`} />
+                                  {isRetryingExtraction ? "Extracting..." : "Re-extract"}
+                                </Button>
                               </CardTitle>
                             </CardHeader>
                             <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -214,88 +138,7 @@ export function ProductVendorUrlAi({ v }: { v: RequestDetailViewState }) {
                                 </div>
                               )}
 
-                              {/* Top 3 Predicted GL Code Suggestions (from Finance 5-step + MongoDB Atlas) */}
-                              <div className="sm:col-span-2 pt-3 border-t border-indigo-100/80 dark:border-indigo-900/50 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900 dark:text-indigo-200">
-                                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                                    <span>AI Suggested Chart of Accounts (Top 3 Candidates)</span>
-                                  </div>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    Click any suggestion to apply to Invoice Category
-                                  </span>
-                                </div>
-
-                                {loadingPrediction ? (
-                                  <div className="text-xs text-slate-500 animate-pulse py-1">
-                                    Running Finance 5-step classification &amp; MongoDB Atlas vector analysis...
-                                  </div>
-                                ) : predictionData && predictionData.suggestions.length > 0 ? (
-                                  <div className="space-y-2">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                      {predictionData.suggestions.map((s, idx) => {
-                                        const isApplied = appliedCode === s.account_number;
-                                        return (
-                                          <div
-                                            key={s.account_number}
-                                            onClick={() => handleApplyGLCode(s.account_number, s.account_name)}
-                                            className={`group relative p-2.5 rounded-lg border text-left cursor-pointer transition-all shadow-sm ${
-                                              idx === 0
-                                                ? "bg-amber-50/90 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 hover:border-amber-400"
-                                                : "bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-700"
-                                            } ${isApplied ? "ring-2 ring-emerald-500" : ""}`}
-                                          >
-                                            <div className="flex items-center justify-between gap-1 mb-1">
-                                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-mono">
-                                                {s.account_number}
-                                              </span>
-                                              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                                {(s.confidence * 100).toFixed(0)}% match
-                                              </span>
-                                            </div>
-                                            <div className="text-xs font-semibold text-slate-800 dark:text-zinc-200 line-clamp-1" title={s.account_name}>
-                                              {s.account_name}
-                                            </div>
-                                            <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1 line-clamp-2 leading-tight">
-                                              {s.reason}
-                                            </p>
-                                            <div className="mt-2 pt-1 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[10px] font-medium">
-                                              <span className={idx === 0 ? "text-amber-700 dark:text-amber-400 font-bold" : "text-slate-400"}>
-                                                {idx === 0 ? "★ Best Match" : `Option #${idx + 1}`}
-                                              </span>
-                                              <span className="flex items-center gap-0.5 text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform">
-                                                {isApplied ? (
-                                                  <span className="text-emerald-600 font-bold flex items-center gap-0.5">
-                                                    <Check className="w-3 h-3" /> Applied
-                                                  </span>
-                                                ) : (
-                                                  <>
-                                                    Use this <ArrowRight className="w-2.5 h-2.5" />
-                                                  </>
-                                                )}
-                                              </span>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                    <div className="text-[10px] text-slate-500 dark:text-zinc-400 italic">
-                                      {predictionData.evidence_summary}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleApplyGLCode("6340", "Office Expense:Office Supplies")}
-                                    className="h-7 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-100"
-                                  >
-                                    <Sparkles className="w-3 h-3 mr-1 text-amber-500" />
-                                    Default to 6340 (Office Supplies)
-                                  </Button>
-                                )}
-                              </div>
+                              <GlSuggestionsPanel requestId={request.id} suggestions={request.gl_suggestions} appliedCode={appliedCode} onApply={handleApplyGLCode} refetch={refetch} />
                             </CardContent>
                           </Card>
                         )}

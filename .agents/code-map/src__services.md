@@ -118,7 +118,11 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `ReceivableEmailItem` (export interface) L293
 - `ReceivableEmailsResponse` (export interface) L306
 
-## src/services/purchasingService.ts (791 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
+## src/services/productAiService.ts (18 lines) - Product extraction from a request's vendor URL and its AI chart-of-accounts suggestions (each run again on request).
+- `extractProductInfo` (export function) L7
+- `rerunGlSuggestions` (export function) L15 - Work out the request's AI chart-of-accounts suggestions again (they are otherwise worked out once, on the server).
+
+## src/services/purchasingService.ts (786 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
 - `RequestListFilters` (export type) L28
 - `buildQuery` (function) L35
 - `getSummary` (export function) L45
@@ -148,64 +152,63 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `reassignLevel1Approver` (export function) L168
 - `extractQuote` (export function) L175
 - `createRequest` (export function) L189
-- `extractProductInfo` (export function) L193
-- `transitionRequest` (export function) L200
-- `listInvoices` (export function) L204
-- `payInvoice` (export function) L209
-- `listNotifications` (export function) L213
-- `getPossibleApprovers` (export function) L219
-- `getUsers` (export function) L223
-- `getRoles` (export function) L231
-- `getCurrencies` (export function) L237
-- `getExchangeRate` (export function) L241
-- `listAttachments` (export function) L247
-- `uploadAttachments` (export function) L251
-- `deleteAttachment` (export function) L259
-- `downloadAttachment` (export function) L263
-- `getAttachmentBlob` (export function) L267
-- `updateRequest` (export function) L271
-- `manualPrice` (export function) L275
-- `getGLCodes` (export function) L281
-- `exportQuickBooksCsv` (export function) L286
-- `exportSingleRequestQuickBooksCsv` (export function) L329
-- `exportQuickBooksXlsx` (export function) L333
-- `exportQuickBooksBundle` (export function) L376
-- `exportQuickBooksDocuments` (export function) L414
-- `exportQuickBooksReconciliation` (export function) L452
-- `exportSingleRequestQuickBooksXlsx` (export function) L490
-- `getAPUsers` (export function) L502
-- `getKnownVendors` (export function) L506
-- `getWireSeriesPayments` (export function) L511 - Every payment of the Rent/Note series a wire transfer belongs to ({series: null} for other wires).
-- `WireStatusCounts` (export type) L516 - Records per status on the wire transfer page (sidebar badges); keys are canonical statuses such as WAITING_PAYMENT.
-- `getWireStatusCounts` (export function) L518
-- `getPreviousWirePayments` (export function) L523 - Latest payment of each Rent/Note wire series (vendor + payment type), to pre-fill the next payment.
-- `getPayFromEntities` (export function) L531
-- `getVendorLatestPayment` (export function) L535
-- `updateWireTransfer` (export function) L545
-- `BankingCountry` (export interface) L550
-- `BankingFieldSpec` (export interface) L559
-- `CountryBankingSpec` (export interface) L568
-- `getBankingCountries` (export function) L579
-- `getCountryBankingSpec` (export function) L583
-- `QuickBooksPreviewPart` (export interface) L588
-- `QuickBooksPreviewItem` (export interface) L601
-- `QuickBooksPreviewResponse` (export interface) L688
-- `getQuickBooksPreview` (export function) L714
-- `syncQuickBooksBatch` (export function) L718
-- `syncQuickBooksBillsBatch` (export function) L722
-- `syncQuickBooksBill` (export function) L726
-- `deleteQuickBooksBill` (export function) L730
-- `getQuickBooksStatus` (export function) L735
-- `getQuickBooksARPreview` (export function) L739
-- `syncQuickBooksARInvoice` (export function) L743
-- `syncQuickBooksARBatch` (export function) L747
-- `deleteQuickBooksARInvoice` (export function) L751
-- `extractProductInfoFromUrl` (export function) L755
-- `listProjectGroupsDetailed` (export function) L772
-- `createProjectGroup` (export function) L776
-- `updateProjectGroup` (export function) L780
-- `deleteProjectGroup` (export function) L784
-- `deletePurchaseRequest` (export function) L788
+- `transitionRequest` (export function) L195
+- `listInvoices` (export function) L199
+- `payInvoice` (export function) L204
+- `listNotifications` (export function) L208
+- `getPossibleApprovers` (export function) L214
+- `getUsers` (export function) L218
+- `getRoles` (export function) L226
+- `getCurrencies` (export function) L232
+- `getExchangeRate` (export function) L236
+- `listAttachments` (export function) L242
+- `uploadAttachments` (export function) L246
+- `deleteAttachment` (export function) L254
+- `downloadAttachment` (export function) L258
+- `getAttachmentBlob` (export function) L262
+- `updateRequest` (export function) L266
+- `manualPrice` (export function) L270
+- `getGLCodes` (export function) L276
+- `exportQuickBooksCsv` (export function) L281
+- `exportSingleRequestQuickBooksCsv` (export function) L324
+- `exportQuickBooksXlsx` (export function) L328
+- `exportQuickBooksBundle` (export function) L371
+- `exportQuickBooksDocuments` (export function) L409
+- `exportQuickBooksReconciliation` (export function) L447
+- `exportSingleRequestQuickBooksXlsx` (export function) L485
+- `getAPUsers` (export function) L497
+- `getKnownVendors` (export function) L501
+- `getWireSeriesPayments` (export function) L506 - Every payment of the Rent/Note series a wire transfer belongs to ({series: null} for other wires).
+- `WireStatusCounts` (export type) L511 - Records per status on the wire transfer page (sidebar badges); keys are canonical statuses such as WAITING_PAYMENT.
+- `getWireStatusCounts` (export function) L513
+- `getPreviousWirePayments` (export function) L518 - Latest payment of each Rent/Note wire series (vendor + payment type), to pre-fill the next payment.
+- `getPayFromEntities` (export function) L526
+- `getVendorLatestPayment` (export function) L530
+- `updateWireTransfer` (export function) L540
+- `BankingCountry` (export interface) L545
+- `BankingFieldSpec` (export interface) L554
+- `CountryBankingSpec` (export interface) L563
+- `getBankingCountries` (export function) L574
+- `getCountryBankingSpec` (export function) L578
+- `QuickBooksPreviewPart` (export interface) L583
+- `QuickBooksPreviewItem` (export interface) L596
+- `QuickBooksPreviewResponse` (export interface) L683
+- `getQuickBooksPreview` (export function) L709
+- `syncQuickBooksBatch` (export function) L713
+- `syncQuickBooksBillsBatch` (export function) L717
+- `syncQuickBooksBill` (export function) L721
+- `deleteQuickBooksBill` (export function) L725
+- `getQuickBooksStatus` (export function) L730
+- `getQuickBooksARPreview` (export function) L734
+- `syncQuickBooksARInvoice` (export function) L738
+- `syncQuickBooksARBatch` (export function) L742
+- `deleteQuickBooksARInvoice` (export function) L746
+- `extractProductInfoFromUrl` (export function) L750
+- `listProjectGroupsDetailed` (export function) L767
+- `createProjectGroup` (export function) L771
+- `updateProjectGroup` (export function) L775
+- `deleteProjectGroup` (export function) L779
+- `deletePurchaseRequest` (export function) L783
 
 ## src/services/queryKeys.ts (26 lines) - All React Query cache keys live here so that invalidation calls in
 - `queryKeys` (export const) L10

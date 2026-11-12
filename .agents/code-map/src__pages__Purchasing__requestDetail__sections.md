@@ -22,13 +22,20 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Purchasing/requestDetail/sections/FinancialAccountingSection.tsx (211 lines) - financial accounting section (pages  purchasing request detail sections)
 - `FinancialAccountingSection` (export function) L8
 
+## src/pages/Purchasing/requestDetail/sections/GlSuggestionsPanel.tsx (138 lines) - The saved AI chart-of-accounts suggestions (worked out once on the server), with a button to work them out again.
+- `Props` (type) L12
+- `GlSuggestionsPanel` (export function) L21 - The saved AI chart-of-accounts suggestions (worked out once on the server), with a button to work them out again.
+- `PanelHeader` (function) L59
+- `SuggestionCard` (function) L84
+- `NoSuggestions` (function) L121
+
 ## src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (240 lines) - main request header full (pages  purchasing request detail sections)
 - `MainRequestHeaderFull` (export function) L9
 
 ## src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (433 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
 - `MultiplePartsInteractiveEditable` (export function) L13
 
-## src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx (308 lines) - product vendor url ai (pages  purchasing request detail sections)
+## src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx (151 lines) - Extraction and the chart-of-accounts suggestions run once on the server (when the request is created, or in
 - `ProductVendorUrlAi` (export function) L12
 
 ## src/pages/Purchasing/requestDetail/sections/RedirectApprovalDialog.tsx (158 lines) - redirect approval dialog (pages  purchasing request detail sections)

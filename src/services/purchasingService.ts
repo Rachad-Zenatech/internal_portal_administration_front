@@ -190,12 +190,7 @@ export function createRequest(payload: RequestCreateInput) {
   return apiClient.post<RequestDetail>(`${BASE}/requests`, payload);
 }
 
-export function extractProductInfo(id: string) {
-  return apiClient.post<RequestDetail>(`${BASE}/requests/${id}/extract-product-info`, {}, {
-    actionLabel: "Extracting Product Details",
-    actionSubtitle: "Retrieving product title, vendor, and price from URL...",
-  });
-}
+export { extractProductInfo, rerunGlSuggestions } from "./productAiService";
 
 export function transitionRequest(id: string, payload: TransitionInput) {
   return apiClient.post<RequestDetail>(`${BASE}/requests/${id}/transition`, payload);
