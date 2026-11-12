@@ -1,5 +1,9 @@
 {
   "limit": 500,
+  "block_limits": {
+    "jsx_return": 80,
+    "py_function": 120
+  },
   "files": {
     "src/components/AppShell/FloatingChat.tsx": {
       "max_lines": 560,
@@ -160,6 +164,1052 @@
     "src/utils/taxRates.ts": {
       "max_lines": 606,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    }
+  },
+  "blocks": {
+    "src/App.tsx#App": {
+      "max_lines": 124,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/ChatMessageRenderer.tsx#ChatMessageRenderer": {
+      "max_lines": 112,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/ConnectionStatusLight.tsx#ConnectionStatusLight": {
+      "max_lines": 93,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/FloatingChat.tsx#FloatingChat": {
+      "max_lines": 326,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/GlobalSettingsDialog.tsx#GlobalSettingsDialog": {
+      "max_lines": 131,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/globalSettingsDialog/sections/EnableLongHeldItems.tsx#EnableLongHeldItems": {
+      "max_lines": 181,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/globalSettingsDialog/sections/EnableUpcomingDueDate.tsx#EnableUpcomingDueDate": {
+      "max_lines": 181,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/globalSettingsDialog/sections/ReminderThresholdsMonthlyAnnually.tsx#ReminderThresholdsMonthlyAnnually": {
+      "max_lines": 290,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/MessageHubStatusDropdown.tsx#MessageHubStatusDropdown": {
+      "max_lines": 154,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/NotificationDropdown.tsx#NotificationDropdownContent": {
+      "max_lines": 132,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/notificationDropdown/sections/NotificationListView.tsx#NotificationListView": {
+      "max_lines": 595,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/notificationDropdown/sections/SendgridEmailTesterModal.tsx#SendgridEmailTesterModal": {
+      "max_lines": 308,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/Sidebar.tsx#Icon": {
+      "max_lines": 101,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/Sidebar.tsx#Sidebar": {
+      "max_lines": 255,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/TopBar.tsx#TopBar": {
+      "max_lines": 337,
+      "kind": "jsx_return"
+    },
+    "src/components/ChartOfAccounts/COATable.tsx#COATable": {
+      "max_lines": 217,
+      "kind": "jsx_return"
+    },
+    "src/components/Configurations/AddBusinessContactDialog.tsx#AddBusinessContactDialog": {
+      "max_lines": 185,
+      "kind": "jsx_return"
+    },
+    "src/components/Configurations/EditBusinessContactDialog.tsx#EditBusinessContactDialog": {
+      "max_lines": 113,
+      "kind": "jsx_return"
+    },
+    "src/components/Configurations/PayeeBankingEditor.tsx#PayeeBankingEditor": {
+      "max_lines": 468,
+      "kind": "jsx_return"
+    },
+    "src/components/Tasks/TaskBoard.tsx#TaskBoard": {
+      "max_lines": 91,
+      "kind": "jsx_return"
+    },
+    "src/components/Tasks/taskDetailPanel/sections/NotesActivityTabsColumn.tsx#NotesActivityTabsColumn": {
+      "max_lines": 166,
+      "kind": "jsx_return"
+    },
+    "src/components/Tasks/taskDetailPanel/sections/OverviewDetailCardsColumn.tsx#OverviewDetailCardsColumn": {
+      "max_lines": 240,
+      "kind": "jsx_return"
+    },
+    "src/components/Tasks/taskDetailPanel/TaskDetailPanelBody.tsx#TaskDetailPanelBody": {
+      "max_lines": 126,
+      "kind": "jsx_return"
+    },
+    "src/components/ui/calendar.tsx#Calendar": {
+      "max_lines": 151,
+      "kind": "jsx_return"
+    },
+    "src/components/ui/FloatingVerticalFilter.tsx#FloatingVerticalFilter": {
+      "max_lines": 121,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/accountReceivable/sections/RecordInvoicePaymentDialog.tsx#RecordInvoicePaymentDialog": {
+      "max_lines": 147,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/accountReceivable/sections/Tab1Overview.tsx#Tab1Overview": {
+      "max_lines": 171,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/accountReceivable/sections/Tab2Quotes.tsx#Tab2Quotes": {
+      "max_lines": 302,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/accountReceivable/sections/Tab4InvoicesGrouped.tsx#Tab4InvoicesGrouped": {
+      "max_lines": 310,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/accountReceivable/sections/TabARCompanies.tsx#TabARCompanies": {
+      "max_lines": 235,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/AccountReceivablePage.tsx#AccountReceivablePage": {
+      "max_lines": 474,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/components/InvoiceHierarchyItemsTable.tsx#InvoiceHierarchyItemsTable": {
+      "max_lines": 316,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/components/QuoteNotesThread.tsx#QuoteNotesThread": {
+      "max_lines": 220,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/CustomerQuoteViewPage.tsx#CustomerQuoteViewPage": {
+      "max_lines": 609,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/fields/ARCustomerAutocomplete.tsx#ARCustomerAutocomplete": {
+      "max_lines": 326,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/fields/ProductServiceAutocomplete.tsx#ProductServiceAutocomplete": {
+      "max_lines": 209,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/fields/UserAutocomplete.tsx#UserAutocomplete": {
+      "max_lines": 169,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/InvoiceNumber.tsx#InvoiceNumber": {
+      "max_lines": 203,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/LeftBillToCustomer.tsx#LeftBillToCustomer": {
+      "max_lines": 129,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/ModeSegmentedSwitcher.tsx#ModeSegmentedSwitcher": {
+      "max_lines": 186,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/Notes.tsx#Notes": {
+      "max_lines": 95,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/ParentActivityItemRow.tsx#ParentActivityItemRow": {
+      "max_lines": 291,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/ParentActivityItemRow2.tsx#ParentActivityItemRow2": {
+      "max_lines": 291,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/ParentLineItemRow.tsx#ParentLineItemRow": {
+      "max_lines": 609,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/PayableChargesSeparationBlock.tsx#PayableChargesSeparationBlock": {
+      "max_lines": 104,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/QuickBalancePaidSnapshot.tsx#QuickBalancePaidSnapshot": {
+      "max_lines": 87,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/QuickEditAR.tsx#QuickEditAR": {
+      "max_lines": 110,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/RecordedPaymentsSettlementLedger.tsx#RecordedPaymentsSettlementLedger": {
+      "max_lines": 109,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/RecordPaymentModal.tsx#RecordPaymentModal": {
+      "max_lines": 146,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/RecurringBillingScheduleNext.tsx#RecurringBillingScheduleNext": {
+      "max_lines": 93,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/SendInvoiceStatementEmail.tsx#SendInvoiceStatementEmail": {
+      "max_lines": 99,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/TemplatePresetSelectorVisual.tsx#TemplatePresetSelectorVisual": {
+      "max_lines": 160,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateInvoice/sections/TopHeaderActionsClean.tsx#TopHeaderActionsClean": {
+      "max_lines": 193,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/GenerateInvoicePage.tsx#GenerateInvoicePage": {
+      "max_lines": 848,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/GenerateQuotePage.tsx#GenerateQuotePage": {
+      "max_lines": 249,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateQuotePage/sections/LeftColumnQuotationFor.tsx#LeftColumnQuotationFor": {
+      "max_lines": 228,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateQuotePage/sections/LineItemsTable.tsx#LineItemsTable": {
+      "max_lines": 322,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/generateQuotePage/sections/TopHeaderActionsClean.tsx#TopHeaderActionsClean": {
+      "max_lines": 156,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/addSeatsAddonsModal/sections/Row1CustomerSubscription.tsx#Row1CustomerSubscription": {
+      "max_lines": 377,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/newWorkflow/sections/AiRefineFeedbackNotification.tsx#AiRefineFeedbackNotification": {
+      "max_lines": 299,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/newWorkflow/sections/BeneficiaryBankSettlementDetails.tsx#BeneficiaryBankSettlementDetails": {
+      "max_lines": 230,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/newWorkflow/sections/BpmnHeaderBanner.tsx#BpmnHeaderBanner": {
+      "max_lines": 277,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/newWorkflow/sections/BpmnHeaderBanner2.tsx#BpmnHeaderBanner2": {
+      "max_lines": 238,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/newWorkflow/sections/ContractRenewalTermsExtension.tsx#ContractRenewalTermsExtension": {
+      "max_lines": 98,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/newWorkflow/sections/DragAndDropDropzone.tsx#DragAndDropDropzone": {
+      "max_lines": 95,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/newWorkflow/sections/RecurringSubscriptionParameters.tsx#RecurringSubscriptionParameters": {
+      "max_lines": 96,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/NewWorkflowModal.tsx#NewWorkflowModal": {
+      "max_lines": 301,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/quoteDetailDrawer/QuoteDetailDrawerBody.tsx#QuoteDetailDrawerBody": {
+      "max_lines": 91,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/quoteDetailDrawer/sections/DrawerHeader.tsx#DrawerHeader": {
+      "max_lines": 339,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/SendQuoteModal.tsx#SendQuoteModal": {
+      "max_lines": 210,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/workflowDetailDrawer/sections/DrawerHeader.tsx#DrawerHeader": {
+      "max_lines": 130,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/workflowDetailDrawer/sections/InitialSaleAttributes.tsx#InitialSaleAttributes": {
+      "max_lines": 137,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/workflowDetailDrawer/sections/NextStateTransitionButtons.tsx#NextStateTransitionButtons": {
+      "max_lines": 210,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/modals/workflowDetailDrawer/WorkflowDetailDrawerBody.tsx#WorkflowDetailDrawerBody": {
+      "max_lines": 103,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/quoteDetailPage/QuoteDetailPageBody.tsx#QuoteDetailPageBody": {
+      "max_lines": 109,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/quoteDetailPage/sections/MainHeaderTitleCard.tsx#MainHeaderTitleCard": {
+      "max_lines": 322,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/quoteDetailPage/sections/QuoteContentColumn.tsx#QuoteContentColumn": {
+      "max_lines": 322,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/quoteDetailPage/sections/QuoteSideColumn.tsx#QuoteSideColumn": {
+      "max_lines": 237,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/quoteDetailPage/sections/RecordPaymentModal.tsx#RecordPaymentModal": {
+      "max_lines": 119,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/quoteDetailPage/sections/TopNavigationBar.tsx#TopNavigationBar": {
+      "max_lines": 176,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/workflowDetail/sections/AddOnSpecificMetadata.tsx#AddOnSpecificMetadata": {
+      "max_lines": 83,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/workflowDetail/sections/AssignToArClerk.tsx#AssignToArClerk": {
+      "max_lines": 82,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/workflowDetail/sections/AttachmentsTab.tsx#AttachmentsTab": {
+      "max_lines": 100,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/workflowDetail/sections/BeneficiaryBankSettlementAccount.tsx#BeneficiaryBankSettlementAccount": {
+      "max_lines": 105,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/workflowDetail/sections/CurrentAssigneeCard.tsx#CurrentAssigneeCard": {
+      "max_lines": 274,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/workflowDetail/sections/MatchStatusCallout.tsx#MatchStatusCallout": {
+      "max_lines": 137,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/workflowDetail/sections/TimerSimulationButtons.tsx#TimerSimulationButtons": {
+      "max_lines": 164,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/workflowDetail/sections/TopNavigationActionBar.tsx#TopNavigationActionBar": {
+      "max_lines": 89,
+      "kind": "jsx_return"
+    },
+    "src/pages/AccountReceivable/workflowDetail/WorkflowDetailBody.tsx#WorkflowDetailBody": {
+      "max_lines": 439,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/BusinessContacts.tsx#ContactSection": {
+      "max_lines": 102,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/BusinessContacts.tsx#PayableContacts": {
+      "max_lines": 98,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/Classes.tsx#Classes": {
+      "max_lines": 456,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/Companies.tsx#Companies": {
+      "max_lines": 151,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/entities/sections/AddEntityDialog.tsx#AddEntityDialog": {
+      "max_lines": 123,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/entities/sections/EditEntityDialog.tsx#EditEntityDialog": {
+      "max_lines": 116,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/entities/sections/MainTableCard.tsx#MainTableCard": {
+      "max_lines": 126,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/Locations.tsx#Locations": {
+      "max_lines": 456,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/OAuthConfiguration.tsx#OAuthConfiguration": {
+      "max_lines": 228,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/oAuthConfiguration/sections/ConnectionStatusCard.tsx#ConnectionStatusCard": {
+      "max_lines": 150,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/oAuthConfiguration/sections/LeftColumnAppCredentials.tsx#LeftColumnAppCredentials": {
+      "max_lines": 187,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/oAuthConfiguration/sections/MainMailboxHeaderCard.tsx#MainMailboxHeaderCard": {
+      "max_lines": 365,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/oAuthConfiguration/sections/RightColumnSyncPipelines.tsx#RightColumnSyncPipelines": {
+      "max_lines": 217,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/PayableContacts.tsx#BankingDetailsCell": {
+      "max_lines": 235,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/PayableContacts.tsx#ContactSection": {
+      "max_lines": 102,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/PayableContacts.tsx#PayableContacts": {
+      "max_lines": 98,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/ProductsServices.tsx#ProductsServices": {
+      "max_lines": 379,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/productsServices/sections/CreateEditDialog.tsx#CreateEditDialog": {
+      "max_lines": 174,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/productsServices/sections/ProductsServicesTable.tsx#ProductsServicesTable": {
+      "max_lines": 191,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/Projects.tsx#Projects": {
+      "max_lines": 464,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/RoleApiPermissions.tsx#RoleApiPermissions": {
+      "max_lines": 173,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/RoleGroupPermissions.tsx#RoleGroupPermissions": {
+      "max_lines": 332,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/RoleMcpToolPermissions.tsx#RoleMcpToolPermissions": {
+      "max_lines": 158,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/roles/sections/LeftPanelTree.tsx#LeftPanelTree": {
+      "max_lines": 311,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/UserRoleAssignment.tsx#UserRoleAssignment": {
+      "max_lines": 127,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/Users.tsx#Users": {
+      "max_lines": 273,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/WorkflowAssignments.tsx#WorkflowAssignments": {
+      "max_lines": 278,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/workflowAssignments/components/MultiUserApproverPopover.tsx#MultiUserApproverPopover": {
+      "max_lines": 162,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/workflowAssignments/hooks/useWorkflowAssignmentsActions2.tsx#component": {
+      "max_lines": 205,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/workflowAssignments/sections/CreateGroupTabDialog.tsx#CreateGroupTabDialog": {
+      "max_lines": 111,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/workflowAssignments/sections/EditRoleAssignmentDialog.tsx#EditRoleAssignmentDialog": {
+      "max_lines": 237,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/workflowAssignments/sections/RenderCustomGroupsFirst.tsx#RenderCustomGroupsFirst": {
+      "max_lines": 295,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/workflowAssignments/sections/TabAllOperationalRoles.tsx#TabAllOperationalRoles": {
+      "max_lines": 170,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/workflowAssignments/sections/UngroupedDepartmentsContainer.tsx#UngroupedDepartmentsContainer": {
+      "max_lines": 220,
+      "kind": "jsx_return"
+    },
+    "src/pages/Dashboard/Dashboard.tsx#Dashboard": {
+      "max_lines": 417,
+      "kind": "jsx_return"
+    },
+    "src/pages/Dashboard/dashboard/components/MultiUserApproverPopover.tsx#MultiUserApproverPopover": {
+      "max_lines": 161,
+      "kind": "jsx_return"
+    },
+    "src/pages/Dashboard/dashboard/sections/MultiModuleOperationsSummary.tsx#MultiModuleOperationsSummary": {
+      "max_lines": 89,
+      "kind": "jsx_return"
+    },
+    "src/pages/Dashboard/dashboard/sections/RenderCustomGroups.tsx#RenderCustomGroups": {
+      "max_lines": 230,
+      "kind": "jsx_return"
+    },
+    "src/pages/Dashboard/dashboard/sections/Tab2OperationalRoles.tsx#Tab2OperationalRoles": {
+      "max_lines": 179,
+      "kind": "jsx_return"
+    },
+    "src/pages/Dashboard/dashboard/sections/UngroupedDepartmentsContainer.tsx#UngroupedDepartmentsContainer": {
+      "max_lines": 169,
+      "kind": "jsx_return"
+    },
+    "src/pages/Logs/AuditLog.tsx#AuditLog": {
+      "max_lines": 205,
+      "kind": "jsx_return"
+    },
+    "src/pages/Logs/SystemLogsPage.tsx#SystemLogsPage": {
+      "max_lines": 99,
+      "kind": "jsx_return"
+    },
+    "src/pages/Logs/systemLogsPage/sections/MainAuditLogsTable.tsx#MainAuditLogsTable": {
+      "max_lines": 254,
+      "kind": "jsx_return"
+    },
+    "src/pages/Logs/systemLogsPage/sections/RichAuditLogInspector.tsx#RichAuditLogInspector": {
+      "max_lines": 261,
+      "kind": "jsx_return"
+    },
+    "src/pages/Logs/systemLogsPage/sections/SearchFilterControlBar.tsx#SearchFilterControlBar": {
+      "max_lines": 104,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/BatchApproval.tsx#BatchApproval": {
+      "max_lines": 235,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/batchApproval/sections/NotificationScheduleSettingsModal.tsx#NotificationScheduleSettingsModal": {
+      "max_lines": 115,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/batchApproval/sections/TableOfWaitingApprovals.tsx#TableOfWaitingApprovals": {
+      "max_lines": 99,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/components/MasterTransactionsTable.tsx#MasterTransactionsTable": {
+      "max_lines": 162,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/components/masterTransactionsTable/sections/MasterTransactionsGrid.tsx#MasterTransactionsGrid": {
+      "max_lines": 318,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/components/RequestMessageThread.tsx#RequestMessageThread": {
+      "max_lines": 427,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/ChangeLevel1ApproverModal.tsx#ChangeLevel1ApproverModal": {
+      "max_lines": 283,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/ConvertToRecurringDialog.tsx#ConvertToRecurringDialog": {
+      "max_lines": 202,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx#CreateWireTransferDialog": {
+      "max_lines": 83,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/editCombinedRequest/sections/Card1GeneralOverview.tsx#Card1GeneralOverview": {
+      "max_lines": 269,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/editCombinedRequest/sections/Card2FinancialBreakdown.tsx#Card2FinancialBreakdown": {
+      "max_lines": 259,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/editCombinedRequest/sections/Tab2PurchaseOrder.tsx#Tab2PurchaseOrder": {
+      "max_lines": 311,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/editCombinedRequest/sections/Tab3InvoiceReceipts.tsx#Tab3InvoiceReceipts": {
+      "max_lines": 316,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/EditCombinedRequestDialog.tsx#EditCombinedRequestDialog": {
+      "max_lines": 223,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/EditRequestDialog.tsx#EditRequestDialog": {
+      "max_lines": 212,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/editRequestDialog/sections/AccountAndWireSection.tsx#AccountAndWireSection": {
+      "max_lines": 166,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/editRequestDialog/sections/FullScreenLineItems.tsx#FullScreenLineItems": {
+      "max_lines": 191,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/editRequestDialog/sections/MultiItemTable.tsx#MultiItemTable": {
+      "max_lines": 187,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/editRequestDialog/sections/RequestTitleAndPriority.tsx#RequestTitleAndPriority": {
+      "max_lines": 126,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/FilePreviewModal.tsx#FilePreviewModal": {
+      "max_lines": 165,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/QuickBooksExportDialog.tsx#QuickBooksExportDialog": {
+      "max_lines": 148,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/quickBooksExportDialog/sections/LastExportedStatusBanner.tsx#LastExportedStatusBanner": {
+      "max_lines": 352,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/quickBooksExportDialog/sections/PreviewSyncTab.tsx#PreviewSyncTab": {
+      "max_lines": 258,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/quickBooksItemDetailsDialog/QuickBooksItemDetailsDialogBody.tsx#QuickBooksItemDetailsDialogBody": {
+      "max_lines": 199,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/quickBooksItemDetailsDialog/sections/CategoryDetailsBottomTotal.tsx#CategoryDetailsBottomTotal": {
+      "max_lines": 140,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/quickBooksItemDetailsDialog/sections/DialogTopBar.tsx#DialogTopBar": {
+      "max_lines": 122,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/quickBooksItemDetailsDialog/sections/TableOfMappings.tsx#TableOfMappings": {
+      "max_lines": 215,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/quickBooksItemDetailsDialog/sections/TopHeroFormFields.tsx#TopHeroFormFields": {
+      "max_lines": 192,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/ScheduleBreakdownModal.tsx#ScheduleBreakdownModal": {
+      "max_lines": 427,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/WireTransferDialog.tsx#WireTransferDialog": {
+      "max_lines": 252,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/wireTransferDialog/sections/Card1BeneficiaryBank.tsx#Card1BeneficiaryBank": {
+      "max_lines": 259,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/dialogs/wireTransferDialog/sections/DynamicClearingCodesGrid.tsx#DynamicClearingCodesGrid": {
+      "max_lines": 546,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/BankAccountAutocomplete.tsx#BankAccountAutocomplete": {
+      "max_lines": 162,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/CategoryAutocomplete.tsx#CategoryAutocomplete": {
+      "max_lines": 142,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/ClassAutocomplete.tsx#ClassAutocomplete": {
+      "max_lines": 159,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/CountryAutocomplete.tsx#CountryAutocomplete": {
+      "max_lines": 180,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/CreatableCombobox.tsx#CreatableCombobox": {
+      "max_lines": 360,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/CurrencyAutocomplete.tsx#CurrencyAutocomplete": {
+      "max_lines": 169,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/DepartmentAutocomplete.tsx#DepartmentAutocomplete": {
+      "max_lines": 175,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/GLCodeAutocomplete.tsx#GLCodeAutocomplete": {
+      "max_lines": 213,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/LocationAutocomplete.tsx#LocationAutocomplete": {
+      "max_lines": 159,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/PaymentMethodSelect.tsx#PaymentMethodSelect": {
+      "max_lines": 256,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/ProjectAutocomplete.tsx#ProjectAutocomplete": {
+      "max_lines": 166,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/ScheduleDatesBuilder.tsx#ScheduleDatesBuilder": {
+      "max_lines": 402,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/ShippingDeliveryAddressField.tsx#ShippingDeliveryAddressField": {
+      "max_lines": 332,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/TimezoneAutocomplete.tsx#TimezoneAutocomplete": {
+      "max_lines": 98,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/WireBankingFields.tsx#WireBankingFields": {
+      "max_lines": 85,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/wireBankingFields/sections/Card1BeneficiaryBank.tsx#Card1BeneficiaryBank": {
+      "max_lines": 290,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/wireBankingFields/sections/RoutingWire.tsx#RoutingWire": {
+      "max_lines": 531,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/fields/WireGeneralPaymentFields.tsx#WireGeneralPaymentFields": {
+      "max_lines": 528,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/Invoices.tsx#Invoices": {
+      "max_lines": 121,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx#FiltersSearchToolbar": {
+      "max_lines": 90,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/invoices/sections/KpiSummaryCards.tsx#KpiSummaryCards": {
+      "max_lines": 159,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/invoices/sections/ReadOnlyWireInfo.tsx#ReadOnlyWireInfo": {
+      "max_lines": 315,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/invoices/sections/TableCard.tsx#TableCard": {
+      "max_lines": 276,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/invoices/sections/TravelStipendsTable.tsx#TravelStipendsTable": {
+      "max_lines": 305,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/MyApprovals.tsx#MyApprovals": {
+      "max_lines": 349,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/myApprovals/sections/MainApprovalsTable.tsx#MainApprovalsTable": {
+      "max_lines": 251,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/myApprovals/sections/QuickRequestPreviewDrawer.tsx#QuickRequestPreviewDrawer": {
+      "max_lines": 166,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequestDetail/PurchaseRequestDetailBody.tsx#PurchaseRequestDetailBody": {
+      "max_lines": 248,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequestDetail/sections/AllPaymentsActionSchedule.tsx#AllPaymentsActionSchedule": {
+      "max_lines": 169,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequestDetail/sections/EditRequestModal.tsx#EditRequestModal": {
+      "max_lines": 242,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequestDetail/sections/InvoiceDetailsCardOption.tsx#InvoiceDetailsCardOption": {
+      "max_lines": 305,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequestDetail/sections/MainRequestHeaderBanner.tsx#MainRequestHeaderBanner": {
+      "max_lines": 349,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx#RecordInvoiceDialog": {
+      "max_lines": 358,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequestDetail/sections/RequestDetailsPropertyTable.tsx#RequestDetailsPropertyTable": {
+      "max_lines": 152,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequestDetail/sections/ScheduledRangePaymentHorizon.tsx#ScheduledRangePaymentHorizon": {
+      "max_lines": 111,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequestDetail/sections/TabsApprovalsAttachmentsHistory.tsx#TabsApprovalsAttachmentsHistory": {
+      "max_lines": 321,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequestDetail/sections/WireTransferDetailsCard.tsx#WireTransferDetailsCard": {
+      "max_lines": 232,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/PurchaseRequests.tsx#PurchaseRequests": {
+      "max_lines": 486,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequests/sections/BottomBreakdownAndCalculations.tsx#BottomBreakdownAndCalculations": {
+      "max_lines": 117,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequests/sections/FullScreenLineItems.tsx#FullScreenLineItems": {
+      "max_lines": 168,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequests/sections/LineItemsPreviewTable.tsx#LineItemsPreviewTable": {
+      "max_lines": 112,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequests/sections/ProductLinkField.tsx#ProductLinkField": {
+      "max_lines": 108,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequests/sections/RecurringRequestOptions.tsx#RecurringRequestOptions": {
+      "max_lines": 92,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequests/sections/RequestsTableCard.tsx#RequestsTableCard": {
+      "max_lines": 139,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/purchaseRequests/sections/RequestTitleAndPriority.tsx#RequestTitleAndPriority": {
+      "max_lines": 134,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/quickBooks/sections/BreadcrumbTopBar.tsx#BreadcrumbTopBar": {
+      "max_lines": 84,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/quickBooks/sections/ExportArchiveCard.tsx#ExportArchiveCard": {
+      "max_lines": 85,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/quickBooks/sections/ExportTimeframeCard.tsx#ExportTimeframeCard": {
+      "max_lines": 146,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/quickBooks/sections/FloatingBatchActionBar.tsx#FloatingBatchActionBar": {
+      "max_lines": 143,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/quickBooks/sections/RequestIdTags.tsx#RequestIdTags": {
+      "max_lines": 340,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/quickBooks/sections/SaasantFilterControlBar.tsx#SaasantFilterControlBar": {
+      "max_lines": 135,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/quickBooks/sections/SubTabNavigationFor.tsx#SubTabNavigationFor": {
+      "max_lines": 89,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/quickBooks/sections/TopSummaryMetricCards.tsx#TopSummaryMetricCards": {
+      "max_lines": 129,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/QuickBooksPage.tsx#QuickBooksPage": {
+      "max_lines": 215,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/recurringPayments/RecurringPaymentsBody.tsx#RecurringPaymentsBody": {
+      "max_lines": 395,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/recurringPayments/sections/CalendarGrid.tsx#CalendarGrid": {
+      "max_lines": 217,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/recurringPayments/sections/CalendarItemQuickPreview.tsx#CalendarItemQuickPreview": {
+      "max_lines": 168,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/recurringPayments/sections/CompactInteractiveKpiFilter.tsx#CompactInteractiveKpiFilter": {
+      "max_lines": 224,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/recurringPayments/sections/CreateRecurringRequestModal.tsx#CreateRecurringRequestModal": {
+      "max_lines": 304,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/recurringPayments/sections/EditRecurringRequestModal.tsx#EditRecurringRequestModal": {
+      "max_lines": 311,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/recurringPayments/sections/RecurringRequestsTable.tsx#RecurringRequestsTable": {
+      "max_lines": 284,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/components/AttachmentDropzone.tsx#AttachmentDropzone": {
+      "max_lines": 145,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/components/InvoiceRecordsList.tsx#InvoiceRecordsList": {
+      "max_lines": 207,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/RequestDetailBody.tsx#RequestDetailBody": {
+      "max_lines": 518,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx#ActionFormFields": {
+      "max_lines": 270,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/ApprovalsTab.tsx#ApprovalsTab": {
+      "max_lines": 163,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/AttachmentsTab.tsx#AttachmentsTab": {
+      "max_lines": 92,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/CurrentReferenceInfo.tsx#CurrentReferenceInfo": {
+      "max_lines": 115,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/DedicatedRecurringContractSchedule.tsx#DedicatedRecurringContractSchedule": {
+      "max_lines": 93,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/FinancialAccountingSection.tsx#FinancialAccountingSection": {
+      "max_lines": 200,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx#MainRequestHeaderFull": {
+      "max_lines": 228,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx#MultiplePartsInteractiveEditable": {
+      "max_lines": 417,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx#ProductVendorUrlAi": {
+      "max_lines": 190,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/RedirectApprovalDialog.tsx#RedirectApprovalDialog": {
+      "max_lines": 142,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/RequestOverview.tsx#RequestOverview": {
+      "max_lines": 98,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/Tab2LineItems.tsx#Tab2LineItems": {
+      "max_lines": 211,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/Tab4InvoiceBill.tsx#Tab4InvoiceBill": {
+      "max_lines": 145,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/Tab5WireTransfer.tsx#Tab5WireTransfer": {
+      "max_lines": 259,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/Tab6RecurringHorizon.tsx#Tab6RecurringHorizon": {
+      "max_lines": 166,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/Tab7PaymentHistory.tsx#Tab7PaymentHistory": {
+      "max_lines": 101,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/TopDetailsGrid.tsx#TopDetailsGrid": {
+      "max_lines": 105,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/requestDetail/sections/TopNavigationRecordActions.tsx#TopNavigationRecordActions": {
+      "max_lines": 90,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/SecureInfoRequest.tsx#SecureInfoRequestCard": {
+      "max_lines": 196,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/secureInfoRequest/components/RequestAccountDetailsDialog.tsx#RequestAccountDetailsDialog": {
+      "max_lines": 115,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/secureInfoRequest/components/SubmitSecureInfoDialog.tsx#SubmitSecureInfoDialog": {
+      "max_lines": 83,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WorkflowAuto/components/SimulatorPanel.tsx#SimulatorPanel": {
+      "max_lines": 82,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WorkflowAuto/components/StageCardNode.tsx#StageCardNode": {
+      "max_lines": 487,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WorkflowAuto/dialogs/ChangeOwnerModal.tsx#ChangeOwnerModal": {
+      "max_lines": 115,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WorkflowAuto/dialogs/EditActionModal.tsx#EditActionModal": {
+      "max_lines": 380,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WorkflowAuto/dialogs/EditStageModal.tsx#EditStageModal": {
+      "max_lines": 306,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WorkflowAuto/dialogs/MoveActionModal.tsx#MoveActionModal": {
+      "max_lines": 156,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WorkflowAuto/dialogs/MoveFieldModal.tsx#MoveFieldModal": {
+      "max_lines": 169,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WorkflowAuto/dialogs/MoveStageModal.tsx#MoveStageModal": {
+      "max_lines": 107,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WorkflowAuto/WorkflowAutoCanvas.tsx#WorkflowAutoCanvas": {
+      "max_lines": 271,
+      "kind": "jsx_return"
+    },
+    "src/pages/UploadFiles/UploadFiles.tsx#UploadFiles": {
+      "max_lines": 287,
+      "kind": "jsx_return"
     }
   }
 }
