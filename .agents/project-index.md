@@ -114,6 +114,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/hooks/useTasks.ts (42 lines) - use tasks (hooks)
 - src/lib/AuthContext.tsx (202 lines) - auth context (lib)
 - src/lib/requestStatus.ts (126 lines) - The only place raw status strings are interpreted.
+- src/lib/sanitizeHtml.ts (61 lines) - Allowlist HTML sanitizer for rich email/quote previews rendered with dangerouslySetInnerHTML.
 - src/lib/userDepartment.ts (170 lines) - user department (lib)
 - src/lib/utils.ts (7 lines) - utils (lib)
 - src/main.tsx (65 lines) - Automatically reload once if a new deployment removed old hashed chunks
@@ -182,7 +183,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/AccountReceivable/modals/NewWorkflowModal.tsx (328 lines) - new workflow modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/OverridePriceModal.tsx (131 lines) - override price modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/QuoteDetailDrawer.tsx (12 lines) - quote detail drawer (pages  account receivable modals)
-- src/pages/AccountReceivable/modals/SendQuoteModal.tsx (385 lines) - send quote modal (pages  account receivable modals)
+- src/pages/AccountReceivable/modals/SendQuoteModal.tsx (386 lines) - send quote modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/WorkflowDetailDrawer.tsx (12 lines) - workflow detail drawer (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/addSeatsAddonsModal/hooks/useAddSeatsAddonsModal.ts (10 lines) - use add seats addons modal (pages  account receivable modals add seats addons modal hooks)
 - src/pages/AccountReceivable/modals/addSeatsAddonsModal/hooks/useAddSeatsAddonsModalActions.ts (288 lines) - Fetch existing subscriptions for customer

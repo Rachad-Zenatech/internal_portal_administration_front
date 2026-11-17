@@ -35,6 +35,7 @@ import {
 import type {
   ARQuote,
 } from "../../../services/arQuoteService";
+import { sanitizeHtml } from "../../../lib/sanitizeHtml";
 
 interface SendQuoteModalProps {
   quote: ARQuote | null;
@@ -346,7 +347,7 @@ export function SendQuoteModal({
               <div className="p-6 bg-white border border-slate-200 rounded-xl shadow-xs space-y-4">
                 <div
                   className="prose prose-sm max-w-none text-slate-800 text-xs"
-                  dangerouslySetInnerHTML={{ __html: renderedPreviewHtml }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderedPreviewHtml) }}
                 />
               </div>
             </div>

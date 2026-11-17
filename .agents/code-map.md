@@ -28,7 +28,7 @@ to find the right file.
 | .agents/code-map/src__components__Tasks__taskDetailPanel__sections.md | 2 | 1 KB |
 | .agents/code-map/src__components__ui.md | 35 | 8 KB |
 | .agents/code-map/src__hooks.md | 13 | 7 KB |
-| .agents/code-map/src__lib.md | 4 | 2 KB |
+| .agents/code-map/src__lib.md | 5 | 2 KB |
 | .agents/code-map/src__pages__AccountReceivable.md | 6 | 2 KB |
 | .agents/code-map/src__pages__AccountReceivable__accountReceivable.md | 3 | 1 KB |
 | .agents/code-map/src__pages__AccountReceivable__accountReceivable__hooks.md | 3 | 1 KB |
