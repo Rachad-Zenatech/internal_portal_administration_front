@@ -183,7 +183,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/AccountReceivable/modals/NewWorkflowModal.tsx (328 lines) - new workflow modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/OverridePriceModal.tsx (131 lines) - override price modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/QuoteDetailDrawer.tsx (12 lines) - quote detail drawer (pages  account receivable modals)
-- src/pages/AccountReceivable/modals/SendQuoteModal.tsx (386 lines) - send quote modal (pages  account receivable modals)
+- src/pages/AccountReceivable/modals/SendQuoteModal.tsx (385 lines) - send quote modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/WorkflowDetailDrawer.tsx (12 lines) - workflow detail drawer (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/addSeatsAddonsModal/hooks/useAddSeatsAddonsModal.ts (10 lines) - use add seats addons modal (pages  account receivable modals add seats addons modal hooks)
 - src/pages/AccountReceivable/modals/addSeatsAddonsModal/hooks/useAddSeatsAddonsModalActions.ts (288 lines) - Fetch existing subscriptions for customer
