@@ -10,8 +10,23 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Configurations/oAuthConfiguration/sections/LeftColumnAppCredentials.tsx (198 lines) - left column app credentials (pages  configurations o auth configuration sections)
 - `LeftColumnAppCredentials` (export function) L8
 
-## src/pages/Configurations/oAuthConfiguration/sections/MainMailboxHeaderCard.tsx (376 lines) - main mailbox header card (pages  configurations o auth configuration sections)
-- `MainMailboxHeaderCard` (export function) L8
+## src/pages/Configurations/oAuthConfiguration/sections/MailboxConnectionSettingsCard.tsx (154 lines) - mailbox connection settings card (pages  configurations o auth configuration sections)
+- `SecretInputProps` (interface) L7
+- `MaskedCredentialField` (function) L19
+- `ConnectionSettingsFooter` (function) L66
+- `MailboxConnectionSettingsCard` (export function) L93
+
+## src/pages/Configurations/oAuthConfiguration/sections/MainMailboxHeaderCard.tsx (270 lines) - main mailbox header card (pages  configurations o auth configuration sections)
+- `MainMailboxHeaderCard` (export function) L9
+
+## src/pages/Configurations/oAuthConfiguration/sections/ReceivableEmailDetailModal.tsx (250 lines) - receivable email detail modal (pages  configurations o auth configuration sections)
+- `formatBytes` (function) L10
+- `PreviewKind` (type) L18
+- `getPreviewKind` (function) L20
+- `EmailAttachmentsSection` (function) L36
+- `AttachmentPreviewPane` (function) L111
+- `EmailBodySection` (function) L146
+- `ReceivableEmailDetailModal` (export function) L160
 
 ## src/pages/Configurations/oAuthConfiguration/sections/RightColumnSyncPipelines.tsx (227 lines) - right column sync pipelines (pages  configurations o auth configuration sections)
 - `RightColumnSyncPipelines` (export function) L7

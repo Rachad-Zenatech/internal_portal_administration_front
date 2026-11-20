@@ -38,6 +38,7 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
   const [title, setTitle] = useState("");
   const [requester, setRequester] = useState("");
   const [department, setDepartment] = useState("");
+  const [glCode, setGlCode] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [selectedPrevious, setSelectedPrevious] = useState<PreviousWirePayment | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,6 +73,7 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
     setTitle("");
     setRequester(name);
     setDepartment(dept || "");
+    setGlCode("");
     setFile(null);
     setSelectedPrevious(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -117,6 +119,7 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
     setSelectedPrevious(null);
     setWire({ ...EMPTY_WIRE_FORM, category, entry_date: todayIso(), payment_date: todayIso() });
     setTitle("");
+    setGlCode("");
   };
 
   /** mode "draft": save as Draft. mode "submit": save and submit into the workflow right away. */
@@ -141,6 +144,7 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
         item_mode: "SINGLE",
         amount: Number(wire.amount) || 0,
         currency: wire.currency || "USD",
+        gl_code: glCode.trim() || undefined,
         due_date: wire.due_date || undefined,
         wire_transfer: { ...wire, amount: Number(wire.amount) || 0, vendor: wire.vendor || effectiveTitle },
       };
@@ -179,7 +183,7 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
   };
 
   return {
-    wire, setWire, title, setTitle, requester, setRequester, department, setDepartment, file, setFile, fileInputRef,
+    wire, setWire, title, setTitle, requester, setRequester, department, setDepartment, glCode, setGlCode, file, setFile, fileInputRef,
     category, isRecurring, previousPayments, isLoadingPrevious: previousQuery.isLoading, selectedPrevious,
     applyPrevious, clearPrevious, isSubmitting, submit,
   };

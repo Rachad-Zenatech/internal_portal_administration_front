@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { oauthService, type HubSpotOAuthStatus, type HubSpotDataResponse, type MicrosoftEntraOAuthStatus, type ReceivableEmailItem } from "@/services/oauthService";
+import { oauthService, type HubSpotOAuthStatus, type HubSpotDataResponse, type MicrosoftEntraOAuthStatus, type ReceivableEmailItem, type ReceivableEmailDetail } from "@/services/oauthService";
 import { AVAILABLE_HUBSPOT_SCOPES } from "../constants";
 
 export function useOAuthConfigurationActions() {
@@ -39,12 +39,13 @@ export function useOAuthConfigurationActions() {
   const [isDisconnectingEntra, setIsDisconnectingEntra] = useState(false);
   const [isSigningInEntra, setIsSigningInEntra] = useState(false);
   const [isSavingEntraConfig, setIsSavingEntraConfig] = useState(false);
-  // Microsoft Entra Form State
+  // Microsoft Entra Form State (keys & IDs are never prefilled in plaintext)
   const [entraClientId, setEntraClientId] = useState("");
   const [entraClientSecret, setEntraClientSecret] = useState("");
-  const [entraTenantId, setEntraTenantId] = useState("793faa36-870a-465b-93be-d8d07da8a680");
+  const [entraTenantId, setEntraTenantId] = useState("");
+  const [entraGroupId, setEntraGroupId] = useState("");
   const [entraRedirectUri, setEntraRedirectUri] = useState("");
-  const [entraTargetMailbox, setEntraTargetMailbox] = useState("receivables@zenatech.com");
+  const [entraTargetMailbox, setEntraTargetMailbox] = useState("accountsreceivable@zenatech.com");
   const [showEntraSecret, setShowEntraSecret] = useState(false);
   const [showEntraSettings, setShowEntraSettings] = useState(false);
   // Receivable Emails State
@@ -53,6 +54,10 @@ export function useOAuthConfigurationActions() {
   const [emailSearch, setEmailSearch] = useState("");
   const [emailFilterMode, setEmailFilterMode] = useState<"all" | "unread" | "attachments">("all");
   const [lastEmailFetchTime, setLastEmailFetchTime] = useState<string | null>(null);
+  const [selectedEmail, setSelectedEmail] = useState<ReceivableEmailItem | null>(null);
+  const [selectedEmailDetail, setSelectedEmailDetail] = useState<ReceivableEmailDetail | null>(null);
+  const [isLoadingEmailDetail, setIsLoadingEmailDetail] = useState(false);
+  const [sseConnected, setSseConnected] = useState(false);
   // Load HubSpot Status
   const loadStatus = useCallback(async (silent = false) => {
     try {
@@ -82,10 +87,8 @@ export function useOAuthConfigurationActions() {
       const res = await oauthService.getMicrosoftEntraStatus();
       setEntraStatus(res);
       if (res.config) {
-        setEntraClientId(res.config.client_id || "");
-        setEntraTenantId(res.config.tenant_id || "793faa36-870a-465b-93be-d8d07da8a680");
         setEntraRedirectUri(res.config.redirect_uri || "");
-        setEntraTargetMailbox(res.config.target_mailbox || "receivables@zenatech.com");
+        setEntraTargetMailbox(res.config.target_mailbox || "accountsreceivable@zenatech.com");
       }
     } catch (err: any) {
       console.error("[OAuthConfiguration] Failed to fetch Microsoft Entra OAuth status", err);
@@ -321,23 +324,27 @@ export function useOAuthConfigurationActions() {
   };
   const handleSaveEntraConfig = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!entraClientId.trim()) {
+    if (!entraClientId.trim() && !entraStatus?.config?.has_client_id) {
       toast.error("Application (Client) ID is required");
       return;
     }
     try {
       setIsSavingEntraConfig(true);
       await oauthService.saveMicrosoftEntraConfig({
-        client_id: entraClientId.trim(),
+        client_id: entraClientId.trim() || undefined,
         client_secret: entraClientSecret.trim() || undefined,
         tenant_id: entraTenantId.trim() || undefined,
+        group_id: entraGroupId.trim() || undefined,
         redirect_uri: entraRedirectUri.trim() || undefined,
         scopes: "https://graph.microsoft.com/.default",
-        target_mailbox: entraTargetMailbox.trim() || "receivables@zenatech.com",
+        target_mailbox: entraTargetMailbox.trim() || "accountsreceivable@zenatech.com",
         auth_mode: "application",
       });
       toast.success("Microsoft Entra configuration saved successfully!");
+      setEntraClientId("");
       setEntraClientSecret("");
+      setEntraTenantId("");
+      setEntraGroupId("");
       await loadEntraStatus(true);
 
       const testRes = await oauthService.testMicrosoftEntraConnection();
@@ -355,24 +362,78 @@ export function useOAuthConfigurationActions() {
       setIsSavingEntraConfig(false);
     }
   };
-  const handleFetchReceivableEmails = async () => {
+  const handleFetchReceivableEmails = useCallback(async (silent?: boolean | unknown) => {
+    const isSilent = silent === true;
     try {
-      setIsLoadingEmails(true);
+      if (!isSilent) setIsLoadingEmails(true);
       const res = await oauthService.fetchReceivableEmails(35, emailSearch.trim() || undefined);
       setReceivableEmails(res.items || []);
       setLastEmailFetchTime(new Date().toLocaleTimeString());
-      toast.success(`Retrieved ${res.total} recent emails from Accounts Receivable mailbox.`);
+      if (!isSilent) {
+        toast.success(`Retrieved ${res.total} recent emails from Accounts Receivable mailbox.`);
+      }
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || "Failed to fetch receivable emails");
+      if (!isSilent) {
+        toast.error(err?.response?.data?.detail || "Failed to fetch receivable emails");
+      }
     } finally {
-      setIsLoadingEmails(false);
+      if (!isSilent) setIsLoadingEmails(false);
     }
+  }, [emailSearch]);
+  const handleOpenEmailDetail = async (email: ReceivableEmailItem) => {
+    setSelectedEmail(email);
+    setSelectedEmailDetail(null);
+    setIsLoadingEmailDetail(true);
+    try {
+      const detail = await oauthService.getReceivableEmailDetail(email.id, email.conversation_id);
+      setSelectedEmailDetail(detail);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to load email details");
+    } finally {
+      setIsLoadingEmailDetail(false);
+    }
+  };
+  const handleCloseEmailDetail = () => {
+    setSelectedEmail(null);
+    setSelectedEmailDetail(null);
   };
   const isConnected = !!status?.connected;
   const isConfigured = !!status?.is_configured;
   const connection = status?.connection;
   const isEntraConnected = !!entraStatus?.connected;
   const entraConn = entraStatus?.connection;
+
+  // Auto-refresh incoming emails via SSE when new emails arrive
+  useEffect(() => {
+    if (activeTab !== "microsoft" || !isEntraConnected) {
+      setSseConnected(false);
+      return;
+    }
+    const streamUrl = oauthService.getReceivableEmailsStreamUrl();
+    const es = new EventSource(streamUrl, { withCredentials: true });
+    es.onopen = () => setSseConnected(true);
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data?.type === "new_emails") {
+          void handleFetchReceivableEmails(true);
+          toast.info(`New email received (${data.count || 1}) in ${data.mailbox || "Accounts Receivable"}`);
+        }
+      } catch {
+        // Ignore keep-alive or non-JSON frames
+      }
+    };
+    es.onerror = () => setSseConnected(false);
+    return () => {
+      es.close();
+      setSseConnected(false);
+    };
+  }, [activeTab, isEntraConnected, handleFetchReceivableEmails]);
+
+  const supportsReadStatus = useMemo(
+    () => receivableEmails.some((em) => em.is_read !== null && em.is_read !== undefined),
+    [receivableEmails]
+  );
   // Filter live items based on search query
   const filteredLiveItems = useMemo(() => {
     if (!liveData?.items) return [];
@@ -390,10 +451,10 @@ export function useOAuthConfigurationActions() {
   // Filter receivable emails
   const filteredReceivableEmails = useMemo(() => {
     return receivableEmails.filter((em) => {
-      if (emailFilterMode === "unread" && em.is_read) return false;
+      if (emailFilterMode === "unread" && em.is_read !== false) return false;
       if (emailFilterMode === "attachments" && !em.has_attachments) return false;
       return true;
     });
   }, [receivableEmails, emailFilterMode]);
-  return { activeTab, setActiveTab, status, isLoadingStatus, isConnecting, isTesting, isRefreshing, isDisconnecting, isSyncing, clientId, setClientId, clientSecret, setClientSecret, redirectUri, setRedirectUri, selectedScopes, setSelectedScopes, showSecret, setShowSecret, isSavingConfig, hasCopiedUri, showGuide, setShowGuide, activeDataType, setActiveDataType, liveData, isLoadingData, searchFilter, setSearchFilter, entraStatus, isLoadingEntraStatus, isTestingEntra, isDisconnectingEntra, isSigningInEntra, isSavingEntraConfig, entraClientId, setEntraClientId, entraClientSecret, setEntraClientSecret, entraTenantId, setEntraTenantId, entraTargetMailbox, setEntraTargetMailbox, showEntraSecret, setShowEntraSecret, showEntraSettings, setShowEntraSettings, receivableEmails, isLoadingEmails, emailSearch, setEmailSearch, emailFilterMode, setEmailFilterMode, lastEmailFetchTime, loadStatus, loadEntraStatus, handleConnectHubSpot, handleTestConnection, handleRefreshToken, handleDisconnect, handleSaveConfig, handleCopyUri, handleFetchLiveData, handleSyncProducts, handleTestEntraConnection, handleSignInEntra, handleDisconnectEntra, handleSaveEntraConfig, handleFetchReceivableEmails, isConnected, isConfigured, connection, isEntraConnected, entraConn, filteredLiveItems, filteredReceivableEmails };
+  return { activeTab, setActiveTab, status, isLoadingStatus, isConnecting, isTesting, isRefreshing, isDisconnecting, isSyncing, clientId, setClientId, clientSecret, setClientSecret, redirectUri, setRedirectUri, selectedScopes, setSelectedScopes, showSecret, setShowSecret, isSavingConfig, hasCopiedUri, showGuide, setShowGuide, activeDataType, setActiveDataType, liveData, isLoadingData, searchFilter, setSearchFilter, entraStatus, isLoadingEntraStatus, isTestingEntra, isDisconnectingEntra, isSigningInEntra, isSavingEntraConfig, entraClientId, setEntraClientId, entraClientSecret, setEntraClientSecret, entraTenantId, setEntraTenantId, entraGroupId, setEntraGroupId, entraTargetMailbox, setEntraTargetMailbox, showEntraSecret, setShowEntraSecret, showEntraSettings, setShowEntraSettings, receivableEmails, isLoadingEmails, emailSearch, setEmailSearch, emailFilterMode, setEmailFilterMode, lastEmailFetchTime, selectedEmail, selectedEmailDetail, isLoadingEmailDetail, sseConnected, supportsReadStatus, loadStatus, loadEntraStatus, handleConnectHubSpot, handleTestConnection, handleRefreshToken, handleDisconnect, handleSaveConfig, handleCopyUri, handleFetchLiveData, handleSyncProducts, handleTestEntraConnection, handleSignInEntra, handleDisconnectEntra, handleSaveEntraConfig, handleFetchReceivableEmails, handleOpenEmailDetail, handleCloseEmailDetail, isConnected, isConfigured, connection, isEntraConnected, entraConn, filteredLiveItems, filteredReceivableEmails };
 }

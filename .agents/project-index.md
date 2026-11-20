@@ -183,7 +183,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/AccountReceivable/modals/NewWorkflowModal.tsx (328 lines) - new workflow modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/OverridePriceModal.tsx (131 lines) - override price modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/QuoteDetailDrawer.tsx (12 lines) - quote detail drawer (pages  account receivable modals)
-- src/pages/AccountReceivable/modals/SendQuoteModal.tsx (385 lines) - send quote modal (pages  account receivable modals)
+- src/pages/AccountReceivable/modals/SendQuoteModal.tsx (386 lines) - send quote modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/WorkflowDetailDrawer.tsx (12 lines) - workflow detail drawer (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/addSeatsAddonsModal/hooks/useAddSeatsAddonsModal.ts (10 lines) - use add seats addons modal (pages  account receivable modals add seats addons modal hooks)
 - src/pages/AccountReceivable/modals/addSeatsAddonsModal/hooks/useAddSeatsAddonsModalActions.ts (288 lines) - Fetch existing subscriptions for customer
@@ -276,10 +276,12 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Configurations/entities/sections/MainTableCard.tsx (143 lines) - main table card (pages  configurations entities sections)
 - src/pages/Configurations/oAuthConfiguration/constants.ts (9 lines) - constants (pages  configurations o auth configuration)
 - src/pages/Configurations/oAuthConfiguration/hooks/useOAuthConfiguration.ts (9 lines) - use o auth configuration (pages  configurations o auth configuration hooks)
-- src/pages/Configurations/oAuthConfiguration/hooks/useOAuthConfigurationActions.ts (400 lines) - HubSpot Credentials Form State
+- src/pages/Configurations/oAuthConfiguration/hooks/useOAuthConfigurationActions.ts (461 lines) - HubSpot Credentials Form State
 - src/pages/Configurations/oAuthConfiguration/sections/ConnectionStatusCard.tsx (159 lines) - connection status card (pages  configurations o auth configuration sections)
 - src/pages/Configurations/oAuthConfiguration/sections/LeftColumnAppCredentials.tsx (198 lines) - left column app credentials (pages  configurations o auth configuration sections)
-- src/pages/Configurations/oAuthConfiguration/sections/MainMailboxHeaderCard.tsx (376 lines) - main mailbox header card (pages  configurations o auth configuration sections)
+- src/pages/Configurations/oAuthConfiguration/sections/MailboxConnectionSettingsCard.tsx (154 lines) - mailbox connection settings card (pages  configurations o auth configuration sections)
+- src/pages/Configurations/oAuthConfiguration/sections/MainMailboxHeaderCard.tsx (270 lines) - main mailbox header card (pages  configurations o auth configuration sections)
+- src/pages/Configurations/oAuthConfiguration/sections/ReceivableEmailDetailModal.tsx (250 lines) - receivable email detail modal (pages  configurations o auth configuration sections)
 - src/pages/Configurations/oAuthConfiguration/sections/RightColumnSyncPipelines.tsx (227 lines) - right column sync pipelines (pages  configurations o auth configuration sections)
 - src/pages/Configurations/productsServices/hooks/useProductsServices.ts (9 lines) - use products services (pages  configurations products services hooks)
 - src/pages/Configurations/productsServices/hooks/useProductsServicesActions.ts (167 lines) - Add/Edit Dialog State
@@ -367,7 +369,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/components/masterTransactionsTable/types.ts (40 lines) - types (pages  purchasing components master transactions table)
 - src/pages/Purchasing/dialogs/ChangeLevel1ApproverModal.tsx (471 lines) - change level1 approver modal (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/ConvertToRecurringDialog.tsx (383 lines) - convert to recurring dialog (pages  purchasing dialogs)
-- src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (110 lines) - called after a wire transfer was created (so the wire page can reload its list)
+- src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (107 lines) - called after a wire transfer was created (so the wire page can reload its list)
 - src/pages/Purchasing/dialogs/EditCombinedRequestDialog.tsx (247 lines) - edit combined request dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/EditRequestDialog.tsx (231 lines) - edit request dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/FilePreviewModal.tsx (246 lines) - file preview modal (pages  purchasing dialogs)
@@ -376,8 +378,9 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/dialogs/QuickBooksItemDetailsDialog.tsx (12 lines) - quick books item details dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/ScheduleBreakdownModal.tsx (579 lines) - schedule breakdown modal (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/WireTransferDialog.tsx (269 lines) - wire transfer dialog (pages  purchasing dialogs)
+- src/pages/Purchasing/dialogs/createWireTransfer/PayableGlAndAttachmentFields.tsx (55 lines) - GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog.
 - src/pages/Purchasing/dialogs/createWireTransfer/PreviousPaymentPicker.tsx (68 lines) - Rent / Note are paid again and again: pick the last payment and the bank details come with it.
-- src/pages/Purchasing/dialogs/createWireTransfer/useCreateWireTransfer.ts (187 lines) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
+- src/pages/Purchasing/dialogs/createWireTransfer/useCreateWireTransfer.ts (191 lines) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
 - src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequest.ts (13 lines) - use edit combined request (pages  purchasing dialogs edit combined request hooks)
 - src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequestActions.ts (453 lines) - use edit combined request actions (pages  purchasing dialogs edit combined request hooks)
 - src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequestActions2.ts (522 lines) - Multi-parts calculations
@@ -578,7 +581,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/services/financeService.ts (100 lines) - finance service (services)
 - src/services/helper.ts (103 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
 - src/services/masterTablesService.ts (180 lines) - master tables service (services)
-- src/services/oauthService.ts (311 lines) - oauth service (services)
+- src/services/oauthService.ts (356 lines) - oauth service (services)
 - src/services/productAiService.ts (18 lines) - Product extraction from a request's vendor URL and its AI chart-of-accounts suggestions (each run again on request).
 - src/services/purchasingService.ts (786 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
 - src/services/queryKeys.ts (26 lines) - All React Query cache keys live here so that invalidation calls in

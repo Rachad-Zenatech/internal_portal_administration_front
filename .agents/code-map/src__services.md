@@ -100,7 +100,7 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `MasterProductListResponse` (export interface) L166
 - `HubSpotSyncResult` (export interface) L173
 
-## src/services/oauthService.ts (311 lines) - oauth service (services)
+## src/services/oauthService.ts (356 lines) - oauth service (services)
 - `HubSpotOAuthConfig` (export interface) L3
 - `HubSpotConnectionInfo` (export interface) L14
 - `HubSpotOAuthStatus` (export interface) L28
@@ -110,13 +110,15 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `HubSpotSyncResult` (export interface) L64
 - `HubSpotCompaniesSyncProgress` (export interface) L70
 - `oauthService` (export const) L87
-- `HubSpotCompanyItem` (export interface) L219
-- `HubSpotCompaniesResponse` (export interface) L244
-- `MicrosoftEntraOAuthConfig` (export interface) L252
-- `MicrosoftEntraConnectionInfo` (export interface) L264
-- `MicrosoftEntraOAuthStatus` (export interface) L282
-- `ReceivableEmailItem` (export interface) L293
-- `ReceivableEmailsResponse` (export interface) L306
+- `HubSpotCompanyItem` (export interface) L242
+- `HubSpotCompaniesResponse` (export interface) L267
+- `MicrosoftEntraOAuthConfig` (export interface) L275
+- `MicrosoftEntraConnectionInfo` (export interface) L290
+- `MicrosoftEntraOAuthStatus` (export interface) L308
+- `ReceivableEmailItem` (export interface) L319
+- `ReceivableEmailAttachment` (export interface) L333
+- `ReceivableEmailDetail` (export interface) L342
+- `ReceivableEmailsResponse` (export interface) L351
 
 ## src/services/productAiService.ts (18 lines) - Product extraction from a request's vendor URL and its AI chart-of-accounts suggestions (each run again on request).
 - `extractProductInfo` (export function) L7

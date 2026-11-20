@@ -1,10 +1,11 @@
-import { Landmark, Loader2, Receipt } from "lucide-react";
+import { Landmark, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WireGeneralPaymentFields } from "../fields/WireGeneralPaymentFields";
 import { WireBankingFields } from "../fields/WireBankingFields";
 import { PreviousPaymentPicker } from "./createWireTransfer/PreviousPaymentPicker";
+import { PayableGlAndAttachmentFields } from "./createWireTransfer/PayableGlAndAttachmentFields";
 import { useCreateWireTransfer, type WirePrefill } from "./createWireTransfer/useCreateWireTransfer";
 
 interface Props {
@@ -21,7 +22,9 @@ interface Props {
 /** Creates a wire transfer or accounts payable request; captures general payment & full banking clearing fields. */
 export function CreateWireTransferDialog({ open, onOpenChange, onCreated, prefill, dialogTitle }: Props) {
   const s = useCreateWireTransfer(open, onOpenChange, onCreated, prefill);
-  const { wire, setWire, title, setTitle, requester, setRequester, department, setDepartment, setFile, fileInputRef, category, isRecurring, isSubmitting } = s;
+  const { wire, setWire, title, setTitle, requester, setRequester, department, setDepartment, glCode, setGlCode, setFile, fileInputRef, category, isRecurring, isSubmitting } = s;
+  const isPayable = (dialogTitle || "").toLowerCase().includes("payable");
+  const attachmentLabel = isPayable ? "Attach Vendor Bill / Invoice PDF" : "Attach Wire Invoice / Payment Receipt";
 
   return (
     <Dialog open={open} onOpenChange={(next) => !isSubmitting && onOpenChange(next)}>
@@ -75,20 +78,14 @@ export function CreateWireTransferDialog({ open, onOpenChange, onCreated, prefil
 
           <WireGeneralPaymentFields form={wire} setForm={setWire} isSubmitting={isSubmitting} />
           <WireBankingFields form={wire} setForm={setWire} />
-
-          <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-zinc-900/40 border border-slate-200 dark:border-zinc-800 space-y-2">
-            <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <label className="text-xs font-semibold text-slate-800 dark:text-zinc-200 uppercase tracking-wider">Attach Wire Invoice / Payment Receipt</label>
-            </div>
-            <Input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="cursor-pointer file:cursor-pointer text-xs bg-white dark:bg-zinc-900"
-            />
-          </div>
+          <PayableGlAndAttachmentFields
+            glCode={glCode}
+            onGlCodeChange={setGlCode}
+            attachmentLabel={attachmentLabel}
+            fileInputRef={fileInputRef}
+            onFileChange={setFile}
+            isSubmitting={isSubmitting}
+          />
         </div>
 
         <DialogFooter className="mx-0 mb-0 rounded-none px-6 py-3.5 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 gap-2 sm:gap-2 shrink-0">

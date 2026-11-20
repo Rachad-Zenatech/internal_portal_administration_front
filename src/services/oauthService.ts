@@ -1,4 +1,4 @@
-import { apiClient } from "./apiClient";
+import { apiClient, BASE_URL } from "./apiClient";
 
 export interface HubSpotOAuthConfig {
   client_id: string;
@@ -164,9 +164,10 @@ export const oauthService = {
   },
 
   saveMicrosoftEntraConfig: (payload: {
-    client_id: string;
+    client_id?: string;
     client_secret?: string;
     tenant_id?: string;
+    group_id?: string;
     redirect_uri?: string;
     scopes?: string;
     target_mailbox?: string;
@@ -214,6 +215,28 @@ export const oauthService = {
     }
     return apiClient.get<ReceivableEmailsResponse>(`/api/oauth/microsoft-entra/emails?${qs.toString()}`);
   },
+
+  getReceivableEmailDetail: (emailId: string, conversationId?: string | null) => {
+    const qs = conversationId ? `?conversation_id=${encodeURIComponent(conversationId)}` : "";
+    return apiClient.get<ReceivableEmailDetail>(`/api/oauth/microsoft-entra/emails/${encodeURIComponent(emailId)}${qs}`);
+  },
+
+  getReceivableEmailAttachmentUrl: (
+    emailId: string,
+    attachmentId: string,
+    conversationId?: string | null,
+    download = false
+  ) => {
+    const qs = new URLSearchParams();
+    if (conversationId) qs.append("conversation_id", conversationId);
+    if (download) qs.append("download", "true");
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return `${BASE_URL}/api/oauth/microsoft-entra/emails/${encodeURIComponent(emailId)}/attachments/${encodeURIComponent(attachmentId)}${suffix}`;
+  },
+
+  getReceivableEmailsStreamUrl: () => {
+    return `${BASE_URL}/api/oauth/microsoft-entra/emails/stream`;
+  },
 };
 
 export interface HubSpotCompanyItem {
@@ -250,12 +273,15 @@ export interface HubSpotCompaniesResponse {
 }
 
 export interface MicrosoftEntraOAuthConfig {
-  client_id: string;
+  client_id_masked: string | null;
+  has_client_id: boolean;
   client_secret_masked: string | null;
   has_client_secret: boolean;
-  tenant_id: string;
+  tenant_id_masked: string | null;
+  has_tenant_id: boolean;
+  group_id_masked: string | null;
+  has_group_id: boolean;
   redirect_uri: string;
-  scopes: string;
   target_mailbox?: string;
   auth_mode?: string;
   source: string;
@@ -292,15 +318,34 @@ export interface MicrosoftEntraOAuthStatus {
 
 export interface ReceivableEmailItem {
   id: string;
+  conversation_id?: string | null;
   subject: string;
   sender_name: string;
   sender_email: string;
   received_at: string;
   has_attachments: boolean;
-  is_read: boolean;
+  is_read: boolean | null;
   body_preview: string;
-  web_link: string;
+  web_link: string | null;
   importance: string;
+}
+
+export interface ReceivableEmailAttachment {
+  id: string;
+  name: string;
+  content_type: string;
+  size: number;
+  is_inline: boolean;
+  last_modified_at?: string | null;
+}
+
+export interface ReceivableEmailDetail extends ReceivableEmailItem {
+  mailbox: string;
+  to_recipients: { name: string; email: string }[];
+  cc_recipients: { name: string; email: string }[];
+  body_content: string;
+  body_content_type: string;
+  attachments: ReceivableEmailAttachment[];
 }
 
 export interface ReceivableEmailsResponse {

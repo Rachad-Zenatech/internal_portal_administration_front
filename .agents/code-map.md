@@ -66,8 +66,8 @@ to find the right file.
 | .agents/code-map/src__pages__Configurations__entities__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Configurations__entities__sections.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Configurations__oAuthConfiguration.md | 1 | 1 KB |
-| .agents/code-map/src__pages__Configurations__oAuthConfiguration__hooks.md | 2 | 1 KB |
-| .agents/code-map/src__pages__Configurations__oAuthConfiguration__sections.md | 4 | 1 KB |
+| .agents/code-map/src__pages__Configurations__oAuthConfiguration__hooks.md | 2 | 2 KB |
+| .agents/code-map/src__pages__Configurations__oAuthConfiguration__sections.md | 6 | 2 KB |
 | .agents/code-map/src__pages__Configurations__productsServices__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Configurations__productsServices__sections.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Configurations__roles.md | 1 | 1 KB |
@@ -97,7 +97,7 @@ to find the right file.
 | .agents/code-map/src__pages__Purchasing__components__masterTransactionsTable__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__components__masterTransactionsTable__sections.md | 1 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs.md | 11 | 3 KB |
-| .agents/code-map/src__pages__Purchasing__dialogs__createWireTransfer.md | 2 | 1 KB |
+| .agents/code-map/src__pages__Purchasing__dialogs__createWireTransfer.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs__editCombinedRequest.md | 1 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs__editCombinedRequest__hooks.md | 3 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs__editCombinedRequest__sections.md | 4 | 1 KB |

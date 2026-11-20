@@ -1,12 +1,33 @@
-import { RefreshCw, ExternalLink, Eye, EyeOff, Zap, Loader2, ChevronDown, ChevronUp, Search, Mail, Paperclip, Inbox, Settings, LogIn } from "lucide-react";
+import { RefreshCw, ExternalLink, Zap, Loader2, ChevronDown, ChevronUp, Search, Mail, Paperclip, Inbox, Settings, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import type { OAuthConfigurationState } from "../hooks/useOAuthConfiguration";
+import { MailboxConnectionSettingsCard } from "./MailboxConnectionSettingsCard";
+import { ReceivableEmailDetailModal } from "./ReceivableEmailDetailModal";
 
 export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
-  const { isLoadingEmails, handleFetchReceivableEmails, filteredReceivableEmails, lastEmailFetchTime, setEmailSearch, emailSearch, emailFilterMode, setEmailFilterMode, entraTargetMailbox, receivableEmails, isSavingEntraConfig, isDisconnectingEntra, handleDisconnectEntra, showEntraSecret, setShowEntraSecret, entraStatus, setEntraClientSecret, entraClientSecret, setEntraClientId, entraClientId, setEntraTenantId, entraTenantId, setEntraTargetMailbox, handleSaveEntraConfig, showEntraSettings, setShowEntraSettings, isTestingEntra, handleTestEntraConnection, isSigningInEntra, handleSignInEntra, entraConn, activeTab } = s;
+  const {
+    isLoadingEmails,
+    handleFetchReceivableEmails,
+    filteredReceivableEmails,
+    lastEmailFetchTime,
+    setEmailSearch,
+    emailSearch,
+    emailFilterMode,
+    setEmailFilterMode,
+    entraTargetMailbox,
+    receivableEmails,
+    showEntraSettings,
+    setShowEntraSettings,
+    isTestingEntra,
+    handleTestEntraConnection,
+    entraConn,
+    activeTab,
+    handleOpenEmailDetail,
+    supportsReadStatus,
+    sseConnected,
+  } = s;
   return (
     <>
       {activeTab === "microsoft" && (
@@ -40,28 +61,6 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
               {/* Action Buttons */}
               <div className="flex items-center gap-2.5 flex-wrap">
                 <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleFetchReceivableEmails}
-                  disabled={isLoadingEmails}
-                  className="text-xs h-9 px-4 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-xs"
-                >
-                  {isLoadingEmails ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Inbox className="w-3.5 h-3.5" />}
-                  <span>Sync Emails</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSignInEntra}
-                  disabled={isSigningInEntra}
-                  className="text-xs h-9 gap-1.5"
-                >
-                  {isSigningInEntra ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5 text-blue-600" />}
-                  <span>Sign in with Microsoft</span>
-                </Button>
-
-                <Button
                   variant="outline"
                   size="sm"
                   onClick={handleTestEntraConnection}
@@ -86,130 +85,8 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
             </div>
           </div>
 
-          {/* Collapsible Connection Settings (Simple & Clean) */}
-          {showEntraSettings && (
-            <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                <div className="flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-blue-600" />
-                  <h3 className="text-sm font-bold text-foreground">Mailbox Connection Settings</h3>
-                </div>
-                <span className="text-[11px] text-muted-foreground">
-                  Credentials configured in backend .env
-                </span>
-              </div>
-
-              <form onSubmit={handleSaveEntraConfig} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="entra-target-mailbox" className="text-xs font-semibold">
-                      Target Mailbox Address
-                    </Label>
-                    <Input
-                      id="entra-target-mailbox"
-                      type="email"
-                      value={entraTargetMailbox}
-                      onChange={(e) => setEntraTargetMailbox(e.target.value)}
-                      placeholder="receivables@zenatech.com"
-                      className="h-9 text-xs font-mono"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="entra-tenant-id" className="text-xs font-semibold">
-                      Microsoft Entra Tenant ID
-                    </Label>
-                    <Input
-                      id="entra-tenant-id"
-                      type="text"
-                      value={entraTenantId}
-                      onChange={(e) => setEntraTenantId(e.target.value)}
-                      placeholder="e.g. 793faa36-870a-465b-93be-d8d07da8a680"
-                      className="h-9 text-xs font-mono"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="entra-client-id" className="text-xs font-semibold">
-                      Application (Client) ID
-                    </Label>
-                    <Input
-                      id="entra-client-id"
-                      type="text"
-                      value={entraClientId}
-                      onChange={(e) => setEntraClientId(e.target.value)}
-                      placeholder="e.g. 82959eef-0217-4aa3-a979-bd5b909c097a"
-                      className="h-9 text-xs font-mono"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="entra-client-secret" className="text-xs font-semibold">
-                        Client Secret
-                      </Label>
-                      {entraStatus?.config?.has_client_secret && (
-                        <span className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-medium">
-                          Configured: {entraStatus.config.client_secret_masked}
-                        </span>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <Input
-                        id="entra-client-secret"
-                        type={showEntraSecret ? "text" : "password"}
-                        value={entraClientSecret}
-                        onChange={(e) => setEntraClientSecret(e.target.value)}
-                        placeholder={
-                          entraStatus?.config?.has_client_secret
-                            ? "Leave blank to keep existing secret"
-                            : "Paste client secret here..."
-                        }
-                        className="h-9 text-xs font-mono pr-8"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowEntraSecret(!showEntraSecret)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-                      >
-                        {showEntraSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <span>
-                    Ensure <strong>Mail.Read</strong> Application Permission has Admin Consent granted in Microsoft Entra admin center.
-                  </span>
-                  <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleDisconnectEntra}
-                      disabled={isDisconnectingEntra}
-                      className="h-8 text-xs"
-                    >
-                      Disconnect
-                    </Button>
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={isSavingEntraConfig}
-                      className="h-8 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      {isSavingEntraConfig ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
-                      Save Settings
-                    </Button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          )}
+          {/* Collapsible Connection Settings */}
+          {showEntraSettings && <MailboxConnectionSettingsCard s={s} />}
 
           {/* Full-Width Live Receivable Emails Card */}
           <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs space-y-4">
@@ -221,6 +98,12 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
                   <Badge variant="secondary" className="text-xs font-mono ml-1 font-semibold">
                     {receivableEmails.length}
                   </Badge>
+                  {sseConnected && (
+                    <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px] gap-1 font-medium">
+                      <Radio className="w-3 h-3 animate-pulse" />
+                      <span>Live SSE</span>
+                    </Badge>
+                  )}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Live incoming messages, remittances, and invoices received at {entraTargetMailbox || "receivables@zenatech.com"}.
@@ -230,7 +113,7 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
               {/* Filter chips & Sync */}
               <div className="flex items-center gap-2.5 flex-wrap">
                 <div className="flex items-center rounded-lg border border-border/70 p-0.5 bg-muted/40">
-                  {(["all", "unread", "attachments"] as const).map((m) => (
+                  {(["all", ...(supportsReadStatus ? (["unread"] as const) : []), "attachments"] as const).map((m) => (
                     <button
                       key={m}
                       type="button"
@@ -293,8 +176,17 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
                   {filteredReceivableEmails.map((em) => (
                     <div
                       key={em.id}
-                      className={`p-4 hover:bg-muted/30 transition-colors text-xs flex flex-col sm:flex-row sm:items-start justify-between gap-3 ${
-                        !em.is_read ? "bg-blue-500/[0.03]" : ""
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleOpenEmailDetail(em)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleOpenEmailDetail(em);
+                        }
+                      }}
+                      className={`p-4 hover:bg-muted/40 transition-colors text-xs flex flex-col sm:flex-row sm:items-start justify-between gap-3 cursor-pointer ${
+                        em.is_read === false ? "bg-blue-500/[0.03]" : ""
                       }`}
                     >
                       <div className="space-y-1.5 min-w-0 flex-1">
@@ -302,7 +194,7 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
                           <span className="font-bold text-foreground text-sm truncate max-w-xl">
                             {em.subject}
                           </span>
-                          {!em.is_read && (
+                          {em.is_read === false && (
                             <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30 text-[10px] px-2 py-0.5 font-semibold">
                               Unread
                             </Badge>
@@ -337,6 +229,7 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
                             href={em.web_link}
                             target="_blank"
                             rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
                             className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 font-medium"
                           >
                             <span>Open in Outlook</span>
@@ -370,6 +263,7 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
           </div>
         </div>
       )}
+      <ReceivableEmailDetailModal s={s} />
     </>
   );
 }
