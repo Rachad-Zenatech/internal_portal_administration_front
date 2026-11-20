@@ -372,7 +372,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/components/masterTransactionsTable/types.ts (40 lines) - types (pages  purchasing components master transactions table)
 - src/pages/Purchasing/dialogs/ChangeLevel1ApproverModal.tsx (471 lines) - change level1 approver modal (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/ConvertToRecurringDialog.tsx (383 lines) - convert to recurring dialog (pages  purchasing dialogs)
-- src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (107 lines) - called after a wire transfer was created (so the wire page can reload its list)
+- src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (95 lines) - called after a wire transfer was created (so the wire page can reload its list)
 - src/pages/Purchasing/dialogs/EditCombinedRequestDialog.tsx (247 lines) - edit combined request dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/EditRequestDialog.tsx (231 lines) - edit request dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/FilePreviewModal.tsx (246 lines) - file preview modal (pages  purchasing dialogs)
@@ -382,7 +382,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/dialogs/ScheduleBreakdownModal.tsx (579 lines) - schedule breakdown modal (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/WireTransferDialog.tsx (269 lines) - wire transfer dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/createWireTransfer/AttachWireReceiptCard.tsx (28 lines) - attach wire receipt card (pages  purchasing dialogs create wire transfer)
-- src/pages/Purchasing/dialogs/createWireTransfer/CreateWireMetaFields.tsx (83 lines) - create wire meta fields (pages  purchasing dialogs create wire transfer)
+- src/pages/Purchasing/dialogs/createWireTransfer/CreateWireMetaFields.tsx (86 lines) - create wire meta fields (pages  purchasing dialogs create wire transfer)
 - src/pages/Purchasing/dialogs/createWireTransfer/PayableGlAndAttachmentFields.tsx (55 lines) - GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog.
 - src/pages/Purchasing/dialogs/createWireTransfer/PreviousPaymentPicker.tsx (68 lines) - Rent / Note are paid again and again: pick the last payment and the bank details come with it.
 - src/pages/Purchasing/dialogs/createWireTransfer/useCreateWireTransfer.ts (191 lines) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
@@ -571,7 +571,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/requestDetail/sections/Tab7PaymentHistory.tsx (145 lines) - tab7 payment history (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/TopDetailsGrid.tsx (117 lines) - top details grid (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/TopNavigationRecordActions.tsx (100 lines) - top navigation record actions (pages  purchasing request detail sections)
-- src/pages/Purchasing/requestDetail/sections/WorkflowStepperSection.tsx (57 lines) - workflow stepper section (pages  purchasing request detail sections)
+- src/pages/Purchasing/requestDetail/sections/WorkflowStepperSection.tsx (59 lines) - workflow stepper section (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchComponentCard.tsx (95 lines) - match component card (pages  purchasing request detail sections three way matching)
 - src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchHeaderBanner.tsx (64 lines) - match header banner (pages  purchasing request detail sections three way matching)
 - src/pages/Purchasing/requestDetail/sections/threeWayMatching/RouteToPaymentBanner.tsx (109 lines) - route to payment banner (pages  purchasing request detail sections three way matching)

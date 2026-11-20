@@ -8,7 +8,7 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `Props` (interface) L4
 - `AttachWireReceiptCard` (export function) L9
 
-## src/pages/Purchasing/dialogs/createWireTransfer/CreateWireMetaFields.tsx (83 lines) - create wire meta fields (pages  purchasing dialogs create wire transfer)
+## src/pages/Purchasing/dialogs/createWireTransfer/CreateWireMetaFields.tsx (86 lines) - create wire meta fields (pages  purchasing dialogs create wire transfer)
 - `Props` (interface) L5
 - `CreateWireMetaFields` (export function) L17
 

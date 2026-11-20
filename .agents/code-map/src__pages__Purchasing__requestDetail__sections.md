@@ -77,5 +77,5 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Purchasing/requestDetail/sections/TopNavigationRecordActions.tsx (100 lines) - top navigation record actions (pages  purchasing request detail sections)
 - `TopNavigationRecordActions` (export function) L7
 
-## src/pages/Purchasing/requestDetail/sections/WorkflowStepperSection.tsx (57 lines) - workflow stepper section (pages  purchasing request detail sections)
+## src/pages/Purchasing/requestDetail/sections/WorkflowStepperSection.tsx (59 lines) - workflow stepper section (pages  purchasing request detail sections)
 - `WorkflowStepperSection` (export function) L10

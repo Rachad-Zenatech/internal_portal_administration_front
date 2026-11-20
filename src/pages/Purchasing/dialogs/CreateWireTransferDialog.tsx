@@ -1,10 +1,10 @@
 import { Landmark, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WireGeneralPaymentFields } from "../fields/WireGeneralPaymentFields";
 import { WireBankingFields } from "../fields/WireBankingFields";
 import { PreviousPaymentPicker } from "./createWireTransfer/PreviousPaymentPicker";
+import { CreateWireMetaFields } from "./createWireTransfer/CreateWireMetaFields";
 import { PayableGlAndAttachmentFields } from "./createWireTransfer/PayableGlAndAttachmentFields";
 import { useCreateWireTransfer, type WirePrefill } from "./createWireTransfer/useCreateWireTransfer";
 
@@ -52,29 +52,17 @@ export function CreateWireTransferDialog({ open, onOpenChange, onCreated, prefil
             />
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-            <div className="space-y-1.5 md:col-span-6">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Title</label>
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={wire.vendor ? `Payment for ${wire.vendor}` : 'Leave blank to use "Payment for <vendor>"'}
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-1.5 md:col-span-3">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                Requester <span className="text-red-500">*</span>
-              </label>
-              <Input value={requester} onChange={(e) => setRequester(e.target.value)} className="h-9 text-sm" />
-            </div>
-            <div className="space-y-1.5 md:col-span-3">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                Department <span className="text-red-500">*</span>
-              </label>
-              <Input value={department} onChange={(e) => setDepartment(e.target.value)} className="h-9 text-sm" />
-            </div>
-          </div>
+          <CreateWireMetaFields
+            dialogTitle={dialogTitle}
+            title={title}
+            setTitle={setTitle}
+            wire={wire}
+            setWire={setWire}
+            requester={requester}
+            setRequester={setRequester}
+            department={department}
+            setDepartment={setDepartment}
+          />
 
           <WireGeneralPaymentFields form={wire} setForm={setWire} isSubmitting={isSubmitting} />
           <WireBankingFields form={wire} setForm={setWire} />
