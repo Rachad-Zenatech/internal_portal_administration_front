@@ -4,17 +4,10 @@ import { RequestStatus } from "@/types/purchasing";
 
 export type StepState = "done" | "current" | "pending" | "hold" | "rejected";
 
-export interface DisplaySubStep {
-  status: RequestStatus;
-  label: string;
-  state: StepState;
-}
-
 export interface DisplayStep {
   status: RequestStatus | null;
   label: string;
   state: StepState;
-  subSteps?: DisplaySubStep[];
 }
 
 export const STEP_STYLES: Record<StepState, string> = {
@@ -51,26 +44,6 @@ interface StepperStepNodeProps {
 }
 
 export function StepperStepNode({ step, isActive, activeRef }: StepperStepNodeProps) {
-  if (step.subSteps && step.subSteps.length > 0) {
-    return (
-      <div
-        ref={isActive ? activeRef : null}
-        className="flex flex-col gap-1.5 items-center justify-center shrink-0 py-0.5"
-      >
-        {step.subSteps.map((sub, sIdx) => (
-          <div
-            key={sIdx}
-            title={sub.label}
-            className={`w-max px-3 h-8 sm:h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-[11px] sm:text-xs font-medium whitespace-nowrap shrink-0 box-border transition-all duration-200 ${STEP_STYLES[sub.state]}`}
-          >
-            <StepIcon state={sub.state} />
-            <span className="text-center">{sub.label}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
   return (
     <div
       ref={isActive ? activeRef : null}

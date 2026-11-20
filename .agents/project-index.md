@@ -66,8 +66,8 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/common/LinkifiedText.tsx (50 lines) - linkified text (components common)
 - src/components/common/ProtectedRoute.tsx (81 lines) - protected route (components common)
 - src/components/common/QRCodeDisplay.tsx (59 lines) - q r code display (components common)
-- src/components/common/Stepper.tsx (261 lines) - Ordered workflow states (ADMIN_FLOW, SPEND_FLOW, RECURRING_FLOW, QUOTE_FLOW)
-- src/components/common/StepperStepNode.tsx (89 lines) - stepper step node (components common)
+- src/components/common/Stepper.tsx (203 lines) - Ordered workflow states (ADMIN_FLOW, SPEND_FLOW, RECURRING_FLOW, QUOTE_FLOW)
+- src/components/common/StepperStepNode.tsx (62 lines) - stepper step node (components common)
 - src/components/ui/FloatingVerticalFilter.tsx (290 lines) - floating vertical filter (components ui)
 - src/components/ui/HelpIcon.tsx (30 lines) - help icon (components ui)
 - src/components/ui/PageConnectionBanner.tsx (65 lines) - page connection banner (components ui)
@@ -574,7 +574,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/requestDetail/sections/Tab7PaymentHistory.tsx (145 lines) - tab7 payment history (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/TopDetailsGrid.tsx (117 lines) - top details grid (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/TopNavigationRecordActions.tsx (100 lines) - top navigation record actions (pages  purchasing request detail sections)
-- src/pages/Purchasing/requestDetail/sections/WorkflowStepperSection.tsx (59 lines) - workflow stepper section (pages  purchasing request detail sections)
+- src/pages/Purchasing/requestDetail/sections/WorkflowStepperSection.tsx (52 lines) - workflow stepper section (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchComponentCard.tsx (101 lines) - match component card (pages  purchasing request detail sections three way matching)
 - src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchHeaderBanner.tsx (64 lines) - match header banner (pages  purchasing request detail sections three way matching)
 - src/pages/Purchasing/requestDetail/sections/threeWayMatching/PoNumberGeneratorPopover.tsx (77 lines) - po number generator popover (pages  purchasing request detail sections three way matching)
@@ -591,7 +591,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/secureInfoRequest/hooks/useSecureInfoRequestActions.tsx (224 lines) - use secure info request actions (pages  purchasing secure info request hooks)
 - src/pages/Purchasing/secureInfoRequest/types.ts (40 lines) - types (pages  purchasing secure info request)
 - src/pages/Purchasing/secureInfoRequest/utils.ts (23 lines) - True when a regular message looks like it contains a password, so we can suggest the secure form.
-- src/pages/Purchasing/utils/purchasingMeta.ts (355 lines) - Presentation metadata for Purchasing + Tasks.
+- src/pages/Purchasing/utils/purchasingMeta.ts (349 lines) - Presentation metadata for Purchasing + Tasks.
 - src/pages/Purchasing/utils/recurringScheduleUtils.ts (459 lines) - recurring schedule utils (pages  purchasing utils)
 - src/pages/Reports/Reports.tsx (96 lines) - src/pages/Reports.tsx
 - src/pages/Settings/Settings.tsx (12 lines) - src/pages/Settings.tsx

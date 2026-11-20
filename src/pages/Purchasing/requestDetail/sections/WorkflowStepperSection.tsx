@@ -4,14 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { RequestStatus } from "@/types/purchasing";
 import { formatDate } from "../../utils/purchasingMeta";
-import { ThreeWayMatchingCard } from "./threeWayMatching/ThreeWayMatchingCard";
 import type { RequestDetailViewState } from "../hooks/useRequestDetailTail";
 
 export function WorkflowStepperSection({ v }: { v: RequestDetailViewState }) {
-  const { flow, request, data, isRecurring, isSelfApprovalBlocked } = v;
-  const wireCat = String(data?.wire_transfer?.category || "").trim().toLowerCase();
-  const isOther = !wireCat || wireCat === "others" || wireCat === "other";
-  const isThreeWay = (request.request_type === "ACCOUNTS_PAYABLE" || Boolean(data?.wire_transfer)) && !isRecurring && isOther;
+  const { flow, request, isSelfApprovalBlocked } = v;
 
   return (
     <div className="space-y-4">
@@ -26,9 +22,6 @@ export function WorkflowStepperSection({ v }: { v: RequestDetailViewState }) {
           )}
         </CardContent>
       </Card>
-
-      {/* AP Three-Way Matching Workflow Card (for Accounts Payable / Non-recurring Wires) */}
-      {isThreeWay && <ThreeWayMatchingCard v={v} />}
 
       {/* Self-Approval Restriction Banner */}
       {isSelfApprovalBlocked && (
