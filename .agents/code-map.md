@@ -147,7 +147,7 @@ to find the right file.
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__utils.md | 2 | 3 KB |
 | .agents/code-map/src__pages__Purchasing__WorkflowAuto.md | 3 | 1 KB |
-| .agents/code-map/src__pages__Purchasing__WorkflowAuto__components.md | 5 | 2 KB |
+| .agents/code-map/src__pages__Purchasing__WorkflowAuto__components.md | 6 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__WorkflowAuto__constants.md | 3 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__WorkflowAuto__dialogs.md | 6 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__WorkflowAuto__hooks.md | 1 | 2 KB |
