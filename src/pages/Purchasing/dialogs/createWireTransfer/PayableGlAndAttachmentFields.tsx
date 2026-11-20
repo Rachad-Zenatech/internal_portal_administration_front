@@ -1,4 +1,4 @@
-import { BookOpen, Receipt } from "lucide-react";
+import { BookOpen, Loader2, Receipt } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { GLCodeAutocomplete } from "../../fields/GLCodeAutocomplete";
 
@@ -9,6 +9,7 @@ interface Props {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onFileChange: (file: File | null) => void;
   isSubmitting: boolean;
+  isExtractingOcr?: boolean;
 }
 
 /** GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog. */
@@ -19,6 +20,7 @@ export function PayableGlAndAttachmentFields({
   fileInputRef,
   onFileChange,
   isSubmitting,
+  isExtractingOcr,
 }: Props) {
   return (
     <>
@@ -37,9 +39,17 @@ export function PayableGlAndAttachmentFields({
       </div>
 
       <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-zinc-900/40 border border-slate-200 dark:border-zinc-800 space-y-2">
-        <div className="flex items-center gap-2">
-          <Receipt className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-          <label className="text-xs font-semibold text-slate-800 dark:text-zinc-200 uppercase tracking-wider">{attachmentLabel}</label>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <label className="text-xs font-semibold text-slate-800 dark:text-zinc-200 uppercase tracking-wider">{attachmentLabel}</label>
+          </div>
+          {isExtractingOcr && (
+            <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium inline-flex items-center gap-1">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Extracting Date of Invoice...
+            </span>
+          )}
         </div>
         <Input
           ref={fileInputRef}

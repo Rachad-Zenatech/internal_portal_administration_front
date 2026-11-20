@@ -12,14 +12,14 @@ to find the right file.
 | .agents/code-map/src.md | 2 | 1 KB |
 | .agents/code-map/src__components__AppShell.md | 13 | 4 KB |
 | .agents/code-map/src__components__AppShell__globalSettingsDialog.md | 1 | 1 KB |
-| .agents/code-map/src__components__AppShell__globalSettingsDialog__hooks.md | 2 | 1 KB |
-| .agents/code-map/src__components__AppShell__globalSettingsDialog__sections.md | 3 | 1 KB |
+| .agents/code-map/src__components__AppShell__globalSettingsDialog__hooks.md | 3 | 1 KB |
+| .agents/code-map/src__components__AppShell__globalSettingsDialog__sections.md | 4 | 1 KB |
 | .agents/code-map/src__components__AppShell__notificationDropdown.md | 2 | 1 KB |
 | .agents/code-map/src__components__AppShell__notificationDropdown__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__components__AppShell__notificationDropdown__sections.md | 3 | 1 KB |
 | .agents/code-map/src__components__ChartOfAccounts.md | 2 | 1 KB |
 | .agents/code-map/src__components__common.md | 8 | 3 KB |
-| .agents/code-map/src__components__Configurations.md | 4 | 1 KB |
+| .agents/code-map/src__components__Configurations.md | 5 | 2 KB |
 | .agents/code-map/src__components__Dashboard.md | 6 | 2 KB |
 | .agents/code-map/src__components__Tasks.md | 4 | 1 KB |
 | .agents/code-map/src__components__Tasks__taskDetailPanel.md | 2 | 1 KB |
@@ -141,7 +141,7 @@ to find the right file.
 | .agents/code-map/src__pages__Purchasing__requestDetail__components.md | 7 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__requestDetail__hooks.md | 5 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__requestDetail__sections.md | 22 | 5 KB |
-| .agents/code-map/src__pages__Purchasing__requestDetail__sections__threeWayMatching.md | 6 | 2 KB |
+| .agents/code-map/src__pages__Purchasing__requestDetail__sections__threeWayMatching.md | 7 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest.md | 3 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest__components.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest__hooks.md | 2 | 1 KB |

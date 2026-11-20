@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { postRequestMessage } from "@/services/purchasingService";
+import { postRequestMessage, updateRequest } from "@/services/purchasingService";
+import { useBusinessContacts } from "@/hooks/useBusinessContact";
 import { RequestStatus } from "@/types/purchasing";
-import { formatDate } from "../../../utils/purchasingMeta";
+import { formatDate, formatDateMmDdYyyy } from "../../../utils/purchasingMeta";
 import type { RequestDetailViewState } from "../../hooks/useRequestDetailTail";
 import type { MatchComponentState, ComponentDetails, ThreeWayMatchSummary } from "./types";
 
@@ -10,7 +11,9 @@ export function useThreeWayMatching(v: RequestDetailViewState) {
   const { request, purchase_order, inv, data, dispatch, onAction, refetch, transition } = v;
   const [isRoutingToDept, setIsRoutingToDept] = useState(false);
   const [isRoutingToPayment, setIsRoutingToPayment] = useState(false);
+  const [isSavingPoNumber, setIsSavingPoNumber] = useState(false);
   const [overrides, setOverrides] = useState<{ po?: boolean; receipt?: boolean; invoice?: boolean }>({});
+  const { data: apContactsData } = useBusinessContacts(undefined, "ap");
 
   // 1. Component 1: Approved PO
   const poComponent: ComponentDetails = useMemo(() => {
@@ -36,7 +39,7 @@ export function useThreeWayMatching(v: RequestDetailViewState) {
       request.status === RequestStatus.Completed
     );
 
-    const poNumber = purchase_order?.id || request.quote_data?.po_number || `PO-${request.id}`;
+    const poNumber = request.quote_data?.po_number || purchase_order?.id || `PO-${request.id}`;
     const poAmount = Number(purchase_order?.amount ?? request.amount ?? 0);
     const invoiceAmount = Number(inv?.amount ?? data?.wire_transfer?.amount ?? request.amount ?? 0);
 
@@ -142,18 +145,30 @@ export function useThreeWayMatching(v: RequestDetailViewState) {
       }
     }
 
+    const vendorName = (inv?.vendor || data?.wire_transfer?.vendor || purchase_order?.vendor || request.title || "").trim();
+    const matchedContact = (apContactsData?.items || []).find((c) => {
+      const target = vendorName.toLowerCase();
+      return Boolean(target) && (
+        (c.display_name || "").trim().toLowerCase() === target ||
+        (c.full_name || "").trim().toLowerCase() === target
+      );
+    });
+    const rawDueDate = inv?.due_date || data?.wire_transfer?.due_date || request.due_date;
+
     return {
       title: "3. Vendor Invoice",
       subtitle: "Supplier billing statement & remittance details",
       state,
       stateLabel,
       primaryInfo: invoiceNumber ? `Invoice #${invoiceNumber}` : (hasInvoice ? "Bill / Receipt Attached" : "Awaiting Vendor Bill"),
-      secondaryInfo: `Vendor: ${inv?.vendor || data?.wire_transfer?.vendor || request.title}`,
+      secondaryInfo: `Vendor: ${vendorName}`,
       amount: invAmount,
       currency: inv?.currency || data?.wire_transfer?.currency || request.currency || "USD",
-      date: inv?.due_date ? formatDate(inv.due_date) : (data?.wire_transfer?.due_date ? formatDate(data.wire_transfer.due_date) : undefined),
+      date: rawDueDate ? formatDateMmDdYyyy(rawDueDate) : undefined,
+      dateLabel: "Due Date",
+      paymentTerms: matchedContact?.payment_terms || undefined,
     };
-  }, [inv, data?.invoices, data?.wire_transfer, data?.attachments, request, purchase_order]);
+  }, [inv, data?.invoices, data?.wire_transfer, data?.attachments, request, purchase_order, apContactsData?.items, overrides.invoice]);
 
   // Overall match status
   const summary: ThreeWayMatchSummary = useMemo(() => {
@@ -254,8 +269,29 @@ export function useThreeWayMatching(v: RequestDetailViewState) {
     }
   };
 
+  // Action: Save / insert generated or custom PO number onto request
+  const handleSavePoNumber = async (poNumber: string): Promise<boolean> => {
+    setIsSavingPoNumber(true);
+    try {
+      await updateRequest(String(request.id), {
+        quote_data: { ...(request.quote_data || {}), po_number: poNumber },
+      });
+      toast.success(`PO number updated to ${poNumber}.`);
+      refetch?.();
+      return true;
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to save PO number");
+      return false;
+    } finally {
+      setIsSavingPoNumber(false);
+    }
+  };
+
   return {
     summary,
+    currentPoNumber: request.quote_data?.po_number || purchase_order?.id || "",
+    isSavingPoNumber,
+    handleSavePoNumber,
     togglePo,
     toggleReceipt,
     toggleInvoice,

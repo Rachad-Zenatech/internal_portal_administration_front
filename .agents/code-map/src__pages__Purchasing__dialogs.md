@@ -18,7 +18,7 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `ConvertToRecurringDialogProps` (interface) L33
 - `ConvertToRecurringDialog` (export function) L40
 
-## src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (107 lines) - called after a wire transfer was created (so the wire page can reload its list)
+## src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (108 lines) - called after a wire transfer was created (so the wire page can reload its list)
 - `Props` (interface) L11
 - `CreateWireTransferDialog` (export function) L23 - Creates a wire transfer or accounts payable request; captures general payment & full banking clearing fields.
 

@@ -4,6 +4,11 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
+## src/components/AppShell/globalSettingsDialog/sections/BatchAndEodNotificationsSection.tsx (114 lines) - batch and eod notifications section (components  app shell global settings dialog sections)
+- `EodRemindersCard` (function) L8
+- `BatchApprovalCard` (function) L59
+- `BatchAndEodNotificationsSection` (export function) L106
+
 ## src/components/AppShell/globalSettingsDialog/sections/EnableLongHeldItems.tsx (193 lines) - enable long held items (components  app shell global settings dialog sections)
 - `EnableLongHeldItems` (export function) L9
 

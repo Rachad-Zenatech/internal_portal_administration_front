@@ -4,15 +4,19 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/components/Configurations/AddBusinessContactDialog.tsx (342 lines) - add business contact dialog (components  configurations)
-- `AddBusinessContactDialogProps` (interface) L32
-- `AddBusinessContactDialog` (export function) L39
+## src/components/Configurations/AddBusinessContactDialog.tsx (345 lines) - add business contact dialog (components  configurations)
+- `AddBusinessContactDialogProps` (interface) L34
+- `AddBusinessContactDialog` (export function) L41
+
+## src/components/Configurations/BusinessContactPaymentTermsField.tsx (33 lines) - business contact payment terms field (components  configurations)
+- `Props` (interface) L4
+- `BusinessContactPaymentTermsField` (export function) L10
 
 ## src/components/Configurations/DeleteBusinessContactDialog.tsx (54 lines) - delete business contact dialog (components  configurations)
 - `DeleteBusinessContactDialog` (export function) L17
 
-## src/components/Configurations/EditBusinessContactDialog.tsx (210 lines) - edit business contact dialog (components  configurations)
-- `EditBusinessContactDialog` (export function) L21
+## src/components/Configurations/EditBusinessContactDialog.tsx (213 lines) - edit business contact dialog (components  configurations)
+- `EditBusinessContactDialog` (export function) L22
 
 ## src/components/Configurations/PayeeBankingEditor.tsx (666 lines) - payee banking editor (components  configurations)
 - `PayeeBankingEditorProps` (export interface) L16

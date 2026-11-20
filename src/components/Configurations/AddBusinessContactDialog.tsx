@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBusinessContacts, useCreateBusinessContact } from "@/hooks/useBusinessContact";
 import { useKnownVendors } from "@/hooks/usePurchasing";
 import { PayeeBankingEditor } from "./PayeeBankingEditor";
+import { BusinessContactPaymentTermsField } from "./BusinessContactPaymentTermsField";
 import type { BankingDetails, BusinessContactReference } from "@/types/businessContact";
 
 const emptyForm = {
@@ -25,6 +26,7 @@ const emptyForm = {
   full_name: "",
   email: "",
   phone_numbers: "",
+  payment_terms: "",
   bill_address: "",
   ship_address: "",
 };
@@ -103,6 +105,7 @@ export function AddBusinessContactDialog({
         full_name: contact.full_name || prev.full_name,
         email: contact.email || prev.email,
         phone_numbers: contact.phone_numbers || prev.phone_numbers,
+        payment_terms: contact.payment_terms || prev.payment_terms,
         bill_address: contact.bill_address || prev.bill_address,
         ship_address: contact.ship_address || prev.ship_address,
       }));
@@ -133,6 +136,7 @@ export function AddBusinessContactDialog({
         full_name: form.full_name.trim() || null,
         email: form.email.trim() || null,
         phone_numbers: form.phone_numbers.trim() || null,
+        payment_terms: form.payment_terms.trim() || null,
         bill_address: form.bill_address.trim() || null,
         ship_address: form.ship_address.trim() || null,
         banking_details: hasBanking ? banking : null,
@@ -288,7 +292,7 @@ export function AddBusinessContactDialog({
                     className="h-9 text-xs"
                   />
                 </div>
-                <div className="space-y-1.5 sm:col-span-2">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Phone</Label>
                   <Input
                     placeholder="+1 (555) 000-0000"
@@ -297,6 +301,7 @@ export function AddBusinessContactDialog({
                     className="h-9 text-xs"
                   />
                 </div>
+                <BusinessContactPaymentTermsField id={`${accountSide}-payment-terms`} value={form.payment_terms} onChange={(val) => setForm({ ...form, payment_terms: val })} />
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Billing Address</Label>
                   <Textarea
@@ -327,9 +332,7 @@ export function AddBusinessContactDialog({
 
           {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
           <DialogFooter className="mt-6">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button type="submit" disabled={mutation.isPending || !form.display_name.trim()}>
               {mutation.isPending ? "Adding..." : "Add contact"}
             </Button>

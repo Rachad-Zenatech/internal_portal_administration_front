@@ -22,7 +22,7 @@ interface Props {
 /** Creates a wire transfer or accounts payable request; captures general payment & full banking clearing fields. */
 export function CreateWireTransferDialog({ open, onOpenChange, onCreated, prefill, dialogTitle }: Props) {
   const s = useCreateWireTransfer(open, onOpenChange, onCreated, prefill);
-  const { wire, setWire, title, setTitle, requester, setRequester, department, setDepartment, glCode, setGlCode, setFile, fileInputRef, category, isRecurring, isSubmitting } = s;
+  const { wire, setWire, title, setTitle, requester, setRequester, department, setDepartment, glCode, setGlCode, setFile, fileInputRef, category, isRecurring, isSubmitting, isExtractingOcr } = s;
   const isPayable = (dialogTitle || "").toLowerCase().includes("payable");
   const attachmentLabel = isPayable ? "Attach Vendor Bill / Invoice PDF" : "Attach Wire Invoice / Payment Receipt";
 
@@ -85,6 +85,7 @@ export function CreateWireTransferDialog({ open, onOpenChange, onCreated, prefil
             fileInputRef={fileInputRef}
             onFileChange={setFile}
             isSubmitting={isSubmitting}
+            isExtractingOcr={isExtractingOcr}
           />
         </div>
 

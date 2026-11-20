@@ -46,7 +46,7 @@ export function useGlobalSettingsDialogActions(props: GlobalSettingsDialogProps)
   // Admin / Workflow settings (On-Hold Reminders, Recurring Due Dates, AR Invoices)
   const canManageAdminSettings =
     Boolean(isSuperAdmin || (!isRequester && !isPurchasing && (isAP || isTreasury)));
-  const [activeTab, setActiveTab] = useState<"hold" | "recurring" | "ar-invoices" | "preferences">(
+  const [activeTab, setActiveTab] = useState<"hold" | "recurring" | "eod-batch" | "ar-invoices" | "preferences">(
     canManageAdminSettings ? "hold" : "preferences"
   );
   useEffect(() => {

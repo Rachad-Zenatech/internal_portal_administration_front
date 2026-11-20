@@ -4,26 +4,30 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchComponentCard.tsx (95 lines) - match component card (pages  purchasing request detail sections three way matching)
-- `Props` (interface) L7
-- `MatchComponentCard` (export function) L19
+## src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchComponentCard.tsx (101 lines) - match component card (pages  purchasing request detail sections three way matching)
+- `Props` (interface) L8
+- `MatchComponentCard` (export function) L21
 
 ## src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchHeaderBanner.tsx (64 lines) - match header banner (pages  purchasing request detail sections three way matching)
 - `Props` (interface) L5
 - `MatchHeaderBanner` (export function) L9
 
+## src/pages/Purchasing/requestDetail/sections/threeWayMatching/PoNumberGeneratorPopover.tsx (77 lines) - po number generator popover (pages  purchasing request detail sections three way matching)
+- `Props` (interface) L9
+- `PoNumberGeneratorPopover` (export function) L15
+
 ## src/pages/Purchasing/requestDetail/sections/threeWayMatching/RouteToPaymentBanner.tsx (109 lines) - route to payment banner (pages  purchasing request detail sections three way matching)
 - `Props` (interface) L5
 - `RouteToPaymentBanner` (export function) L11
 
-## src/pages/Purchasing/requestDetail/sections/threeWayMatching/ThreeWayMatchingCard.tsx (99 lines) - three way matching card (pages  purchasing request detail sections three way matching)
-- `Props` (interface) L9
-- `ThreeWayMatchingCard` (export function) L13
+## src/pages/Purchasing/requestDetail/sections/threeWayMatching/ThreeWayMatchingCard.tsx (104 lines) - three way matching card (pages  purchasing request detail sections three way matching)
+- `Props` (interface) L10
+- `ThreeWayMatchingCard` (export function) L14
 
-## src/pages/Purchasing/requestDetail/sections/threeWayMatching/types.ts (32 lines) - types (pages  purchasing request detail sections three way matching)
+## src/pages/Purchasing/requestDetail/sections/threeWayMatching/types.ts (34 lines) - types (pages  purchasing request detail sections three way matching)
 - `MatchComponentState` (export type) L1
 - `ComponentDetails` (export interface) L3
-- `ThreeWayMatchSummary` (export interface) L21
+- `ThreeWayMatchSummary` (export interface) L23
 
-## src/pages/Purchasing/requestDetail/sections/threeWayMatching/useThreeWayMatching.ts (270 lines) - 1.
-- `useThreeWayMatching` (export function) L9
+## src/pages/Purchasing/requestDetail/sections/threeWayMatching/useThreeWayMatching.ts (306 lines) - 1.
+- `useThreeWayMatching` (export function) L10

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import { resolveUserDepartment } from "@/lib/userDepartment";
 import { useRolesList, useUsersList } from "@/hooks/usePurchasing";
+import { apiClient } from "@/services/apiClient";
 import { createRequest, getPreviousWirePayments, transitionRequest, uploadAttachments } from "@/services/purchasingService";
 import type { PreviousWirePayment, RequestCreateInput, WireTransferInput } from "@/types/purchasing";
 import { EMPTY_FORM, EMPTY_WIRE_FORM } from "../../purchaseRequests/constants";
@@ -42,6 +43,7 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
   const [file, setFile] = useState<File | null>(null);
   const [selectedPrevious, setSelectedPrevious] = useState<PreviousWirePayment | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExtractingOcr, setIsExtractingOcr] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const prefillApplied = useRef(false);
 
@@ -122,6 +124,38 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
     setGlCode("");
   };
 
+  const handleFileChange = async (nextFile: File | null) => {
+    setFile(nextFile);
+    if (!nextFile) return;
+    const isOcrSupported =
+      nextFile.type === "application/pdf" ||
+      nextFile.type.startsWith("image/") ||
+      /\.(pdf|png|jpe?g|webp)$/i.test(nextFile.name);
+    if (!isOcrSupported) return;
+
+    setIsExtractingOcr(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", nextFile);
+      const res = await apiClient.post<{ due_date?: string | null; due_date_formatted?: string | null; invoice_number?: string | null }>(
+        "/api/purchasing/extract-vendor-invoice-date",
+        formData
+      );
+      if (res?.due_date) {
+        setWire((prev) => ({
+          ...prev,
+          due_date: res.due_date || prev.due_date,
+          invoice_number: prev.invoice_number || res.invoice_number || prev.invoice_number,
+        }));
+        toast.success(`OCR extracted Date of Invoice: ${res.due_date_formatted || res.due_date} (set as Due Date)`);
+      }
+    } catch {
+      // Non-blocking: user can still enter due date manually
+    } finally {
+      setIsExtractingOcr(false);
+    }
+  };
+
   /** mode "draft": save as Draft. mode "submit": save and submit into the workflow right away. */
   const submit = async (mode: "draft" | "submit") => {
     const effectiveTitle = title.trim() || (wire.vendor ? `Payment for ${wire.vendor}${wire.invoice_number ? ` - Inv #${wire.invoice_number}` : ""}` : "");
@@ -183,8 +217,8 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
   };
 
   return {
-    wire, setWire, title, setTitle, requester, setRequester, department, setDepartment, glCode, setGlCode, file, setFile, fileInputRef,
+    wire, setWire, title, setTitle, requester, setRequester, department, setDepartment, glCode, setGlCode, file, setFile: handleFileChange, fileInputRef,
     category, isRecurring, previousPayments, isLoadingPrevious: previousQuery.isLoading, selectedPrevious,
-    applyPrevious, clearPrevious, isSubmitting, submit,
+    applyPrevious, clearPrevious, isSubmitting, isExtractingOcr, submit,
   };
 }

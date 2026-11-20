@@ -66,36 +66,21 @@ import {
 } from "@/hooks/useBusinessContact";
 import type { BusinessContactReference, BankingDetails } from "@/types/businessContact";
 
-function BankingDetailsCell({
-  banking,
-  contact,
-}: {
-  banking?: BankingDetails | null;
-  contact: BusinessContactReference;
-}) {
+function BankingDetailsCell({ banking, contact }: { banking?: BankingDetails | null; contact: BusinessContactReference }) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   if (!banking || typeof banking !== "object") {
-    return (
-      <span className="text-[11px] text-muted-foreground italic">
-        Not configured
-      </span>
-    );
+    return <span className="text-[11px] text-muted-foreground italic">Not configured</span>;
   }
 
   const hasBankingInfo =
-    Object.entries(banking).some(
-      ([k, v]) => k !== "bank_country" && typeof v === "string" && v.trim().length > 0
-    ) || Boolean(banking.bank_name?.trim());
+    Object.entries(banking).some(([k, v]) => k !== "bank_country" && typeof v === "string" && v.trim().length > 0) ||
+    Boolean(banking.bank_name?.trim());
 
   if (!hasBankingInfo) {
-    return (
-      <span className="text-[11px] text-muted-foreground italic">
-        Not configured
-      </span>
-    );
+    return <span className="text-[11px] text-muted-foreground italic">Not configured</span>;
   }
 
   const copyVal = (key: string, val: string) => {
@@ -437,6 +422,12 @@ function ContactSection({
             <div className="text-xs text-muted-foreground">{row.original.account_type}</div>
           </div>
         ),
+      },
+      {
+        accessorKey: "payment_terms",
+        header: "Payment Terms",
+        cell: ({ row }) =>
+          row.original.payment_terms ? <Badge variant="outline" className="text-[11px] font-medium">{row.original.payment_terms}</Badge> : "-",
       },
       {
         accessorKey: "full_name",

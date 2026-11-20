@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUpdateBusinessContact } from "@/hooks/useBusinessContact";
 import { PayeeBankingEditor } from "./PayeeBankingEditor";
+import { BusinessContactPaymentTermsField } from "./BusinessContactPaymentTermsField";
 import type { BusinessContactReference, BankingDetails } from "@/types/businessContact";
 
 export function EditBusinessContactDialog({ contact }: { contact: BusinessContactReference }) {
@@ -26,6 +27,7 @@ export function EditBusinessContactDialog({ contact }: { contact: BusinessContac
     full_name: contact.full_name || "",
     email: contact.email || "",
     phone_numbers: contact.phone_numbers || "",
+    payment_terms: contact.payment_terms || "",
     bill_address: contact.bill_address || "",
     ship_address: contact.ship_address || "",
   });
@@ -51,6 +53,7 @@ export function EditBusinessContactDialog({ contact }: { contact: BusinessContac
         full_name: contact.full_name || "",
         email: contact.email || "",
         phone_numbers: contact.phone_numbers || "",
+        payment_terms: contact.payment_terms || "",
         bill_address: contact.bill_address || "",
         ship_address: contact.ship_address || "",
       });
@@ -82,6 +85,7 @@ export function EditBusinessContactDialog({ contact }: { contact: BusinessContac
           full_name: form.full_name.trim() || null,
           email: form.email.trim() || null,
           phone_numbers: form.phone_numbers.trim() || null,
+          payment_terms: form.payment_terms.trim() || null,
           bill_address: form.bill_address.trim() || null,
           ship_address: form.ship_address.trim() || null,
           banking_details: hasBanking ? banking : null,
@@ -159,7 +163,7 @@ export function EditBusinessContactDialog({ contact }: { contact: BusinessContac
                     className="h-9 text-xs"
                   />
                 </div>
-                <div className="space-y-1.5 sm:col-span-2">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Phone</Label>
                   <Input
                     value={form.phone_numbers}
@@ -167,6 +171,7 @@ export function EditBusinessContactDialog({ contact }: { contact: BusinessContac
                     className="h-9 text-xs"
                   />
                 </div>
+                <BusinessContactPaymentTermsField id={`edit-payment-terms-${contact.id}`} value={form.payment_terms} onChange={(val) => setForm({ ...form, payment_terms: val })} />
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Billing Address</Label>
                   <Textarea
@@ -195,9 +200,7 @@ export function EditBusinessContactDialog({ contact }: { contact: BusinessContac
 
           {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
           <DialogFooter className="mt-6">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button type="submit" disabled={mutation.isPending || !form.display_name.trim()}>
               {mutation.isPending ? "Saving..." : "Save changes"}
             </Button>

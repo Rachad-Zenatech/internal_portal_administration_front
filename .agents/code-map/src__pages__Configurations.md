@@ -57,20 +57,20 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Configurations/OAuthConfiguration.tsx (242 lines) - o auth configuration (pages  configurations)
 - `OAuthConfiguration` (export function) L10
 
-## src/pages/Configurations/PayableContacts.tsx (750 lines) - payable contacts (pages  configurations)
+## src/pages/Configurations/PayableContacts.tsx (741 lines) - payable contacts (pages  configurations)
 - `BankingDetailsCell` (function) L69
-    - `copyVal` (fn) L101
-- `compactLines` (const) L356
-- `ContactSection` (function) L364
-    - `batchDeleteMutation` (fn) L384
-    - `selectedIds` (fn) L387
-    - `table` (fn) L511
-    - `handleBatchDelete` (fn) L523
-- `PayableContacts` (export function) L633
-    - `arQuery` (fn) L635
-    - `apQuery` (fn) L636
-    - `syncMutation` (fn) L637
-    - `handleSync` (fn) L643
+    - `copyVal` (fn) L86
+- `compactLines` (const) L341
+- `ContactSection` (function) L349
+    - `batchDeleteMutation` (fn) L369
+    - `selectedIds` (fn) L372
+    - `table` (fn) L502
+    - `handleBatchDelete` (fn) L514
+- `PayableContacts` (export function) L624
+    - `arQuery` (fn) L626
+    - `apQuery` (fn) L627
+    - `syncMutation` (fn) L628
+    - `handleSync` (fn) L634
 
 ## src/pages/Configurations/ProductsServices.tsx (396 lines) - products services (pages  configurations)
 - `ProductsServices` (export function) L13

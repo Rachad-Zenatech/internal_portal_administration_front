@@ -4,7 +4,7 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/Purchasing/utils/purchasingMeta.ts (337 lines) - Presentation metadata for Purchasing + Tasks.
+## src/pages/Purchasing/utils/purchasingMeta.ts (355 lines) - Presentation metadata for Purchasing + Tasks.
 - `STATUS_LABEL` (export const) L10 - spellings are absent on purpose — parseRequestStatus resolves them first.
 - `STATUS_BADGE` (export const) L26
 - `getStatusLabel` (export function) L43 - Display label for a raw API status.
@@ -23,16 +23,17 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `QUOTE_FLOW` (export const) L145
 - `STATUS_FILTER_OPTIONS` (export const) L162 - States offered in filter dropdowns: the superset pipeline plus the two exception  states.
 - `ACTION_META` (export const) L168
-- `formatDate` (export function) L187
-- `formatDateTime` (export function) L203
-- `formatMoney` (export function) L221
-- `TAX_RATE` (export const) L236
-- `ResolvedTaxRate` (export type) L238
-- `resolveTaxRate` (export function) L244 - Estimated tax rate for a request: delivery address first, then vendor location,  then the currency's country average; TAX_RATE only when ...
-- `formatActivityAction` (export function) L267
-- `formatActivityValue` (export function) L308
-- `REQUEST_TYPE_LABEL` (export const) L314
-- `formatRequestType` (export function) L331
+- `formatDateMmDdYyyy` (export function) L187
+- `formatDate` (export function) L205
+- `formatDateTime` (export function) L221
+- `formatMoney` (export function) L239
+- `TAX_RATE` (export const) L254
+- `ResolvedTaxRate` (export type) L256
+- `resolveTaxRate` (export function) L262 - Estimated tax rate for a request: delivery address first, then vendor location,  then the currency's country average; TAX_RATE only when ...
+- `formatActivityAction` (export function) L285
+- `formatActivityValue` (export function) L326
+- `REQUEST_TYPE_LABEL` (export const) L332
+- `formatRequestType` (export function) L349
 
 ## src/pages/Purchasing/utils/recurringScheduleUtils.ts (459 lines) - recurring schedule utils (pages  purchasing utils)
 - `FREQUENCY_LABELS` (export const) L5

@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { Settings, Bell, Send, PauseCircle, Calendar, Laptop, Receipt } from "lucide-react";
+import { Settings, Bell, Send, PauseCircle, Calendar, Laptop, Receipt, Clock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { useGlobalSettingsDialog } from "./globalSettingsDialog/hooks/useGlobalS
 import { EnableLongHeldItems } from "./globalSettingsDialog/sections/EnableLongHeldItems";
 import { EnableUpcomingDueDate } from "./globalSettingsDialog/sections/EnableUpcomingDueDate";
 import { ReminderThresholdsMonthlyAnnually } from "./globalSettingsDialog/sections/ReminderThresholdsMonthlyAnnually";
+import { BatchAndEodNotificationsSection } from "./globalSettingsDialog/sections/BatchAndEodNotificationsSection";
 
 export default function GlobalSettingsDialog(props: GlobalSettingsDialogProps) {
   const s = useGlobalSettingsDialog(props);
@@ -37,34 +38,26 @@ export default function GlobalSettingsDialog(props: GlobalSettingsDialogProps) {
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
           {canManageAdminSettings && (
             <div className="px-6 py-3 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/40 dark:bg-zinc-900/30">
-              <TabsList className="grid grid-cols-2 sm:grid-cols-4 h-auto sm:h-10 w-full bg-slate-200/70 dark:bg-zinc-800/70 p-1 rounded-xl gap-1">
-                <TabsTrigger
-                  value="hold"
-                  className="text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 h-8 rounded-lg transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs data-[state=active]:text-slate-900 dark:data-[state=active]:text-zinc-100"
-                >
-                  <PauseCircle className="h-4 w-4 text-amber-500 shrink-0" />
+              <TabsList className="grid grid-cols-2 sm:grid-cols-5 h-auto sm:h-10 w-full bg-slate-200/70 dark:bg-zinc-800/70 p-1 rounded-xl gap-1">
+                <TabsTrigger value="hold" className="text-xs font-semibold flex items-center justify-center gap-1.5 h-8 rounded-lg transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs">
+                  <PauseCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                   <span className="truncate">On-Hold</span>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="recurring"
-                  className="text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 h-8 rounded-lg transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs data-[state=active]:text-slate-900 dark:data-[state=active]:text-zinc-100"
-                >
-                  <Calendar className="h-4 w-4 text-indigo-500 shrink-0" />
+                <TabsTrigger value="recurring" className="text-xs font-semibold flex items-center justify-center gap-1.5 h-8 rounded-lg transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs">
+                  <Calendar className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
                   <span className="truncate">Purchasing Due</span>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="ar-invoices"
-                  className="text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 h-8 rounded-lg transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs data-[state=active]:text-slate-900 dark:data-[state=active]:text-zinc-100"
-                >
-                  <Receipt className="h-4 w-4 text-blue-500 shrink-0" />
-                  <span className="truncate">Invoice Due Reminders</span>
+                <TabsTrigger value="eod-batch" className="text-xs font-semibold flex items-center justify-center gap-1.5 h-8 rounded-lg transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs">
+                  <Clock className="h-3.5 w-3.5 text-sky-500 shrink-0" />
+                  <span className="truncate">EOD &amp; Batch</span>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="preferences"
-                  className="text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 h-8 rounded-lg transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs data-[state=active]:text-slate-900 dark:data-[state=active]:text-zinc-100"
-                >
-                  <Bell className="h-4 w-4 text-emerald-500 shrink-0" />
-                  <span className="truncate">App & Alerts</span>
+                <TabsTrigger value="ar-invoices" className="text-xs font-semibold flex items-center justify-center gap-1.5 h-8 rounded-lg transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs">
+                  <Receipt className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                  <span className="truncate">Invoice Due</span>
+                </TabsTrigger>
+                <TabsTrigger value="preferences" className="text-xs font-semibold flex items-center justify-center gap-1.5 h-8 rounded-lg transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:shadow-xs">
+                  <Bell className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <span className="truncate">App &amp; Alerts</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -77,7 +70,10 @@ export default function GlobalSettingsDialog(props: GlobalSettingsDialogProps) {
             {/* 2. RECURRING DUE DATES */}
             <EnableUpcomingDueDate s={s} />
 
-            {/* 3. A/R INVOICE DUE DATE REMINDERS */}
+            {/* 3. EOD PURCHASING REMINDERS & BATCH APPROVAL DIGEST */}
+            <BatchAndEodNotificationsSection s={s} />
+
+            {/* 4. A/R INVOICE DUE DATE REMINDERS */}
             <ReminderThresholdsMonthlyAnnually s={s} />
 
             {/* 3. PREFERENCES & ALERTS */}

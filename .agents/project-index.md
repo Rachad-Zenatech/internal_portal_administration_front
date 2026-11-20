@@ -11,7 +11,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/AppShell/ChatMessageRenderer.tsx (356 lines) - chat message renderer (components  app shell)
 - src/components/AppShell/ConnectionStatusLight.tsx (263 lines) - connection status light (components  app shell)
 - src/components/AppShell/FloatingChat.tsx (561 lines) - floating chat (components  app shell)
-- src/components/AppShell/GlobalSettingsDialog.tsx (148 lines) - global settings dialog (components  app shell)
+- src/components/AppShell/GlobalSettingsDialog.tsx (144 lines) - global settings dialog (components  app shell)
 - src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
 - src/components/AppShell/MessageHubStatusDropdown.tsx (571 lines) - message hub status dropdown (components  app shell)
 - src/components/AppShell/Navigation.tsx (160 lines) - navigation (components  app shell)
@@ -19,8 +19,10 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/AppShell/Sidebar.tsx (505 lines) - sidebar (components  app shell)
 - src/components/AppShell/ThemeSwitch.tsx (41 lines) - theme switch (components  app shell)
 - src/components/AppShell/TopBar.tsx (663 lines) - top bar (components  app shell)
-- src/components/AppShell/globalSettingsDialog/hooks/useGlobalSettingsDialog.ts (11 lines) - use global settings dialog (components  app shell global settings dialog hooks)
+- src/components/AppShell/globalSettingsDialog/hooks/useBatchAndEodNotifications.ts (95 lines) - use batch and eod notifications (components  app shell global settings dialog hooks)
+- src/components/AppShell/globalSettingsDialog/hooks/useGlobalSettingsDialog.ts (13 lines) - use global settings dialog (components  app shell global settings dialog hooks)
 - src/components/AppShell/globalSettingsDialog/hooks/useGlobalSettingsDialogActions.ts (282 lines) - use global settings dialog actions (components  app shell global settings dialog hooks)
+- src/components/AppShell/globalSettingsDialog/sections/BatchAndEodNotificationsSection.tsx (114 lines) - batch and eod notifications section (components  app shell global settings dialog sections)
 - src/components/AppShell/globalSettingsDialog/sections/EnableLongHeldItems.tsx (193 lines) - enable long held items (components  app shell global settings dialog sections)
 - src/components/AppShell/globalSettingsDialog/sections/EnableUpcomingDueDate.tsx (193 lines) - enable upcoming due date (components  app shell global settings dialog sections)
 - src/components/AppShell/globalSettingsDialog/sections/ReminderThresholdsMonthlyAnnually.tsx (302 lines) - reminder thresholds monthly annually (components  app shell global settings dialog sections)
@@ -34,9 +36,10 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/AppShell/notificationDropdown/utils.ts (318 lines) - Format notification text to remove underscores and capitalize status words
 - src/components/ChartOfAccounts/AddAccountDialog.tsx (146 lines) - add account dialog (components  chart of accounts)
 - src/components/ChartOfAccounts/COATable.tsx (522 lines) - c o a table (components  chart of accounts)
-- src/components/Configurations/AddBusinessContactDialog.tsx (342 lines) - add business contact dialog (components  configurations)
+- src/components/Configurations/AddBusinessContactDialog.tsx (345 lines) - add business contact dialog (components  configurations)
+- src/components/Configurations/BusinessContactPaymentTermsField.tsx (33 lines) - business contact payment terms field (components  configurations)
 - src/components/Configurations/DeleteBusinessContactDialog.tsx (54 lines) - delete business contact dialog (components  configurations)
-- src/components/Configurations/EditBusinessContactDialog.tsx (210 lines) - edit business contact dialog (components  configurations)
+- src/components/Configurations/EditBusinessContactDialog.tsx (213 lines) - edit business contact dialog (components  configurations)
 - src/components/Configurations/PayeeBankingEditor.tsx (666 lines) - payee banking editor (components  configurations)
 - src/components/Dashboard/AccountTypeDonut.tsx (132 lines) - account type donut (components  dashboard)
 - src/components/Dashboard/BankBalancesChart.tsx (159 lines) - bank balances chart (components  dashboard)
@@ -260,7 +263,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Configurations/Entities.tsx (84 lines) - entities (pages  configurations)
 - src/pages/Configurations/Locations.tsx (621 lines) - locations (pages  configurations)
 - src/pages/Configurations/OAuthConfiguration.tsx (242 lines) - o auth configuration (pages  configurations)
-- src/pages/Configurations/PayableContacts.tsx (750 lines) - payable contacts (pages  configurations)
+- src/pages/Configurations/PayableContacts.tsx (741 lines) - payable contacts (pages  configurations)
 - src/pages/Configurations/ProductsServices.tsx (396 lines) - products services (pages  configurations)
 - src/pages/Configurations/Projects.tsx (632 lines) - projects (pages  configurations)
 - src/pages/Configurations/RoleApiPermissions.tsx (411 lines) - We order actions so they appear logically: CREATE, READ (VIEW), UPDATE, DELETE
@@ -372,7 +375,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/components/masterTransactionsTable/types.ts (40 lines) - types (pages  purchasing components master transactions table)
 - src/pages/Purchasing/dialogs/ChangeLevel1ApproverModal.tsx (471 lines) - change level1 approver modal (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/ConvertToRecurringDialog.tsx (383 lines) - convert to recurring dialog (pages  purchasing dialogs)
-- src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (107 lines) - called after a wire transfer was created (so the wire page can reload its list)
+- src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx (108 lines) - called after a wire transfer was created (so the wire page can reload its list)
 - src/pages/Purchasing/dialogs/EditCombinedRequestDialog.tsx (247 lines) - edit combined request dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/EditRequestDialog.tsx (231 lines) - edit request dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/FilePreviewModal.tsx (246 lines) - file preview modal (pages  purchasing dialogs)
@@ -383,9 +386,9 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/dialogs/WireTransferDialog.tsx (269 lines) - wire transfer dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/createWireTransfer/AttachWireReceiptCard.tsx (28 lines) - attach wire receipt card (pages  purchasing dialogs create wire transfer)
 - src/pages/Purchasing/dialogs/createWireTransfer/CreateWireMetaFields.tsx (83 lines) - create wire meta fields (pages  purchasing dialogs create wire transfer)
-- src/pages/Purchasing/dialogs/createWireTransfer/PayableGlAndAttachmentFields.tsx (55 lines) - GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog.
+- src/pages/Purchasing/dialogs/createWireTransfer/PayableGlAndAttachmentFields.tsx (65 lines) - GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog.
 - src/pages/Purchasing/dialogs/createWireTransfer/PreviousPaymentPicker.tsx (68 lines) - Rent / Note are paid again and again: pick the last payment and the bank details come with it.
-- src/pages/Purchasing/dialogs/createWireTransfer/useCreateWireTransfer.ts (191 lines) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
+- src/pages/Purchasing/dialogs/createWireTransfer/useCreateWireTransfer.ts (225 lines) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
 - src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequest.ts (13 lines) - use edit combined request (pages  purchasing dialogs edit combined request hooks)
 - src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequestActions.ts (453 lines) - use edit combined request actions (pages  purchasing dialogs edit combined request hooks)
 - src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequestActions2.ts (522 lines) - Multi-parts calculations
@@ -567,12 +570,13 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/requestDetail/sections/TopDetailsGrid.tsx (117 lines) - top details grid (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/TopNavigationRecordActions.tsx (100 lines) - top navigation record actions (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/WorkflowStepperSection.tsx (57 lines) - workflow stepper section (pages  purchasing request detail sections)
-- src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchComponentCard.tsx (95 lines) - match component card (pages  purchasing request detail sections three way matching)
+- src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchComponentCard.tsx (101 lines) - match component card (pages  purchasing request detail sections three way matching)
 - src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchHeaderBanner.tsx (64 lines) - match header banner (pages  purchasing request detail sections three way matching)
+- src/pages/Purchasing/requestDetail/sections/threeWayMatching/PoNumberGeneratorPopover.tsx (77 lines) - po number generator popover (pages  purchasing request detail sections three way matching)
 - src/pages/Purchasing/requestDetail/sections/threeWayMatching/RouteToPaymentBanner.tsx (109 lines) - route to payment banner (pages  purchasing request detail sections three way matching)
-- src/pages/Purchasing/requestDetail/sections/threeWayMatching/ThreeWayMatchingCard.tsx (99 lines) - three way matching card (pages  purchasing request detail sections three way matching)
-- src/pages/Purchasing/requestDetail/sections/threeWayMatching/types.ts (32 lines) - types (pages  purchasing request detail sections three way matching)
-- src/pages/Purchasing/requestDetail/sections/threeWayMatching/useThreeWayMatching.ts (270 lines) - 1.
+- src/pages/Purchasing/requestDetail/sections/threeWayMatching/ThreeWayMatchingCard.tsx (104 lines) - three way matching card (pages  purchasing request detail sections three way matching)
+- src/pages/Purchasing/requestDetail/sections/threeWayMatching/types.ts (34 lines) - types (pages  purchasing request detail sections three way matching)
+- src/pages/Purchasing/requestDetail/sections/threeWayMatching/useThreeWayMatching.ts (306 lines) - 1.
 - src/pages/Purchasing/requestDetail/types.ts (2 lines) - types (pages  purchasing request detail)
 - src/pages/Purchasing/secureInfoRequest/components/RequestAccountDetailsDialog.tsx (200 lines) - request account details dialog (pages  purchasing secure info request components)
 - src/pages/Purchasing/secureInfoRequest/components/SendCodeDialog.tsx (77 lines) - send code dialog (pages  purchasing secure info request components)
@@ -582,7 +586,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/secureInfoRequest/hooks/useSecureInfoRequestActions.tsx (224 lines) - use secure info request actions (pages  purchasing secure info request hooks)
 - src/pages/Purchasing/secureInfoRequest/types.ts (40 lines) - types (pages  purchasing secure info request)
 - src/pages/Purchasing/secureInfoRequest/utils.ts (23 lines) - True when a regular message looks like it contains a password, so we can suggest the secure form.
-- src/pages/Purchasing/utils/purchasingMeta.ts (337 lines) - Presentation metadata for Purchasing + Tasks.
+- src/pages/Purchasing/utils/purchasingMeta.ts (355 lines) - Presentation metadata for Purchasing + Tasks.
 - src/pages/Purchasing/utils/recurringScheduleUtils.ts (459 lines) - recurring schedule utils (pages  purchasing utils)
 - src/pages/Reports/Reports.tsx (96 lines) - src/pages/Reports.tsx
 - src/pages/Settings/Settings.tsx (12 lines) - src/pages/Settings.tsx
@@ -609,7 +613,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/types/ar.ts (204 lines) - ar (types)
 - src/types/bankAccount.ts (11 lines) - bank account (types)
 - src/types/bankFeedRule.ts (39 lines) - bank feed rule (types)
-- src/types/businessContact.ts (108 lines) - business contact (types)
+- src/types/businessContact.ts (111 lines) - business contact (types)
 - src/types/chartOfAccount.ts (25 lines) - chart of account (types)
 - src/types/classification.ts (149 lines) - classification (types)
 - src/types/dashboard.ts (45 lines) - dashboard (types)

@@ -2,6 +2,7 @@ import { Send, CheckCircle2, Receipt } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { MatchHeaderBanner } from "./MatchHeaderBanner";
 import { MatchComponentCard } from "./MatchComponentCard";
+import { PoNumberGeneratorPopover } from "./PoNumberGeneratorPopover";
 import { RouteToPaymentBanner } from "./RouteToPaymentBanner";
 import { useThreeWayMatching } from "./useThreeWayMatching";
 import type { RequestDetailViewState } from "../../hooks/useRequestDetailTail";
@@ -14,6 +15,9 @@ export function ThreeWayMatchingCard({ v }: Props) {
   const { onAction } = v;
   const {
     summary,
+    currentPoNumber,
+    isSavingPoNumber,
+    handleSavePoNumber,
     togglePo,
     toggleReceipt,
     toggleInvoice,
@@ -48,6 +52,7 @@ export function ThreeWayMatchingCard({ v }: Props) {
           <MatchComponentCard
             component={summary.po}
             onToggleReady={togglePo}
+            headerAction={<PoNumberGeneratorPopover currentPoNumber={currentPoNumber} isSaving={isSavingPoNumber} onSave={handleSavePoNumber} />}
             actionButton={summary.po.state !== "PRESENT" && v.available_actions.includes("APPROVE") ? {
               label: "Approve PO",
               onClick: () => onAction("APPROVE"),

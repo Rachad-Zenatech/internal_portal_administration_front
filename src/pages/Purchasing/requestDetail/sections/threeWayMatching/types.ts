@@ -10,6 +10,8 @@ export interface ComponentDetails {
   amount?: number;
   currency?: string;
   date?: string;
+  dateLabel?: string;
+  paymentTerms?: string;
   actor?: string;
   department?: string;
   notes?: string;

@@ -12,16 +12,16 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `Props` (interface) L5
 - `CreateWireMetaFields` (export function) L17
 
-## src/pages/Purchasing/dialogs/createWireTransfer/PayableGlAndAttachmentFields.tsx (55 lines) - GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog.
+## src/pages/Purchasing/dialogs/createWireTransfer/PayableGlAndAttachmentFields.tsx (65 lines) - GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog.
 - `Props` (interface) L5
-- `PayableGlAndAttachmentFields` (export function) L15 - GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog.
+- `PayableGlAndAttachmentFields` (export function) L16 - GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog.
 
 ## src/pages/Purchasing/dialogs/createWireTransfer/PreviousPaymentPicker.tsx (68 lines) - Rent / Note are paid again and again: pick the last payment and the bank details come with it.
 - `Props` (interface) L7
 - `PreviousPaymentPicker` (export function) L17 - Rent / Note are paid again and again: pick the last payment and the bank details come with it.
 
-## src/pages/Purchasing/dialogs/createWireTransfer/useCreateWireTransfer.ts (191 lines) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
-- `todayIso` (const) L13
-- `addOneMonth` (export function) L16 - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
-- `WirePrefill` (export type) L28 - Open the dialog already filled from an earlier Rent/Note payment ("Create next payment").
-- `useCreateWireTransfer` (export function) L30
+## src/pages/Purchasing/dialogs/createWireTransfer/useCreateWireTransfer.ts (225 lines) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
+- `todayIso` (const) L14
+- `addOneMonth` (export function) L17 - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
+- `WirePrefill` (export type) L29 - Open the dialog already filled from an earlier Rent/Note payment ("Create next payment").
+- `useCreateWireTransfer` (export function) L31

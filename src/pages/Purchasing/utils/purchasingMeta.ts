@@ -184,6 +184,24 @@ export const ACTION_META: Record<WorkflowAction, { label: string; form?: "po" | 
   COMPLETE: { label: "Complete", variant: "default" },
 };
 
+export function formatDateMmDdYyyy(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    if (typeof iso === "string" && /^\d{4}-\d{2}-\d{2}/.test(iso)) {
+      const [year, month, day] = iso.slice(0, 10).split("-");
+      return `${month.padStart(2, "0")}/${day.padStart(2, "0")}/${year}`;
+    }
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch {
+    return String(iso);
+  }
+}
+
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {

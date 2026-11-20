@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CheckCircle2, AlertCircle, AlertTriangle, Send, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import type { ComponentDetails } from "./types";
 interface Props {
   component: ComponentDetails;
   onToggleReady?: () => void;
+  headerAction?: ReactNode;
   actionButton?: {
     label: string;
     onClick: () => void;
@@ -16,8 +18,8 @@ interface Props {
   };
 }
 
-export function MatchComponentCard({ component, onToggleReady, actionButton }: Props) {
-  const { title, subtitle, state, stateLabel, primaryInfo, secondaryInfo, amount, currency, date, actor, department, notes } = component;
+export function MatchComponentCard({ component, onToggleReady, headerAction, actionButton }: Props) {
+  const { title, subtitle, state, stateLabel, primaryInfo, secondaryInfo, amount, currency, date, dateLabel, paymentTerms, actor, department, notes } = component;
 
   return (
     <div className={`p-4 rounded-xl border flex flex-col justify-between transition-all ${
@@ -31,7 +33,10 @@ export function MatchComponentCard({ component, onToggleReady, actionButton }: P
         {/* Header with Title and Component Status Badge */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h4 className="text-xs font-bold text-slate-900 dark:text-zinc-100">{title}</h4>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-zinc-100">{title}</h4>
+              {headerAction}
+            </div>
             <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{subtitle}</p>
           </div>
           <button
@@ -67,7 +72,8 @@ export function MatchComponentCard({ component, onToggleReady, actionButton }: P
               Total: {formatMoney(amount, currency)}
             </div>
           )}
-          {date && <div className="text-[10.5px] text-slate-400">Date: {date}</div>}
+          {date && <div className="text-[10.5px] text-slate-500 dark:text-zinc-400 font-mono">{dateLabel || "Date"}: {date}</div>}
+          {paymentTerms && <div className="text-[10.5px] text-indigo-600 dark:text-indigo-400 font-medium">Payment Terms: {paymentTerms}</div>}
           {actor && <div className="text-[10.5px] text-slate-500 dark:text-zinc-400">By: {actor}</div>}
           {department && !actor && <div className="text-[10.5px] text-slate-500 dark:text-zinc-400">Dept: {department}</div>}
           {notes && <div className="text-[10.5px] italic text-slate-600 dark:text-zinc-300 border-t pt-1 mt-1">{notes}</div>}

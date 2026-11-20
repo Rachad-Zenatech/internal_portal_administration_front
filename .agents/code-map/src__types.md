@@ -35,15 +35,15 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `BankFeedRuleCreate` (export interface) L26
 - `BankFeedRuleUpdate` (export interface) L33
 
-## src/types/businessContact.ts (108 lines) - business contact (types)
+## src/types/businessContact.ts (111 lines) - business contact (types)
 - `BankingDetails` (export interface) L1
 - `BusinessContactReference` (export interface) L27
-- `BusinessContactCreateRequest` (export interface) L48
-- `BusinessContactUpdateRequest` (export interface) L65
-- `BusinessContactDeleteResult` (export interface) L81
-- `BusinessContactBatchDeleteResult` (export interface) L86
-- `BusinessContactReferenceList` (export interface) L91
-- `BusinessContactSyncResult` (export interface) L102
+- `BusinessContactCreateRequest` (export interface) L49
+- `BusinessContactUpdateRequest` (export interface) L67
+- `BusinessContactDeleteResult` (export interface) L84
+- `BusinessContactBatchDeleteResult` (export interface) L89
+- `BusinessContactReferenceList` (export interface) L94
+- `BusinessContactSyncResult` (export interface) L105
 
 ## src/types/chartOfAccount.ts (25 lines) - chart of account (types)
 - `ChartOfAccount` (export interface) L1
