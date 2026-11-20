@@ -7,14 +7,30 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx (100 lines) - filters search toolbar (pages  purchasing invoices sections)
 - `FiltersSearchToolbar` (export function) L7
 
+## src/pages/Purchasing/invoices/sections/InvoiceActionsCell.tsx (38 lines) - invoice actions cell (pages  purchasing invoices sections)
+- `Props` (interface) L4
+- `InvoiceActionsCell` (export function) L10
+
+## src/pages/Purchasing/invoices/sections/InvoiceDueDateCell.tsx (32 lines) - invoice due date cell (pages  purchasing invoices sections)
+- `Props` (interface) L4
+- `InvoiceDueDateCell` (export function) L10
+
+## src/pages/Purchasing/invoices/sections/InvoiceItemVendorCell.tsx (70 lines) - invoice item vendor cell (pages  purchasing invoices sections)
+- `Props` (interface) L4
+- `InvoiceItemVendorCell` (export function) L10
+
+## src/pages/Purchasing/invoices/sections/InvoiceTaskRow.tsx (99 lines) - invoice task row (pages  purchasing invoices sections)
+- `Props` (interface) L9
+- `InvoiceTaskRow` (export function) L21
+
 ## src/pages/Purchasing/invoices/sections/KpiSummaryCards.tsx (168 lines) - kpi summary cards (pages  purchasing invoices sections)
 - `KpiSummaryCards` (export function) L6
 
 ## src/pages/Purchasing/invoices/sections/ReadOnlyWireInfo.tsx (326 lines) - read only wire info (pages  purchasing invoices sections)
 - `ReadOnlyWireInfo` (export function) L8
 
-## src/pages/Purchasing/invoices/sections/TableCard.tsx (294 lines) - table card (pages  purchasing invoices sections)
-- `TableCard` (export function) L10
+## src/pages/Purchasing/invoices/sections/TableCard.tsx (85 lines) - table card (pages  purchasing invoices sections)
+- `TableCard` (export function) L8
 
 ## src/pages/Purchasing/invoices/sections/TravelStipendsTable.tsx (474 lines) - travel stipends table (pages  purchasing invoices sections)
 - `TravelStipend` (export interface) L31
@@ -25,3 +41,7 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
     - `filteredStipends` (fn) L110
     - `renderStatusBadge` (fn) L127
     - `fit` (fn) L166
+
+## src/pages/Purchasing/invoices/sections/WireBankingDetailsCell.tsx (76 lines) - wire banking details cell (pages  purchasing invoices sections)
+- `Props` (interface) L3
+- `WireBankingDetailsCell` (export function) L9

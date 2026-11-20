@@ -6,14 +6,17 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 
 ## src/pages/Purchasing/WorkflowAuto/constants/workflowComboSources.ts (99 lines) - Fields whose id is "department" but whose label is "Class" use the Classes master table.
 - `inferComboSource` (export function) L25 - Fields whose id is "department" but whose label is "Class" use the Classes master table.
-- `REQUIRED_STATUSES` (export const) L37 - Statuses every A/P auto flow must cover (the 7 lifecycle states).
+- `REQUIRED_STATUSES` (export const) L37 - Statuses every A/P auto flow must cover (including 3-way matching intake: Approved PO, Goods/Service Confirmed, Vendor Invoice).
 - `PURCHASE_REQUIRED_STATUSES` (export const) L42 - Purchase Request flows (/purchasing/requests) add review, purchase, shipping and receiving states (12 total).
 - `requiredStatusesFor` (export const) L47
 - `CompletenessItem` (export interface) L50
 - `computeWorkflowCompleteness` (export function) L59 - Scores a workflow: all lifecycle states present, every action target exists, every directory field is a bound combobox.
 - `applyComboSources` (export function) L87 - Converts every directory-backed field of a workflow to the correct combobox (one-click "Fix all").
 
-## src/pages/Purchasing/WorkflowAuto/constants/workflowFieldCatalog.ts (781 lines) - workflow field catalog (pages  purchasing  workflow auto constants)
-- `CatalogFieldType` (export type) L1
-- `CatalogWorkflowField` (export interface) L3
-- `WORKFLOW_FIELD_CATALOG` (export const) L14
+## src/pages/Purchasing/WorkflowAuto/constants/workflowFieldCatalog.ts (500 lines) - workflow field catalog (pages  purchasing  workflow auto constants)
+- `CatalogFieldType` (export type) L3
+- `CatalogWorkflowField` (export interface) L5
+- `WORKFLOW_FIELD_CATALOG` (export const) L16
+
+## src/pages/Purchasing/WorkflowAuto/constants/workflowFieldCatalogAp.ts (305 lines) - workflow field catalog ap (pages  purchasing  workflow auto constants)
+- `WORKFLOW_FIELD_CATALOG_AP` (export const) L3

@@ -13,13 +13,13 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `AuthProvider` (export function) L54
 - `useAuth` (export function) L195
 
-## src/lib/requestStatus.ts (126 lines) - The only place raw status strings are interpreted.
+## src/lib/requestStatus.ts (128 lines) - The only place raw status strings are interpreted.
 - `REQUEST_STATUSES` (export const) L11 - All members, in no particular order.
-- `normalise` (function) L70 - Upper-case, trim, collapse whitespace to underscores.
-- `parseRequestStatus` (export function) L86 - Convert an arbitrary API/DB value into a workflow state.
-- `PIPELINE_ORDER` (export const) L103 - Canonical pipeline order — the single source of truth for "how far along".
-- `pipelineRank` (export function) L117 - Position in the pipeline, or null for states that sit outside it.
-- `isExceptionStatus` (export function) L123 - States that interrupt the pipeline rather than advance it.
+- `normalise` (function) L71 - Upper-case, trim, collapse whitespace to underscores.
+- `parseRequestStatus` (export function) L87 - Convert an arbitrary API/DB value into a workflow state.
+- `PIPELINE_ORDER` (export const) L104 - Canonical pipeline order — the single source of truth for "how far along".
+- `pipelineRank` (export function) L119 - Position in the pipeline, or null for states that sit outside it.
+- `isExceptionStatus` (export function) L125 - States that interrupt the pipeline rather than advance it.
 
 ## src/lib/sanitizeHtml.ts (61 lines) - Allowlist HTML sanitizer for rich email/quote previews rendered with dangerouslySetInnerHTML.
 - `safeHref` (export function) L18 - Allow only http(s) and mailto URLs after stripping ASCII control characters and spaces.

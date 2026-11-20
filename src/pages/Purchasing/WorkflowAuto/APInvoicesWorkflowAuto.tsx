@@ -20,8 +20,8 @@ const AP_FLOW_OPTIONS: FlowOption[] = [
     badge: "Invoices & Payables",
     label: "Create a Payable Flow",
     icon: Receipt,
-    description: "Standard vendor bill intake, GL account coding, invoice verification, approval and disbursement.",
-    subtitle: "Interactive customizable workflow builder for Create a Payable / Vendor Invoices. Configure GL coding steps, PO matching, and payment release.",
+    description: "Three-way matching intake: tracks Approved PO, department confirmation of completed services, and vendor invoice before payment release.",
+    subtitle: "AP 3-way matching workflow builder for Create a Payable / Vendor Invoices. Focuses AP on invoice & PO matching (pre-coded); routes to payment-ready queue.",
   },
   {
     key: "invoices",

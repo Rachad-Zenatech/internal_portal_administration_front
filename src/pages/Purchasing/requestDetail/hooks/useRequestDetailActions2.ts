@@ -30,7 +30,7 @@ export function useRequestDetailActions2(ctx: RequestDetailGuardedState) {
   };
   let flow = SPEND_FLOW;
   if (request.request_type === "ADMIN") flow = ADMIN_FLOW;
-  else if (request.request_type === "ACCOUNTS_PAYABLE") flow = wireFlowFor(data?.wire_transfer?.category, request.status);
+  else if (request.request_type === "ACCOUNTS_PAYABLE" || (!isRecurring && Boolean(data?.wire_transfer))) flow = wireFlowFor(data?.wire_transfer?.category, request.status);
   else if (request.request_type === "RECURRING") flow = RECURRING_FLOW;
   else if (request.request_type === "QUOTE") flow = QUOTE_FLOW;
   const dispatch = async (payload: TransitionInput): Promise<boolean> => {

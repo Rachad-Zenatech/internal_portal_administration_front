@@ -4,6 +4,14 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
+## src/pages/Purchasing/dialogs/createWireTransfer/AttachWireReceiptCard.tsx (28 lines) - attach wire receipt card (pages  purchasing dialogs create wire transfer)
+- `Props` (interface) L4
+- `AttachWireReceiptCard` (export function) L9
+
+## src/pages/Purchasing/dialogs/createWireTransfer/CreateWireMetaFields.tsx (83 lines) - create wire meta fields (pages  purchasing dialogs create wire transfer)
+- `Props` (interface) L5
+- `CreateWireMetaFields` (export function) L17
+
 ## src/pages/Purchasing/dialogs/createWireTransfer/PayableGlAndAttachmentFields.tsx (55 lines) - GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog.
 - `Props` (interface) L5
 - `PayableGlAndAttachmentFields` (export function) L15 - GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog.

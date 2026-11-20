@@ -523,6 +523,7 @@ export type WireTransferInput = {
   conversion_rate?: string | null;
   pay_from?: string | null;
   invoice_number?: string | null;
+  po_number?: string | null;
   comments?: string | null;
   vendor_address?: string | null;
   bank_address?: string | null;

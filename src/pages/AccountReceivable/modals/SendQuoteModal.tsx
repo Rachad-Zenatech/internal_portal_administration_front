@@ -191,11 +191,10 @@ export function SendQuoteModal({
         <div className="space-y-4 py-2 text-xs">
           {statusMsg && (
             <div
-              className={`p-3 rounded-xl border text-xs font-medium flex items-center gap-2 ${
-                statusMsg.type === "success"
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : "bg-rose-50 text-rose-700 border-rose-200"
-              }`}
+              className={`p-3 rounded-xl border text-xs font-medium flex items-center gap-2 ${statusMsg.type === "success"
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : "bg-rose-50 text-rose-700 border-rose-200"
+                }`}
             >
               {statusMsg.type === "success" ? (
                 <CheckCircle2 className="w-4 h-4 shrink-0" />

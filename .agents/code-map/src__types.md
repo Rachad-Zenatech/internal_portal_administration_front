@@ -85,7 +85,7 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `GLSuggestion` (export type) L16 - One AI chart-of-accounts candidate for a request.
 - `GLSuggestions` (export type) L26 - AI chart-of-accounts suggestions, worked out once on the server and saved on the request.
 
-## src/types/purchasing.ts (815 lines) - purchasing (types)
+## src/types/purchasing.ts (816 lines) - purchasing (types)
 - `TaskHistoryItem` (export interface) L5
 - `RequestType` (export type) L17
 - `Priority` (export type) L19
@@ -127,30 +127,30 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `HoldInput` (export type) L502
 - `ConfirmGoodsInput` (export type) L506
 - `WireTransferInput` (export type) L512
-- `WirePaymentSeries` (export type) L556 - Rent / Note wire payments: where this payment sits in its series, e.g.
-- `WireTransfer` (export type) L563
-- `WireSeriesPayment` (export type) L572 - One payment of a Rent/Note wire series (each payment is its own request).
-- `WireSeriesPayments` (export type) L589
-- `PreviousWirePayment` (export type) L604 - Latest payment of a Rent/Note series, used to pre-fill the next payment.
-- `TransitionInput` (export type) L620
-- `ItemMode` (export type) L637
-- `PurchaseRequestItem` (export interface) L639
-- `QuoteItem` (export interface) L658
-- `QuoteVendor` (export interface) L673
-- `QuoteCustomer` (export interface) L680
-- `QuoteTotals` (export interface) L685
-- `QuoteCurrencyConversion` (export interface) L693
-- `QuoteExtractionResult` (export interface) L712
-- `QuoteValidationResult` (export interface) L727
-- `QuoteExtractionResponse` (export interface) L735
-- `BatchApprovalInput` (export interface) L745
-- `BatchRejectInput` (export interface) L750
-- `BatchNotificationSettings` (export interface) L755
-- `RecurringNotificationSettings` (export type) L765
-- `OnHoldReminderSettings` (export type) L779
-- `ProjectGroupItem` (export interface) L790
-- `ProjectGroupCreateInput` (export interface) L804
-- `ProjectGroupUpdateInput` (export interface) L810
+- `WirePaymentSeries` (export type) L557 - Rent / Note wire payments: where this payment sits in its series, e.g.
+- `WireTransfer` (export type) L564
+- `WireSeriesPayment` (export type) L573 - One payment of a Rent/Note wire series (each payment is its own request).
+- `WireSeriesPayments` (export type) L590
+- `PreviousWirePayment` (export type) L605 - Latest payment of a Rent/Note series, used to pre-fill the next payment.
+- `TransitionInput` (export type) L621
+- `ItemMode` (export type) L638
+- `PurchaseRequestItem` (export interface) L640
+- `QuoteItem` (export interface) L659
+- `QuoteVendor` (export interface) L674
+- `QuoteCustomer` (export interface) L681
+- `QuoteTotals` (export interface) L686
+- `QuoteCurrencyConversion` (export interface) L694
+- `QuoteExtractionResult` (export interface) L713
+- `QuoteValidationResult` (export interface) L728
+- `QuoteExtractionResponse` (export interface) L736
+- `BatchApprovalInput` (export interface) L746
+- `BatchRejectInput` (export interface) L751
+- `BatchNotificationSettings` (export interface) L756
+- `RecurringNotificationSettings` (export type) L766
+- `OnHoldReminderSettings` (export type) L780
+- `ProjectGroupItem` (export interface) L791
+- `ProjectGroupCreateInput` (export interface) L805
+- `ProjectGroupUpdateInput` (export interface) L811
 
 ## src/types/search.ts (8 lines) - search (types)
 - `SearchResult` (export type) L1

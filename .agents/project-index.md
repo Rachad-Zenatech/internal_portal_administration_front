@@ -63,7 +63,8 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/common/LinkifiedText.tsx (50 lines) - linkified text (components common)
 - src/components/common/ProtectedRoute.tsx (81 lines) - protected route (components common)
 - src/components/common/QRCodeDisplay.tsx (59 lines) - q r code display (components common)
-- src/components/common/Stepper.tsx (250 lines) - Ordered workflow states (ADMIN_FLOW, SPEND_FLOW, RECURRING_FLOW, QUOTE_FLOW)
+- src/components/common/Stepper.tsx (261 lines) - Ordered workflow states (ADMIN_FLOW, SPEND_FLOW, RECURRING_FLOW, QUOTE_FLOW)
+- src/components/common/StepperStepNode.tsx (89 lines) - stepper step node (components common)
 - src/components/ui/FloatingVerticalFilter.tsx (290 lines) - floating vertical filter (components ui)
 - src/components/ui/HelpIcon.tsx (30 lines) - help icon (components ui)
 - src/components/ui/PageConnectionBanner.tsx (65 lines) - page connection banner (components ui)
@@ -113,7 +114,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/hooks/useStreamingChat.ts (169 lines) - use streaming chat (hooks)
 - src/hooks/useTasks.ts (42 lines) - use tasks (hooks)
 - src/lib/AuthContext.tsx (202 lines) - auth context (lib)
-- src/lib/requestStatus.ts (126 lines) - The only place raw status strings are interpreted.
+- src/lib/requestStatus.ts (128 lines) - The only place raw status strings are interpreted.
 - src/lib/sanitizeHtml.ts (61 lines) - Allowlist HTML sanitizer for rich email/quote previews rendered with dangerouslySetInnerHTML.
 - src/lib/userDepartment.ts (170 lines) - user department (lib)
 - src/lib/utils.ts (7 lines) - utils (lib)
@@ -183,7 +184,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/AccountReceivable/modals/NewWorkflowModal.tsx (328 lines) - new workflow modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/OverridePriceModal.tsx (131 lines) - override price modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/QuoteDetailDrawer.tsx (12 lines) - quote detail drawer (pages  account receivable modals)
-- src/pages/AccountReceivable/modals/SendQuoteModal.tsx (386 lines) - send quote modal (pages  account receivable modals)
+- src/pages/AccountReceivable/modals/SendQuoteModal.tsx (385 lines) - send quote modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/WorkflowDetailDrawer.tsx (12 lines) - workflow detail drawer (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/addSeatsAddonsModal/hooks/useAddSeatsAddonsModal.ts (10 lines) - use add seats addons modal (pages  account receivable modals add seats addons modal hooks)
 - src/pages/AccountReceivable/modals/addSeatsAddonsModal/hooks/useAddSeatsAddonsModalActions.ts (288 lines) - Fetch existing subscriptions for customer
@@ -342,13 +343,15 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/WorkflowAuto/APInvoicesWorkflowAuto.tsx (90 lines) - a p invoices workflow auto (pages  purchasing  workflow auto)
 - src/pages/Purchasing/WorkflowAuto/PurchaseRequestsWorkflowAuto.tsx (90 lines) - purchase requests workflow auto (pages  purchasing  workflow auto)
 - src/pages/Purchasing/WorkflowAuto/WorkflowAutoCanvas.tsx (395 lines) - workflow auto canvas (pages  purchasing  workflow auto)
-- src/pages/Purchasing/WorkflowAuto/components/PipelineStepperCard.tsx (87 lines) - pipeline stepper card (pages  purchasing  workflow auto components)
+- src/pages/Purchasing/WorkflowAuto/components/PipelineStepItem.tsx (114 lines) - pipeline step item (pages  purchasing  workflow auto components)
+- src/pages/Purchasing/WorkflowAuto/components/PipelineStepperCard.tsx (105 lines) - pipeline stepper card (pages  purchasing  workflow auto components)
 - src/pages/Purchasing/WorkflowAuto/components/SimulatorPanel.tsx (104 lines) - simulator panel (pages  purchasing  workflow auto components)
 - src/pages/Purchasing/WorkflowAuto/components/StageCardNode.tsx (587 lines) - stage card node (pages  purchasing  workflow auto components)
 - src/pages/Purchasing/WorkflowAuto/components/WorkflowComboboxField.tsx (77 lines) - workflow combobox field (pages  purchasing  workflow auto components)
 - src/pages/Purchasing/WorkflowAuto/components/WorkflowCompletenessCard.tsx (60 lines) - Percentage checklist: lifecycle states present, action targets valid, directory fields bound to the right combobox.
 - src/pages/Purchasing/WorkflowAuto/constants/workflowComboSources.ts (99 lines) - Fields whose id is "department" but whose label is "Class" use the Classes master table.
-- src/pages/Purchasing/WorkflowAuto/constants/workflowFieldCatalog.ts (781 lines) - workflow field catalog (pages  purchasing  workflow auto constants)
+- src/pages/Purchasing/WorkflowAuto/constants/workflowFieldCatalog.ts (500 lines) - workflow field catalog (pages  purchasing  workflow auto constants)
+- src/pages/Purchasing/WorkflowAuto/constants/workflowFieldCatalogAp.ts (305 lines) - workflow field catalog ap (pages  purchasing  workflow auto constants)
 - src/pages/Purchasing/WorkflowAuto/dialogs/ChangeOwnerModal.tsx (164 lines) - change owner modal (pages  purchasing  workflow auto dialogs)
 - src/pages/Purchasing/WorkflowAuto/dialogs/EditActionModal.tsx (591 lines) - edit action modal (pages  purchasing  workflow auto dialogs)
 - src/pages/Purchasing/WorkflowAuto/dialogs/EditStageModal.tsx (517 lines) - edit stage modal (pages  purchasing  workflow auto dialogs)
@@ -378,6 +381,8 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/dialogs/QuickBooksItemDetailsDialog.tsx (12 lines) - quick books item details dialog (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/ScheduleBreakdownModal.tsx (579 lines) - schedule breakdown modal (pages  purchasing dialogs)
 - src/pages/Purchasing/dialogs/WireTransferDialog.tsx (269 lines) - wire transfer dialog (pages  purchasing dialogs)
+- src/pages/Purchasing/dialogs/createWireTransfer/AttachWireReceiptCard.tsx (28 lines) - attach wire receipt card (pages  purchasing dialogs create wire transfer)
+- src/pages/Purchasing/dialogs/createWireTransfer/CreateWireMetaFields.tsx (83 lines) - create wire meta fields (pages  purchasing dialogs create wire transfer)
 - src/pages/Purchasing/dialogs/createWireTransfer/PayableGlAndAttachmentFields.tsx (55 lines) - GL Account / Category selector and bill/receipt file upload for CreateWireTransferDialog.
 - src/pages/Purchasing/dialogs/createWireTransfer/PreviousPaymentPicker.tsx (68 lines) - Rent / Note are paid again and again: pick the last payment and the bank details come with it.
 - src/pages/Purchasing/dialogs/createWireTransfer/useCreateWireTransfer.ts (191 lines) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
@@ -450,10 +455,15 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/invoices/hooks/useInvoices.ts (9 lines) - use invoices (pages  purchasing invoices hooks)
 - src/pages/Purchasing/invoices/hooks/useInvoicesActions.ts (357 lines) - The sidebar sub-menu links here with ?status=WAITING_PAYMENT, ?status=ON_HOLD, ...
 - src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx (100 lines) - filters search toolbar (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/InvoiceActionsCell.tsx (38 lines) - invoice actions cell (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/InvoiceDueDateCell.tsx (32 lines) - invoice due date cell (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/InvoiceItemVendorCell.tsx (70 lines) - invoice item vendor cell (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/InvoiceTaskRow.tsx (99 lines) - invoice task row (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/KpiSummaryCards.tsx (168 lines) - kpi summary cards (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/ReadOnlyWireInfo.tsx (326 lines) - read only wire info (pages  purchasing invoices sections)
-- src/pages/Purchasing/invoices/sections/TableCard.tsx (294 lines) - table card (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/TableCard.tsx (85 lines) - table card (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/TravelStipendsTable.tsx (474 lines) - travel stipends table (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/WireBankingDetailsCell.tsx (76 lines) - wire banking details cell (pages  purchasing invoices sections)
 - src/pages/Purchasing/myApprovals/hooks/useMyApprovals.ts (9 lines) - use my approvals (pages  purchasing my approvals hooks)
 - src/pages/Purchasing/myApprovals/hooks/useMyApprovalsData.ts (176 lines) - Dialog & Drawer state
 - src/pages/Purchasing/myApprovals/sections/MainApprovalsTable.tsx (265 lines) - main approvals table (pages  purchasing my approvals sections)
@@ -521,7 +531,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/recurringPayments/sections/RecurringRequestsTable.tsx (305 lines) - recurring requests table (pages  purchasing recurring payments sections)
 - src/pages/Purchasing/recurringPayments/types.ts (6 lines) - types (pages  purchasing recurring payments)
 - src/pages/Purchasing/recurringPayments/utils.ts (20 lines) - utils (pages  purchasing recurring payments)
-- src/pages/Purchasing/requestDetail/RequestDetailBody.tsx (565 lines) - request detail body (pages  purchasing request detail)
+- src/pages/Purchasing/requestDetail/RequestDetailBody.tsx (382 lines) - request detail body (pages  purchasing request detail)
 - src/pages/Purchasing/requestDetail/components/AssignedUsersField.tsx (45 lines) - assigned users field (pages  purchasing request detail components)
 - src/pages/Purchasing/requestDetail/components/AttachmentDropzone.tsx (174 lines) - attachment dropzone (pages  purchasing request detail components)
 - src/pages/Purchasing/requestDetail/components/Field.tsx (9 lines) - field (pages  purchasing request detail components)
@@ -536,6 +546,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions3.ts (357 lines) - use request detail actions3 (pages  purchasing request detail hooks)
 - src/pages/Purchasing/requestDetail/hooks/useRequestDetailTail.ts (12 lines) - use request detail tail (pages  purchasing request detail hooks)
 - src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx (289 lines) - action form fields (pages  purchasing request detail sections)
+- src/pages/Purchasing/requestDetail/sections/ApprovalActionForm.tsx (70 lines) - approval action form (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/ApprovalsTab.tsx (174 lines) - approvals tab (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/AttachmentsTab.tsx (104 lines) - attachments tab (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/CurrentReferenceInfo.tsx (126 lines) - current reference info (pages  purchasing request detail sections)
@@ -546,6 +557,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (433 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx (151 lines) - Extraction and the chart-of-accounts suggestions run once on the server (when the request is created, or in
 - src/pages/Purchasing/requestDetail/sections/RedirectApprovalDialog.tsx (158 lines) - redirect approval dialog (pages  purchasing request detail sections)
+- src/pages/Purchasing/requestDetail/sections/RequestDetailActionDialog.tsx (97 lines) - request detail action dialog (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/RequestOverview.tsx (107 lines) - request overview (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/Tab2LineItems.tsx (226 lines) - tab2 line items (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/Tab4InvoiceBill.tsx (163 lines) - newest first; a wire transfer keeps every payment that was recorded for it
@@ -554,6 +566,13 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/requestDetail/sections/Tab7PaymentHistory.tsx (145 lines) - tab7 payment history (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/TopDetailsGrid.tsx (117 lines) - top details grid (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/TopNavigationRecordActions.tsx (100 lines) - top navigation record actions (pages  purchasing request detail sections)
+- src/pages/Purchasing/requestDetail/sections/WorkflowStepperSection.tsx (57 lines) - workflow stepper section (pages  purchasing request detail sections)
+- src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchComponentCard.tsx (95 lines) - match component card (pages  purchasing request detail sections three way matching)
+- src/pages/Purchasing/requestDetail/sections/threeWayMatching/MatchHeaderBanner.tsx (64 lines) - match header banner (pages  purchasing request detail sections three way matching)
+- src/pages/Purchasing/requestDetail/sections/threeWayMatching/RouteToPaymentBanner.tsx (109 lines) - route to payment banner (pages  purchasing request detail sections three way matching)
+- src/pages/Purchasing/requestDetail/sections/threeWayMatching/ThreeWayMatchingCard.tsx (99 lines) - three way matching card (pages  purchasing request detail sections three way matching)
+- src/pages/Purchasing/requestDetail/sections/threeWayMatching/types.ts (32 lines) - types (pages  purchasing request detail sections three way matching)
+- src/pages/Purchasing/requestDetail/sections/threeWayMatching/useThreeWayMatching.ts (270 lines) - 1.
 - src/pages/Purchasing/requestDetail/types.ts (2 lines) - types (pages  purchasing request detail)
 - src/pages/Purchasing/secureInfoRequest/components/RequestAccountDetailsDialog.tsx (200 lines) - request account details dialog (pages  purchasing secure info request components)
 - src/pages/Purchasing/secureInfoRequest/components/SendCodeDialog.tsx (77 lines) - send code dialog (pages  purchasing secure info request components)
@@ -563,7 +582,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/secureInfoRequest/hooks/useSecureInfoRequestActions.tsx (224 lines) - use secure info request actions (pages  purchasing secure info request hooks)
 - src/pages/Purchasing/secureInfoRequest/types.ts (40 lines) - types (pages  purchasing secure info request)
 - src/pages/Purchasing/secureInfoRequest/utils.ts (23 lines) - True when a regular message looks like it contains a password, so we can suggest the secure form.
-- src/pages/Purchasing/utils/purchasingMeta.ts (331 lines) - Presentation metadata for Purchasing + Tasks.
+- src/pages/Purchasing/utils/purchasingMeta.ts (337 lines) - Presentation metadata for Purchasing + Tasks.
 - src/pages/Purchasing/utils/recurringScheduleUtils.ts (459 lines) - recurring schedule utils (pages  purchasing utils)
 - src/pages/Reports/Reports.tsx (96 lines) - src/pages/Reports.tsx
 - src/pages/Settings/Settings.tsx (12 lines) - src/pages/Settings.tsx
@@ -596,7 +615,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/types/dashboard.ts (45 lines) - dashboard (types)
 - src/types/entity.ts (59 lines) - entity (types)
 - src/types/productAi.ts (33 lines) - Product details extracted from a vendor URL, and the AI chart-of-accounts suggestions saved on a request.
-- src/types/purchasing.ts (815 lines) - purchasing (types)
+- src/types/purchasing.ts (816 lines) - purchasing (types)
 - src/types/search.ts (8 lines) - search (types)
 - src/types/uploadArchive.ts (26 lines) - upload archive (types)
 - src/utils/compressAttachment.ts (78 lines) - Safely compresses image attachments before upload.

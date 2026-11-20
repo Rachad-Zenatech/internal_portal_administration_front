@@ -4,7 +4,7 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/Purchasing/utils/purchasingMeta.ts (331 lines) - Presentation metadata for Purchasing + Tasks.
+## src/pages/Purchasing/utils/purchasingMeta.ts (337 lines) - Presentation metadata for Purchasing + Tasks.
 - `STATUS_LABEL` (export const) L10 - spellings are absent on purpose — parseRequestStatus resolves them first.
 - `STATUS_BADGE` (export const) L26
 - `getStatusLabel` (export function) L43 - Display label for a raw API status.
@@ -16,23 +16,23 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `SPEND_FLOW` (export const) L81
 - `RECURRING_FLOW` (export const) L94
 - `ACCOUNTS_PAYABLE_FLOW` (export const) L100
-- `WIRE_OTHERS_FLOW` (export const) L109 - Wire transfer "Others": Draft -> Waiting Approval (Company Level 2) -> Waiting Payment -> Completed.
-- `WIRE_RECURRING_FLOW` (export const) L117 - Wire transfer "Rent" / "Note": Draft -> Waiting Payment -> Completed (repeats for every payment period).
-- `isRecurringWireCategory` (export function) L124 - Rent and Note wire transfers are recurring payments: no approval step and a "Nth payment" series.
-- `wireFlowFor` (export function) L133 - Stage list for a wire transfer.
-- `QUOTE_FLOW` (export const) L139
-- `STATUS_FILTER_OPTIONS` (export const) L156 - States offered in filter dropdowns: the superset pipeline plus the two exception  states.
-- `ACTION_META` (export const) L162
-- `formatDate` (export function) L181
-- `formatDateTime` (export function) L197
-- `formatMoney` (export function) L215
-- `TAX_RATE` (export const) L230
-- `ResolvedTaxRate` (export type) L232
-- `resolveTaxRate` (export function) L238 - Estimated tax rate for a request: delivery address first, then vendor location,  then the currency's country average; TAX_RATE only when ...
-- `formatActivityAction` (export function) L261
-- `formatActivityValue` (export function) L302
-- `REQUEST_TYPE_LABEL` (export const) L308
-- `formatRequestType` (export function) L325
+- `WIRE_OTHERS_FLOW` (export const) L112 - Accounts Payable 3-Way Matching Workflow (for "Others" in Create a Payable): Draft -> Waiting Approval -> Approved PO -> Goods/Service Co...
+- `WIRE_RECURRING_FLOW` (export const) L123 - Wire transfer "Rent" / "Note": Draft -> Waiting Payment -> Completed (repeats for every payment period).
+- `isRecurringWireCategory` (export function) L130 - Rent and Note wire transfers are recurring payments: no approval step and a "Nth payment" series.
+- `wireFlowFor` (export function) L139 - Stage list for a wire transfer.
+- `QUOTE_FLOW` (export const) L145
+- `STATUS_FILTER_OPTIONS` (export const) L162 - States offered in filter dropdowns: the superset pipeline plus the two exception  states.
+- `ACTION_META` (export const) L168
+- `formatDate` (export function) L187
+- `formatDateTime` (export function) L203
+- `formatMoney` (export function) L221
+- `TAX_RATE` (export const) L236
+- `ResolvedTaxRate` (export type) L238
+- `resolveTaxRate` (export function) L244 - Estimated tax rate for a request: delivery address first, then vendor location,  then the currency's country average; TAX_RATE only when ...
+- `formatActivityAction` (export function) L267
+- `formatActivityValue` (export function) L308
+- `REQUEST_TYPE_LABEL` (export const) L314
+- `formatRequestType` (export function) L331
 
 ## src/pages/Purchasing/utils/recurringScheduleUtils.ts (459 lines) - recurring schedule utils (pages  purchasing utils)
 - `FREQUENCY_LABELS` (export const) L5

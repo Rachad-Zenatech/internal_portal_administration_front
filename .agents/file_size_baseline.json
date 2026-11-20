@@ -113,16 +113,8 @@
       "max_lines": 519,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
-    "src/pages/Purchasing/requestDetail/RequestDetailBody.tsx": {
-      "max_lines": 564,
-      "reason": "Over the limit when the check was introduced; split it when you next work on it."
-    },
     "src/pages/Purchasing/WorkflowAuto/components/StageCardNode.tsx": {
       "max_lines": 586,
-      "reason": "Over the limit when the check was introduced; split it when you next work on it."
-    },
-    "src/pages/Purchasing/WorkflowAuto/constants/workflowFieldCatalog.ts": {
-      "max_lines": 780,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/pages/Purchasing/WorkflowAuto/dialogs/EditActionModal.tsx": {
@@ -150,11 +142,11 @@
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/services/purchasingService.ts": {
-      "max_lines": 790,
+      "max_lines": 785,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/types/purchasing.ts": {
-      "max_lines": 823,
+      "max_lines": 815,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/utils/glAccountUtils.tsx": {
@@ -444,7 +436,7 @@
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/modals/SendQuoteModal.tsx#SendQuoteModal": {
-      "max_lines": 210,
+      "max_lines": 209,
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/modals/workflowDetailDrawer/sections/DrawerHeader.tsx#DrawerHeader": {
@@ -735,10 +727,6 @@
       "max_lines": 202,
       "kind": "jsx_return"
     },
-    "src/pages/Purchasing/dialogs/CreateWireTransferDialog.tsx#CreateWireTransferDialog": {
-      "max_lines": 83,
-      "kind": "jsx_return"
-    },
     "src/pages/Purchasing/dialogs/editCombinedRequest/sections/Card1GeneralOverview.tsx#Card1GeneralOverview": {
       "max_lines": 269,
       "kind": "jsx_return"
@@ -919,10 +907,6 @@
       "max_lines": 315,
       "kind": "jsx_return"
     },
-    "src/pages/Purchasing/invoices/sections/TableCard.tsx#TableCard": {
-      "max_lines": 276,
-      "kind": "jsx_return"
-    },
     "src/pages/Purchasing/invoices/sections/TravelStipendsTable.tsx#TravelStipendsTable": {
       "max_lines": 305,
       "kind": "jsx_return"
@@ -1084,7 +1068,7 @@
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/requestDetail/RequestDetailBody.tsx#RequestDetailBody": {
-      "max_lines": 518,
+      "max_lines": 342,
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx#ActionFormFields": {
@@ -1120,7 +1104,7 @@
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx#ProductVendorUrlAi": {
-      "max_lines": 190,
+      "max_lines": 104,
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/requestDetail/sections/RedirectApprovalDialog.tsx#RedirectApprovalDialog": {
