@@ -231,6 +231,7 @@ export type Invoice = {
   asset_flag: boolean;
   department?: string | null;
   from_location?: string | null;
+  region?: string | null;
   invoice_type?: string | null;
   description?: string | null;
   interest?: number | null;
@@ -477,6 +478,7 @@ export type InvoiceInput = {
   asset_flag?: boolean;
   department?: string | null;
   from_location?: string | null;
+  region?: string | null;
   invoice_type?: string | null;
   description?: string | null;
   interest?: number | string | null;
@@ -801,13 +803,11 @@ export interface ProjectGroupItem {
   created_at?: string | null;
   updated_at?: string | null;
 }
-
 export interface ProjectGroupCreateInput {
   name: string;
   code: string;
   description?: string | null;
 }
-
 export interface ProjectGroupUpdateInput {
   name?: string | null;
   code?: string | null;

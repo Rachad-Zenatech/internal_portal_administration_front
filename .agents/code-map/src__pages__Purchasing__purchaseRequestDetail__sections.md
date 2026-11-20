@@ -16,8 +16,12 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Purchasing/purchaseRequestDetail/sections/MainRequestHeaderBanner.tsx (362 lines) - main request header banner (pages  purchasing purchase request detail sections)
 - `MainRequestHeaderBanner` (export function) L10
 
-## src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx (378 lines) - Receipts belong to one payment: an installment only lists the files saved for that installment,
-- `RecordInvoiceDialog` (export function) L12
+## src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx (341 lines) - Receipts belong to one payment: an installment only lists the files saved for that installment,
+- `RecordInvoiceDialog` (export function) L14
+
+## src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceFinancialSection.tsx (66 lines) - record invoice financial section (pages  purchasing purchase request detail sections)
+- `RecordInvoiceFinancialSectionProps` (interface) L3
+- `RecordInvoiceFinancialSection` (export function) L8
 
 ## src/pages/Purchasing/purchaseRequestDetail/sections/RequestDetailsPropertyTable.tsx (163 lines) - request details property table (pages  purchasing purchase request detail sections)
 - `RequestDetailsPropertyTable` (export function) L8

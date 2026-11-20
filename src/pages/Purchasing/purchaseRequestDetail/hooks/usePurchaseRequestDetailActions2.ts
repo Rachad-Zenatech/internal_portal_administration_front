@@ -87,6 +87,7 @@ export function usePurchaseRequestDetailActions2(ctx: PurchaseRequestDetailGuard
       gl_code: request?.gl_code || invoice?.gl_code || "",
       department: request?.department || "General",
       from_location: (request as any)?.from_location || "USA",
+      region: (request as any)?.region || invoice?.region || "",
       asset_flag: Boolean(request?.request_type === "SCHEDULED_PAYMENT" || request?.request_type === "RECURRING" || invoice?.asset_flag),
       description: `Payment for Installment #${instNum} (${formatDate(instDate)}) - ${request?.title || ""}`,
       interest: rawInterest,

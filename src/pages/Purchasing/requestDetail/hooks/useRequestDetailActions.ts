@@ -130,6 +130,7 @@ export function useRequestDetailActions() {
     asset_flag: false,
     department: "",
     from_location: "",
+    region: "",
   });
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItemInput[]>([]);
   const [approval, setApproval] = useState<ApprovalInput>({ approver: "", comment: "" });

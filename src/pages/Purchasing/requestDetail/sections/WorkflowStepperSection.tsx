@@ -9,7 +9,9 @@ import type { RequestDetailViewState } from "../hooks/useRequestDetailTail";
 
 export function WorkflowStepperSection({ v }: { v: RequestDetailViewState }) {
   const { flow, request, data, isRecurring, isSelfApprovalBlocked } = v;
-  const isThreeWay = (request.request_type === "ACCOUNTS_PAYABLE" || Boolean(data?.wire_transfer)) && !isRecurring;
+  const wireCat = String(data?.wire_transfer?.category || "").trim().toLowerCase();
+  const isOther = !wireCat || wireCat === "others" || wireCat === "other";
+  const isThreeWay = (request.request_type === "ACCOUNTS_PAYABLE" || Boolean(data?.wire_transfer)) && !isRecurring && isOther;
 
   return (
     <div className="space-y-4">

@@ -25,11 +25,14 @@ export function CreateWireMetaFields({
   department,
   setDepartment,
 }: Props) {
-  const isPayable = dialogTitle === "Create a payable";
+  const isPayable = (dialogTitle || "").toLowerCase().includes("payable");
+  const cat = String(wire.category || "Others").trim().toLowerCase();
+  const isOther = cat === "others" || cat === "other";
+  const showThreeWay = isPayable && isOther;
 
   return (
     <div className="space-y-4">
-      {isPayable && (
+      {showThreeWay && (
         <div className="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 text-xs flex items-start gap-2.5">
           <Receipt className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
@@ -44,7 +47,7 @@ export function CreateWireMetaFields({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        <div className={`space-y-1.5 ${isPayable ? "md:col-span-3" : "md:col-span-6"}`}>
+        <div className={`space-y-1.5 ${showThreeWay ? "md:col-span-3" : "md:col-span-6"}`}>
           <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Title</label>
           <Input
             value={title}
@@ -53,7 +56,7 @@ export function CreateWireMetaFields({
             className="h-9 text-sm"
           />
         </div>
-        {isPayable && (
+        {showThreeWay && (
           <div className="space-y-1.5 md:col-span-3">
             <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">PO # / Match Ref</label>
             <Input

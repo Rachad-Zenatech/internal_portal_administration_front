@@ -10,7 +10,7 @@ import type { useEditCombinedRequestActions } from "./useEditCombinedRequestActi
 
 export function useEditCombinedRequestActions2(props: EditCombinedRequestDialogProps, ctx: ReturnType<typeof useEditCombinedRequestActions>) {
   const { onOpenChange, refetch } = props;
-  const { requestItems, reqGlCode, title, sku, setRequestItems, amount, unitPrice, quantity, setItemMode, setInvAmount, setPoAmount, isPricingSynced, poShippingFee, poUnitPrice, setPoQuantity, setAmount, setQuantity, poQuantity, setPoUnitPrice, setUnitPrice, reqCurrency, invVendor, poVendor, shippingAddress, poCurrency, setPoCurrency, setReqCurrency, setInvItems, invItems, setInvGlCode, setPoGlCode, setReqGlCode, setPoShippingFee, invAssetFlag, itemMode, apWireForm, request, wireTransfer, requestType, updateMutation, invGlCode, invDescription, poGlCode, invFromLocation, invDepartment, invDueDate, invDate, invAmount, hasInvoice, poDescription, poAmount, poGoodsReceived, poGoodsReceivedNote, poShippingNote, poTrackingNumber, poExpectedDeliveryDate, poShippedTo, poPaymentMethod, poItem, poQuoteNumber, hasPo, schedStartDate, dueDate, schedFrequency, isScheduled, projectName, description, itemUrl, priority, phoneNumber, department, requester, schedEndDate, schedDates, setActiveTab, isCompleted } = ctx;
+  const { requestItems, reqGlCode, title, sku, setRequestItems, amount, unitPrice, quantity, setItemMode, setInvAmount, setPoAmount, isPricingSynced, poShippingFee, poUnitPrice, setPoQuantity, setAmount, setQuantity, poQuantity, setPoUnitPrice, setUnitPrice, reqCurrency, invVendor, poVendor, shippingAddress, poCurrency, setPoCurrency, setReqCurrency, setInvItems, invItems, setInvGlCode, setPoGlCode, setReqGlCode, setPoShippingFee, invAssetFlag, itemMode, apWireForm, request, wireTransfer, requestType, updateMutation, invGlCode, invDescription, poGlCode, invFromLocation, invRegion, invDepartment, invDueDate, invDate, invAmount, hasInvoice, poDescription, poAmount, poGoodsReceived, poGoodsReceivedNote, poShippingNote, poTrackingNumber, poExpectedDeliveryDate, poShippedTo, poPaymentMethod, poItem, poQuoteNumber, hasPo, schedStartDate, dueDate, schedFrequency, isScheduled, projectName, description, itemUrl, priority, phoneNumber, department, requester, schedEndDate, schedDates, setActiveTab, isCompleted } = ctx;
   // Multi-parts calculations
   const itemsSubtotal = useMemo(() => {
     return requestItems.reduce(
@@ -464,7 +464,7 @@ export function useEditCombinedRequestActions2(props: EditCombinedRequestDialogP
         invoice_date: invDate || new Date().toISOString().split("T")[0],
         due_date: invDueDate || null,
         department: invDepartment.trim() || null,
-        from_location: invFromLocation.trim() || null,
+        from_location: invFromLocation.trim() || null, region: invRegion?.trim() || null,
         gl_code: invGlCode.trim() || poGlCode.trim() || reqGlCode.trim() || null,
         asset_flag: invAssetFlag,
         description: invDescription.trim() || null,

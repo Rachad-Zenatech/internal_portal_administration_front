@@ -2,6 +2,8 @@ import { FileText, Receipt, X, UploadCloud, Trash2, Eye } from "lucide-react";
 import { BankAccountAutocomplete } from "../../fields/BankAccountAutocomplete";
 import { CategoryAutocomplete } from "../../fields/CategoryAutocomplete";
 import LocationAutocomplete from "../../fields/LocationAutocomplete";
+import RegionAutocomplete from "../../fields/RegionAutocomplete";
+import { RecordInvoiceFinancialSection } from "./RecordInvoiceFinancialSection";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -113,67 +115,28 @@ export function RecordInvoiceDialog({ v }: { v: PurchaseRequestDetailViewState }
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                  Region / Location
+                  Region
+                </label>
+                <RegionAutocomplete
+                  value={invoiceForm.region}
+                  onChange={(val) => setInvoiceForm({ ...invoiceForm, region: val })}
+                  placeholder="Select or enter region..."
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Location
                 </label>
                 <LocationAutocomplete
                   value={invoiceForm.from_location}
                   onChange={(val) => setInvoiceForm({ ...invoiceForm, from_location: val })}
-                  placeholder="Select or enter region / location..."
+                  placeholder="Select or enter location..."
                 />
               </div>
 
               {/* Financial Breakdown (Interest, Principal Paid, Remaining Balance) */}
-              <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 space-y-2">
-                <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                  Financial Breakdown (Schedule Details)
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400">Interest</label>
-                    <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">$</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="—"
-                        value={invoiceForm.interest}
-                        onChange={(e) => setInvoiceForm({ ...invoiceForm, interest: e.target.value })}
-                        className="pl-6 text-xs font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400">Principal Paid</label>
-                    <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">$</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="—"
-                        value={invoiceForm.principal_paid}
-                        onChange={(e) => setInvoiceForm({ ...invoiceForm, principal_paid: e.target.value })}
-                        className="pl-6 text-xs font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400">Remaining Balance</label>
-                    <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">$</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="—"
-                        value={invoiceForm.balance}
-                        onChange={(e) => setInvoiceForm({ ...invoiceForm, balance: e.target.value })}
-                        className="pl-6 text-xs font-mono"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <RecordInvoiceFinancialSection invoiceForm={invoiceForm} setInvoiceForm={setInvoiceForm} />
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Notes / Description</label>

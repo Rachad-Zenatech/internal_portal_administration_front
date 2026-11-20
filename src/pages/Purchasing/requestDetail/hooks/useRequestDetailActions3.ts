@@ -75,6 +75,7 @@ export function useRequestDetailActions3(ctx: RequestDetailGuardedState & Return
             due_date: cleanDueDate,
             department: invoice.department?.trim() || undefined,
             from_location: invoice.from_location?.trim() || undefined,
+            region: invoice.region?.trim() || undefined,
             gl_code: invoice.gl_code?.trim() || (invoiceItems.length > 0 ? invoiceItems[0].gl_code?.trim() : undefined),
             items: isMulti ? invoiceItems.map(it => ({
               ...it,
