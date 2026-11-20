@@ -6,6 +6,8 @@
 // What is already over a limit is listed in .agents/file_size_baseline.json and may only shrink.
 //
 //   node .agents/check_file_sizes.mjs            check (fails on anything new over a limit, or a baselined item that grew)
+//   node .agents/check_file_sizes.mjs --changed  check only modified/untracked files (fast)
+//   node .agents/check_file_sizes.mjs <file...>  check only specified files
 //   node .agents/check_file_sizes.mjs --update   lower baselined ceilings to today's sizes and drop items back under the
 //                                                limit (never raises a ceiling: split the code instead)
 //   node .agents/check_file_sizes.mjs --init     baseline everything over a limit now (first setup only)
@@ -32,9 +34,35 @@ const HOW = {
   py_function: "split it into smaller functions, or move a step into its own module",
 };
 
-const sources = execSync("git ls-files --cached --others --exclude-standard", { cwd: ROOT, encoding: "utf8" })
+const args = process.argv.slice(2);
+const explicitFiles = args.filter((a) => !a.startsWith("-"));
+const changedFlag = args.includes("--changed");
+
+let fileFilter = null;
+if (explicitFiles.length > 0) {
+  fileFilter = new Set(explicitFiles.map((f) => f.replace(/\\/g, "/")));
+} else if (changedFlag) {
+  try {
+    const statusOut = execSync("git status --porcelain -uall", { cwd: ROOT, encoding: "utf8" });
+    const changed = statusOut
+      .split("\n")
+      .map((l) => l.slice(3).trim())
+      .filter(Boolean)
+      .map((f) => f.replace(/^"|"$/g, "").replace(/\\/g, "/"));
+    fileFilter = new Set(changed);
+  } catch {
+    fileFilter = null;
+  }
+}
+
+let sources = execSync("git ls-files --cached --others --exclude-standard", { cwd: ROOT, encoding: "utf8" })
   .split("\n")
+  .map((f) => f.trim().replace(/\\/g, "/"))
   .filter((f) => f && SOURCE.test(f) && !SKIP.test(f) && !SKIP_FILE.test(f) && existsSync(join(ROOT, f)));
+
+if (fileFilter) {
+  sources = sources.filter((f) => fileFilter.has(f) || [...fileFilter].some((ef) => f.endsWith(ef)));
+}
 
 const indentOf = (l) => l.match(/^\s*/)[0].length;
 
@@ -127,8 +155,10 @@ const judge = (key, n, limit, entry, what, how, store, staleList) => {
 for (const [f, n] of Object.entries(fileSizes)) judge(f, n, LIMIT, files[f], "the file", HOW.file, files, stale.files);
 for (const [k, { n, kind }] of Object.entries(blockSizes))
   judge(k, n, BLOCK_LIMITS[kind], blocks[k], kind === "jsx_return" ? "its JSX return" : "the function", HOW[kind], blocks, stale.blocks);
-for (const f of Object.keys(files)) if (!(f in fileSizes)) stale.files.push(f);
-for (const k of Object.keys(blocks)) if (!(k in blockSizes)) stale.blocks.push(k);
+if (!fileFilter) {
+  for (const f of Object.keys(files)) if (!(f in fileSizes)) stale.files.push(f);
+  for (const k of Object.keys(blocks)) if (!(k in blockSizes)) stale.blocks.push(k);
+}
 
 if (mode === "update") {
   stale.files.forEach((f) => delete files[f]);
@@ -141,7 +171,11 @@ if (errors.length) {
   process.exit(1);
 }
 if (mode === "check") {
-  const n = stale.files.length + stale.blocks.length;
-  console.log(`Code size check passed (${sources.length} files; limits: file ${LIMIT}, JSX return ${BLOCK_LIMITS.jsx_return}, Python function ${BLOCK_LIMITS.py_function}).` +
-    (n ? ` ${n} baselined item(s) are now small enough: run with --update to drop them.` : ""));
+  if (fileFilter) {
+    console.log(`Code size check passed (${sources.length} modified file(s) checked; limits: file ${LIMIT}, JSX return ${BLOCK_LIMITS.jsx_return}, Python function ${BLOCK_LIMITS.py_function}).`);
+  } else {
+    const n = stale.files.length + stale.blocks.length;
+    console.log(`Code size check passed (${sources.length} files; limits: file ${LIMIT}, JSX return ${BLOCK_LIMITS.jsx_return}, Python function ${BLOCK_LIMITS.py_function}).` +
+      (n ? ` ${n} baselined item(s) are now small enough: run with --update to drop them.` : ""));
+  }
 }
