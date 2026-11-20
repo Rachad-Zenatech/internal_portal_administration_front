@@ -50,7 +50,7 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `useDeleteEntity` (export function) L46
 - `useBatchDeleteEntities` (export function) L57
 
-## src/hooks/useHeartbeat.ts (44 lines) - Track user activity
+## src/hooks/useHeartbeat.ts (47 lines) - Track user activity (throttled + passive to avoid main-thread scroll/mousemove overhead)
 - `useHeartbeat` (export function) L4
 
 ## src/hooks/useHubSpotCompanies.ts (51 lines) - Live progress of the background companies sync; polls every second only while a sync is running.

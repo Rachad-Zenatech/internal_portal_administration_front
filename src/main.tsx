@@ -31,7 +31,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // Data remains "fresh" for 5 minutes before checking for background updates
-      staleTime: 1000 * 60 * 5, 
+      staleTime: 1000 * 60 * 5,
+      refetchOnWindowFocus: false, 
       retry: (failureCount, error: unknown) => {
         const status =
           typeof error === "object" && error !== null && "status" in error

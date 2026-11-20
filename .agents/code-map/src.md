@@ -8,4 +8,4 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `NotFoundAlert` (function) L52
 - `App` (function) L70
 
-## src/main.tsx (65 lines) - Automatically reload once if a new deployment removed old hashed chunks
+## src/main.tsx (66 lines) - Automatically reload once if a new deployment removed old hashed chunks

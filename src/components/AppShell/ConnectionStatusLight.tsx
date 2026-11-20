@@ -98,9 +98,9 @@ export function ConnectionStatusLight({ className = "" }: { className?: string }
         };
       }
     },
-    staleTime: 15000,
-    refetchInterval: 30000,
-    refetchOnWindowFocus: true,
+    staleTime: 30000,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const overallStatus = isError ? "offline" : data?.status ?? "healthy";

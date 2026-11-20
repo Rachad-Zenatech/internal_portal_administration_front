@@ -65,17 +65,17 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/components/AppShell/NotificationDropdown.tsx (149 lines) - notification dropdown (components  app shell)
 - `NotificationDropdownContent` (export function) L11
 
-## src/components/AppShell/Sidebar.tsx (507 lines) - sidebar (components  app shell)
+## src/components/AppShell/Sidebar.tsx (505 lines) - sidebar (components  app shell)
 - `SidebarUser` (interface) L15
 - `SidebarNavigationItem` (interface) L20
 - `SidebarProps` (interface) L36
 - `Sidebar` (export function) L41
     - `location` (fn) L46
     - `navigate` (fn) L47
-    - `arStatusCounts` (fn) L79
-    - `getSubItemCount` (fn) L81
-    - `hasActionWaiting` (fn) L132
-    - `toggleExpand` (fn) L210
+    - `arStatusCounts` (fn) L77
+    - `getSubItemCount` (fn) L79
+    - `hasActionWaiting` (fn) L130
+    - `toggleExpand` (fn) L208
 
 ## src/components/AppShell/ThemeSwitch.tsx (41 lines) - theme switch (components  app shell)
 - `ThemeSwitch` (export function) L5

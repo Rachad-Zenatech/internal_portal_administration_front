@@ -60,9 +60,7 @@ export default function Sidebar({
     (!u.assigned_roles || u.assigned_roles.length === 0 || u.assigned_roles.every((role) => role.code === "PENDING_USER"))
   ).length || 0;
 
-  const { data: unreadCountData } = useUnreadNotificationCount({
-    refetchInterval: 10000, // Poll every 10 seconds to keep counts fresh
-  });
+  const { data: unreadCountData } = useUnreadNotificationCount();
   const unreadCount = unreadCountData?.count ?? 0;
 
   const { data: purchasingSummary } = usePurchasingSummary();

@@ -9,12 +9,12 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `State` (interface) L10
 - `ErrorBoundary` (export class) L14
 
-## src/components/common/FluidList.tsx (128 lines) - The app shell's <main> is the page's scroll area
+## src/components/common/FluidList.tsx (137 lines) - The app shell's <main> is the page's scroll area
 - `FLUID_BATCH_SIZE` (export const) L5
 - `useFitToScreen` (export function) L14 - Sizes a table's box to the space left on screen below whatever sits above it, so its footer ("Showing 23 of 23  requests") is visible wit...
-- `useFluidRows` (export function) L47 - Endless scroll for a list that is already loaded and filtered (as on the M&A dashboard): shows the first batch of  rows and adds the next...
-- `LoadMoreRow` (export function) L87 - The last row of the table while more rows are left; scrolling it into view loads the next batch
-- `FluidListFooter` (export function) L115 - Showing 50 of 230 requests" under the table
+- `useFluidRows` (export function) L56 - Endless scroll for a list that is already loaded and filtered (as on the M&A dashboard): shows the first batch of  rows and adds the next...
+- `LoadMoreRow` (export function) L96 - The last row of the table while more rows are left; scrolling it into view loads the next batch
+- `FluidListFooter` (export function) L124 - Showing 50 of 230 requests" under the table
 
 ## src/components/common/GlobalLoadingScreen.tsx (107 lines) - global loading screen (components common)
 - `GlobalLoadingScreen` (export function) L6

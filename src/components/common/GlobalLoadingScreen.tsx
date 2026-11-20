@@ -60,9 +60,9 @@ export default function GlobalLoadingScreen() {
       role="alert"
       aria-busy="true"
       aria-label={title}
-      className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/45 dark:bg-black/75 backdrop-blur-[3px] transition-all duration-200 animate-in fade-in select-none"
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/50 dark:bg-black/75 transition-opacity duration-150 select-none"
     >
-      <div className="relative bg-white/95 dark:bg-zinc-900/95 border border-slate-200/90 dark:border-zinc-800 shadow-2xl rounded-2xl p-7 max-w-sm w-full mx-4 flex flex-col items-center text-center overflow-hidden animate-in zoom-in-95 duration-150 backdrop-blur-md">
+      <div className="relative bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 shadow-2xl rounded-2xl p-7 max-w-sm w-full mx-4 flex flex-col items-center text-center overflow-hidden">
         {/* Ambient background glow */}
         <div className="absolute -top-12 -left-12 w-36 h-36 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-12 -right-12 w-36 h-36 bg-sky-500/15 rounded-full blur-3xl pointer-events-none" />

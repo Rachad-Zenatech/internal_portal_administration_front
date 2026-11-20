@@ -46,7 +46,7 @@ export default function AppShell({ children }: Props) {
           <TopBar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
         </div>
         <main
-          className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3.5 md:p-4 bg-background print:overflow-visible print:p-0 print:m-0 print:bg-white print:block print:w-full"
+          className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3.5 md:p-4 bg-background will-change-scroll print:overflow-visible print:p-0 print:m-0 print:bg-white print:block print:w-full"
         >
           <div className="print:hidden">
             <Breadcrumbs />

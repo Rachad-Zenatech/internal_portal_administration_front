@@ -7,16 +7,19 @@ export function useHeartbeat(isAuthenticated: boolean) {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Track user activity
+    // Track user activity (throttled + passive to avoid main-thread scroll/mousemove overhead)
     const updateActivity = () => {
-      lastActiveTimeRef.current = Date.now();
+      const now = Date.now();
+      if (now - lastActiveTimeRef.current > 1000) {
+        lastActiveTimeRef.current = now;
+      }
     };
 
     // Listen for common activity events
-    window.addEventListener('mousemove', updateActivity);
-    window.addEventListener('keydown', updateActivity);
-    window.addEventListener('click', updateActivity);
-    window.addEventListener('scroll', updateActivity);
+    window.addEventListener('mousemove', updateActivity, { passive: true });
+    window.addEventListener('keydown', updateActivity, { passive: true });
+    window.addEventListener('click', updateActivity, { passive: true });
+    window.addEventListener('scroll', updateActivity, { passive: true });
 
     // Send heartbeat every 60 seconds
     const interval = setInterval(() => {

@@ -19,6 +19,7 @@ export function useFitToScreen(minHeight = 320, minScreenShare = 0) {
     if (!node) return;
     // The app shell's <main> is the page's scroll area
     const scroller = node.closest("main");
+    let rafId = 0;
     const measure = () => {
       if (!scroller) return;
       const box = scroller.getBoundingClientRect();
@@ -26,14 +27,22 @@ export function useFitToScreen(minHeight = 320, minScreenShare = 0) {
       const top = node.getBoundingClientRect().top - box.top + scroller.scrollTop;
       const bottomPadding = parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
       const floor = Math.max(minHeight, Math.round(window.innerHeight * minScreenShare));
-      setMaxHeight(Math.max(floor, Math.floor(scroller.clientHeight - top - bottomPadding)));
+      const nextHeight = Math.max(floor, Math.floor(scroller.clientHeight - top - bottomPadding));
+      setMaxHeight((prev) => (prev !== undefined && Math.abs(prev - nextHeight) <= 2 ? prev : nextHeight));
+    };
+    const scheduleMeasure = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(measure);
     };
     measure();
-    const resize = new ResizeObserver(measure);
+    const resize = new ResizeObserver(scheduleMeasure);
     if (scroller) resize.observe(scroller);
     // The page's content: the cards and filters above the table can change height (wrapping, a banner appearing)
     if (node.parentElement) resize.observe(node.parentElement);
-    return () => resize.disconnect();
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      resize.disconnect();
+    };
   }, [node, minHeight, minScreenShare]);
 
   return { ref: setNode, style: maxHeight ? { maxHeight } : undefined };

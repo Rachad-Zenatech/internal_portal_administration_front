@@ -36,9 +36,9 @@ export function usePurchasingSummary() {
   return useQuery({
     queryKey: keys.summary(),
     queryFn: purchasing.getSummary,
-    staleTime: 5000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 10000,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+    refetchInterval: 60000,
   });
 }
 

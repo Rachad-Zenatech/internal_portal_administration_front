@@ -255,9 +255,9 @@ export function MessageHubStatusDropdown({ className = "" }: { className?: strin
       // 3. Both backends unreachable: mark all servers inside dropdown as OFFLINE
       return buildAllOfflineFallback(previous);
     },
-    staleTime: 1500,
-    refetchInterval: 3000,
-    refetchOnWindowFocus: true,
+    staleTime: 30000,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: false,
     retry: false,
   });
 

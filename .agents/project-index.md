@@ -16,7 +16,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/AppShell/MessageHubStatusDropdown.tsx (571 lines) - message hub status dropdown (components  app shell)
 - src/components/AppShell/Navigation.tsx (160 lines) - navigation (components  app shell)
 - src/components/AppShell/NotificationDropdown.tsx (149 lines) - notification dropdown (components  app shell)
-- src/components/AppShell/Sidebar.tsx (507 lines) - sidebar (components  app shell)
+- src/components/AppShell/Sidebar.tsx (505 lines) - sidebar (components  app shell)
 - src/components/AppShell/ThemeSwitch.tsx (41 lines) - theme switch (components  app shell)
 - src/components/AppShell/TopBar.tsx (663 lines) - top bar (components  app shell)
 - src/components/AppShell/globalSettingsDialog/hooks/useGlobalSettingsDialog.ts (11 lines) - use global settings dialog (components  app shell global settings dialog hooks)
@@ -58,7 +58,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/Tasks/taskDetailPanel/sections/OverviewDetailCardsColumn.tsx (255 lines) - overview detail cards column (components  tasks task detail panel sections)
 - src/components/Tasks/taskDetailPanel/types.ts (7 lines) - types (components  tasks task detail panel)
 - src/components/common/ErrorBoundary.tsx (63 lines) - error boundary (components common)
-- src/components/common/FluidList.tsx (128 lines) - The app shell's <main> is the page's scroll area
+- src/components/common/FluidList.tsx (137 lines) - The app shell's <main> is the page's scroll area
 - src/components/common/GlobalLoadingScreen.tsx (107 lines) - global loading screen (components common)
 - src/components/common/LinkifiedText.tsx (50 lines) - linkified text (components common)
 - src/components/common/ProtectedRoute.tsx (81 lines) - protected route (components common)
@@ -105,7 +105,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/hooks/useChartOfAccount.ts (71 lines) - use chart of account (hooks)
 - src/hooks/useDashboard.ts (84 lines) - use dashboard (hooks)
 - src/hooks/useEntities.ts (67 lines) - use entities (hooks)
-- src/hooks/useHeartbeat.ts (44 lines) - Track user activity
+- src/hooks/useHeartbeat.ts (47 lines) - Track user activity (throttled + passive to avoid main-thread scroll/mousemove overhead)
 - src/hooks/useHubSpotCompanies.ts (51 lines) - Live progress of the background companies sync; polls every second only while a sync is running.
 - src/hooks/useMasterTables.ts (234 lines) - use master tables (hooks)
 - src/hooks/useNotifications.ts (303 lines) - use notifications (hooks)
@@ -118,7 +118,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/lib/sanitizeHtml.ts (61 lines) - Allowlist HTML sanitizer for rich email/quote previews rendered with dangerouslySetInnerHTML.
 - src/lib/userDepartment.ts (170 lines) - user department (lib)
 - src/lib/utils.ts (7 lines) - utils (lib)
-- src/main.tsx (65 lines) - Automatically reload once if a new deployment removed old hashed chunks
+- src/main.tsx (66 lines) - Automatically reload once if a new deployment removed old hashed chunks
 - src/pages/AccountReceivable/AccountReceivablePage.tsx (501 lines) - account receivable page (pages  account receivable)
 - src/pages/AccountReceivable/CustomerQuoteViewPage.tsx (972 lines) - customer quote view page (pages  account receivable)
 - src/pages/AccountReceivable/GenerateInvoicePage.tsx (883 lines) - generate invoice page (pages  account receivable)
