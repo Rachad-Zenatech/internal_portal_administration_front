@@ -42,8 +42,8 @@ export function ThreeWayMatchingCard({ v }: Props) {
       <CardContent className="p-5 space-y-4">
         <MatchHeaderBanner summary={summary} />
 
-        {/* 3-Way Match Components Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        {/* 3-Way Match Components - Stacked on top of each other */}
+        <div className="flex flex-col gap-3.5">
           {/* Component 1: Approved PO */}
           <MatchComponentCard
             component={summary.po}

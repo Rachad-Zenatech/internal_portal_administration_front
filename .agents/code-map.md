@@ -18,7 +18,7 @@ to find the right file.
 | .agents/code-map/src__components__AppShell__notificationDropdown__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__components__AppShell__notificationDropdown__sections.md | 3 | 1 KB |
 | .agents/code-map/src__components__ChartOfAccounts.md | 2 | 1 KB |
-| .agents/code-map/src__components__common.md | 7 | 2 KB |
+| .agents/code-map/src__components__common.md | 8 | 3 KB |
 | .agents/code-map/src__components__Configurations.md | 4 | 1 KB |
 | .agents/code-map/src__components__Dashboard.md | 6 | 2 KB |
 | .agents/code-map/src__components__Tasks.md | 4 | 1 KB |
