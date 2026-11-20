@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { MapPin, Check, ChevronDown, X, Plus, Loader2 } from "lucide-react";
 import { useMasterLocations, useCreateMasterLocation } from "@/hooks/useMasterTables";
 import { cleanAndStandardizeText } from "@/utils/textStandardizer";
+import { DEFAULT_LOCATIONS, isRegionName } from "./locationRegionConstants";
 
 interface LocationAutocompleteProps {
   value?: string | null;
@@ -20,7 +21,7 @@ export default function LocationAutocomplete({
   disabled = false,
   required = false,
   className = "",
-  placeholder = "Search or enter company / location...",
+  placeholder = "Select or enter location...",
   label,
 }: LocationAutocompleteProps) {
   const { data: locationsData, isLoading } = useMasterLocations();
@@ -35,9 +36,13 @@ export default function LocationAutocomplete({
   const inputValue = value || "";
 
   const locationItems = useMemo(() => {
-    return (locationsData?.items || [])
-      .filter((item) => item.is_active)
-      .map((item) => item.name);
+    const set = new Set<string>(DEFAULT_LOCATIONS);
+    (locationsData?.items || []).forEach((item) => {
+      if (item.is_active && !isRegionName(item.name)) {
+        set.add(item.name);
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [locationsData]);
 
   // Filter locations based on input
@@ -258,7 +263,7 @@ export default function LocationAutocomplete({
             <div className="px-3 py-2 bg-slate-50 dark:bg-zinc-800/80 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-muted-foreground">
               <span className="flex items-center gap-1 font-medium">
                 <MapPin className="h-3.5 w-3.5 text-sky-600" />
-                Company or Location
+                Location
               </span>
               <span className="text-[11px] font-mono">
                 {isLoading ? (

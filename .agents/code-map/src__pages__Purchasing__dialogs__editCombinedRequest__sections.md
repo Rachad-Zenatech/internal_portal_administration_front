@@ -13,5 +13,10 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Purchasing/dialogs/editCombinedRequest/sections/Tab2PurchaseOrder.tsx (327 lines) - tab2 purchase order (pages  purchasing dialogs edit combined request sections)
 - `Tab2PurchaseOrder` (export function) L13
 
-## src/pages/Purchasing/dialogs/editCombinedRequest/sections/Tab3InvoiceReceipts.tsx (334 lines) - tab3 invoice receipts (pages  purchasing dialogs edit combined request sections)
-- `Tab3InvoiceReceipts` (export function) L15
+## src/pages/Purchasing/dialogs/editCombinedRequest/sections/Tab3AttachmentsCard.tsx (181 lines) - tab3 attachments card (pages  purchasing dialogs edit combined request sections)
+- `Tab3AttachmentsCardProps` (interface) L7
+- `AttachmentItemRow` (function) L18
+- `Tab3AttachmentsCard` (export function) L85
+
+## src/pages/Purchasing/dialogs/editCombinedRequest/sections/Tab3InvoiceReceipts.tsx (231 lines) - tab3 invoice receipts (pages  purchasing dialogs edit combined request sections)
+- `Tab3InvoiceReceipts` (export function) L14

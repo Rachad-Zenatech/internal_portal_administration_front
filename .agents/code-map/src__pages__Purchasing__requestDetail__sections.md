@@ -4,8 +4,8 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx (289 lines) - action form fields (pages  purchasing request detail sections)
-- `ActionFormFields` (export function) L16
+## src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx (248 lines) - action form fields (pages  purchasing request detail sections)
+- `ActionFormFields` (export function) L17
 
 ## src/pages/Purchasing/requestDetail/sections/ApprovalActionForm.tsx (70 lines) - approval action form (pages  purchasing request detail sections)
 - `Props` (interface) L7
@@ -32,6 +32,10 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `PanelHeader` (function) L59
 - `SuggestionCard` (function) L84
 - `NoSuggestions` (function) L121
+
+## src/pages/Purchasing/requestDetail/sections/InvoiceLinesCategoryTable.tsx (86 lines) - invoice lines category table (pages  purchasing request detail sections)
+- `InvoiceLinesCategoryTableProps` (interface) L7
+- `InvoiceLinesCategoryTable` (export function) L13
 
 ## src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (240 lines) - main request header full (pages  purchasing request detail sections)
 - `MainRequestHeaderFull` (export function) L9

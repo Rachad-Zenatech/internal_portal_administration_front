@@ -10,30 +10,30 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `Narrowed` (type) L11 - Names tested by the early-return guards are known to be set once the guards have passed.
 - `PurchaseRequestDetailGuardedState` (export type) L12
 
-## src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailActions.ts (485 lines) - use purchase request detail actions (pages  purchasing purchase request detail hooks)
+## src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailActions.ts (487 lines) - use purchase request detail actions (pages  purchasing purchase request detail hooks)
 - `usePurchaseRequestDetailActions` (export function) L12
     - `navigate` (fn) L14
     - `queryClient` (fn) L15
     - `allInvoices` (fn) L20
     - `updateWireTransfer` (fn) L41
-    - `handleOpenEdit` (fn) L113
-    - `reqLoc` (fn) L137
-    - `reqClass` (fn) L138
-    - `updateMutation` (fn) L162
-    - `reviewMutation` (fn) L177
-    - `deleteMutation` (fn) L196
-    - `recordInvoiceMutation` (fn) L213
-    - `transitionMutation` (fn) L233
-    - `uploadMutation` (fn) L234
-    - `deleteAttachmentMutation` (fn) L235
-    - `handlePreviewAttachment` (fn) L239
-    - `handlePreviewFile` (fn) L260
-    - `handleClosePreview` (fn) L278
-    - `handleEditSubmit` (fn) L285
-    - `effectiveDueDate` (fn) L386
-    - `handleRecordInvoiceSubmit` (fn) L435
+    - `handleOpenEdit` (fn) L114
+    - `reqLoc` (fn) L138
+    - `reqClass` (fn) L139
+    - `updateMutation` (fn) L163
+    - `reviewMutation` (fn) L178
+    - `deleteMutation` (fn) L197
+    - `recordInvoiceMutation` (fn) L214
+    - `transitionMutation` (fn) L234
+    - `uploadMutation` (fn) L235
+    - `deleteAttachmentMutation` (fn) L236
+    - `handlePreviewAttachment` (fn) L240
+    - `handlePreviewFile` (fn) L261
+    - `handleClosePreview` (fn) L279
+    - `handleEditSubmit` (fn) L286
+    - `effectiveDueDate` (fn) L387
+    - `handleRecordInvoiceSubmit` (fn) L436
 
-## src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailActions2.ts (116 lines) - use purchase request detail actions2 (pages  purchasing purchase request detail hooks)
+## src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailActions2.ts (117 lines) - use purchase request detail actions2 (pages  purchasing purchase request detail hooks)
 - `usePurchaseRequestDetailActions2` (export function) L7
 
 ## src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailTail.ts (10 lines) - use purchase request detail tail (pages  purchasing purchase request detail hooks)

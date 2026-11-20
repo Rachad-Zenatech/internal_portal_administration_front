@@ -387,12 +387,13 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/dialogs/createWireTransfer/PreviousPaymentPicker.tsx (68 lines) - Rent / Note are paid again and again: pick the last payment and the bank details come with it.
 - src/pages/Purchasing/dialogs/createWireTransfer/useCreateWireTransfer.ts (191 lines) - Same day of the next month ("2026-03-31" -> "2026-04-30"), for the due date of the next rent/note payment.
 - src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequest.ts (13 lines) - use edit combined request (pages  purchasing dialogs edit combined request hooks)
-- src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequestActions.ts (453 lines) - use edit combined request actions (pages  purchasing dialogs edit combined request hooks)
+- src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequestActions.ts (455 lines) - use edit combined request actions (pages  purchasing dialogs edit combined request hooks)
 - src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequestActions2.ts (522 lines) - Multi-parts calculations
 - src/pages/Purchasing/dialogs/editCombinedRequest/sections/Card1GeneralOverview.tsx (285 lines) - card1 general overview (pages  purchasing dialogs edit combined request sections)
 - src/pages/Purchasing/dialogs/editCombinedRequest/sections/Card2FinancialBreakdown.tsx (272 lines) - card2 financial breakdown (pages  purchasing dialogs edit combined request sections)
 - src/pages/Purchasing/dialogs/editCombinedRequest/sections/Tab2PurchaseOrder.tsx (327 lines) - tab2 purchase order (pages  purchasing dialogs edit combined request sections)
-- src/pages/Purchasing/dialogs/editCombinedRequest/sections/Tab3InvoiceReceipts.tsx (334 lines) - tab3 invoice receipts (pages  purchasing dialogs edit combined request sections)
+- src/pages/Purchasing/dialogs/editCombinedRequest/sections/Tab3AttachmentsCard.tsx (181 lines) - tab3 attachments card (pages  purchasing dialogs edit combined request sections)
+- src/pages/Purchasing/dialogs/editCombinedRequest/sections/Tab3InvoiceReceipts.tsx (231 lines) - tab3 invoice receipts (pages  purchasing dialogs edit combined request sections)
 - src/pages/Purchasing/dialogs/editCombinedRequest/types.ts (10 lines) - types (pages  purchasing dialogs edit combined request)
 - src/pages/Purchasing/dialogs/editRequestDialog/components/RequesterAutocomplete.tsx (108 lines) - requester autocomplete (pages  purchasing dialogs edit request dialog components)
 - src/pages/Purchasing/dialogs/editRequestDialog/hooks/useEditRequestDialog.ts (13 lines) - use edit request dialog (pages  purchasing dialogs edit request dialog hooks)
@@ -435,16 +436,18 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/fields/CurrencyAutocomplete.tsx (321 lines) - currency autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/DepartmentAutocomplete.tsx (416 lines) - department autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/GLCodeAutocomplete.tsx (335 lines) - g l code autocomplete (pages  purchasing fields)
-- src/pages/Purchasing/fields/LocationAutocomplete.tsx (347 lines) - location autocomplete (pages  purchasing fields)
+- src/pages/Purchasing/fields/LocationAutocomplete.tsx (352 lines) - location autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/PaymentMethodSelect.tsx (357 lines) - payment method select (pages  purchasing fields)
 - src/pages/Purchasing/fields/PrioritySelector.tsx (180 lines) - priority selector (pages  purchasing fields)
 - src/pages/Purchasing/fields/ProjectAutocomplete.tsx (271 lines) - project autocomplete (pages  purchasing fields)
+- src/pages/Purchasing/fields/RegionAutocomplete.tsx (325 lines) - region autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/ScheduleDatesBuilder.tsx (565 lines) - schedule dates builder (pages  purchasing fields)
 - src/pages/Purchasing/fields/ShippingDeliveryAddressField.tsx (665 lines) - shipping delivery address field (pages  purchasing fields)
 - src/pages/Purchasing/fields/TimezoneAutocomplete.tsx (274 lines) - timezone autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/VendorAutocomplete.tsx (87 lines) - vendor autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/WireBankingFields.tsx (104 lines) - wire banking fields (pages  purchasing fields)
 - src/pages/Purchasing/fields/WireGeneralPaymentFields.tsx (734 lines) - wire general payment fields (pages  purchasing fields)
+- src/pages/Purchasing/fields/locationRegionConstants.ts (83 lines) - Separation of Region (Geographic Divisions / States / Cities / Countries) and Location (Legal Entities / Operating Locations / Branches).
 - src/pages/Purchasing/fields/wireBankingFields/constants.ts (28 lines) - constants (pages  purchasing fields wire banking fields)
 - src/pages/Purchasing/fields/wireBankingFields/hooks/useWireBankingFields.ts (11 lines) - use wire banking fields (pages  purchasing fields wire banking fields hooks)
 - src/pages/Purchasing/fields/wireBankingFields/hooks/useWireBankingFieldsActions.ts (110 lines) - use wire banking fields actions (pages  purchasing fields wire banking fields hooks)
@@ -471,14 +474,15 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/myApprovals/utils.ts (10 lines) - User Initials helper
 - src/pages/Purchasing/purchaseRequestDetail/PurchaseRequestDetailBody.tsx (274 lines) - purchase request detail body (pages  purchasing purchase request detail)
 - src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetail.ts (13 lines) - Names tested by the early-return guards are known to be set once the guards have passed.
-- src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailActions.ts (485 lines) - use purchase request detail actions (pages  purchasing purchase request detail hooks)
-- src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailActions2.ts (116 lines) - use purchase request detail actions2 (pages  purchasing purchase request detail hooks)
+- src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailActions.ts (487 lines) - use purchase request detail actions (pages  purchasing purchase request detail hooks)
+- src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailActions2.ts (117 lines) - use purchase request detail actions2 (pages  purchasing purchase request detail hooks)
 - src/pages/Purchasing/purchaseRequestDetail/hooks/usePurchaseRequestDetailTail.ts (10 lines) - use purchase request detail tail (pages  purchasing purchase request detail hooks)
 - src/pages/Purchasing/purchaseRequestDetail/sections/AllPaymentsActionSchedule.tsx (181 lines) - all payments action schedule (pages  purchasing purchase request detail sections)
 - src/pages/Purchasing/purchaseRequestDetail/sections/EditRequestModal.tsx (257 lines) - edit request modal (pages  purchasing purchase request detail sections)
 - src/pages/Purchasing/purchaseRequestDetail/sections/InvoiceDetailsCardOption.tsx (321 lines) - invoice details card option (pages  purchasing purchase request detail sections)
 - src/pages/Purchasing/purchaseRequestDetail/sections/MainRequestHeaderBanner.tsx (362 lines) - main request header banner (pages  purchasing purchase request detail sections)
-- src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx (378 lines) - Receipts belong to one payment: an installment only lists the files saved for that installment,
+- src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx (341 lines) - Receipts belong to one payment: an installment only lists the files saved for that installment,
+- src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceFinancialSection.tsx (66 lines) - record invoice financial section (pages  purchasing purchase request detail sections)
 - src/pages/Purchasing/purchaseRequestDetail/sections/RequestDetailsPropertyTable.tsx (163 lines) - request details property table (pages  purchasing purchase request detail sections)
 - src/pages/Purchasing/purchaseRequestDetail/sections/ScheduledRangePaymentHorizon.tsx (124 lines) - scheduled range payment horizon (pages  purchasing purchase request detail sections)
 - src/pages/Purchasing/purchaseRequestDetail/sections/TabsApprovalsAttachmentsHistory.tsx (335 lines) - tabs approvals attachments history (pages  purchasing purchase request detail sections)
@@ -541,11 +545,11 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/requestDetail/components/TwoUp.tsx (4 lines) - two up (pages  purchasing request detail components)
 - src/pages/Purchasing/requestDetail/constants.ts (2 lines) - constants (pages  purchasing request detail)
 - src/pages/Purchasing/requestDetail/hooks/useRequestDetail.ts (13 lines) - Names tested by the early-return guards are known to be set once the guards have passed.
-- src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions.ts (280 lines) - use request detail actions (pages  purchasing request detail hooks)
-- src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions2.ts (298 lines) - use request detail actions2 (pages  purchasing request detail hooks)
-- src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions3.ts (357 lines) - use request detail actions3 (pages  purchasing request detail hooks)
+- src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions.ts (281 lines) - use request detail actions (pages  purchasing request detail hooks)
+- src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions2.ts (299 lines) - use request detail actions2 (pages  purchasing request detail hooks)
+- src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions3.ts (358 lines) - use request detail actions3 (pages  purchasing request detail hooks)
 - src/pages/Purchasing/requestDetail/hooks/useRequestDetailTail.ts (12 lines) - use request detail tail (pages  purchasing request detail hooks)
-- src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx (289 lines) - action form fields (pages  purchasing request detail sections)
+- src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx (248 lines) - action form fields (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/ApprovalActionForm.tsx (70 lines) - approval action form (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/ApprovalsTab.tsx (174 lines) - approvals tab (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/AttachmentsTab.tsx (104 lines) - attachments tab (pages  purchasing request detail sections)
@@ -553,6 +557,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/requestDetail/sections/DedicatedRecurringContractSchedule.tsx (105 lines) - dedicated recurring contract schedule (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/FinancialAccountingSection.tsx (211 lines) - financial accounting section (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/GlSuggestionsPanel.tsx (138 lines) - The saved AI chart-of-accounts suggestions (worked out once on the server), with a button to work them out again.
+- src/pages/Purchasing/requestDetail/sections/InvoiceLinesCategoryTable.tsx (86 lines) - invoice lines category table (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (240 lines) - main request header full (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (433 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
 - src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx (151 lines) - Extraction and the chart-of-accounts suggestions run once on the server (when the request is created, or in

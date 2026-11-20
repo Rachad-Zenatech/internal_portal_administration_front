@@ -8,19 +8,19 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `useEditCombinedRequest` (export function) L5
 - `EditCombinedRequestState` (export type) L12
 
-## src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequestActions.ts (453 lines) - use edit combined request actions (pages  purchasing dialogs edit combined request hooks)
+## src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequestActions.ts (455 lines) - use edit combined request actions (pages  purchasing dialogs edit combined request hooks)
 - `useEditCombinedRequestActions` (export function) L12
     - `updateMutation` (fn) L20
     - `currentRequesterUser` (fn) L54
     - `q` (fn) L55
     - `allSavedAddresses` (fn) L65
-    - `uploadAttachments` (fn) L165 - --- Attachments & Receipt Preview States ---
-    - `deleteAttachment` (fn) L166
-    - `handlePreviewAttachment` (fn) L171
-    - `handleClosePreview` (fn) L192
-    - `handleClickOutside` (fn) L201
-    - `filteredUsers` (fn) L209
-    - `q` (fn) L211
+    - `uploadAttachments` (fn) L166 - --- Attachments & Receipt Preview States ---
+    - `deleteAttachment` (fn) L167
+    - `handlePreviewAttachment` (fn) L172
+    - `handleClosePreview` (fn) L193
+    - `handleClickOutside` (fn) L202
+    - `filteredUsers` (fn) L210
+    - `q` (fn) L212
 
 ## src/pages/Purchasing/dialogs/editCombinedRequest/hooks/useEditCombinedRequestActions2.ts (522 lines) - Multi-parts calculations
 - `useEditCombinedRequestActions2` (export function) L11

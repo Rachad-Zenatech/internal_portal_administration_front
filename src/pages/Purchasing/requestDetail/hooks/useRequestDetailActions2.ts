@@ -162,6 +162,7 @@ export function useRequestDetailActions2(ctx: RequestDetailGuardedState) {
         asset_flag: isDefaultAsset,
         department: "",
         from_location: "",
+        region: "",
       });
       const defaultPoNum =
         purchase_order?.quote_number ||

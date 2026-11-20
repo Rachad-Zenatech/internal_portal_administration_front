@@ -56,9 +56,9 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `GLCodeAutocompleteProps` (interface) L9
 - `GLCodeAutocomplete` (export function) L18
 
-## src/pages/Purchasing/fields/LocationAutocomplete.tsx (347 lines) - location autocomplete (pages  purchasing fields)
-- `LocationAutocompleteProps` (interface) L7
-- `LocationAutocomplete` (export function) L17
+## src/pages/Purchasing/fields/LocationAutocomplete.tsx (352 lines) - location autocomplete (pages  purchasing fields)
+- `LocationAutocompleteProps` (interface) L8
+- `LocationAutocomplete` (export function) L18
 
 ## src/pages/Purchasing/fields/PaymentMethodSelect.tsx (357 lines) - payment method select (pages  purchasing fields)
 - `PaymentMethodSelectProps` (interface) L12
@@ -71,6 +71,12 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Purchasing/fields/ProjectAutocomplete.tsx (271 lines) - project autocomplete (pages  purchasing fields)
 - `ProjectAutocompleteProps` (interface) L17
 - `ProjectAutocomplete` (export function) L26
+
+## src/pages/Purchasing/fields/RegionAutocomplete.tsx (325 lines) - region autocomplete (pages  purchasing fields)
+- `RegionAutocompleteProps` (interface) L8
+- `RegionMenuProps` (interface) L18
+- `RegionDropdownMenu` (function) L32
+- `RegionAutocomplete` (export function) L118
 
 ## src/pages/Purchasing/fields/ScheduleDatesBuilder.tsx (565 lines) - schedule dates builder (pages  purchasing fields)
 - `ScheduleDatesBuilderProps` (export interface) L30
@@ -122,3 +128,8 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
     - `handleAmountInputChange` (fn) L149
     - `handleAmountInputFocus` (fn) L177
     - `handleAmountInputBlur` (fn) L187
+
+## src/pages/Purchasing/fields/locationRegionConstants.ts (83 lines) - Separation of Region (Geographic Divisions / States / Cities / Countries) and Location (Legal Entities / Operating Locations / Branches).
+- `DEFAULT_REGIONS` (export const) L7
+- `DEFAULT_LOCATIONS` (export const) L42
+- `isRegionName` (export function) L79
