@@ -4,8 +4,8 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/Purchasing/requestDetail/RequestDetailBody.tsx (565 lines) - request detail body (pages  purchasing request detail)
-- `RequestDetailBody` (export function) L43
+## src/pages/Purchasing/requestDetail/RequestDetailBody.tsx (382 lines) - request detail body (pages  purchasing request detail)
+- `RequestDetailBody` (export function) L35
 
 ## src/pages/Purchasing/requestDetail/constants.ts (2 lines) - constants (pages  purchasing request detail)
 - `ATTACHMENT_ACCEPT` (export const) L1

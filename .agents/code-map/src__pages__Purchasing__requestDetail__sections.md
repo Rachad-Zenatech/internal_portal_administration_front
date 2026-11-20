@@ -7,6 +7,10 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx (289 lines) - action form fields (pages  purchasing request detail sections)
 - `ActionFormFields` (export function) L16
 
+## src/pages/Purchasing/requestDetail/sections/ApprovalActionForm.tsx (70 lines) - approval action form (pages  purchasing request detail sections)
+- `Props` (interface) L7
+- `ApprovalActionForm` (export function) L11
+
 ## src/pages/Purchasing/requestDetail/sections/ApprovalsTab.tsx (174 lines) - approvals tab (pages  purchasing request detail sections)
 - `ApprovalsTab` (export function) L8
 
@@ -41,6 +45,9 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Purchasing/requestDetail/sections/RedirectApprovalDialog.tsx (158 lines) - redirect approval dialog (pages  purchasing request detail sections)
 - `RedirectApprovalDialog` (export function) L13
 
+## src/pages/Purchasing/requestDetail/sections/RequestDetailActionDialog.tsx (97 lines) - request detail action dialog (pages  purchasing request detail sections)
+- `RequestDetailActionDialog` (export function) L11
+
 ## src/pages/Purchasing/requestDetail/sections/RequestOverview.tsx (107 lines) - request overview (pages  purchasing request detail sections)
 - `RequestOverview` (export function) L6
 
@@ -65,3 +72,6 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 
 ## src/pages/Purchasing/requestDetail/sections/TopNavigationRecordActions.tsx (100 lines) - top navigation record actions (pages  purchasing request detail sections)
 - `TopNavigationRecordActions` (export function) L7
+
+## src/pages/Purchasing/requestDetail/sections/WorkflowStepperSection.tsx (57 lines) - workflow stepper section (pages  purchasing request detail sections)
+- `WorkflowStepperSection` (export function) L10

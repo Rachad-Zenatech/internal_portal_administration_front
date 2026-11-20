@@ -33,9 +33,9 @@ export function inferComboSource(fld: Pick<WorkflowActionField, "id" | "label"> 
   return null;
 }
 
-/** Statuses every A/P auto flow must cover (the 7 lifecycle states). */
+/** Statuses every A/P auto flow must cover (including 3-way matching intake: Approved PO, Goods/Service Confirmed, Vendor Invoice). */
 export const REQUIRED_STATUSES = [
-  "CREATE", "INITIAL", "WAITING_APPROVAL", "WAITING_PAYMENT", "COMPLETED", "ON_HOLD", "REJECTED",
+  "CREATE", "INITIAL", "WAITING_APPROVAL", "APPROVED", "GOODS_RECEIVED", "INVOICE_RECEIVED", "WAITING_PAYMENT", "COMPLETED", "ON_HOLD", "REJECTED",
 ];
 
 /** Purchase Request flows (/purchasing/requests) add review, purchase, shipping and receiving states (12 total). */

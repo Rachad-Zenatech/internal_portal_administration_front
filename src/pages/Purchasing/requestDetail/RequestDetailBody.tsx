@@ -1,24 +1,17 @@
-import { FileText, Package, Truck, Paperclip, Stamp, AlertTriangle, ShieldAlert, MessageSquare } from "lucide-react";
+import { FileText, Package, Truck, Paperclip, Stamp, MessageSquare } from "lucide-react";
 import { FilePreviewModal } from "../dialogs/FilePreviewModal";
 import { ChangeLevel1ApproverModal } from "../dialogs/ChangeLevel1ApproverModal";
 import { RequestMessageThread } from "../components/RequestMessageThread";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EditCombinedRequestDialog } from "../dialogs/EditCombinedRequestDialog";
 import { ConvertToRecurringDialog } from "../dialogs/ConvertToRecurringDialog";
 import { WireTransferDialog } from "../dialogs/WireTransferDialog";
-import Stepper from "@/components/common/Stepper";
-import { RequestStatus } from "@/types/purchasing";
-import { ACTION_META, formatDate, formatRequestType, formatActivityAction, formatActivityValue } from "../utils/purchasingMeta";
+import { formatDate, formatRequestType, formatActivityAction, formatActivityValue } from "../utils/purchasingMeta";
 import { Field } from "./components/Field";
-import { FieldInput } from "./components/FieldInput";
 import type { RequestDetailGuardedState } from "./hooks/useRequestDetail";
 import { useRequestDetailTail } from "./hooks/useRequestDetailTail";
 import { TopNavigationRecordActions } from "./sections/TopNavigationRecordActions";
@@ -35,14 +28,14 @@ import { Tab7PaymentHistory } from "./sections/Tab7PaymentHistory";
 import { Tab6RecurringHorizon } from "./sections/Tab6RecurringHorizon";
 import { ApprovalsTab } from "./sections/ApprovalsTab";
 import { AttachmentsTab } from "./sections/AttachmentsTab";
-import { MultiplePartsInteractiveEditable } from "./sections/MultiplePartsInteractiveEditable";
-import { ActionFormFields } from "./sections/ActionFormFields";
-import { CurrentReferenceInfo } from "./sections/CurrentReferenceInfo";
 import { RedirectApprovalDialog } from "./sections/RedirectApprovalDialog";
+import { WorkflowStepperSection } from "./sections/WorkflowStepperSection";
+import { RequestDetailActionDialog } from "./sections/RequestDetailActionDialog";
 
 export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
   const v = { ...s, ...useRequestDetailTail(s) };
-  const { available_actions, onAction, previewTarget, handleClosePreview, isPreviewOpen, updateWireTransfer, handleUpdateWire, data, setIsEditWireOpen, isEditWireOpen, transition, handleConfirmWire, setIsWireDialogOpen, isWireDialogOpen, id, queryClient, setIsChangeApproverOpen, isChangeApproverOpen, activeForm, submitForm, setActiveForm, setHold, hold, setConfirmGoods, confirmGoods, tracking, setTracking, approval, setApproval, user, setActiveDetailTab, approvals, setIsActivityLogsOpen, isActivityLogsOpen, refetch, request, setIsConvertToRecurringOpen, isConvertToRecurringOpen, setIsEditOpen, isEditOpen, purchase_order, hasPoTab, multiPartsList, isRecurring, activeDetailTab, isSelfApprovalBlocked, flow } = v;
+  const { available_actions, onAction, previewTarget, handleClosePreview, isPreviewOpen, updateWireTransfer, handleUpdateWire, data, setIsEditWireOpen, isEditWireOpen, transition, handleConfirmWire, setIsWireDialogOpen, isWireDialogOpen, id, queryClient, setIsChangeApproverOpen, isChangeApproverOpen, setActiveDetailTab, approvals, setIsActivityLogsOpen, isActivityLogsOpen, refetch, request, setIsConvertToRecurringOpen, isConvertToRecurringOpen, setIsEditOpen, isEditOpen, purchase_order, hasPoTab, multiPartsList, isRecurring, activeDetailTab } = v;
+
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       {/* Top Navigation & Record Actions */}
@@ -51,41 +44,8 @@ export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
       {/* Main Request Header (Full Width) */}
       <MainRequestHeaderFull v={v} />
 
-      {/* Workflow Stepper */}
-      <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
-        <CardContent className="py-5 px-6">
-          <Stepper flow={flow} requestStatus={request.status} />
-          {request.status === "REJECTED" && (
-            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm font-medium text-red-600 dark:text-red-400">
-              This request was rejected.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Self-Approval Restriction Banner */}
-      {isSelfApprovalBlocked && (
-        <Alert className="bg-amber-50/90 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200">
-          <ShieldAlert className="h-4 w-4 !text-amber-600 dark:!text-amber-400" />
-          <AlertTitle className="font-semibold text-xs sm:text-sm">Self-Approval Restriction</AlertTitle>
-          <AlertDescription className="text-xs text-amber-800 dark:text-amber-300 mt-1">
-            As the requester of this purchase request, you cannot approve or reject your own request. Another eligible approver must review and take action on this submission.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {request.status === RequestStatus.OnHold && request.hold_reason && (
-        <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300">
-          <AlertTriangle className="h-4 w-4 !text-amber-600 dark:!text-amber-400" />
-          <AlertTitle className="flex items-center justify-between font-semibold">
-            <span>On Hold</span>
-            {request.hold_date && <span className="text-xs font-normal opacity-75">{formatDate(request.hold_date)}</span>}
-          </AlertTitle>
-          <AlertDescription className="mt-2 whitespace-pre-wrap">
-            {request.hold_reason}
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Stepper & 3-Way Matching Section */}
+      <WorkflowStepperSection v={v} />
 
       {/* Rent / Note wire transfers: every payment of the series up front, like a scheduled payment */}
       <Tab7PaymentHistory v={v} />
@@ -228,8 +188,6 @@ export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
             {/* TAB 5: Wire Transfer */}
             <Tab5WireTransfer v={v} />
 
-            {/* TAB 7: Payment History (Rent / Note series) */}
-
             {/* TAB 6: Recurring Horizon */}
             <Tab6RecurringHorizon v={v} />
 
@@ -242,7 +200,6 @@ export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
 
         {/* Activity: approvals + notifications */}
         <div className={v.hasPaymentsTab ? "lg:col-span-5 space-y-6" : "lg:col-span-4 xl:col-span-3 space-y-6"}>
-
           <EditCombinedRequestDialog open={isEditOpen} onOpenChange={setIsEditOpen} data={data} refetch={refetch} />
 
           <ConvertToRecurringDialog
@@ -372,152 +329,12 @@ export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
               </CardContent>
             </Tabs>
           </Card>
-
-
         </div>
       </div>
 
-      {/* Action dialog */}
-      <Dialog open={!!activeForm} onOpenChange={(open) => !open && setActiveForm(null)}>
-        <DialogContent
-          aria-describedby={undefined}
-          className={
-            activeForm?.kind === "invoice" || activeForm?.kind === "po"
-              ? "w-[95vw] md:w-[80vw] max-w-[95vw] md:max-w-[80vw] max-h-[90vh] overflow-y-auto"
-              : "sm:max-w-xl max-h-[90vh] overflow-y-auto"
-          }
-          style={
-            activeForm?.kind === "invoice" || activeForm?.kind === "po"
-              ? { width: "80vw", maxWidth: "80vw" }
-              : undefined
-          }
-        >
-          <DialogHeader>
-            <DialogTitle>{activeForm ? ACTION_META[activeForm.action].label : ""}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <MultiplePartsInteractiveEditable v={v} />
-            <ActionFormFields v={v} />
-            {activeForm?.kind === "approval" && (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{activeForm.action === "REJECT" ? "Reviewer / Approver" : "Approver"}</label>
-                  <Select
-                    value={user?.id || approval.approver || "_current_user"}
-                    disabled
-                  >
-                    <SelectTrigger className="w-full bg-muted/50 cursor-not-allowed opacity-80">
-                      <SelectValue>
-                        {user?.full_name || user?.email || "Logged in User"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={user?.id || "_current_user"}>
-                        {user?.full_name || user?.email || "Logged in User"}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+      {/* Action Dialog */}
+      <RequestDetailActionDialog v={v} />
 
-                {activeForm.action === "APPROVE" && (data?.request?.current_approval_level || 1) === 1 && (Boolean(data?.request?.requires_second_level) || Number(data?.request?.amount || data?.purchase_order?.amount || data?.invoice?.amount || 0) >= 10000) && (
-                  <div className="p-3 bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/60 rounded-xl space-y-1.5">
-                    <div className="flex items-center space-x-2.5">
-                      <Checkbox
-                        id="pass_to_level_2"
-                        checked={approval.pass_to_level_2 ?? true}
-                        onCheckedChange={(checked) => setApproval({ ...approval, pass_to_level_2: !!checked })}
-                      />
-                      <label
-                        htmlFor="pass_to_level_2"
-                        className="text-xs font-semibold text-purple-950 dark:text-purple-200 cursor-pointer flex items-center gap-1.5"
-                      >
-                        <span>Pass to Level 2 Approver (Company Approver)</span>
-                        <Badge variant="outline" className="text-[10px] bg-purple-100/80 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 border-purple-300">
-                          ≥ $10,000 incl. tax
-                        </Badge>
-                      </label>
-                    </div>
-                    <p className="text-[11px] text-purple-700 dark:text-purple-300 pl-6 leading-relaxed">
-                      {approval.pass_to_level_2
-                        ? "This approval will pass to the assigned Company Level 2 Approver(s) for final Level 2 approval. The request will stay in Waiting Approval state until approved or rejected by a Level 2 approver."
-                        : "Level 2 executive approval bypassed. This request will move directly to payment processing upon approval."}
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{activeForm.action === "REJECT" ? "Rejection Reason / Comments" : "Comment"}</label>
-                  <Textarea
-                    placeholder={activeForm.action === "REJECT" ? "Please provide a reason for rejecting this request..." : "Add an optional comment..."}
-                    value={approval.comment ?? ""}
-                    onChange={(e) => setApproval({ ...approval, comment: e.target.value })}
-                    rows={3}
-                  />
-                </div>
-              </>
-            )}
-            {activeForm?.kind === "tracking" && (
-              <>
-                <FieldInput
-                  label={
-                    <span>
-                      Tracking Number <span className="text-red-500">*</span>
-                    </span>
-                  }
-                  value={tracking.tracking_number}
-                  onChange={(v) => setTracking({ ...tracking, tracking_number: v })}
-                />
-                <label className="text-sm font-medium">Note</label>
-                <Textarea
-                  rows={3}
-                  placeholder="Add a note..."
-                  value={tracking.note ?? ''}
-                  onChange={(e) => setTracking({ ...tracking, note: e.target.value })}
-                />
-              </>
-            )}
-            {activeForm?.kind === "confirmGoods" && (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">Are you sure you want to confirm goods received?</p>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                    Description / Notes <span className="text-muted-foreground text-xs font-normal">(Optional)</span>
-                  </label>
-                  <Textarea
-                    rows={3}
-                    placeholder="Add optional notes (e.g. packages received, item condition, storage location)..."
-                    value={confirmGoods.description}
-                    onChange={(e) => setConfirmGoods({ description: e.target.value })}
-                  />
-                </div>
-              </div>
-            )}
-            {activeForm?.kind === "hold" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Hold Reason <span className="text-red-500">*</span></label>
-                <Textarea
-                  rows={3}
-                  placeholder="Why is this being put on hold?"
-                  value={hold.reason}
-                  onChange={(e) => setHold({ reason: e.target.value })}
-                />
-              </div>
-            )}
-            <CurrentReferenceInfo v={v} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setActiveForm(null)}>Cancel</Button>
-            <Button
-              onClick={submitForm}
-              disabled={transition.isPending}
-              variant={activeForm?.action === "REJECT" ? "destructive" : "default"}
-              className={activeForm?.action === "REJECT" ? "bg-rose-600 hover:bg-rose-700 text-white font-semibold" : ""}
-            >
-              {activeForm?.action === "REJECT" ? "Confirm Rejection" : "Confirm"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       {data?.request && (
         <ChangeLevel1ApproverModal
           open={isChangeApproverOpen}
@@ -528,6 +345,7 @@ export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
           }}
         />
       )}
+
       {id && data?.request && (
         <>
           <WireTransferDialog
@@ -558,7 +376,6 @@ export function RequestDetailBody({ s }: { s: RequestDetailGuardedState }) {
         onOpenChange={handleClosePreview}
         target={previewTarget}
       />
-
     </div>
   );
 }

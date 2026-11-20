@@ -97,7 +97,7 @@ to find the right file.
 | .agents/code-map/src__pages__Purchasing__components__masterTransactionsTable__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__components__masterTransactionsTable__sections.md | 1 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs.md | 11 | 3 KB |
-| .agents/code-map/src__pages__Purchasing__dialogs__createWireTransfer.md | 2 | 1 KB |
+| .agents/code-map/src__pages__Purchasing__dialogs__createWireTransfer.md | 4 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs__editCombinedRequest.md | 1 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs__editCombinedRequest__hooks.md | 3 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs__editCombinedRequest__sections.md | 4 | 1 KB |
@@ -119,7 +119,7 @@ to find the right file.
 | .agents/code-map/src__pages__Purchasing__fields__wireBankingFields__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__fields__wireBankingFields__sections.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__invoices__hooks.md | 2 | 1 KB |
-| .agents/code-map/src__pages__Purchasing__invoices__sections.md | 5 | 1 KB |
+| .agents/code-map/src__pages__Purchasing__invoices__sections.md | 10 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__myApprovals.md | 1 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__myApprovals__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__myApprovals__sections.md | 2 | 1 KB |
@@ -140,14 +140,15 @@ to find the right file.
 | .agents/code-map/src__pages__Purchasing__requestDetail.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__requestDetail__components.md | 7 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__requestDetail__hooks.md | 5 | 1 KB |
-| .agents/code-map/src__pages__Purchasing__requestDetail__sections.md | 19 | 4 KB |
+| .agents/code-map/src__pages__Purchasing__requestDetail__sections.md | 22 | 5 KB |
+| .agents/code-map/src__pages__Purchasing__requestDetail__sections__threeWayMatching.md | 6 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest.md | 3 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest__components.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__utils.md | 2 | 3 KB |
 | .agents/code-map/src__pages__Purchasing__WorkflowAuto.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__WorkflowAuto__components.md | 5 | 2 KB |
-| .agents/code-map/src__pages__Purchasing__WorkflowAuto__constants.md | 2 | 2 KB |
+| .agents/code-map/src__pages__Purchasing__WorkflowAuto__constants.md | 3 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__WorkflowAuto__dialogs.md | 6 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__WorkflowAuto__hooks.md | 1 | 2 KB |
 | .agents/code-map/src__pages__Reports.md | 1 | 1 KB |
