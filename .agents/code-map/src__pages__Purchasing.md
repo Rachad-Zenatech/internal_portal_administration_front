@@ -7,8 +7,8 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Purchasing/BatchApproval.tsx (251 lines) - batch approval (pages  purchasing)
 - `BatchApproval` (export function) L12
 
-## src/pages/Purchasing/Invoices.tsx (161 lines) - invoices (pages  purchasing)
-- `Invoices` (export function) L15
+## src/pages/Purchasing/Invoices.tsx (87 lines) - invoices (pages  purchasing)
+- `Invoices` (export function) L13
 
 ## src/pages/Purchasing/MyApprovals.tsx (367 lines) - my approvals (pages  purchasing)
 - `MyApprovals` (export function) L14

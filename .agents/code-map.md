@@ -119,7 +119,7 @@ to find the right file.
 | .agents/code-map/src__pages__Purchasing__fields__wireBankingFields__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__fields__wireBankingFields__sections.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__invoices__hooks.md | 2 | 1 KB |
-| .agents/code-map/src__pages__Purchasing__invoices__sections.md | 10 | 2 KB |
+| .agents/code-map/src__pages__Purchasing__invoices__sections.md | 14 | 3 KB |
 | .agents/code-map/src__pages__Purchasing__myApprovals.md | 1 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__myApprovals__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__myApprovals__sections.md | 2 | 1 KB |

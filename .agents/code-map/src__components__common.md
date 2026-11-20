@@ -31,17 +31,18 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `QRCodeDisplayProps` (interface) L4
 - `QRCodeDisplay` (export const) L11
 
-## src/components/common/Stepper.tsx (203 lines) - Ordered workflow states (ADMIN_FLOW, SPEND_FLOW, RECURRING_FLOW, QUOTE_FLOW)
-- `StepperProps` (interface) L17
-- `stepStateFor` (function) L27
-- `exceptionStateFor` (function) L34
-- `resolveSteps` (export function) L41 - Resolves the steps to draw for a flow and a raw status.
-- `Stepper` (const) L96 - Responsive horizontal stepper component with uniform step sizing that scales across screen widths.
+## src/components/common/Stepper.tsx (261 lines) - Ordered workflow states (ADMIN_FLOW, SPEND_FLOW, RECURRING_FLOW, QUOTE_FLOW)
+- `StepperProps` (interface) L18
+- `stepStateFor` (function) L28
+- `exceptionStateFor` (function) L35
+- `resolveSteps` (export function) L42 - Resolves the steps to draw for a flow and a raw status.
+- `Stepper` (const) L154 - Responsive horizontal stepper component with uniform step sizing that scales across screen widths.
 
-## src/components/common/StepperStepNode.tsx (62 lines) - stepper step node (components common)
+## src/components/common/StepperStepNode.tsx (89 lines) - stepper step node (components common)
 - `StepState` (export type) L5
-- `DisplayStep` (export interface) L7
-- `STEP_STYLES` (export const) L13
-- `StepIcon` (export const) L24
-- `StepperStepNodeProps` (interface) L40
-- `StepperStepNode` (export function) L46
+- `DisplaySubStep` (export interface) L7
+- `DisplayStep` (export interface) L13
+- `STEP_STYLES` (export const) L20
+- `StepIcon` (export const) L31
+- `StepperStepNodeProps` (interface) L47
+- `StepperStepNode` (export function) L53

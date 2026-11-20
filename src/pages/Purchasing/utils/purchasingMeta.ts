@@ -12,12 +12,12 @@ export const STATUS_LABEL: Record<RequestStatus, string> = {
   [RequestStatus.New]: "New Request",
   [RequestStatus.UnderReview]: "Under Review",
   [RequestStatus.WaitingApproval]: "Waiting Approval",
-  [RequestStatus.Approved]: "Approved",
+  [RequestStatus.Approved]: "Approved PO",
   [RequestStatus.WaitingPayment]: "Waiting Payment",
   [RequestStatus.Purchased]: "Ordered / Purchased",
   [RequestStatus.Shipped]: "Shipped",
-  [RequestStatus.GoodsReceived]: "Goods Received",
-  [RequestStatus.InvoiceReceived]: "Invoice Received",
+  [RequestStatus.GoodsReceived]: "Goods / Service Confirmed",
+  [RequestStatus.InvoiceReceived]: "Vendor Invoice",
   [RequestStatus.Completed]: "Completed",
   [RequestStatus.Rejected]: "Rejected",
   [RequestStatus.OnHold]: "On Hold",
@@ -101,14 +101,20 @@ export const ACCOUNTS_PAYABLE_FLOW: readonly RequestStatus[] = [
   RequestStatus.Initial,
   RequestStatus.New,
   RequestStatus.WaitingApproval,
+  RequestStatus.Approved,
+  RequestStatus.GoodsReceived,
+  RequestStatus.InvoiceReceived,
   RequestStatus.WaitingPayment,
   RequestStatus.Completed,
 ];
 
-/** Wire transfer "Others": Draft -> Waiting Approval (Company Level 2) -> Waiting Payment -> Completed. */
+/** Accounts Payable 3-Way Matching Workflow (for "Others" in Create a Payable): Draft -> Waiting Approval -> Approved PO -> Goods/Service Confirmed -> Vendor Invoice -> Waiting Payment -> Completed. */
 export const WIRE_OTHERS_FLOW: readonly RequestStatus[] = [
   RequestStatus.Initial,
   RequestStatus.WaitingApproval,
+  RequestStatus.Approved,
+  RequestStatus.GoodsReceived,
+  RequestStatus.InvoiceReceived,
   RequestStatus.WaitingPayment,
   RequestStatus.Completed,
 ];

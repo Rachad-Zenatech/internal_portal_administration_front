@@ -23,8 +23,23 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `Props` (interface) L9
 - `InvoiceTaskRow` (export function) L21
 
+## src/pages/Purchasing/invoices/sections/InvoicesHeader.tsx (87 lines) - invoices header (pages  purchasing invoices sections)
+- `InvoicesHeaderProps` (interface) L7
+- `InvoicesHeader` (export function) L19
+
+## src/pages/Purchasing/invoices/sections/InvoicesHeaderActions.tsx (66 lines) - invoices header actions (pages  purchasing invoices sections)
+- `InvoicesHeaderActionsProps` (interface) L4
+- `InvoicesHeaderActions` (export function) L13
+
 ## src/pages/Purchasing/invoices/sections/KpiSummaryCards.tsx (168 lines) - kpi summary cards (pages  purchasing invoices sections)
 - `KpiSummaryCards` (export function) L6
+
+## src/pages/Purchasing/invoices/sections/PayablesDueCollapsibleTab.tsx (122 lines) - payables due collapsible tab (pages  purchasing invoices sections)
+- `PayablesDueCollapsibleTab` (export function) L11
+
+## src/pages/Purchasing/invoices/sections/PayablesDueRow.tsx (57 lines) - payables due row (pages  purchasing invoices sections)
+- `PayablesDueRowProps` (interface) L4
+- `PayablesDueRow` (export function) L9
 
 ## src/pages/Purchasing/invoices/sections/ReadOnlyWireInfo.tsx (326 lines) - read only wire info (pages  purchasing invoices sections)
 - `ReadOnlyWireInfo` (export function) L8
