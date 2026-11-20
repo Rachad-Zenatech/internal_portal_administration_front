@@ -98,7 +98,7 @@ export function resolveSteps(
           },
           {
             status: RequestStatus.GoodsReceived,
-            label: "Service Confirmed",
+            label: "Goods / Service Confirmed",
             state: exception ? "pending" : stepStateFor(grIdx, activeIndex),
           },
           {

@@ -4,7 +4,7 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/Purchasing/WorkflowAuto/components/PipelineStepItem.tsx (125 lines) - pipeline step item (pages  purchasing  workflow auto components)
+## src/pages/Purchasing/WorkflowAuto/components/PipelineStepItem.tsx (114 lines) - pipeline step item (pages  purchasing  workflow auto components)
 - `PipelineStepItemProps` (interface) L4
 - `PipelineSingleStep` (export function) L12
 - `PipelineClusterStepProps` (interface) L60

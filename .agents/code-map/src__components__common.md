@@ -38,7 +38,7 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `resolveSteps` (export function) L42 - Resolves the steps to draw for a flow and a raw status.
 - `Stepper` (const) L154 - Responsive horizontal stepper component with uniform step sizing that scales across screen widths.
 
-## src/components/common/StepperStepNode.tsx (104 lines) - stepper step node (components common)
+## src/components/common/StepperStepNode.tsx (89 lines) - stepper step node (components common)
 - `StepState` (export type) L5
 - `DisplaySubStep` (export interface) L7
 - `DisplayStep` (export interface) L13
