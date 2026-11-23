@@ -69,8 +69,8 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/common/LinkifiedText.tsx (50 lines) - linkified text (components common)
 - src/components/common/ProtectedRoute.tsx (81 lines) - protected route (components common)
 - src/components/common/QRCodeDisplay.tsx (59 lines) - q r code display (components common)
-- src/components/common/Stepper.tsx (207 lines) - Ordered workflow states (ADMIN_FLOW, SPEND_FLOW, RECURRING_FLOW, QUOTE_FLOW)
-- src/components/common/StepperStepNode.tsx (68 lines) - stepper step node (components common)
+- src/components/common/Stepper.tsx (265 lines) - Ordered workflow states (ADMIN_FLOW, SPEND_FLOW, RECURRING_FLOW, QUOTE_FLOW)
+- src/components/common/StepperStepNode.tsx (95 lines) - stepper step node (components common)
 - src/components/ui/FloatingVerticalFilter.tsx (290 lines) - floating vertical filter (components ui)
 - src/components/ui/HelpIcon.tsx (30 lines) - help icon (components ui)
 - src/components/ui/PageConnectionBanner.tsx (65 lines) - page connection banner (components ui)
@@ -287,7 +287,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Configurations/oAuthConfiguration/sections/ConnectionStatusCard.tsx (159 lines) - connection status card (pages  configurations o auth configuration sections)
 - src/pages/Configurations/oAuthConfiguration/sections/LeftColumnAppCredentials.tsx (198 lines) - left column app credentials (pages  configurations o auth configuration sections)
 - src/pages/Configurations/oAuthConfiguration/sections/MailboxConnectionSettingsCard.tsx (154 lines) - mailbox connection settings card (pages  configurations o auth configuration sections)
-- src/pages/Configurations/oAuthConfiguration/sections/MainMailboxHeaderCard.tsx (309 lines) - main mailbox header card (pages  configurations o auth configuration sections)
+- src/pages/Configurations/oAuthConfiguration/sections/MainMailboxHeaderCard.tsx (296 lines) - main mailbox header card (pages  configurations o auth configuration sections)
 - src/pages/Configurations/oAuthConfiguration/sections/ReceivableEmailDetailModal.tsx (250 lines) - receivable email detail modal (pages  configurations o auth configuration sections)
 - src/pages/Configurations/oAuthConfiguration/sections/RightColumnSyncPipelines.tsx (227 lines) - right column sync pipelines (pages  configurations o auth configuration sections)
 - src/pages/Configurations/productsServices/hooks/useProductsServices.ts (9 lines) - use products services (pages  configurations products services hooks)
@@ -339,7 +339,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Logs/systemLogsPage/types.ts (19 lines) - types (pages  logs system logs page)
 - src/pages/Logs/systemLogsPage/utils.ts (196 lines) - Helper to format human-readable action details
 - src/pages/Purchasing/BatchApproval.tsx (251 lines) - batch approval (pages  purchasing)
-- src/pages/Purchasing/Invoices.tsx (161 lines) - invoices (pages  purchasing)
+- src/pages/Purchasing/Invoices.tsx (87 lines) - invoices (pages  purchasing)
 - src/pages/Purchasing/MyApprovals.tsx (367 lines) - my approvals (pages  purchasing)
 - src/pages/Purchasing/PurchaseRequestDetail.tsx (47 lines) - purchase request detail (pages  purchasing)
 - src/pages/Purchasing/PurchaseRequests.tsx (520 lines) - purchase requests (pages  purchasing)
@@ -471,7 +471,11 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/invoices/sections/InvoiceDueDateCell.tsx (32 lines) - invoice due date cell (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/InvoiceItemVendorCell.tsx (86 lines) - invoice item vendor cell (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/InvoiceTaskRow.tsx (99 lines) - invoice task row (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/InvoicesHeader.tsx (87 lines) - invoices header (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/InvoicesHeaderActions.tsx (66 lines) - invoices header actions (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/KpiSummaryCards.tsx (168 lines) - kpi summary cards (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/PayablesDueCollapsibleTab.tsx (122 lines) - payables due collapsible tab (pages  purchasing invoices sections)
+- src/pages/Purchasing/invoices/sections/PayablesDueRow.tsx (57 lines) - payables due row (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/ReadOnlyWireInfo.tsx (326 lines) - read only wire info (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/TableCard.tsx (85 lines) - table card (pages  purchasing invoices sections)
 - src/pages/Purchasing/invoices/sections/TravelStipendsTable.tsx (474 lines) - travel stipends table (pages  purchasing invoices sections)
@@ -600,7 +604,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/secureInfoRequest/types.ts (40 lines) - types (pages  purchasing secure info request)
 - src/pages/Purchasing/secureInfoRequest/utils.ts (23 lines) - True when a regular message looks like it contains a password, so we can suggest the secure form.
 - src/pages/Purchasing/utils/invoiceDateTerms.ts (26 lines) - Compute a YYYY-MM-DD due date from an invoice date and vendor payment terms (e.g.
-- src/pages/Purchasing/utils/purchasingMeta.ts (352 lines) - Presentation metadata for Purchasing + Tasks.
+- src/pages/Purchasing/utils/purchasingMeta.ts (358 lines) - Presentation metadata for Purchasing + Tasks.
 - src/pages/Purchasing/utils/recurringScheduleUtils.ts (459 lines) - recurring schedule utils (pages  purchasing utils)
 - src/pages/Reports/Reports.tsx (96 lines) - src/pages/Reports.tsx
 - src/pages/Settings/Settings.tsx (12 lines) - src/pages/Settings.tsx

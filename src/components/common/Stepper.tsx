@@ -6,12 +6,13 @@ import { isExceptionStatus, parseRequestStatus, pipelineRank } from "@/lib/reque
 import {
   StepperStepNode,
   type DisplayStep,
+  type DisplaySubStep,
   type StepState,
   STEP_STYLES,
   StepIcon,
 } from "./StepperStepNode";
 
-export type { DisplayStep, StepState };
+export type { DisplayStep, DisplaySubStep, StepState };
 export { STEP_STYLES, StepIcon, StepperStepNode };
 
 interface StepperProps {
@@ -75,6 +76,63 @@ export function resolveSteps(
   } else if (status === null && requestStatus) {
     exception = { status: null, label: String(requestStatus), state: "hold" };
     activeIndex = -1;
+  }
+
+  // Check if this flow has the 3 AP matching steps: Approved, GoodsReceived, InvoiceReceived
+  const appIdx = steps.indexOf(RequestStatus.Approved);
+  const grIdx = steps.indexOf(RequestStatus.GoodsReceived);
+  const irIdx = steps.indexOf(RequestStatus.InvoiceReceived);
+  const hasThreeWayCluster = appIdx !== -1 && grIdx === appIdx + 1 && irIdx === grIdx + 1;
+
+  if (hasThreeWayCluster) {
+    const rendered: DisplayStep[] = [];
+    for (let i = 0; i < steps.length; i++) {
+      if (i === appIdx) {
+        const clusterState: StepState =
+          exception ? "pending" :
+          activeIndex > irIdx ? "done" :
+          activeIndex >= appIdx && activeIndex <= irIdx ? "current" : "pending";
+
+        const subSteps: DisplaySubStep[] = [
+          {
+            status: RequestStatus.Approved,
+            label: "Approved PO",
+            state: exception ? "pending" : stepStateFor(appIdx, activeIndex),
+          },
+          {
+            status: RequestStatus.GoodsReceived,
+            label: "Goods / Service Confirmed",
+            state: exception ? "pending" : stepStateFor(grIdx, activeIndex),
+          },
+          {
+            status: RequestStatus.InvoiceReceived,
+            label: "Vendor Invoice",
+            state: exception ? "pending" : stepStateFor(irIdx, activeIndex),
+          },
+        ];
+
+        rendered.push({
+          status: RequestStatus.Approved,
+          label: "3-Way Match",
+          state: clusterState,
+          subSteps,
+        });
+
+        i = irIdx;
+      } else {
+        let state: StepState = exception ? "pending" : stepStateFor(i, activeIndex);
+        if (steps[i] === RequestStatus.Completed && state === "current") {
+          state = "done";
+        }
+        rendered.push({
+          status: steps[i],
+          label: STATUS_LABEL[steps[i]],
+          state,
+        });
+      }
+    }
+    if (exception) rendered.push(exception);
+    return rendered;
   }
 
   const rendered: DisplayStep[] = steps.map((step, i) => {

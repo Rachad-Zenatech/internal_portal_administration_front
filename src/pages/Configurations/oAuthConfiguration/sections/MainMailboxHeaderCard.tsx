@@ -97,25 +97,12 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex items-center gap-2.5 flex-wrap">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleTestEntraConnection}
-                  disabled={isTestingEntra}
-                  className="text-xs h-9 gap-1.5"
-                >
+                <Button variant="outline" size="sm" onClick={handleTestEntraConnection} disabled={isTestingEntra} className="text-xs h-9 gap-1.5">
                   {isTestingEntra ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 text-amber-500" />}
                   <span>Test Connection</span>
                 </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowEntraSettings(!showEntraSettings)}
-                  className="text-xs h-9 gap-1.5"
-                >
+                <Button variant="outline" size="sm" onClick={() => setShowEntraSettings(!showEntraSettings)} className="text-xs h-9 gap-1.5">
                   <Settings className="w-3.5 h-3.5 text-muted-foreground" />
                   <span>{showEntraSettings ? "Hide Settings" : "Connection Settings"}</span>
                   {showEntraSettings ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}

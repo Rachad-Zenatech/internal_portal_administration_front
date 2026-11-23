@@ -18,7 +18,7 @@
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/components/AppShell/Sidebar.tsx": {
-      "max_lines": 506,
+      "max_lines": 504,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/components/AppShell/TopBar.tsx": {
@@ -62,7 +62,7 @@
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/pages/Configurations/PayableContacts.tsx": {
-      "max_lines": 749,
+      "max_lines": 740,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/pages/Configurations/Projects.tsx": {
@@ -176,7 +176,7 @@
       "kind": "jsx_return"
     },
     "src/components/AppShell/GlobalSettingsDialog.tsx#GlobalSettingsDialog": {
-      "max_lines": 131,
+      "max_lines": 126,
       "kind": "jsx_return"
     },
     "src/components/AppShell/globalSettingsDialog/sections/EnableLongHeldItems.tsx#EnableLongHeldItems": {
@@ -224,11 +224,11 @@
       "kind": "jsx_return"
     },
     "src/components/Configurations/AddBusinessContactDialog.tsx#AddBusinessContactDialog": {
-      "max_lines": 185,
+      "max_lines": 184,
       "kind": "jsx_return"
     },
     "src/components/Configurations/EditBusinessContactDialog.tsx#EditBusinessContactDialog": {
-      "max_lines": 113,
+      "max_lines": 112,
       "kind": "jsx_return"
     },
     "src/components/Configurations/PayeeBankingEditor.tsx#PayeeBankingEditor": {
@@ -560,7 +560,7 @@
       "kind": "jsx_return"
     },
     "src/pages/Configurations/oAuthConfiguration/sections/MainMailboxHeaderCard.tsx#MainMailboxHeaderCard": {
-      "max_lines": 365,
+      "max_lines": 238,
       "kind": "jsx_return"
     },
     "src/pages/Configurations/oAuthConfiguration/sections/RightColumnSyncPipelines.tsx#RightColumnSyncPipelines": {
@@ -740,7 +740,7 @@
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/dialogs/editCombinedRequest/sections/Tab3InvoiceReceipts.tsx#Tab3InvoiceReceipts": {
-      "max_lines": 316,
+      "max_lines": 214,
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/dialogs/EditCombinedRequestDialog.tsx#EditCombinedRequestDialog": {
@@ -891,10 +891,6 @@
       "max_lines": 528,
       "kind": "jsx_return"
     },
-    "src/pages/Purchasing/Invoices.tsx#Invoices": {
-      "max_lines": 121,
-      "kind": "jsx_return"
-    },
     "src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx#FiltersSearchToolbar": {
       "max_lines": 90,
       "kind": "jsx_return"
@@ -944,7 +940,7 @@
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/purchaseRequestDetail/sections/RecordInvoiceDialog.tsx#RecordInvoiceDialog": {
-      "max_lines": 358,
+      "max_lines": 319,
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/purchaseRequestDetail/sections/RequestDetailsPropertyTable.tsx#RequestDetailsPropertyTable": {
@@ -1072,7 +1068,7 @@
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx#ActionFormFields": {
-      "max_lines": 270,
+      "max_lines": 228,
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/requestDetail/sections/ApprovalsTab.tsx#ApprovalsTab": {
