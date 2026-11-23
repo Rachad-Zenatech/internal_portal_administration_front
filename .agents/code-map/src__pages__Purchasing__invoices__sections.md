@@ -15,9 +15,10 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `Props` (interface) L4
 - `InvoiceDueDateCell` (export function) L10
 
-## src/pages/Purchasing/invoices/sections/InvoiceItemVendorCell.tsx (70 lines) - invoice item vendor cell (pages  purchasing invoices sections)
+## src/pages/Purchasing/invoices/sections/InvoiceItemVendorCell.tsx (86 lines) - invoice item vendor cell (pages  purchasing invoices sections)
 - `Props` (interface) L4
-- `InvoiceItemVendorCell` (export function) L10
+- `parseQuoteData` (function) L10
+- `InvoiceItemVendorCell` (export function) L22
 
 ## src/pages/Purchasing/invoices/sections/InvoiceTaskRow.tsx (99 lines) - invoice task row (pages  purchasing invoices sections)
 - `Props` (interface) L9

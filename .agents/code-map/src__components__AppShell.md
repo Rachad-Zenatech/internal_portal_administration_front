@@ -8,7 +8,7 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `Props` (interface) L9
 - `AppShell` (export function) L13
 
-## src/components/AppShell/Breadcrumbs.tsx (178 lines) - breadcrumbs (components  app shell)
+## src/components/AppShell/Breadcrumbs.tsx (195 lines) - breadcrumbs (components  app shell)
 - `BreadcrumbItem` (export interface) L5
 - `Breadcrumbs` (export function) L13
 
@@ -35,8 +35,8 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
     - `handleCopy` (fn) L209
     - `handleResetChat` (fn) L223
 
-## src/components/AppShell/GlobalSettingsDialog.tsx (144 lines) - global settings dialog (components  app shell)
-- `GlobalSettingsDialog` (export function) L14
+## src/components/AppShell/GlobalSettingsDialog.tsx (93 lines) - global settings dialog (components  app shell)
+- `GlobalSettingsDialog` (export function) L13
 
 ## src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
 - `HubSpotSyncProgress` (export function) L13 - Small bottom-right card showing the background HubSpot companies sync: percentage while running,  then the result.

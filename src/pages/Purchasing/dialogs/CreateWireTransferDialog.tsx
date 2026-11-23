@@ -5,7 +5,8 @@ import { WireGeneralPaymentFields } from "../fields/WireGeneralPaymentFields";
 import { WireBankingFields } from "../fields/WireBankingFields";
 import { PreviousPaymentPicker } from "./createWireTransfer/PreviousPaymentPicker";
 import { CreateWireMetaFields } from "./createWireTransfer/CreateWireMetaFields";
-import { PayableGlAndAttachmentFields } from "./createWireTransfer/PayableGlAndAttachmentFields";
+import { PayableGlField, VendorAttachmentField } from "./createWireTransfer/PayableGlAndAttachmentFields";
+import { UrgentPayableToggle } from "./createWireTransfer/UrgentPayableToggle";
 import { useCreateWireTransfer, type WirePrefill } from "./createWireTransfer/useCreateWireTransfer";
 
 interface Props {
@@ -41,6 +42,17 @@ export function CreateWireTransferDialog({ open, onOpenChange, onCreated, prefil
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5">
+          {isPayable && s.canUseUrgentOverride && (
+            <UrgentPayableToggle
+              checked={s.isUrgentOverride}
+              reason={s.urgentReason}
+              onChange={(checked, note) => {
+                s.setIsUrgentOverride(checked);
+                s.setUrgentReason(note);
+              }}
+              disabled={isSubmitting}
+            />
+          )}
           {isRecurring && (
             <PreviousPaymentPicker
               category={category}
@@ -64,32 +76,63 @@ export function CreateWireTransferDialog({ open, onOpenChange, onCreated, prefil
             setDepartment={setDepartment}
           />
 
-          <WireGeneralPaymentFields form={wire} setForm={setWire} isSubmitting={isSubmitting} />
-          <WireBankingFields form={wire} setForm={setWire} />
-          <PayableGlAndAttachmentFields
-            glCode={glCode}
-            onGlCodeChange={setGlCode}
+          <VendorAttachmentField
             attachmentLabel={attachmentLabel}
             fileInputRef={fileInputRef}
             onFileChange={setFile}
-            isSubmitting={isSubmitting}
             isExtractingOcr={isExtractingOcr}
+          />
+          <WireGeneralPaymentFields form={wire} setForm={setWire} isSubmitting={isSubmitting} />
+          <WireBankingFields form={wire} setForm={setWire} />
+          <PayableGlField
+            glCode={glCode}
+            onGlCodeChange={setGlCode}
+            isSubmitting={isSubmitting}
           />
         </div>
 
-        <DialogFooter className="mx-0 mb-0 rounded-none px-6 py-3.5 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 gap-2 sm:gap-2 shrink-0">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSubmitting} className="cursor-pointer">
-            Cancel
-          </Button>
-          <Button type="button" variant="outline" onClick={() => s.submit("draft")} disabled={isSubmitting} className="cursor-pointer">
-            Save as Draft
-          </Button>
-          <Button type="button" onClick={() => s.submit("submit")} disabled={isSubmitting} className="gap-2 bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 cursor-pointer">
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            Create &amp; Submit
-          </Button>
-        </DialogFooter>
+        <CreateWireFooter
+          isSubmitting={isSubmitting}
+          isUrgentOverride={s.isUrgentOverride}
+          onClose={() => onOpenChange(false)}
+          onSubmit={s.submit}
+        />
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface FooterProps {
+  isSubmitting: boolean;
+  isUrgentOverride: boolean;
+  onClose: () => void;
+  onSubmit: (mode: "draft" | "submit") => void;
+}
+
+function CreateWireFooter({ isSubmitting, isUrgentOverride, onClose, onSubmit }: FooterProps) {
+  return (
+    <DialogFooter className="mx-0 mb-0 rounded-none px-6 py-3.5 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 gap-2 sm:gap-2 shrink-0">
+      <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting} className="cursor-pointer">
+        Cancel
+      </Button>
+      {!isUrgentOverride && (
+        <Button type="button" variant="outline" onClick={() => onSubmit("draft")} disabled={isSubmitting} className="cursor-pointer">
+          Save as Draft
+        </Button>
+      )}
+      <Button
+        type="button"
+        onClick={() => onSubmit("submit")}
+        disabled={isSubmitting}
+        className={`gap-2 cursor-pointer ${
+          isUrgentOverride
+            ? "bg-red-600 text-white hover:bg-red-700"
+            : "bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900"
+        }`}
+      >
+        {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+        {isUrgentOverride ? "Create Urgent Payable" : "Create & Submit"}
+      </Button>
+    </DialogFooter>
   );
 }

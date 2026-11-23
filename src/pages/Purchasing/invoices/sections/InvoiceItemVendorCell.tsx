@@ -1,4 +1,4 @@
-import { Building2 } from "lucide-react";
+import { AlertTriangle, Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Props {
@@ -7,25 +7,55 @@ interface Props {
   isWireTransfer: (t: any) => boolean;
 }
 
+function parseQuoteData(raw: any): Record<string, any> | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return typeof raw === "object" ? raw : null;
+}
+
 export function InvoiceItemVendorCell({ task, isScheduledPayment, isWireTransfer }: Props) {
   const wt = task.wire_transfer;
-  const s = String(task.status || "").toUpperCase();
-  const hasPo = Boolean(task.po_number || wt?.po_number || task.purchase_order || task.level_1_approved_at || s === "APPROVED" || s === "GOODS_RECEIVED" || s === "INVOICE_RECEIVED" || s === "WAITING_PAYMENT" || s === "COMPLETED");
-  const hasReceipt = Boolean(task.goods_received || s === "GOODS_RECEIVED" || s === "INVOICE_RECEIVED" || s === "WAITING_PAYMENT" || s === "COMPLETED");
-  const hasInvoice = Boolean(wt?.invoice_number || task.invoice_number || s === "INVOICE_RECEIVED" || s === "WAITING_PAYMENT" || s === "COMPLETED");
-  const matchCount = (hasPo ? 1 : 0) + (hasReceipt ? 1 : 0) + (hasInvoice ? 1 : 0);
+  const quoteData = parseQuoteData(task.quote_data);
+  const isUrgentPayable = Boolean(quoteData?.is_urgent_override);
+  const urgentReason = quoteData?.urgent_override_reason ? String(quoteData.urgent_override_reason) : null;
 
   return (
     <div className="flex flex-col gap-1 max-w-[280px]">
-      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-sm truncate">
-        {task.product_name || "Untitled Request"}
-      </span>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-sm truncate" title={task.product_name || "Untitled Request"}>
+          {task.product_name || "Untitled Request"}
+        </span>
+      </div>
+      {isUrgentPayable && urgentReason && (
+        <span
+          className="text-[11px] font-medium text-red-600 dark:text-red-400 truncate"
+          title={`Urgent Reason: ${urgentReason}`}
+        >
+          Reason: {urgentReason}
+        </span>
+      )}
       <div className="flex items-center gap-1.5 flex-wrap text-xs text-slate-500 dark:text-zinc-400">
         {(wt?.vendor || task.vendor) && (
           <span className="inline-flex items-center gap-1 font-medium text-slate-700 dark:text-zinc-300">
             <Building2 className="h-3 w-3 text-slate-400 shrink-0" />
             <span className="truncate max-w-[160px]">{wt?.vendor || task.vendor}</span>
           </span>
+        )}
+        {isUrgentPayable && (
+          <Badge
+            variant="outline"
+            title={urgentReason ? `Urgent Payable Override: ${urgentReason}` : "Urgent Account Payable"}
+            className="text-[10px] px-1.5 py-0 font-semibold gap-1 bg-red-50 text-red-700 border-red-300 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800"
+          >
+            <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+            Urgent Payable
+          </Badge>
         )}
         <Badge
           variant="outline"
@@ -42,20 +72,6 @@ export function InvoiceItemVendorCell({ task, isScheduledPayment, isWireTransfer
         {wt?.category && wt.category !== "Others" && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800">
             {wt.category}
-          </Badge>
-        )}
-        {(!wt?.category || wt.category === "Others") && (
-          <Badge
-            variant="outline"
-            className={`text-[10px] px-1.5 py-0 font-medium ${
-              matchCount === 3
-                ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-                : matchCount === 2
-                ? "bg-blue-50 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 dark:border-blue-800"
-                : "bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800"
-            }`}
-          >
-            {matchCount === 3 ? "3-Way: 3/3 Matched" : `3-Way: ${matchCount}/3 Ready`}
           </Badge>
         )}
         {wt?.payment_series?.label && (

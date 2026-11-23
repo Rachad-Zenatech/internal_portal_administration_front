@@ -32,7 +32,8 @@ export function useOAuthConfigurationActions() {
   const [liveData, setLiveData] = useState<HubSpotDataResponse | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [searchFilter, setSearchFilter] = useState("");
-  // ── Microsoft Entra (Receivable Mailbox) State ──
+  // ── Microsoft Entra (Payable / Receivable Mailbox) State ──
+  const [entraScope, setEntraScope] = useState<"receivable" | "payable">("receivable");
   const [entraStatus, setEntraStatus] = useState<MicrosoftEntraOAuthStatus | null>(null);
   const [isLoadingEntraStatus, setIsLoadingEntraStatus] = useState(true);
   const [isTestingEntra, setIsTestingEntra] = useState(false);
@@ -81,14 +82,15 @@ export function useOAuthConfigurationActions() {
     }
   }, []);
   // Load Microsoft Entra Status
-  const loadEntraStatus = useCallback(async (silent = false) => {
+  const loadEntraStatus = useCallback(async (silent = false, targetScope: "receivable" | "payable" = entraScope) => {
     try {
       if (!silent) setIsLoadingEntraStatus(true);
-      const res = await oauthService.getMicrosoftEntraStatus();
+      const res = await oauthService.getMicrosoftEntraStatus(targetScope);
       setEntraStatus(res);
       if (res.config) {
         setEntraRedirectUri(res.config.redirect_uri || "");
-        setEntraTargetMailbox(res.config.target_mailbox || "accountsreceivable@zenatech.com");
+        const fallbackMailbox = targetScope === "payable" ? "accountspayable@epazz.net" : "accountsreceivable@zenatech.com";
+        setEntraTargetMailbox(res.config.target_mailbox || fallbackMailbox);
       }
     } catch (err: any) {
       console.error("[OAuthConfiguration] Failed to fetch Microsoft Entra OAuth status", err);
@@ -98,7 +100,7 @@ export function useOAuthConfigurationActions() {
     } finally {
       if (!silent) setIsLoadingEntraStatus(false);
     }
-  }, []);
+  }, [entraScope]);
   // Handle URL params callback / postMessage from popup
   useEffect(() => {
     loadStatus();
@@ -274,7 +276,7 @@ export function useOAuthConfigurationActions() {
   const handleTestEntraConnection = async () => {
     try {
       setIsTestingEntra(true);
-      const res = await oauthService.testMicrosoftEntraConnection();
+      const res = await oauthService.testMicrosoftEntraConnection(entraScope);
       if (res.success) {
         toast.success(res.message || "Successfully connected to Microsoft Entra!");
       } else {
@@ -330,6 +332,7 @@ export function useOAuthConfigurationActions() {
     }
     try {
       setIsSavingEntraConfig(true);
+      const defaultMailbox = entraScope === "payable" ? "accountspayable@epazz.net" : "accountsreceivable@zenatech.com";
       await oauthService.saveMicrosoftEntraConfig({
         client_id: entraClientId.trim() || undefined,
         client_secret: entraClientSecret.trim() || undefined,
@@ -337,17 +340,18 @@ export function useOAuthConfigurationActions() {
         group_id: entraGroupId.trim() || undefined,
         redirect_uri: entraRedirectUri.trim() || undefined,
         scopes: "https://graph.microsoft.com/.default",
-        target_mailbox: entraTargetMailbox.trim() || "accountsreceivable@zenatech.com",
+        target_mailbox: entraTargetMailbox.trim() || defaultMailbox,
         auth_mode: "application",
+        mailbox_scope: entraScope,
       });
       toast.success("Microsoft Entra configuration saved successfully!");
       setEntraClientId("");
       setEntraClientSecret("");
       setEntraTenantId("");
       setEntraGroupId("");
-      await loadEntraStatus(true);
+      await loadEntraStatus(true, entraScope);
 
-      const testRes = await oauthService.testMicrosoftEntraConnection();
+      const testRes = await oauthService.testMicrosoftEntraConnection(entraScope);
       if (testRes.success) {
         toast.success(testRes.message || "Connection to mailbox verified!");
       } else {
@@ -362,30 +366,42 @@ export function useOAuthConfigurationActions() {
       setIsSavingEntraConfig(false);
     }
   };
-  const handleFetchReceivableEmails = useCallback(async (silent?: boolean | unknown) => {
+  const handleFetchReceivableEmails = useCallback(async (silent?: boolean | unknown, scopeOverride?: "receivable" | "payable") => {
     const isSilent = silent === true;
+    const scope = scopeOverride || entraScope;
     try {
       if (!isSilent) setIsLoadingEmails(true);
-      const res = await oauthService.fetchReceivableEmails(35, emailSearch.trim() || undefined);
+      const res = await oauthService.fetchReceivableEmails(35, emailSearch.trim() || undefined, scope);
       setReceivableEmails(res.items || []);
       setLastEmailFetchTime(new Date().toLocaleTimeString());
       if (!isSilent) {
-        toast.success(`Retrieved ${res.total} recent emails from Accounts Receivable mailbox.`);
+        const label = scope === "payable" ? "Accounts Payable" : "Accounts Receivable";
+        toast.success(`Retrieved ${res.total} recent emails from ${label} mailbox.`);
       }
     } catch (err: any) {
       if (!isSilent) {
-        toast.error(err?.response?.data?.detail || "Failed to fetch receivable emails");
+        toast.error(err?.response?.data?.detail || "Failed to fetch emails");
       }
     } finally {
       if (!isSilent) setIsLoadingEmails(false);
     }
-  }, [emailSearch]);
+  }, [emailSearch, entraScope]);
+  const handleSwitchEntraScope = useCallback((nextScope: "receivable" | "payable") => {
+    if (nextScope === entraScope) return;
+    setEntraScope(nextScope);
+    setReceivableEmails([]);
+    setSelectedEmail(null);
+    setSelectedEmailDetail(null);
+    void loadEntraStatus(false, nextScope).then(() => {
+      void handleFetchReceivableEmails(true, nextScope);
+    });
+  }, [entraScope, loadEntraStatus, handleFetchReceivableEmails]);
   const handleOpenEmailDetail = async (email: ReceivableEmailItem) => {
     setSelectedEmail(email);
     setSelectedEmailDetail(null);
     setIsLoadingEmailDetail(true);
     try {
-      const detail = await oauthService.getReceivableEmailDetail(email.id, email.conversation_id);
+      const detail = await oauthService.getReceivableEmailDetail(email.id, email.conversation_id, entraScope);
       setSelectedEmailDetail(detail);
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || "Failed to load email details");
@@ -456,5 +472,5 @@ export function useOAuthConfigurationActions() {
       return true;
     });
   }, [receivableEmails, emailFilterMode]);
-  return { activeTab, setActiveTab, status, isLoadingStatus, isConnecting, isTesting, isRefreshing, isDisconnecting, isSyncing, clientId, setClientId, clientSecret, setClientSecret, redirectUri, setRedirectUri, selectedScopes, setSelectedScopes, showSecret, setShowSecret, isSavingConfig, hasCopiedUri, showGuide, setShowGuide, activeDataType, setActiveDataType, liveData, isLoadingData, searchFilter, setSearchFilter, entraStatus, isLoadingEntraStatus, isTestingEntra, isDisconnectingEntra, isSigningInEntra, isSavingEntraConfig, entraClientId, setEntraClientId, entraClientSecret, setEntraClientSecret, entraTenantId, setEntraTenantId, entraGroupId, setEntraGroupId, entraTargetMailbox, setEntraTargetMailbox, showEntraSecret, setShowEntraSecret, showEntraSettings, setShowEntraSettings, receivableEmails, isLoadingEmails, emailSearch, setEmailSearch, emailFilterMode, setEmailFilterMode, lastEmailFetchTime, selectedEmail, selectedEmailDetail, isLoadingEmailDetail, sseConnected, supportsReadStatus, loadStatus, loadEntraStatus, handleConnectHubSpot, handleTestConnection, handleRefreshToken, handleDisconnect, handleSaveConfig, handleCopyUri, handleFetchLiveData, handleSyncProducts, handleTestEntraConnection, handleSignInEntra, handleDisconnectEntra, handleSaveEntraConfig, handleFetchReceivableEmails, handleOpenEmailDetail, handleCloseEmailDetail, isConnected, isConfigured, connection, isEntraConnected, entraConn, filteredLiveItems, filteredReceivableEmails };
+  return { activeTab, setActiveTab, entraScope, setEntraScope, handleSwitchEntraScope, status, isLoadingStatus, isConnecting, isTesting, isRefreshing, isDisconnecting, isSyncing, clientId, setClientId, clientSecret, setClientSecret, redirectUri, setRedirectUri, selectedScopes, setSelectedScopes, showSecret, setShowSecret, isSavingConfig, hasCopiedUri, showGuide, setShowGuide, activeDataType, setActiveDataType, liveData, isLoadingData, searchFilter, setSearchFilter, entraStatus, isLoadingEntraStatus, isTestingEntra, isDisconnectingEntra, isSigningInEntra, isSavingEntraConfig, entraClientId, setEntraClientId, entraClientSecret, setEntraClientSecret, entraTenantId, setEntraTenantId, entraGroupId, setEntraGroupId, entraTargetMailbox, setEntraTargetMailbox, showEntraSecret, setShowEntraSecret, showEntraSettings, setShowEntraSettings, receivableEmails, isLoadingEmails, emailSearch, setEmailSearch, emailFilterMode, setEmailFilterMode, lastEmailFetchTime, selectedEmail, selectedEmailDetail, isLoadingEmailDetail, sseConnected, supportsReadStatus, loadStatus, loadEntraStatus, handleConnectHubSpot, handleTestConnection, handleRefreshToken, handleDisconnect, handleSaveConfig, handleCopyUri, handleFetchLiveData, handleSyncProducts, handleTestEntraConnection, handleSignInEntra, handleDisconnectEntra, handleSaveEntraConfig, handleFetchReceivableEmails, handleOpenEmailDetail, handleCloseEmailDetail, isConnected, isConfigured, connection, isEntraConnected, entraConn, filteredLiveItems, filteredReceivableEmails };
 }

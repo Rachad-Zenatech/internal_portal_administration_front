@@ -10,13 +10,13 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `Narrowed` (type) L11 - Names tested by the early-return guards are known to be set once the guards have passed.
 - `RequestDetailGuardedState` (export type) L12
 
-## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions.ts (281 lines) - use request detail actions (pages  purchasing request detail hooks)
+## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions.ts (283 lines) - use request detail actions (pages  purchasing request detail hooks)
 - `useRequestDetailActions` (export function) L16
 
-## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions2.ts (299 lines) - use request detail actions2 (pages  purchasing request detail hooks)
+## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions2.ts (323 lines) - use request detail actions2 (pages  purchasing request detail hooks)
 - `useRequestDetailActions2` (export function) L8
 
-## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions3.ts (358 lines) - use request detail actions3 (pages  purchasing request detail hooks)
+## src/pages/Purchasing/requestDetail/hooks/useRequestDetailActions3.ts (366 lines) - use request detail actions3 (pages  purchasing request detail hooks)
 - `useRequestDetailActions3` (export function) L9
 
 ## src/pages/Purchasing/requestDetail/hooks/useRequestDetailTail.ts (12 lines) - use request detail tail (pages  purchasing request detail hooks)

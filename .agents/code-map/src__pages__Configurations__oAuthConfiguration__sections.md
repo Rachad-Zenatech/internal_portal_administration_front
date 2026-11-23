@@ -16,8 +16,9 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `ConnectionSettingsFooter` (function) L66
 - `MailboxConnectionSettingsCard` (export function) L93
 
-## src/pages/Configurations/oAuthConfiguration/sections/MainMailboxHeaderCard.tsx (270 lines) - main mailbox header card (pages  configurations o auth configuration sections)
-- `MainMailboxHeaderCard` (export function) L9
+## src/pages/Configurations/oAuthConfiguration/sections/MainMailboxHeaderCard.tsx (309 lines) - main mailbox header card (pages  configurations o auth configuration sections)
+- `EntraScopeSubTabs` (function) L9
+- `MainMailboxHeaderCard` (export function) L44
 
 ## src/pages/Configurations/oAuthConfiguration/sections/ReceivableEmailDetailModal.tsx (250 lines) - receivable email detail modal (pages  configurations o auth configuration sections)
 - `formatBytes` (function) L10

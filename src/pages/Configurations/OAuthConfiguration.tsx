@@ -83,7 +83,7 @@ export default function OAuthConfiguration() {
               className="h-9 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs font-semibold"
             >
               {isLoadingEmails ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Inbox className="w-3.5 h-3.5" />}
-              <span>Check Receivable Emails</span>
+              <span>{s.entraScope === "payable" ? "Check Payable Emails" : "Check Receivable Emails"}</span>
             </Button>
           )}
         </div>
@@ -122,7 +122,7 @@ export default function OAuthConfiguration() {
           }`}
         >
           <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-          <span>Microsoft Entra (Receivable Mailbox)</span>
+          <span>Microsoft Entra</span>
           {isEntraConnected && (
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
           )}

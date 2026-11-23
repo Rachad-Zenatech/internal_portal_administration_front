@@ -78,17 +78,17 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `DataTablePaginationProps` (interface) L18
 - `DataTablePagination` (export function) L23
 
-## src/components/ui/dialog.tsx (172 lines) - dialog (components ui)
+## src/components/ui/dialog.tsx (171 lines) - dialog (components ui)
 - `Dialog` (function) L10
 - `DialogTrigger` (function) L16
 - `DialogPortal` (function) L22
 - `DialogClose` (function) L28
 - `DialogOverlay` (function) L34
 - `DialogContent` (function) L50
-- `DialogHeader` (function) L91
-- `DialogFooter` (function) L101
-- `DialogTitle` (function) L128
-- `DialogDescription` (function) L144
+- `DialogHeader` (function) L90
+- `DialogFooter` (function) L100
+- `DialogTitle` (function) L127
+- `DialogDescription` (function) L143
 
 ## src/components/ui/drawer.tsx (133 lines) - drawer (components ui)
 - `Drawer` (function) L6

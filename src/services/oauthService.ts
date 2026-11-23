@@ -158,9 +158,9 @@ export const oauthService = {
     return apiClient.get<HubSpotCompaniesSyncProgress>("/api/oauth/hubspot/sync-companies/status");
   },
 
-  // ── Microsoft Entra (Receivable Mailbox) ──
-  getMicrosoftEntraStatus: () => {
-    return apiClient.get<MicrosoftEntraOAuthStatus>("/api/oauth/microsoft-entra/status");
+  // ── Microsoft Entra (Payable & Receivable Mailboxes) ──
+  getMicrosoftEntraStatus: (scope: "receivable" | "payable" = "receivable") => {
+    return apiClient.get<MicrosoftEntraOAuthStatus>(`/api/oauth/microsoft-entra/status?scope=${encodeURIComponent(scope)}`);
   },
 
   saveMicrosoftEntraConfig: (payload: {
@@ -172,6 +172,7 @@ export const oauthService = {
     scopes?: string;
     target_mailbox?: string;
     auth_mode?: string;
+    mailbox_scope?: "receivable" | "payable";
   }) => {
     return apiClient.post<{ success: boolean; config: MicrosoftEntraOAuthConfig; message: string }>(
       "/api/oauth/microsoft-entra/config",
@@ -186,9 +187,9 @@ export const oauthService = {
     );
   },
 
-  testMicrosoftEntraConnection: () => {
+  testMicrosoftEntraConnection: (scope: "receivable" | "payable" = "receivable") => {
     return apiClient.post<{ success: boolean; message?: string; error?: string; profile?: any }>(
-      "/api/oauth/microsoft-entra/test",
+      `/api/oauth/microsoft-entra/test?scope=${encodeURIComponent(scope)}`,
       {}
     );
   },
@@ -207,29 +208,34 @@ export const oauthService = {
     );
   },
 
-  fetchReceivableEmails: (top: number = 25, search?: string) => {
+  fetchReceivableEmails: (top: number = 25, search?: string, scope: "receivable" | "payable" = "receivable") => {
     const qs = new URLSearchParams();
     qs.append("top", String(top));
+    qs.append("scope", scope);
     if (search && search.trim()) {
       qs.append("search", search.trim());
     }
     return apiClient.get<ReceivableEmailsResponse>(`/api/oauth/microsoft-entra/emails?${qs.toString()}`);
   },
 
-  getReceivableEmailDetail: (emailId: string, conversationId?: string | null) => {
-    const qs = conversationId ? `?conversation_id=${encodeURIComponent(conversationId)}` : "";
-    return apiClient.get<ReceivableEmailDetail>(`/api/oauth/microsoft-entra/emails/${encodeURIComponent(emailId)}${qs}`);
+  getReceivableEmailDetail: (emailId: string, conversationId?: string | null, scope: "receivable" | "payable" = "receivable") => {
+    const qs = new URLSearchParams();
+    if (conversationId) qs.append("conversation_id", conversationId);
+    qs.append("scope", scope);
+    return apiClient.get<ReceivableEmailDetail>(`/api/oauth/microsoft-entra/emails/${encodeURIComponent(emailId)}?${qs.toString()}`);
   },
 
   getReceivableEmailAttachmentUrl: (
     emailId: string,
     attachmentId: string,
     conversationId?: string | null,
-    download = false
+    download = false,
+    scope: "receivable" | "payable" = "receivable"
   ) => {
     const qs = new URLSearchParams();
     if (conversationId) qs.append("conversation_id", conversationId);
     if (download) qs.append("download", "true");
+    qs.append("scope", scope);
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
     return `${BASE_URL}/api/oauth/microsoft-entra/emails/${encodeURIComponent(emailId)}/attachments/${encodeURIComponent(attachmentId)}${suffix}`;
   },

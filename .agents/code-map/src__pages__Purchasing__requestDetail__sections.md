@@ -4,18 +4,24 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx (248 lines) - action form fields (pages  purchasing request detail sections)
+## src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx (238 lines) - action form fields (pages  purchasing request detail sections)
 - `ActionFormFields` (export function) L17
 
 ## src/pages/Purchasing/requestDetail/sections/ApprovalActionForm.tsx (70 lines) - approval action form (pages  purchasing request detail sections)
 - `Props` (interface) L7
 - `ApprovalActionForm` (export function) L11
 
-## src/pages/Purchasing/requestDetail/sections/ApprovalsTab.tsx (174 lines) - approvals tab (pages  purchasing request detail sections)
-- `ApprovalsTab` (export function) L8
+## src/pages/Purchasing/requestDetail/sections/ApprovalsTab.tsx (207 lines) - approvals tab (pages  purchasing request detail sections)
+- `UrgentOverrideBanner` (function) L8
+- `ApprovalsTab` (export function) L30
+- `ApprovalHistorySection` (function) L163
 
-## src/pages/Purchasing/requestDetail/sections/AttachmentsTab.tsx (104 lines) - attachments tab (pages  purchasing request detail sections)
-- `AttachmentsTab` (export function) L9
+## src/pages/Purchasing/requestDetail/sections/AttachmentsTab.tsx (159 lines) - attachments tab (pages  purchasing request detail sections)
+- `formatFileSize` (function) L9
+- `getFileExtension` (function) L15
+- `AttachmentCardProps` (interface) L21
+- `AttachmentItemCard` (function) L29
+- `AttachmentsTab` (export function) L116
 
 ## src/pages/Purchasing/requestDetail/sections/CurrentReferenceInfo.tsx (126 lines) - current reference info (pages  purchasing request detail sections)
 - `CurrentReferenceInfo` (export function) L8
@@ -37,11 +43,18 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `InvoiceLinesCategoryTableProps` (interface) L7
 - `InvoiceLinesCategoryTable` (export function) L13
 
-## src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (240 lines) - main request header full (pages  purchasing request detail sections)
-- `MainRequestHeaderFull` (export function) L9
+## src/pages/Purchasing/requestDetail/sections/InvoiceLocationAmountFields.tsx (42 lines) - invoice location amount fields (pages  purchasing request detail sections)
+- `Props` (interface) L6
+- `InvoiceLocationAmountFields` (export function) L12
+
+## src/pages/Purchasing/requestDetail/sections/MainRequestHeaderFull.tsx (241 lines) - main request header full (pages  purchasing request detail sections)
+- `MainRequestHeaderFull` (export function) L10
 
 ## src/pages/Purchasing/requestDetail/sections/MultiplePartsInteractiveEditable.tsx (433 lines) - multiple parts interactive editable (pages  purchasing request detail sections)
 - `MultiplePartsInteractiveEditable` (export function) L13
+
+## src/pages/Purchasing/requestDetail/sections/PaymentMadeBadge.tsx (24 lines) - payment made badge (pages  purchasing request detail sections)
+- `PaymentMadeBadge` (export function) L6
 
 ## src/pages/Purchasing/requestDetail/sections/ProductVendorUrlAi.tsx (151 lines) - Extraction and the chart-of-accounts suggestions run once on the server (when the request is created, or in
 - `ProductVendorUrlAi` (export function) L12
@@ -77,5 +90,5 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Purchasing/requestDetail/sections/TopNavigationRecordActions.tsx (100 lines) - top navigation record actions (pages  purchasing request detail sections)
 - `TopNavigationRecordActions` (export function) L7
 
-## src/pages/Purchasing/requestDetail/sections/WorkflowStepperSection.tsx (52 lines) - workflow stepper section (pages  purchasing request detail sections)
+## src/pages/Purchasing/requestDetail/sections/WorkflowStepperSection.tsx (53 lines) - workflow stepper section (pages  purchasing request detail sections)
 - `WorkflowStepperSection` (export function) L9

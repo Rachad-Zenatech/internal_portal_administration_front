@@ -12,8 +12,8 @@ to find the right file.
 | .agents/code-map/src.md | 2 | 1 KB |
 | .agents/code-map/src__components__AppShell.md | 13 | 4 KB |
 | .agents/code-map/src__components__AppShell__globalSettingsDialog.md | 1 | 1 KB |
-| .agents/code-map/src__components__AppShell__globalSettingsDialog__hooks.md | 3 | 1 KB |
-| .agents/code-map/src__components__AppShell__globalSettingsDialog__sections.md | 4 | 1 KB |
+| .agents/code-map/src__components__AppShell__globalSettingsDialog__hooks.md | 4 | 1 KB |
+| .agents/code-map/src__components__AppShell__globalSettingsDialog__sections.md | 6 | 2 KB |
 | .agents/code-map/src__components__AppShell__notificationDropdown.md | 2 | 1 KB |
 | .agents/code-map/src__components__AppShell__notificationDropdown__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__components__AppShell__notificationDropdown__sections.md | 3 | 1 KB |
@@ -84,7 +84,7 @@ to find the right file.
 | .agents/code-map/src__pages__Dashboard__dashboard__components.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Dashboard__dashboard__hooks.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Dashboard__dashboard__sections.md | 6 | 1 KB |
-| .agents/code-map/src__pages__Logs.md | 2 | 1 KB |
+| .agents/code-map/src__pages__Logs.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Logs__systemLogsPage.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Logs__systemLogsPage__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Logs__systemLogsPage__sections.md | 3 | 1 KB |
@@ -97,7 +97,7 @@ to find the right file.
 | .agents/code-map/src__pages__Purchasing__components__masterTransactionsTable__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__components__masterTransactionsTable__sections.md | 1 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs.md | 11 | 3 KB |
-| .agents/code-map/src__pages__Purchasing__dialogs__createWireTransfer.md | 5 | 2 KB |
+| .agents/code-map/src__pages__Purchasing__dialogs__createWireTransfer.md | 6 | 3 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs__editCombinedRequest.md | 1 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs__editCombinedRequest__hooks.md | 3 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs__editCombinedRequest__sections.md | 5 | 1 KB |
@@ -114,7 +114,7 @@ to find the right file.
 | .agents/code-map/src__pages__Purchasing__dialogs__wireTransferDialog.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs__wireTransferDialog__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__dialogs__wireTransferDialog__sections.md | 2 | 1 KB |
-| .agents/code-map/src__pages__Purchasing__fields.md | 20 | 7 KB |
+| .agents/code-map/src__pages__Purchasing__fields.md | 21 | 7 KB |
 | .agents/code-map/src__pages__Purchasing__fields__wireBankingFields.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__fields__wireBankingFields__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__fields__wireBankingFields__sections.md | 2 | 1 KB |
@@ -140,12 +140,12 @@ to find the right file.
 | .agents/code-map/src__pages__Purchasing__requestDetail.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__requestDetail__components.md | 7 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__requestDetail__hooks.md | 5 | 1 KB |
-| .agents/code-map/src__pages__Purchasing__requestDetail__sections.md | 23 | 5 KB |
+| .agents/code-map/src__pages__Purchasing__requestDetail__sections.md | 25 | 6 KB |
 | .agents/code-map/src__pages__Purchasing__requestDetail__sections__threeWayMatching.md | 7 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest.md | 3 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest__components.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__secureInfoRequest__hooks.md | 2 | 1 KB |
-| .agents/code-map/src__pages__Purchasing__utils.md | 2 | 3 KB |
+| .agents/code-map/src__pages__Purchasing__utils.md | 3 | 4 KB |
 | .agents/code-map/src__pages__Purchasing__WorkflowAuto.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Purchasing__WorkflowAuto__components.md | 6 | 2 KB |
 | .agents/code-map/src__pages__Purchasing__WorkflowAuto__constants.md | 3 | 2 KB |
@@ -155,6 +155,6 @@ to find the right file.
 | .agents/code-map/src__pages__Settings.md | 1 | 1 KB |
 | .agents/code-map/src__pages__Tasks.md | 1 | 1 KB |
 | .agents/code-map/src__pages__UploadFiles.md | 1 | 1 KB |
-| .agents/code-map/src__services.md | 17 | 10 KB |
+| .agents/code-map/src__services.md | 18 | 11 KB |
 | .agents/code-map/src__types.md | 13 | 7 KB |
 | .agents/code-map/src__utils.md | 4 | 4 KB |

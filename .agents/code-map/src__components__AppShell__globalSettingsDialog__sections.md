@@ -4,10 +4,20 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
+## src/components/AppShell/globalSettingsDialog/sections/AppAlertsPreferencesSection.tsx (78 lines) - app alerts preferences section (components  app shell global settings dialog sections)
+- `AppAlertsPreferencesSection` (export function) L8
+
 ## src/components/AppShell/globalSettingsDialog/sections/BatchAndEodNotificationsSection.tsx (114 lines) - batch and eod notifications section (components  app shell global settings dialog sections)
 - `EodRemindersCard` (function) L8
 - `BatchApprovalCard` (function) L59
 - `BatchAndEodNotificationsSection` (export function) L106
+
+## src/components/AppShell/globalSettingsDialog/sections/EmailNotificationsSection.tsx (192 lines) - email notifications section (components  app shell global settings dialog sections)
+- `ToggleRowProps` (interface) L10
+- `EmailToggleRow` (function) L18
+- `EventEmailTogglesCard` (function) L67
+- `TestPayableEmailCard` (function) L118
+- `EmailNotificationsSection` (export function) L184
 
 ## src/components/AppShell/globalSettingsDialog/sections/EnableLongHeldItems.tsx (193 lines) - enable long held items (components  app shell global settings dialog sections)
 - `EnableLongHeldItems` (export function) L9

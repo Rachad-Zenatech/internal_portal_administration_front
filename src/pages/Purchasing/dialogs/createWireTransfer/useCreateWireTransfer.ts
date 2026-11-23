@@ -10,6 +10,7 @@ import { createRequest, getPreviousWirePayments, transitionRequest, uploadAttach
 import type { PreviousWirePayment, RequestCreateInput, WireTransferInput } from "@/types/purchasing";
 import { EMPTY_FORM, EMPTY_WIRE_FORM } from "../../purchaseRequests/constants";
 import { isRecurringWireCategory } from "../../utils/purchasingMeta";
+import { computeDueDateFromTerms } from "../../utils/invoiceDateTerms";
 
 const todayIso = () => new Date().toISOString().split("T")[0];
 
@@ -31,7 +32,7 @@ export type WirePrefill = { requestId: number; category: string };
 export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolean) => void, onCreated?: () => void, prefill?: WirePrefill | null) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, roles } = useAuth();
+  const { user, roles, workflow_roles } = useAuth();
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
 
@@ -44,8 +45,18 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
   const [selectedPrevious, setSelectedPrevious] = useState<PreviousWirePayment | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExtractingOcr, setIsExtractingOcr] = useState(false);
+  const [isUrgentOverride, setIsUrgentOverride] = useState(false);
+  const [urgentReason, setUrgentReason] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const prefillApplied = useRef(false);
+
+  const canUseUrgentOverride = useMemo(
+    () =>
+      Boolean(user?.is_super_admin) ||
+      (roles ?? []).some((r) => String(r.code || "").toUpperCase() === "SUPER_ADMIN") ||
+      (workflow_roles ?? []).some((r) => String(r).toUpperCase().includes("TREASURY")),
+    [user?.is_super_admin, roles, workflow_roles],
+  );
 
   const category = wire.category || "Others";
   const isRecurring = isRecurringWireCategory(category);
@@ -78,6 +89,8 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
     setGlCode("");
     setFile(null);
     setSelectedPrevious(null);
+    setIsUrgentOverride(false);
+    setUrgentReason("");
     if (fileInputRef.current) fileInputRef.current.value = "";
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -137,20 +150,64 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
     try {
       const formData = new FormData();
       formData.append("file", nextFile);
-      const res = await apiClient.post<{ due_date?: string | null; due_date_formatted?: string | null; invoice_number?: string | null }>(
+      const res = await apiClient.post<{
+        invoice_date?: string | null;
+        due_date?: string | null;
+        due_date_formatted?: string | null;
+        invoice_number?: string | null;
+        balance_due?: number | null;
+        payment_amount?: number | null;
+        amount?: number | null;
+        currency?: string | null;
+      }>(
         "/api/purchasing/extract-vendor-invoice-date",
-        formData
+        formData,
+        {
+          actionLabel: "Extracting Invoice Details (OCR)",
+          actionSubtitle: "Analyzing uploaded document for Invoice Date & Balance Due...",
+        }
       );
-      if (res?.due_date) {
-        setWire((prev) => ({
-          ...prev,
-          due_date: res.due_date || prev.due_date,
-          invoice_number: prev.invoice_number || res.invoice_number || prev.invoice_number,
-        }));
-        toast.success(`OCR extracted Date of Invoice: ${res.due_date_formatted || res.due_date} (set as Due Date)`);
+      const extractedDate = res?.invoice_date || res?.due_date || null;
+      const rawAmount = res?.balance_due ?? res?.payment_amount ?? res?.amount ?? null;
+      const extractedAmount =
+        typeof rawAmount === "number" && Number.isFinite(rawAmount) && rawAmount > 0 ? rawAmount : null;
+      if (extractedDate || extractedAmount !== null || res?.invoice_number) {
+        setWire((prev) => {
+          const computedDue = extractedDate ? computeDueDateFromTerms(extractedDate, prev.pay_date) : null;
+          return {
+            ...prev,
+            ...(extractedDate
+              ? {
+                  payment_date: extractedDate,
+                  due_date: computedDue || extractedDate || prev.due_date,
+                }
+              : {}),
+            ...(extractedAmount !== null ? { amount: extractedAmount } : {}),
+            ...(res?.currency ? { currency: res.currency } : {}),
+            invoice_number: prev.invoice_number || res?.invoice_number || prev.invoice_number,
+          };
+        });
+        const foundParts: string[] = [];
+        if (extractedDate) foundParts.push(`Invoice Date: ${res?.due_date_formatted || extractedDate}`);
+        if (extractedAmount !== null) {
+          foundParts.push(
+            `Balance Due: ${extractedAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${res?.currency ? ` ${res.currency}` : ""}`
+          );
+        }
+        if (foundParts.length > 0) {
+          toast.success(`OCR extracted ${foundParts.join(" • ")}`);
+        } else {
+          toast.success(`OCR extracted Invoice #: ${res?.invoice_number}`);
+        }
+      } else {
+        toast.info("No Invoice Date or Balance Due was detected in the uploaded document. Please enter them manually.");
       }
-    } catch {
-      // Non-blocking: user can still enter due date manually
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        toast.info("OCR extraction cancelled.");
+      } else {
+        toast.warning("Could not automatically extract invoice details. Please enter them manually.");
+      }
     } finally {
       setIsExtractingOcr(false);
     }
@@ -167,6 +224,10 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
       toast.error("Please fill in all required wire transfer fields (Vendor, Amount, Pay From).");
       return;
     }
+    if (isUrgentOverride && !urgentReason.trim()) {
+      toast.error("Please provide a reason note for Urgent Account Payable.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const payload: RequestCreateInput = {
@@ -178,9 +239,13 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
         item_mode: "SINGLE",
         amount: Number(wire.amount) || 0,
         currency: wire.currency || "USD",
+        priority: isUrgentOverride ? "URGENT" : EMPTY_FORM.priority,
         gl_code: glCode.trim() || undefined,
         due_date: wire.due_date || undefined,
         wire_transfer: { ...wire, amount: Number(wire.amount) || 0, vendor: wire.vendor || effectiveTitle },
+        quote_data: isUrgentOverride
+          ? { is_urgent_override: true, urgent_override_reason: urgentReason.trim() }
+          : undefined,
       };
       const detail = await createRequest(payload);
       const id = detail.request.id;
@@ -192,7 +257,7 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
           toast.error("Wire transfer created, but the attachment failed to upload.");
         }
       }
-      if (mode === "submit") {
+      if (mode === "submit" && !isUrgentOverride) {
         try {
           await transitionRequest(String(id), { action: "SUBMIT_REQUEST" });
         } catch (subErr) {
@@ -204,7 +269,12 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
       }
       queryClient.invalidateQueries({ queryKey: ["purchasing"] });
       queryClient.invalidateQueries({ queryKey: ["wire-previous-payments"] });
-      toast.success(mode === "submit" ? `Wire transfer #${id} submitted` : `Wire transfer #${id} saved as a draft`, {
+      const successMessage = isUrgentOverride
+        ? `Urgent payable #${id} created and moved to Waiting Payment`
+        : mode === "submit"
+          ? `Wire transfer #${id} submitted`
+          : `Wire transfer #${id} saved as a draft`;
+      toast.success(successMessage, {
         action: { label: "View", onClick: () => navigate(`/purchasing/requests/${id}`) },
       });
       onCreated?.();
@@ -220,5 +290,6 @@ export function useCreateWireTransfer(open: boolean, onOpenChange: (open: boolea
     wire, setWire, title, setTitle, requester, setRequester, department, setDepartment, glCode, setGlCode, file, setFile: handleFileChange, fileInputRef,
     category, isRecurring, previousPayments, isLoadingPrevious: previousQuery.isLoading, selectedPrevious,
     applyPrevious, clearPrevious, isSubmitting, isExtractingOcr, submit,
+    canUseUrgentOverride, isUrgentOverride, setIsUrgentOverride, urgentReason, setUrgentReason,
   };
 }

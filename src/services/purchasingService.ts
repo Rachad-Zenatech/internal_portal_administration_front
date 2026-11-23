@@ -495,7 +495,7 @@ export function exportSingleRequestQuickBooksXlsx(requestId: string) {
 }
 
 export function getAPUsers() {
-  return apiClient.get<Array<{ id: string; full_name: string; email: string; department?: string }>>(BASE + "/ap-users");
+  return apiClient.get<Array<{ id: string; full_name: string; email: string; department?: string; is_super_admin?: boolean }>>(BASE + "/ap-users");
 }
 
 export function getKnownVendors() {

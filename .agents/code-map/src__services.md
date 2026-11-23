@@ -10,17 +10,22 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/services/api.ts (6 lines) - api (services)
 - `getAnnualReport` (export function) L3
 
-## src/services/apiClient.ts (856 lines) - api client (services)
-- `ActiveApiAction` (export interface) L3
-- `subscribeToApiActions` (export function) L15
-- `notifyActionListeners` (function) L23
-- `ApiRequestOptions` (export interface) L34
-- `resolveActionMeta` (function) L40
-- `BASE_URL` (export const) L624
-- `getAuthHeaders` (const) L626
-- `monitoredFetch` (function) L640
-    - `method` (fn) L661
-- `apiClient` (export const) L742
+## src/services/apiActionTracker.ts (56 lines) - api action tracker (services)
+- `ActiveApiAction` (export interface) L1
+- `notifyActionListeners` (export function) L14
+- `subscribeToApiActions` (export function) L25
+- `registerTrackedAction` (export function) L33
+- `unregisterTrackedAction` (export function) L38
+- `cancelActiveApiActions` (export function) L44
+
+## src/services/apiClient.ts (842 lines) - api client (services)
+- `ApiRequestOptions` (export interface) L12
+- `resolveActionMeta` (function) L18
+- `BASE_URL` (export const) L602
+- `getAuthHeaders` (const) L604
+- `monitoredFetch` (function) L618
+    - `method` (fn) L639
+- `apiClient` (export const) L728
 
 ## src/services/arInvoiceService.ts (644 lines) - ar invoice service (services)
 - `ARCustomer` (export interface) L3
@@ -100,7 +105,7 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `MasterProductListResponse` (export interface) L166
 - `HubSpotSyncResult` (export interface) L173
 
-## src/services/oauthService.ts (356 lines) - oauth service (services)
+## src/services/oauthService.ts (362 lines) - oauth service (services)
 - `HubSpotOAuthConfig` (export interface) L3
 - `HubSpotConnectionInfo` (export interface) L14
 - `HubSpotOAuthStatus` (export interface) L28
@@ -110,15 +115,15 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `HubSpotSyncResult` (export interface) L64
 - `HubSpotCompaniesSyncProgress` (export interface) L70
 - `oauthService` (export const) L87
-- `HubSpotCompanyItem` (export interface) L242
-- `HubSpotCompaniesResponse` (export interface) L267
-- `MicrosoftEntraOAuthConfig` (export interface) L275
-- `MicrosoftEntraConnectionInfo` (export interface) L290
-- `MicrosoftEntraOAuthStatus` (export interface) L308
-- `ReceivableEmailItem` (export interface) L319
-- `ReceivableEmailAttachment` (export interface) L333
-- `ReceivableEmailDetail` (export interface) L342
-- `ReceivableEmailsResponse` (export interface) L351
+- `HubSpotCompanyItem` (export interface) L248
+- `HubSpotCompaniesResponse` (export interface) L273
+- `MicrosoftEntraOAuthConfig` (export interface) L281
+- `MicrosoftEntraConnectionInfo` (export interface) L296
+- `MicrosoftEntraOAuthStatus` (export interface) L314
+- `ReceivableEmailItem` (export interface) L325
+- `ReceivableEmailAttachment` (export interface) L339
+- `ReceivableEmailDetail` (export interface) L348
+- `ReceivableEmailsResponse` (export interface) L357
 
 ## src/services/productAiService.ts (18 lines) - Product extraction from a request's vendor URL and its AI chart-of-accounts suggestions (each run again on request).
 - `extractProductInfo` (export function) L7

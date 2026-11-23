@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ACTION_META, PRIORITY_BADGE, getStatusBadge, getStatusLabel, formatDate, formatRequestType } from "../../utils/purchasingMeta";
+import { PaymentMadeBadge } from "./PaymentMadeBadge";
 import type { RequestDetailViewState } from "../hooks/useRequestDetailTail";
 
 export function MainRequestHeaderFull({ v }: { v: RequestDetailViewState }) {
@@ -55,11 +56,11 @@ export function MainRequestHeaderFull({ v }: { v: RequestDetailViewState }) {
         {/* Status, Context Subtitle & Transition Actions Row */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-0.5">
           <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-500 dark:text-zinc-400">
-            {/* Primary Status Badge */}
             <Badge variant="outline" className={cn("font-medium gap-1.5 shadow-xs shrink-0 py-0.5 px-2.5", getStatusBadge(request.status))}>
               <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
               {getStatusLabel(request.status)}
             </Badge>
+            <PaymentMadeBadge request={request} />
 
             {/* Priority: only show pill when HIGH or URGENT */}
             {(request.priority === "HIGH" || request.priority === "URGENT") && (
@@ -190,7 +191,7 @@ export function MainRequestHeaderFull({ v }: { v: RequestDetailViewState }) {
                     ? "An invoice or receipt must be recorded before completing this request."
                     : undefined;
 
-                  const isApprove = action === "APPROVE";
+                  const isApprove = action === "APPROVE" || action === "MARK_PAYMENT_MADE";
                   const isReject = action === "REJECT";
                   const customClass = isApprove
                     ? "bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"

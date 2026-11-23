@@ -212,8 +212,8 @@ export function useRequestDetailActions() {
     data?.request?.request_type === "RECURRING" ||
     data?.request?.request_type === "SCHEDULED_PAYMENT";
   const isAPRequest = data?.request?.request_type === "ACCOUNTS_PAYABLE";
-  const backUrl = isRecurring ? "/purchasing/recurring" : "/purchasing/requests";
-  const backLabel = isScheduledPayment ? "Scheduled Payments" : (isRecurring ? "Recurring Payments" : "Purchase Requests");
+  const backUrl = isRecurring ? "/purchasing/recurring" : (isAPRequest ? "/purchasing/invoices" : "/purchasing/requests");
+  const backLabel = isScheduledPayment ? "Scheduled Payments" : (isRecurring ? "Recurring Payments" : (isAPRequest ? "Accounts Payable" : "Purchase Requests"));
   useEffect(() => {
     if (data?.request) {
       if (isRecurring) {
@@ -245,7 +245,9 @@ export function useRequestDetailActions() {
             detail: {
               path: window.location.pathname,
               items: [
-                { title: "Purchase Requests", path: "/purchasing/requests" },
+                isAPRequest
+                  ? { title: "Accounts Payable", path: "/purchasing/invoices" }
+                  : { title: "Purchase Requests", path: "/purchasing/requests" },
                 { title: `${data.request.title || "Request"} (#${data.request.id})` },
               ],
             },

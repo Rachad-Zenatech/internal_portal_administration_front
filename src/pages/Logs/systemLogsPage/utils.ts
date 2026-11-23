@@ -32,6 +32,15 @@ export function getActionMeta(action: string) {
       dotColor: "bg-purple-500",
     };
   }
+  if (act.includes("OVERRIDE")) {
+    return {
+      label: "Urgent Approval Override",
+      color: "bg-red-50 text-red-700 border-red-300 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800",
+      icon: Activity,
+      iconColor: "text-red-600 dark:text-red-400",
+      dotColor: "bg-red-500",
+    };
+  }
   if (act.includes("APPROV") || act.includes("DECISION")) {
     return {
       label: "Approved",
@@ -114,11 +123,17 @@ export function generateChangeSummary(log: AuditLogItem): string {
   }
 
   if (typeof changes === "object") {
+    if (changes.urgent_override_reason) {
+      return `Urgent Override Reason: ${String(changes.urgent_override_reason)}`;
+    }
     if (changes.status) {
       if (changes.old_status) {
         return `Status transitioned: ${changes.old_status} → ${changes.status}`;
       }
       return `Status set to: ${changes.status}`;
+    }
+    if (changes.comment) {
+      return String(changes.comment);
     }
     if (changes.amount != null) {
       return `Amount: $${Number(changes.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;

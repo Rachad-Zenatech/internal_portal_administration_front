@@ -6,6 +6,41 @@ import type { OAuthConfigurationState } from "../hooks/useOAuthConfiguration";
 import { MailboxConnectionSettingsCard } from "./MailboxConnectionSettingsCard";
 import { ReceivableEmailDetailModal } from "./ReceivableEmailDetailModal";
 
+function EntraScopeSubTabs({
+  entraScope,
+  onSelectScope,
+}: {
+  entraScope: "receivable" | "payable";
+  onSelectScope: (scope: "receivable" | "payable") => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-1 p-1 rounded-xl border border-border/80 bg-muted/40">
+      <button
+        type="button"
+        onClick={() => onSelectScope("receivable")}
+        className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+          entraScope === "receivable"
+            ? "bg-background text-blue-600 dark:text-blue-400 shadow-xs border border-border/60"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        Receivable
+      </button>
+      <button
+        type="button"
+        onClick={() => onSelectScope("payable")}
+        className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+          entraScope === "payable"
+            ? "bg-background text-indigo-600 dark:text-indigo-400 shadow-xs border border-border/60"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        Payable
+      </button>
+    </div>
+  );
+}
+
 export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
   const {
     isLoadingEmails,
@@ -24,14 +59,18 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
     handleTestEntraConnection,
     entraConn,
     activeTab,
+    entraScope,
+    handleSwitchEntraScope,
     handleOpenEmailDetail,
     supportsReadStatus,
     sseConnected,
   } = s;
+  const fallbackMailbox = entraScope === "payable" ? "accountspayable@epazz.net" : "accountsreceivable@zenatech.com";
   return (
     <>
       {activeTab === "microsoft" && (
         <div className="space-y-6">
+          <EntraScopeSubTabs entraScope={entraScope} onSelectScope={handleSwitchEntraScope} />
           {/* Main Mailbox Header Card */}
           <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
@@ -42,7 +81,7 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-3 flex-wrap">
                     <h2 className="text-lg font-bold text-foreground">
-                      Receivable Email Tracking
+                      {entraScope === "payable" ? "Payable Email Tracking" : "Receivable Email Tracking"}
                     </h2>
                     <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-xs px-2.5 py-0.5 font-semibold inline-flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -52,7 +91,7 @@ export function MainMailboxHeaderCard({ s }: { s: OAuthConfigurationState }) {
                   <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1.5">
                     <span>Tracking Mailbox:</span>
                     <strong className="font-mono text-foreground font-semibold">
-                      {entraConn?.mailbox_address || entraConn?.user_email || entraTargetMailbox || "receivables@zenatech.com"}
+                      {entraConn?.mailbox_address || entraConn?.user_email || entraTargetMailbox || fallbackMailbox}
                     </strong>
                   </p>
                 </div>

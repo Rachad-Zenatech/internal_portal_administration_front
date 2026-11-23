@@ -106,10 +106,14 @@ export function useRequestDetailActions2(ctx: RequestDetailGuardedState) {
     }
     // Prefill sensible defaults from existing data.
     if (meta.form === "invoice") {
+      const wire = data?.wire_transfer;
+      const toIso = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "");
       const defaultVendor =
-        purchase_order?.vendor ??
-        request.quote_data?.vendor?.name ??
-        (request.request_type === 'RECURRING' ? request.title : "") ??
+        wire?.vendor ||
+        purchase_order?.vendor ||
+        inv?.vendor ||
+        request.quote_data?.vendor?.name ||
+        (request.request_type === 'RECURRING' ? request.title : "") ||
         "";
       const isDefaultAsset =
         request.request_type === 'RECURRING' || request.request_type === 'ACCOUNTS_PAYABLE';
@@ -136,11 +140,19 @@ export function useRequestDetailActions2(ctx: RequestDetailGuardedState) {
         ? Number(currentCycleDate.amount)
         : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
             ? Number(request.recurring_schedule.amount_per_cycle)
-            : (purchase_order?.amount ?? request.unit_price ?? request.amount ?? 0));
+            : (wire?.amount ?? purchase_order?.amount ?? request.unit_price ?? request.amount ?? 0));
+
+      const wireAmt = Number(wire?.amount ?? 0);
+      const priorPaid = (data?.invoices || []).reduce((acc, i) => acc + Number(i.actual_cost_after_tax ?? i.amount ?? 0), 0);
+      const wireRemaining = wireAmt > 0 && priorPaid > 0 && priorPaid < wireAmt
+        ? Math.round((wireAmt - priorPaid) * 100) / 100
+        : wireAmt;
 
       const defaultInvoiceAmount = isRecurringReq
         ? cycleAmount
-        : (purchase_order?.amount ?? request.amount ?? request.unit_price ?? 0);
+        : (wireRemaining > 0
+            ? wireRemaining
+            : (purchase_order?.amount ?? request.amount ?? request.unit_price ?? inv?.amount ?? 0));
 
       const isMaTxn = Boolean(
         (request as any)?.source_portal === "m7a" ||
@@ -149,25 +161,37 @@ export function useRequestDetailActions2(ctx: RequestDetailGuardedState) {
         (request as any)?.is_ma ||
         request.department?.toLowerCase().includes("m&a")
       );
-      const effectivePm = purchase_order?.payment_method || (request as any)?.payment_method || (isMaTxn ? "WIRE" : undefined);
+      const effectivePm =
+        purchase_order?.payment_method ||
+        (request as any)?.payment_method ||
+        (Boolean(wire) || request.request_type === "ACCOUNTS_PAYABLE" || isMaTxn ? "WIRE" : undefined);
+
+      const todayStr = new Date().toISOString().split("T")[0];
+      const mappedDueDate = toIso(inv?.due_date || wire?.due_date || request.due_date || inv?.invoice_date || wire?.payment_date) || todayStr;
+      const mappedInvoiceDate = toIso(inv?.invoice_date || wire?.payment_date || wire?.entry_date || mappedDueDate) || todayStr;
+      const mappedPaidDate = toIso(inv?.paid_date) || todayStr;
 
       setInvoiceItems(prefilledItems);
       setInvoice({
         vendor: defaultVendor,
         amount: defaultInvoiceAmount,
-        invoice_date: new Date().toISOString().split("T")[0],
-        due_date: "",
-        gl_code: purchase_order?.gl_code || request.gl_code || "",
-        bank_account: mapPaymentMethodToBankAccount(effectivePm, glCodes) || "",
-        asset_flag: isDefaultAsset,
-        department: "",
-        from_location: "",
-        region: "",
+        currency: wire?.currency || purchase_order?.currency || request.currency || inv?.currency || "USD",
+        invoice_date: mappedInvoiceDate,
+        due_date: mappedDueDate,
+        paid_date: mappedPaidDate,
+        gl_code: inv?.gl_code || purchase_order?.gl_code || request.gl_code || "",
+        bank_account: inv?.bank_account || mapPaymentMethodToBankAccount(effectivePm, glCodes) || "",
+        asset_flag: inv?.asset_flag ?? isDefaultAsset,
+        department: inv?.department || (request as any).class_name || request.quote_data?.class || request.department || "",
+        from_location: inv?.from_location || wire?.pay_from || (request as any).location || request.quote_data?.location || purchase_order?.shipped_to_location || "",
+        region: inv?.region || wire?.region || request.quote_data?.region || "",
+        description: inv?.description || wire?.comments || request.description || purchase_order?.description || "",
       });
       const defaultPoNum =
         purchase_order?.quote_number ||
         data?.purchase_order?.quote_number ||
         data?.request?.quote_data?.quote_number ||
+        wire?.invoice_number ||
         "";
       setInvoicePoNumber(defaultPoNum);
       if (!defaultPoNum) {

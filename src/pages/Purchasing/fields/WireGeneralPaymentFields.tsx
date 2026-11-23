@@ -4,12 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   User,
   DollarSign,
-  MapPin,
   AlertCircle,
   Building,
   FileText,
   Calendar,
-  Clock,
   Tag,
 } from "lucide-react";
 import {
@@ -30,6 +28,8 @@ import { CurrencyAutocomplete } from "./CurrencyAutocomplete";
 import { CreatableCombobox } from "./CreatableCombobox";
 import type { WireTransferInput } from "@/types/purchasing";
 import { useKnownVendors } from "@/hooks/usePurchasing";
+import { computeDueDateFromTerms } from "../utils/invoiceDateTerms";
+import { WireInvoiceDateTermsRow, WireVendorContactCard } from "./WireDateTermsAndContact";
 
 export const COMMON_PAY_FROM = [
   "Weddle",
@@ -82,7 +82,7 @@ export function WireGeneralPaymentFields({
 }: WireGeneralPaymentFieldsProps) {
   const { data: knownVendors = [] } = useKnownVendors();
   const [apUsers, setApUsers] = useState<
-    Array<{ id: string; full_name: string; email: string; department?: string }>
+    Array<{ id: string; full_name: string; email: string; department?: string; is_super_admin?: boolean }>
   >([]);
   const [enteredByQuery, setEnteredByQuery] = useState(form.entered_by || "");
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -106,12 +106,13 @@ export function WireGeneralPaymentFields({
 
   const filteredAPUsers = useMemo(() => {
     const q = enteredByQuery.toLowerCase().trim();
-    if (!q) return apUsers.slice(0, 8);
+    if (!q) return apUsers.slice(0, 20);
     return apUsers.filter(
       (u) =>
         u.full_name?.toLowerCase().includes(q) ||
         u.email?.toLowerCase().includes(q) ||
-        u.department?.toLowerCase().includes(q)
+        u.department?.toLowerCase().includes(q) ||
+        (u.is_super_admin && "super admin".includes(q))
     );
   }, [apUsers, enteredByQuery]);
 
@@ -244,7 +245,8 @@ export function WireGeneralPaymentFields({
                   onClearValidationError?.("entered_by");
                 }}
                 onFocus={() => setShowUserDropdown(true)}
-                placeholder="Search AP user (e.g. David Hernandez)..."
+                onBlur={() => setShowUserDropdown(false)}
+                placeholder="Search AP or Super Admin user..."
                 className={`h-9 text-xs pl-8 bg-slate-50/50 dark:bg-zinc-800/50 ${
                   validationErrors.entered_by ? "border-red-500 focus-visible:ring-red-500" : ""
                 }`}
@@ -265,6 +267,7 @@ export function WireGeneralPaymentFields({
                     key={u.id}
                     type="button"
                     className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       const selectedName = (u.full_name || "").trim();
                       setForm((prev) => ({
@@ -281,9 +284,16 @@ export function WireGeneralPaymentFields({
                       <div className="font-semibold text-slate-800 dark:text-zinc-200">{u.full_name}</div>
                       <div className="text-[11px] text-muted-foreground">{u.email}</div>
                     </div>
-                    {u.department && (
-                      <Badge variant="secondary" className="text-[10px]">{u.department}</Badge>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {u.is_super_admin && (
+                        <Badge variant="outline" className="text-[10px] border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300">
+                          Super Admin
+                        </Badge>
+                      )}
+                      {u.department && u.department !== "Super Admin" && (
+                        <Badge variant="secondary" className="text-[10px]">{u.department}</Badge>
+                      )}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -407,14 +417,23 @@ export function WireGeneralPaymentFields({
               onSelectContact={(contact) => {
                 setForm((prev) => {
                   const bd = (contact.banking_details as Record<string, any>) || {};
+                  const nextTerms = contact.payment_terms || prev.pay_date;
+                  const computedDue = computeDueDateFromTerms(prev.payment_date, nextTerms);
                   const updated: WireTransferInput = {
                     ...prev,
                     vendor: contact.display_name || prev.vendor,
                     vendor_address: contact.bill_address || prev.vendor_address,
                     vendor_email: contact.email || prev.vendor_email,
+                    pay_date: nextTerms,
+                    due_date: computedDue || prev.due_date,
                   };
                   Object.keys(bd).forEach((k) => {
-                    if (bd[k] !== undefined && bd[k] !== null && String(bd[k]).trim() !== "") {
+                    if (
+                      !["category", "payment_type", "entered_by", "entered_by_user_id"].includes(k) &&
+                      bd[k] !== undefined &&
+                      bd[k] !== null &&
+                      String(bd[k]).trim() !== ""
+                    ) {
                       (updated as any)[k] = bd[k];
                     }
                   });
@@ -436,18 +455,25 @@ export function WireGeneralPaymentFields({
                           ...prev,
                           vendor: val.trim(),
                         };
-                        // Copy previous banking & payment details if present
+                        // Copy previous banking & payment details if present (never overwrite Payment Type)
                         Object.keys(pastWire).forEach((k) => {
                           const v = pastWire[k];
                           if (
                             v !== undefined &&
                             v !== null &&
                             String(v).trim() !== "" &&
-                            !["id", "request_id", "created_at", "updated_at", "entry_date", "payment_date", "due_date", "amount", "invoice_number", "comments"].includes(k)
+                            !["id", "request_id", "created_at", "updated_at", "entry_date", "payment_date", "due_date", "amount", "invoice_number", "comments", "category", "payment_type", "entered_by", "entered_by_user_id"].includes(k)
                           ) {
+                            if (k === "pay_date" && prev.pay_date && prev.pay_date !== "Same Day") {
+                              return;
+                            }
                             (merged as any)[k] = v;
                           }
                         });
+                        if (!merged.due_date && merged.payment_date && merged.pay_date) {
+                          const computedDue = computeDueDateFromTerms(merged.payment_date, merged.pay_date);
+                          if (computedDue) merged.due_date = computedDue;
+                        }
                         return merged;
                       });
                     }
@@ -593,56 +619,8 @@ export function WireGeneralPaymentFields({
           </div>
         </div>
 
-        {/* Row 3: Dates & Terms (3 Equal Columns) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          <div className="space-y-1.5">
-            <div className="h-5 flex items-center gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                <span>Due Date</span>
-              </label>
-            </div>
-            <Input
-              type="date"
-              value={form.due_date || ""}
-              onChange={(e) => {
-                setForm((prev) => ({ ...prev, due_date: e.target.value }));
-                onDueDateChange?.(e.target.value);
-              }}
-              className="h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="h-5 flex items-center gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                <span>Scheduled Payment Date</span>
-              </label>
-            </div>
-            <Input
-              type="date"
-              value={form.payment_date || ""}
-              onChange={(e) => setForm((prev) => ({ ...prev, payment_date: e.target.value }))}
-              className="h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="h-5 flex items-center gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-slate-400" />
-                <span>Pay Date / Terms</span>
-              </label>
-            </div>
-            <Input
-              value={form.pay_date || ""}
-              onChange={(e) => setForm((prev) => ({ ...prev, pay_date: e.target.value }))}
-              placeholder="e.g. Same Day, Net 30"
-              className="h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50"
-            />
-          </div>
-        </div>
+        {/* Row 3: Invoice Date, Due Date & Terms (3 Equal Columns) */}
+        <WireInvoiceDateTermsRow form={form} setForm={setForm} onDueDateChange={onDueDateChange} />
 
         {/* Row 4: Comments / Memo (Full Width) */}
         <div className="space-y-1.5">
@@ -662,72 +640,7 @@ export function WireGeneralPaymentFields({
       </div>
 
       {/* 3. Vendor Contact & Location Card */}
-      <div className="rounded-xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-4 shadow-2xs space-y-3">
-        <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-zinc-800">
-          <div className="h-6 w-6 rounded-md bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-400">
-            <MapPin className="h-3.5 w-3.5" />
-          </div>
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
-              Vendor Contact &amp; Location Details
-            </h4>
-            <p className="text-[11px] text-slate-400 dark:text-zinc-500">
-              Vendor email, contact person, region, and street address
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          <div className="space-y-1.5">
-            <div className="h-5 flex items-center gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Vendor Email</label>
-            </div>
-            <Input
-              type="email"
-              value={form.vendor_email || ""}
-              onChange={(e) => setForm((prev) => ({ ...prev, vendor_email: e.target.value }))}
-              placeholder="billing@vendor.com"
-              className="h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="h-5 flex items-center gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Contact Person (China / Overseas)</label>
-            </div>
-            <Input
-              value={form.contact_name_china || ""}
-              onChange={(e) => setForm((prev) => ({ ...prev, contact_name_china: e.target.value }))}
-              placeholder="Contact Name"
-              className="h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="h-5 flex items-center gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Region / State</label>
-            </div>
-            <Input
-              value={form.region || ""}
-              onChange={(e) => setForm((prev) => ({ ...prev, region: e.target.value }))}
-              placeholder="e.g. California, Ontario, Guangdong"
-              className="h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <div className="h-5 flex items-center gap-1.5">
-            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Vendor Street Address</label>
-          </div>
-          <Input
-            value={form.vendor_address || ""}
-            onChange={(e) => setForm((prev) => ({ ...prev, vendor_address: e.target.value }))}
-            placeholder="Street address, suite, city, state, postal code, country"
-            className="h-9 text-xs bg-slate-50/50 dark:bg-zinc-800/50"
-          />
-        </div>
-      </div>
+      <WireVendorContactCard form={form} setForm={setForm} />
     </div>
   );
 }

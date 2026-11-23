@@ -79,7 +79,7 @@ export type WorkflowAction =
   | "MARK_SHIPPED"
   | "UPDATE_TRACKING"
   | "CONFIRM_GOODS_RECEIVED"
-  | "RECORD_INVOICE"
+  | "RECORD_INVOICE" | "MARK_PAYMENT_MADE"
   | "SEND_TO_AP"
   | "PUT_ON_HOLD"
   | "RESUME_WORKFLOW"
@@ -472,7 +472,7 @@ export type InvoiceInput = {
   vendor: string;
   amount: number;
   invoice_date: string;
-  due_date?: string | null;
+  due_date?: string | null; paid_date?: string | null;
   gl_code?: string | null;
   bank_account?: string | null;
   asset_flag?: boolean;

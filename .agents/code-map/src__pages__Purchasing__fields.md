@@ -115,19 +115,24 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Purchasing/fields/WireBankingFields.tsx (104 lines) - wire banking fields (pages  purchasing fields)
 - `WireBankingFields` (export function) L11
 
-## src/pages/Purchasing/fields/WireGeneralPaymentFields.tsx (734 lines) - wire general payment fields (pages  purchasing fields)
+## src/pages/Purchasing/fields/WireDateTermsAndContact.tsx (164 lines) - Invoice Date, Due Date, and Terms row with automatic due-date calculation from vendor terms.
+- `DateTermsRowProps` (interface) L6
+- `WireInvoiceDateTermsRow` (export function) L13 - Invoice Date, Due Date, and Terms row with automatic due-date calculation from vendor terms.
+- `WireVendorContactCard` (export function) L88 - Vendor Contact & Location Details card.
+
+## src/pages/Purchasing/fields/WireGeneralPaymentFields.tsx (647 lines) - wire general payment fields (pages  purchasing fields)
 - `COMMON_PAY_FROM` (export const) L34
 - `COMMON_CURRENCIES` (export const) L45
 - `CURRENCY_SYMBOLS` (export const) L47
 - `WireGeneralPaymentFieldsProps` (interface) L60
 - `WireGeneralPaymentFields` (export function) L72
     - `filteredAPUsers` (fn) L107
-    - `handleInvoiceChange` (fn) L118
-    - `handleCurrencyChange` (fn) L123
-    - `code` (fn) L124
-    - `handleAmountInputChange` (fn) L149
-    - `handleAmountInputFocus` (fn) L177
-    - `handleAmountInputBlur` (fn) L187
+    - `handleInvoiceChange` (fn) L119
+    - `handleCurrencyChange` (fn) L124
+    - `code` (fn) L125
+    - `handleAmountInputChange` (fn) L150
+    - `handleAmountInputFocus` (fn) L178
+    - `handleAmountInputBlur` (fn) L188
 
 ## src/pages/Purchasing/fields/locationRegionConstants.ts (83 lines) - Separation of Region (Geographic Divisions / States / Cities / Countries) and Location (Legal Entities / Operating Locations / Branches).
 - `DEFAULT_REGIONS` (export const) L7

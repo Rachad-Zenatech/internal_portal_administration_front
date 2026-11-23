@@ -31,7 +31,7 @@ export function useRequestDetailActions3(ctx: RequestDetailGuardedState & Return
       });
     } else if (kind === "invoice") {
       if (!invoicePoNumber || !invoicePoNumber.trim()) return toast.error("PO # is required.");
-      if (!invoice.vendor || !invoice.invoice_date) return toast.error("Vendor and bill date are required.");
+      if (!invoice.vendor || !(invoice.due_date || invoice.invoice_date)) return toast.error("Vendor and invoice due date are required.");
       if (!invoice.department || !invoice.department.trim()) return toast.error("Class is required.");
       if (!invoice.from_location || !invoice.from_location.trim()) return toast.error("From Location is required.");
 
@@ -49,6 +49,11 @@ export function useRequestDetailActions3(ctx: RequestDetailGuardedState & Return
 
       void (async () => {
         const cleanDueDate = invoice.due_date && invoice.due_date.trim() !== "" ? invoice.due_date : undefined;
+        const cleanPaidDate = invoice.paid_date && invoice.paid_date.trim() !== "" ? invoice.paid_date : undefined;
+        const effectiveInvoiceDate =
+          (invoice.invoice_date && invoice.invoice_date.trim() !== "" ? invoice.invoice_date : undefined) ||
+          cleanDueDate ||
+          new Date().toISOString().split("T")[0];
         const isMaTxn = Boolean(
           (request as any)?.source_portal === "m7a" ||
           (request as any)?.source_portal === "m&a" ||
@@ -64,7 +69,7 @@ export function useRequestDetailActions3(ctx: RequestDetailGuardedState & Return
             vendor: currentPo?.vendor || invoice.vendor || "Vendor",
             item: currentPo?.item || request.title || "Item",
             amount: Number(currentPo?.amount || invoice.amount || 0),
-            payment_method: currentPo?.payment_method || (isMaTxn ? "WIRE" : "CC"),
+            payment_method: currentPo?.payment_method || (Boolean(data?.wire_transfer) || request.request_type === "ACCOUNTS_PAYABLE" || isMaTxn ? "WIRE" : "CC"),
             shipped_to_location: currentPo?.shipped_to_location || "Headquarters",
             quote_number: invoicePoNumber.trim(),
           },
@@ -72,7 +77,10 @@ export function useRequestDetailActions3(ctx: RequestDetailGuardedState & Return
             ...invoice,
             invoice_type: "Purchase",
             amount: Number(invoice.amount) || 0,
+            currency: invoice.currency || data?.wire_transfer?.currency || request.currency || "USD",
+            invoice_date: effectiveInvoiceDate,
             due_date: cleanDueDate,
+            paid_date: cleanPaidDate,
             department: invoice.department?.trim() || undefined,
             from_location: invoice.from_location?.trim() || undefined,
             region: invoice.region?.trim() || undefined,

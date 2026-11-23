@@ -4,12 +4,13 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/Logs/AuditLog.tsx (483 lines) - audit log (pages  logs)
-- `AuditLog` (export function) L29
-    - `getActionBadgeColor` (fn) L40
-    - `act` (fn) L41
-    - `auditTable` (fn) L123
-    - `loginTable` (fn) L245
+## src/pages/Logs/AuditLog.tsx (326 lines) - audit log (pages  logs)
+- `AuditLog` (export function) L28
 
 ## src/pages/Logs/SystemLogsPage.tsx (113 lines) - system logs page (pages  logs)
 - `SystemLogsPage` (export function) L8
+
+## src/pages/Logs/auditLogColumns.tsx (192 lines) - audit log columns (pages  logs)
+- `getAuditActionBadgeColor` (export function) L6
+- `buildAuditColumns` (export function) L21
+- `buildLoginColumns` (export function) L109

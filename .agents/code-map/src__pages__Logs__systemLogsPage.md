@@ -7,8 +7,8 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/Logs/systemLogsPage/types.ts (19 lines) - types (pages  logs system logs page)
 - `AuditLogItem` (export interface) L1
 
-## src/pages/Logs/systemLogsPage/utils.ts (181 lines) - Helper to format human-readable action details
+## src/pages/Logs/systemLogsPage/utils.ts (196 lines) - Helper to format human-readable action details
 - `getActionMeta` (export function) L5 - Helper to format human-readable action details
-- `generateChangeSummary` (export function) L109 - Generate a concise human-readable summary of what changed
-- `formatLogDate` (export function) L142 - Helper to format timestamps cleanly
-- `getInitials` (export function) L173 - User Initials generator
+- `generateChangeSummary` (export function) L118 - Generate a concise human-readable summary of what changed
+- `formatLogDate` (export function) L157 - Helper to format timestamps cleanly
+- `getInitials` (export function) L188 - User Initials generator

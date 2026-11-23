@@ -8,26 +8,27 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `useOAuthConfiguration` (export function) L3
 - `OAuthConfigurationState` (export type) L8
 
-## src/pages/Configurations/oAuthConfiguration/hooks/useOAuthConfigurationActions.ts (461 lines) - HubSpot Credentials Form State
+## src/pages/Configurations/oAuthConfiguration/hooks/useOAuthConfigurationActions.ts (477 lines) - HubSpot Credentials Form State
 - `useOAuthConfigurationActions` (export function) L7
-    - `loadStatus` (fn) L62 - Load HubSpot Status
-    - `loadEntraStatus` (fn) L84 - Load Microsoft Entra Status
-    - `handleMessage` (fn) L133
-    - `handleConnectHubSpot` (fn) L152 - ── HubSpot Action Handlers ──
-    - `handleTestConnection` (fn) L174
-    - `handleRefreshToken` (fn) L189
-    - `handleDisconnect` (fn) L201
-    - `handleSaveConfig` (fn) L215
-    - `handleCopyUri` (fn) L238
-    - `handleFetchLiveData` (fn) L247
-    - `handleSyncProducts` (fn) L259
-    - `handleTestEntraConnection` (fn) L274 - ── Microsoft Entra Action Handlers ──
-    - `handleSignInEntra` (fn) L289
-    - `handleDisconnectEntra` (fn) L311
-    - `handleSaveEntraConfig` (fn) L325
-    - `handleFetchReceivableEmails` (fn) L365
-    - `handleOpenEmailDetail` (fn) L383
-    - `handleCloseEmailDetail` (fn) L396
-    - `supportsReadStatus` (fn) L433
-    - `filteredLiveItems` (fn) L438 - Filter live items based on search query
-    - `filteredReceivableEmails` (fn) L452 - Filter receivable emails
+    - `loadStatus` (fn) L63 - Load HubSpot Status
+    - `loadEntraStatus` (fn) L85 - Load Microsoft Entra Status
+    - `handleMessage` (fn) L135
+    - `handleConnectHubSpot` (fn) L154 - ── HubSpot Action Handlers ──
+    - `handleTestConnection` (fn) L176
+    - `handleRefreshToken` (fn) L191
+    - `handleDisconnect` (fn) L203
+    - `handleSaveConfig` (fn) L217
+    - `handleCopyUri` (fn) L240
+    - `handleFetchLiveData` (fn) L249
+    - `handleSyncProducts` (fn) L261
+    - `handleTestEntraConnection` (fn) L276 - ── Microsoft Entra Action Handlers ──
+    - `handleSignInEntra` (fn) L291
+    - `handleDisconnectEntra` (fn) L313
+    - `handleSaveEntraConfig` (fn) L327
+    - `handleFetchReceivableEmails` (fn) L369
+    - `handleSwitchEntraScope` (fn) L389
+    - `handleOpenEmailDetail` (fn) L399
+    - `handleCloseEmailDetail` (fn) L412
+    - `supportsReadStatus` (fn) L449
+    - `filteredLiveItems` (fn) L454 - Filter live items based on search query
+    - `filteredReceivableEmails` (fn) L468 - Filter receivable emails

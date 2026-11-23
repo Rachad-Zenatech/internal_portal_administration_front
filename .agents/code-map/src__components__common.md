@@ -16,8 +16,8 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `LoadMoreRow` (export function) L96 - The last row of the table while more rows are left; scrolling it into view loads the next batch
 - `FluidListFooter` (export function) L124 - Showing 50 of 230 requests" under the table
 
-## src/components/common/GlobalLoadingScreen.tsx (107 lines) - global loading screen (components common)
-- `GlobalLoadingScreen` (export function) L6
+## src/components/common/GlobalLoadingScreen.tsx (160 lines) - global loading screen (components common)
+- `GlobalLoadingScreen` (export function) L8
 
 ## src/components/common/LinkifiedText.tsx (50 lines) - linkified text (components common)
 - `LinkifiedTextProps` (interface) L1
@@ -31,17 +31,17 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `QRCodeDisplayProps` (interface) L4
 - `QRCodeDisplay` (export const) L11
 
-## src/components/common/Stepper.tsx (203 lines) - Ordered workflow states (ADMIN_FLOW, SPEND_FLOW, RECURRING_FLOW, QUOTE_FLOW)
+## src/components/common/Stepper.tsx (207 lines) - Ordered workflow states (ADMIN_FLOW, SPEND_FLOW, RECURRING_FLOW, QUOTE_FLOW)
 - `StepperProps` (interface) L17
-- `stepStateFor` (function) L27
-- `exceptionStateFor` (function) L34
-- `resolveSteps` (export function) L41 - Resolves the steps to draw for a flow and a raw status.
-- `Stepper` (const) L96 - Responsive horizontal stepper component with uniform step sizing that scales across screen widths.
+- `stepStateFor` (function) L29
+- `exceptionStateFor` (function) L36
+- `resolveSteps` (export function) L43 - Resolves the steps to draw for a flow and a raw status.
+- `Stepper` (const) L100 - Responsive horizontal stepper component with uniform step sizing that scales across screen widths.
 
-## src/components/common/StepperStepNode.tsx (62 lines) - stepper step node (components common)
+## src/components/common/StepperStepNode.tsx (68 lines) - stepper step node (components common)
 - `StepState` (export type) L5
 - `DisplayStep` (export interface) L7
-- `STEP_STYLES` (export const) L13
-- `StepIcon` (export const) L24
-- `StepperStepNodeProps` (interface) L40
-- `StepperStepNode` (export function) L46
+- `STEP_STYLES` (export const) L14
+- `StepIcon` (export const) L25
+- `StepperStepNodeProps` (interface) L41
+- `StepperStepNode` (export function) L47

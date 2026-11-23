@@ -4,7 +4,10 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/Purchasing/utils/purchasingMeta.ts (349 lines) - Presentation metadata for Purchasing + Tasks.
+## src/pages/Purchasing/utils/invoiceDateTerms.ts (26 lines) - Compute a YYYY-MM-DD due date from an invoice date and vendor payment terms (e.g.
+- `computeDueDateFromTerms` (export function) L2 - Compute a YYYY-MM-DD due date from an invoice date and vendor payment terms (e.g.
+
+## src/pages/Purchasing/utils/purchasingMeta.ts (352 lines) - Presentation metadata for Purchasing + Tasks.
 - `STATUS_LABEL` (export const) L10 - spellings are absent on purpose — parseRequestStatus resolves them first.
 - `STATUS_BADGE` (export const) L26
 - `getStatusLabel` (export function) L43 - Display label for a raw API status.
@@ -23,17 +26,17 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `QUOTE_FLOW` (export const) L139
 - `STATUS_FILTER_OPTIONS` (export const) L156 - States offered in filter dropdowns: the superset pipeline plus the two exception  states.
 - `ACTION_META` (export const) L162
-- `formatDateMmDdYyyy` (export function) L181
-- `formatDate` (export function) L199
-- `formatDateTime` (export function) L215
-- `formatMoney` (export function) L233
-- `TAX_RATE` (export const) L248
-- `ResolvedTaxRate` (export type) L250
-- `resolveTaxRate` (export function) L256 - Estimated tax rate for a request: delivery address first, then vendor location,  then the currency's country average; TAX_RATE only when ...
-- `formatActivityAction` (export function) L279
-- `formatActivityValue` (export function) L320
-- `REQUEST_TYPE_LABEL` (export const) L326
-- `formatRequestType` (export function) L343
+- `formatDateMmDdYyyy` (export function) L182
+- `formatDate` (export function) L200
+- `formatDateTime` (export function) L216
+- `formatMoney` (export function) L234
+- `TAX_RATE` (export const) L249
+- `ResolvedTaxRate` (export type) L251
+- `resolveTaxRate` (export function) L257 - Estimated tax rate for a request: delivery address first, then vendor location,  then the currency's country average; TAX_RATE only when ...
+- `formatActivityAction` (export function) L280
+- `formatActivityValue` (export function) L323
+- `REQUEST_TYPE_LABEL` (export const) L329
+- `formatRequestType` (export function) L346
 
 ## src/pages/Purchasing/utils/recurringScheduleUtils.ts (459 lines) - recurring schedule utils (pages  purchasing utils)
 - `FREQUENCY_LABELS` (export const) L5

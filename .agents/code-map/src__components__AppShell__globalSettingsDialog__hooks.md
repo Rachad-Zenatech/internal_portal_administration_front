@@ -8,9 +8,13 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `PurchasingEodReminderSettings` (export interface) L7
 - `useBatchAndEodNotifications` (export function) L15
 
-## src/components/AppShell/globalSettingsDialog/hooks/useGlobalSettingsDialog.ts (13 lines) - use global settings dialog (components  app shell global settings dialog hooks)
-- `useGlobalSettingsDialog` (export function) L5
-- `GlobalSettingsDialogState` (export type) L12
+## src/components/AppShell/globalSettingsDialog/hooks/useEmailNotificationsSettings.ts (130 lines) - use email notifications settings (components  app shell global settings dialog hooks)
+- `PurchasingEmailNotificationSettings` (export interface) L7
+- `useEmailNotificationsSettings` (export function) L23
+
+## src/components/AppShell/globalSettingsDialog/hooks/useGlobalSettingsDialog.ts (15 lines) - use global settings dialog (components  app shell global settings dialog hooks)
+- `useGlobalSettingsDialog` (export function) L6
+- `GlobalSettingsDialogState` (export type) L14
 
 ## src/components/AppShell/globalSettingsDialog/hooks/useGlobalSettingsDialogActions.ts (282 lines) - use global settings dialog actions (components  app shell global settings dialog hooks)
 - `useGlobalSettingsDialogActions` (export function) L10

@@ -8,6 +8,7 @@ export interface DisplayStep {
   status: RequestStatus | null;
   label: string;
   state: StepState;
+  topTag?: string;
 }
 
 export const STEP_STYLES: Record<StepState, string> = {
@@ -47,8 +48,13 @@ export function StepperStepNode({ step, isActive, activeRef }: StepperStepNodePr
   return (
     <div
       ref={isActive ? activeRef : null}
-      className="flex items-center shrink-0"
+      className="flex flex-col items-center shrink-0"
     >
+      {step.topTag && (
+        <span className="mb-1 px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wide bg-red-100 text-red-700 border border-red-200 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800/60 leading-none">
+          {step.topTag}
+        </span>
+      )}
       <div
         title={step.label}
         className={`w-max px-3 h-8 sm:h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-[11px] sm:text-xs font-medium whitespace-nowrap shrink-0 box-border transition-all duration-200 ${STEP_STYLES[step.state]}`}

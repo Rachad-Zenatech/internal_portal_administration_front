@@ -66,11 +66,11 @@ export function useQuoteDetailPageActions() {
       document.dispatchEvent(
         new CustomEvent("set-breadcrumb-trail", {
           detail: {
-            path: `/account-receivable/quotes/${id}`,
+            path: window.location.pathname,
             items: [
               { title: "Account Receivable", label: "Account Receivable", path: "/account-receivable" },
               { title: "Quotes", label: "Quotes", path: "/account-receivable?tab=quotes" },
-              { title: quote.quote_number || `#${id.slice(0, 8)}`, label: quote.quote_number || `#${id.slice(0, 8)}`, path: `/account-receivable/quotes/${id}` },
+              { title: quote.quote_number || `#${id.slice(0, 8)}`, label: quote.quote_number || `#${id.slice(0, 8)}`, path: window.location.pathname },
             ],
           },
         })

@@ -7,7 +7,7 @@ export const ROLE_STATES_MAP: Record<string, string[]> = {
   "EXECUTIVE": ["Waiting Approval (>= $10k)"],
   "DIRECTOR": ["Waiting Approval"],
   "VP": ["Waiting Approval"],
-  "AP": ["Goods Received (Debit / Wire)", "Waiting Payment (Debit Card / Invoices)", "Waiting Payment (Wire Transfer)"],
+  "AP": ["Goods Received (Debit / Wire)", "Waiting Payment (Debit Card / Invoices)"],
   "ACCOUNT_RECEIVABLE": ["Clerk Review"],
   "RECEIVING": ["Shipped", "Goods Received"],
   "TREASURY": ["Draft", "Pending Review", "Deposited", "Matched", "Reconciled", "Completed", "Waiting Payment (Wire Transfer)"],
@@ -51,7 +51,7 @@ export const PRIMARY_ROLE_TABS = [
     color: "text-amber-600 dark:text-amber-400",
     roleCode: "AP",
     desc: "Invoice matching, vendor statement review, GL validation, and debit/wire handling.",
-    states: ["Goods Received (Debit / Wire)", "Waiting Payment (Debit Card / Invoices)", "Waiting Payment (Wire Transfer)"]
+    states: ["Goods Received (Debit / Wire)", "Waiting Payment (Debit Card / Invoices)"]
   },
   {
     key: "ACCOUNT_RECEIVABLE",

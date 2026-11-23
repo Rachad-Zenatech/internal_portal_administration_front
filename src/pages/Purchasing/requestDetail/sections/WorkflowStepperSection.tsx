@@ -8,13 +8,14 @@ import type { RequestDetailViewState } from "../hooks/useRequestDetailTail";
 
 export function WorkflowStepperSection({ v }: { v: RequestDetailViewState }) {
   const { flow, request, isSelfApprovalBlocked } = v;
+  const isUrgentOverride = Boolean((request.quote_data as Record<string, unknown> | null | undefined)?.is_urgent_override);
 
   return (
     <div className="space-y-4">
       {/* Workflow Stepper */}
       <Card className="border border-slate-200 dark:border-zinc-800 shadow-sm">
         <CardContent className="py-5 px-6">
-          <Stepper flow={flow} requestStatus={request.status} />
+          <Stepper flow={flow} requestStatus={request.status} isUrgentOverride={isUrgentOverride} />
           {request.status === "REJECTED" && (
             <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm font-medium text-red-600 dark:text-red-400">
               This request was rejected.

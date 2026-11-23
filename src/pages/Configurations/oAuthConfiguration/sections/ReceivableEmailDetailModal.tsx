@@ -176,7 +176,7 @@ export function ReceivableEmailDetailModal({ s }: { s: OAuthConfigurationState }
     }
     try {
       setLoadingAttId(att.id);
-      const url = oauthService.getReceivableEmailAttachmentUrl(selectedEmail.id, att.id, detail?.conversation_id || selectedEmail.conversation_id, download);
+      const url = oauthService.getReceivableEmailAttachmentUrl(selectedEmail.id, att.id, detail?.conversation_id || selectedEmail.conversation_id, download, s.entraScope);
       const token = localStorage.getItem("access_token");
       const res = await fetch(url, { credentials: "include", headers: token ? { Authorization: `Bearer ${token}` } : undefined });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -209,7 +209,7 @@ export function ReceivableEmailDetailModal({ s }: { s: OAuthConfigurationState }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4" onClick={handleCloseEmailDetail}>
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={handleCloseEmailDetail}>
       <div className="w-full max-w-4xl max-h-[90vh] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-border/70 flex items-start justify-between gap-4">
           <div className="min-w-0 space-y-1">

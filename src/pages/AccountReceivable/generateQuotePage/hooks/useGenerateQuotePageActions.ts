@@ -72,11 +72,11 @@ export function useGenerateQuotePageActions() {
     document.dispatchEvent(
       new CustomEvent("set-breadcrumb-trail", {
         detail: {
-          path: quoteId ? `/account-receivable/generate-quote?id=${quoteId}` : "/account-receivable/generate-quote",
+          path: window.location.pathname,
           items: [
             { title: "Account Receivable", label: "Account Receivable", path: "/account-receivable" },
             { title: "Quotes", label: "Quotes", path: "/account-receivable?tab=quotes" },
-            { title: pageTitle, label: pageTitle, path: "/account-receivable/generate-quote" },
+            { title: pageTitle, label: pageTitle, path: window.location.pathname },
           ],
         },
       })

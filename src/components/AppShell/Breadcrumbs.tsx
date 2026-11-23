@@ -70,10 +70,21 @@ export default function Breadcrumbs() {
       "chart-of-accounts": "Chart of Accounts",
       "upload-files": "Upload Files",
       "system-logs": "System Logs",
-      invoices: "Invoices",
+      invoices: "Accounts Payable",
       purchasing: "Purchasing",
       configuration: "Configuration",
       configurations: "Configurations",
+      "requests-workflow-auto": "Workflow Automation",
+      "invoices-workflow-auto": "AP Workflow Automation",
+      quickbooks: "QuickBooks",
+      "payable-contacts": "Payable Contacts",
+      "business-contacts": "Business Contacts",
+      "products-services": "Products & Services",
+      oauth: "OAuth Configuration",
+      log: "Logs",
+      audit: "Audit Log",
+      "audit-log": "Audit Log",
+      ar: "Account Receivable",
     };
     const key = name.toLowerCase();
     if (specialNames[key]) {
@@ -97,11 +108,17 @@ export default function Breadcrumbs() {
 
   const activeTrail = customTrails[location.pathname];
 
+  const routeOverrides: Record<string, string> = {
+    "/account-receivable/quotes": "/account-receivable?tab=quotes",
+    "/ar/quotes": "/account-receivable?tab=quotes",
+  };
+
   const breadcrumbItems = pathnames
     .map((value, index) => {
+      const rawTo = `/${pathnames.slice(0, index + 1).join("/")}`;
       return {
         value,
-        to: `/${pathnames.slice(0, index + 1).join("/")}`,
+        to: routeOverrides[rawTo] || rawTo,
       };
     })
     .filter((item) => {

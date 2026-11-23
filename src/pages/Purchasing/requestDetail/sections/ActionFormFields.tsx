@@ -1,9 +1,9 @@
 import { BankAccountAutocomplete } from "../../fields/BankAccountAutocomplete";
 import { CategoryAutocomplete } from "../../fields/CategoryAutocomplete";
 import { ClassAutocomplete } from "../../fields/ClassAutocomplete";
-import LocationAutocomplete from "../../fields/LocationAutocomplete";
 import RegionAutocomplete from "../../fields/RegionAutocomplete";
 import { InvoiceLinesCategoryTable } from "./InvoiceLinesCategoryTable";
+import { InvoiceLocationAmountFields } from "./InvoiceLocationAmountFields";
 import { VendorAutocomplete } from "../../fields/VendorAutocomplete";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { toast } from "sonner";
@@ -47,15 +47,15 @@ export function ActionFormFields({ v }: { v: RequestDetailViewState }) {
                   <FieldInput
                     label={
                       <span>
-                        Bill Date <span className="text-red-500">*</span>
+                        Invoice Due Date <span className="text-red-500">*</span>
                       </span>
                     }
                     type="date"
-                    value={invoice.invoice_date}
-                    onChange={(v) => setInvoice({ ...invoice, invoice_date: v })}
+                    value={invoice.due_date ?? ""}
+                    onChange={(v) => setInvoice({ ...invoice, due_date: v })}
                   />
                   {request.request_type !== "RECURRING" ? (
-                    <FieldInput label="Date Arrived" type="date" value={invoice.due_date ?? ""} onChange={(v) => setInvoice({ ...invoice, due_date: v })} />
+                    <FieldInput label="Paid Date" type="date" value={invoice.paid_date ?? ""} onChange={(v) => setInvoice({ ...invoice, paid_date: v })} />
                   ) : (
                     <div className="space-y-2">
                       <div className="flex items-center gap-1.5">
@@ -95,17 +95,7 @@ export function ActionFormFields({ v }: { v: RequestDetailViewState }) {
                   </div>
                 </TwoUp>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Location <span className="text-red-500">*</span>
-                  </label>
-                  <LocationAutocomplete
-                    value={invoice.from_location || ""}
-                    onChange={(v) => setInvoice({ ...invoice, from_location: v })}
-                    placeholder="Select or enter location *"
-                    required
-                  />
-                </div>
+                <InvoiceLocationAmountFields invoice={invoice} setInvoice={setInvoice} currency={request.currency || "USD"} />
 
                 {invoiceItems.length > 1 ? (
                   <div className="space-y-3 pt-1">

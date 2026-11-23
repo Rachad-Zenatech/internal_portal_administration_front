@@ -22,6 +22,8 @@ interface StepperProps {
    * made on the RequestStatus union, not on characters.
    */
   requestStatus?: string | null;
+  /** When true, marks the Waiting Approval step with an (Override) tag above it. */
+  isUrgentOverride?: boolean;
 }
 
 function stepStateFor(index: number, activeIndex: number): StepState {
@@ -41,6 +43,7 @@ function exceptionStateFor(status: RequestStatus | null): StepState {
 export function resolveSteps(
   flow: readonly RequestStatus[] | undefined,
   requestStatus?: string | null,
+  isUrgentOverride?: boolean,
 ): DisplayStep[] {
   const source = flow && flow.length > 0 ? flow : SPEND_FLOW;
   const steps: RequestStatus[] = [...source];
@@ -83,6 +86,7 @@ export function resolveSteps(
       status: step,
       label: STATUS_LABEL[step],
       state,
+      ...(isUrgentOverride && step === RequestStatus.WaitingApproval ? { topTag: "(Override)" } : {}),
     };
   });
 
@@ -93,8 +97,8 @@ export function resolveSteps(
 /**
  * Responsive horizontal stepper component with uniform step sizing that scales across screen widths.
  */
-const Stepper: React.FC<StepperProps> = ({ flow = SPEND_FLOW, requestStatus }) => {
-  const steps = resolveSteps(flow, requestStatus);
+const Stepper: React.FC<StepperProps> = ({ flow = SPEND_FLOW, requestStatus, isUrgentOverride }) => {
+  const steps = resolveSteps(flow, requestStatus, isUrgentOverride);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const activeStepRef = React.useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = React.useState(false);

@@ -1,35 +1,13 @@
 import { handleResponse, handleUnauthorized } from "./helper";
+import {
+  cancelActiveApiActions,
+  registerTrackedAction,
+  subscribeToApiActions,
+  unregisterTrackedAction,
+  type ActiveApiAction,
+} from "./apiActionTracker";
 
-export interface ActiveApiAction {
-  id: string;
-  method: string;
-  endpoint: string;
-  title: string;
-  subtitle: string;
-  startedAt: number;
-}
-
-const activeActions = new Map<string, ActiveApiAction>();
-const actionListeners = new Set<(actions: ActiveApiAction[]) => void>();
-
-export function subscribeToApiActions(listener: (actions: ActiveApiAction[]) => void): () => void {
-  actionListeners.add(listener);
-  listener(Array.from(activeActions.values()));
-  return () => {
-    actionListeners.delete(listener);
-  };
-}
-
-function notifyActionListeners() {
-  const list = Array.from(activeActions.values());
-  actionListeners.forEach((fn) => {
-    try {
-      fn(list);
-    } catch (e) {
-      console.error("Error in action listener", e);
-    }
-  });
-}
+export { cancelActiveApiActions, subscribeToApiActions, type ActiveApiAction };
 
 export interface ApiRequestOptions extends RequestInit {
   actionLabel?: string;
@@ -670,31 +648,39 @@ async function monitoredFetch(endpoint: string, options: ApiRequestOptions): Pro
     targetEndpoint.includes("/extract-product");
 
   let actionId: string | null = null;
+  let controller: AbortController | null = null;
+  let fetchOptions: ApiRequestOptions = options;
   if (isMutating && !isIgnored) {
     actionId = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    controller = new AbortController();
+    if (options.signal) {
+      if (options.signal.aborted) {
+        controller.abort();
+      } else {
+        options.signal.addEventListener("abort", () => controller?.abort(), { once: true });
+      }
+    }
+    fetchOptions = { ...options, signal: controller.signal };
     const customLabel = options.actionLabel;
     const customSubtitle = options.actionSubtitle;
     const meta = resolveActionMeta(method, targetEndpoint, options.body, customLabel, customSubtitle);
-    activeActions.set(actionId, {
+    registerTrackedAction({
       id: actionId,
       method,
       endpoint: targetEndpoint,
       title: meta.title,
       subtitle: meta.subtitle,
       startedAt: Date.now(),
+      cancel: () => controller?.abort(),
     });
-    notifyActionListeners();
   }
 
   try {
-    const response = await fetch(`${BASE_URL}${targetEndpoint}`, options);
+    const response = await fetch(`${BASE_URL}${targetEndpoint}`, fetchOptions);
     statusCode = response.status;
     return response;
   } finally {
-    if (actionId) {
-      activeActions.delete(actionId);
-      notifyActionListeners();
-    }
+    unregisterTrackedAction(actionId);
     const durationMs = performance.now() - started;
     if (
       durationMs >= SLOW_REQUEST_MS &&
