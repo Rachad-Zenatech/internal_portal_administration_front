@@ -5,7 +5,6 @@ import { ShieldAlert, ArrowLeft } from "lucide-react";
 import { Button } from "./components/ui/button";
 
 import ProtectedRoute from "./components/common/ProtectedRoute";
-import { lazy } from "react";
 const AiStatusPage = lazy(() => import("./pages/Configurations/AiStatusPage"));
 
 const AppShell = lazy(() => import("./components/AppShell/AppShell"));
@@ -185,10 +184,8 @@ function App() {
               <Route path="/log/audit" element={<ProtectedRoute navigationCode="AUDIT_LOG"><AuditLog /></ProtectedRoute>} />
               <Route path="/log/audit-log" element={<ProtectedRoute navigationCode="AUDIT_LOG"><AuditLog /></ProtectedRoute>} />
               <Route path="/log/system-logs" element={<ProtectedRoute navigationCode="AUDIT_LOG"><SystemLogsPage /></ProtectedRoute>} />
-
-              {/* Catch-All / 404 Route */}
-                        <Route path="/configurations/ai-status" element={<AiStatusPage />} />
-          <Route path="*" element={<NotFoundAlert />} />
+              <Route path="/configurations/ai-status" element={<AiStatusPage />} />
+              <Route path="*" element={<NotFoundAlert />} />
             </Route>
           </Routes>
         </Suspense>

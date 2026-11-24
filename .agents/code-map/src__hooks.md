@@ -7,6 +7,9 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/hooks/useARStatusCounts.ts (23 lines) - Per-status A/R totals for the sidebar.
 - `useARStatusCounts` (export function) L8 - Per-status A/R totals for the sidebar.
 
+## src/hooks/useAiOverview.ts (16 lines) - use ai overview (hooks)
+- `useAiOverview` (export function) L5
+
 ## src/hooks/useBusinessContact.ts (96 lines) - use business contact (hooks)
 - `BUSINESS_CONTACTS_QUERY_KEY` (export const) L8
 - `useBusinessContacts` (export function) L10
