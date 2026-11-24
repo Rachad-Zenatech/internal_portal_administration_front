@@ -12,9 +12,11 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `CategoryAutocompleteProps` (export interface) L12
 - `CategoryAutocomplete` (export function) L20
 
-## src/pages/Purchasing/fields/ClassAutocomplete.tsx (348 lines) - class autocomplete (pages  purchasing fields)
-- `ClassAutocompleteProps` (interface) L7
-- `ClassAutocomplete` (export function) L17
+## src/pages/Purchasing/fields/ClassAutocomplete.tsx (381 lines) - class autocomplete (pages  purchasing fields)
+- `ClassAutocompleteProps` (interface) L9
+- `ClassDropdownContentProps` (interface) L19
+- `ClassDropdownContent` (function) L33
+- `ClassAutocomplete` (export function) L125
 
 ## src/pages/Purchasing/fields/CountryAutocomplete.tsx (351 lines) - country autocomplete (pages  purchasing fields)
 - `CountryAutocompleteProps` (interface) L21
@@ -52,9 +54,11 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
     - `handleKeyDown` (fn) L181
     - `renderHighlightedName` (fn) L222
 
-## src/pages/Purchasing/fields/GLCodeAutocomplete.tsx (335 lines) - g l code autocomplete (pages  purchasing fields)
-- `GLCodeAutocompleteProps` (interface) L9
-- `GLCodeAutocomplete` (export function) L18
+## src/pages/Purchasing/fields/GLCodeAutocomplete.tsx (375 lines) - g l code autocomplete (pages  purchasing fields)
+- `GLCodeAutocompleteProps` (interface) L11
+- `GLCodeOptionRowProps` (interface) L20
+- `GLCodeOptionRow` (function) L29
+- `GLCodeAutocomplete` (export function) L102
 
 ## src/pages/Purchasing/fields/LocationAutocomplete.tsx (352 lines) - location autocomplete (pages  purchasing fields)
 - `LocationAutocompleteProps` (interface) L8

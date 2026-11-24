@@ -112,20 +112,21 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/hooks/useDashboard.ts (84 lines) - use dashboard (hooks)
 - src/hooks/useEntities.ts (67 lines) - use entities (hooks)
 - src/hooks/useHeartbeat.ts (47 lines) - Track user activity (throttled + passive to avoid main-thread scroll/mousemove overhead)
-- src/hooks/useHubSpotCompanies.ts (51 lines) - Live progress of the background companies sync; polls every second only while a sync is running.
+- src/hooks/useHubSpotCompanies.ts (62 lines) - Shared cached list from the local A/R Companies table (used by Quotes, Invoices, and A/R autocomplete).
 - src/hooks/useMasterTables.ts (234 lines) - use master tables (hooks)
 - src/hooks/useNotifications.ts (303 lines) - use notifications (hooks)
+- src/hooks/usePortalScrollRef.ts (31 lines) - use portal scroll ref (hooks)
 - src/hooks/usePurchasing.ts (436 lines) - use purchasing (hooks)
 - src/hooks/useSearch.ts (16 lines) - use search (hooks)
 - src/hooks/useStreamingChat.ts (169 lines) - use streaming chat (hooks)
 - src/hooks/useTasks.ts (42 lines) - use tasks (hooks)
 - src/lib/AuthContext.tsx (202 lines) - auth context (lib)
 - src/lib/requestStatus.ts (128 lines) - The only place raw status strings are interpreted.
-- src/lib/sanitizeHtml.ts (61 lines) - Allowlist HTML sanitizer for rich email/quote previews rendered with dangerouslySetInnerHTML.
+- src/lib/sanitizeHtml.ts (88 lines) - Allowlist HTML sanitizer for rich email/quote previews rendered with dangerouslySetInnerHTML.
 - src/lib/userDepartment.ts (170 lines) - user department (lib)
 - src/lib/utils.ts (7 lines) - utils (lib)
 - src/main.tsx (66 lines) - Automatically reload once if a new deployment removed old hashed chunks
-- src/pages/AccountReceivable/AccountReceivablePage.tsx (501 lines) - account receivable page (pages  account receivable)
+- src/pages/AccountReceivable/AccountReceivablePage.tsx (449 lines) - account receivable page (pages  account receivable)
 - src/pages/AccountReceivable/CustomerQuoteViewPage.tsx (972 lines) - customer quote view page (pages  account receivable)
 - src/pages/AccountReceivable/GenerateInvoicePage.tsx (883 lines) - generate invoice page (pages  account receivable)
 - src/pages/AccountReceivable/GenerateQuotePage.tsx (268 lines) - generate quote page (pages  account receivable)
@@ -133,21 +134,30 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/AccountReceivable/WorkflowDetailPage.tsx (38 lines) - workflow detail page (pages  account receivable)
 - src/pages/AccountReceivable/accountReceivable/arStatusCounts.ts (34 lines) - Single definition of the A/R pipeline statuses, shared by the A/R page tabs and the sidebar sub-menu counts.
 - src/pages/AccountReceivable/accountReceivable/constants.ts (2 lines) - constants (pages  account receivable account receivable)
-- src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivable.ts (11 lines) - use account receivable (pages  account receivable account receivable hooks)
-- src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableData.ts (378 lines) - use account receivable data (pages  account receivable account receivable hooks)
-- src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableDerived.ts (269 lines) - Filter customer invoice groups by search term and status filter
-- src/pages/AccountReceivable/accountReceivable/sections/RecordInvoicePaymentDialog.tsx (161 lines) - record invoice payment dialog (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivable.ts (13 lines) - use account receivable (pages  account receivable account receivable hooks)
+- src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableData.ts (420 lines) - use account receivable data (pages  account receivable account receivable hooks)
+- src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableDerived.ts (278 lines) - Filter customer invoice groups by search term and status filter
+- src/pages/AccountReceivable/accountReceivable/hooks/useEmailPaymentMatches.ts (66 lines) - Subscribe to A/R Email SSE stream so incoming emails auto-sync, auto-analyze,
+- src/pages/AccountReceivable/accountReceivable/sections/AwaitingPaymentRow.tsx (45 lines) - awaiting payment row (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/sections/EmailPaymentLinkSection.tsx (178 lines) - email payment link section (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/sections/InvoiceRowActions.tsx (68 lines) - invoice row actions (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/sections/PaymentFoundBadge.tsx (25 lines) - payment found badge (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/sections/RecordInvoicePaymentDialog.tsx (113 lines) - record invoice payment dialog (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/Tab1Overview.tsx (180 lines) - tab1 overview (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/Tab2Quotes.tsx (314 lines) - tab2 quotes (pages  account receivable account receivable sections)
-- src/pages/AccountReceivable/accountReceivable/sections/Tab4InvoicesGrouped.tsx (321 lines) - tab4 invoices grouped (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/sections/Tab4InvoicesGrouped.tsx (310 lines) - tab4 invoices grouped (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/sections/Tab5AwaitingPayment.tsx (70 lines) - tab5 awaiting payment (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/TabARCompanies.tsx (247 lines) - tab a r companies (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/sections/UnmatchedEmailPreviewPane.tsx (251 lines) - unmatched email preview pane (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/sections/UnmatchedInvoicePickerPane.tsx (110 lines) - unmatched invoice picker pane (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/sections/UnmatchedPaymentsDrawer.tsx (153 lines) - unmatched payments drawer (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/types.ts (42 lines) - types (pages  account receivable account receivable)
 - src/pages/AccountReceivable/components/BrandBadges.tsx (50 lines) - Distinct, readable colours (light + dark).
 - src/pages/AccountReceivable/components/InvoiceHierarchyItemsTable.tsx (351 lines) - invoice hierarchy items table (pages  account receivable components)
 - src/pages/AccountReceivable/components/InvoiceStepper.tsx (230 lines) - invoice stepper (pages  account receivable components)
 - src/pages/AccountReceivable/components/QuoteNotesThread.tsx (367 lines) - quote notes thread (pages  account receivable components)
 - src/pages/AccountReceivable/components/QuoteStepper.tsx (246 lines) - quote stepper (pages  account receivable components)
-- src/pages/AccountReceivable/fields/ARCustomerAutocomplete.tsx (677 lines) - a r customer autocomplete (pages  account receivable fields)
+- src/pages/AccountReceivable/fields/ARCustomerAutocomplete.tsx (662 lines) - a r customer autocomplete (pages  account receivable fields)
 - src/pages/AccountReceivable/fields/BillingStartDatePicker.tsx (151 lines) - billing start date picker (pages  account receivable fields)
 - src/pages/AccountReceivable/fields/ProductServiceAutocomplete.tsx (398 lines) - Called when the clear button is pressed, so the caller can reset the rest of the line.
 - src/pages/AccountReceivable/fields/UserAutocomplete.tsx (322 lines) - user autocomplete (pages  account receivable fields)
@@ -167,10 +177,11 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/AccountReceivable/generateInvoice/sections/ParentActivityItemRow2.tsx (299 lines) - parent activity item row2 (pages  account receivable generate invoice sections)
 - src/pages/AccountReceivable/generateInvoice/sections/ParentLineItemRow.tsx (628 lines) - parent line item row (pages  account receivable generate invoice sections)
 - src/pages/AccountReceivable/generateInvoice/sections/PayableChargesSeparationBlock.tsx (112 lines) - payable charges separation block (pages  account receivable generate invoice sections)
+- src/pages/AccountReceivable/generateInvoice/sections/PaymentAttachmentsCell.tsx (39 lines) - payment attachments cell (pages  account receivable generate invoice sections)
 - src/pages/AccountReceivable/generateInvoice/sections/QuickBalancePaidSnapshot.tsx (95 lines) - quick balance paid snapshot (pages  account receivable generate invoice sections)
 - src/pages/AccountReceivable/generateInvoice/sections/QuickEditAR.tsx (122 lines) - quick edit a r (pages  account receivable generate invoice sections)
 - src/pages/AccountReceivable/generateInvoice/sections/RecordPaymentModal.tsx (161 lines) - record payment modal (pages  account receivable generate invoice sections)
-- src/pages/AccountReceivable/generateInvoice/sections/RecordedPaymentsSettlementLedger.tsx (118 lines) - recorded payments settlement ledger (pages  account receivable generate invoice sections)
+- src/pages/AccountReceivable/generateInvoice/sections/RecordedPaymentsSettlementLedger.tsx (110 lines) - recorded payments settlement ledger (pages  account receivable generate invoice sections)
 - src/pages/AccountReceivable/generateInvoice/sections/RecurringBillingScheduleNext.tsx (102 lines) - recurring billing schedule next (pages  account receivable generate invoice sections)
 - src/pages/AccountReceivable/generateInvoice/sections/RenameTemplatePreset.tsx (75 lines) - rename template preset (pages  account receivable generate invoice sections)
 - src/pages/AccountReceivable/generateInvoice/sections/SaveAsNewTemplate.tsx (84 lines) - save as new template (pages  account receivable generate invoice sections)
@@ -190,7 +201,8 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/AccountReceivable/modals/NewWorkflowModal.tsx (328 lines) - new workflow modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/OverridePriceModal.tsx (131 lines) - override price modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/QuoteDetailDrawer.tsx (12 lines) - quote detail drawer (pages  account receivable modals)
-- src/pages/AccountReceivable/modals/SendQuoteModal.tsx (385 lines) - send quote modal (pages  account receivable modals)
+- src/pages/AccountReceivable/modals/QuoteEmailVisualEditor.tsx (86 lines) - quote email visual editor (pages  account receivable modals)
+- src/pages/AccountReceivable/modals/SendQuoteModal.tsx (388 lines) - send quote modal (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/WorkflowDetailDrawer.tsx (12 lines) - workflow detail drawer (pages  account receivable modals)
 - src/pages/AccountReceivable/modals/addSeatsAddonsModal/hooks/useAddSeatsAddonsModal.ts (10 lines) - use add seats addons modal (pages  account receivable modals add seats addons modal hooks)
 - src/pages/AccountReceivable/modals/addSeatsAddonsModal/hooks/useAddSeatsAddonsModalActions.ts (288 lines) - Fetch existing subscriptions for customer
@@ -438,12 +450,12 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/dialogs/wireTransferDialog/utils.ts (61 lines) - Fallback defaults mapped against AccountsPayableLog and schwifty requirements
 - src/pages/Purchasing/fields/BankAccountAutocomplete.tsx (325 lines) - bank account autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/CategoryAutocomplete.tsx (282 lines) - category autocomplete (pages  purchasing fields)
-- src/pages/Purchasing/fields/ClassAutocomplete.tsx (348 lines) - class autocomplete (pages  purchasing fields)
+- src/pages/Purchasing/fields/ClassAutocomplete.tsx (381 lines) - class autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/CountryAutocomplete.tsx (351 lines) - country autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/CreatableCombobox.tsx (711 lines) - creatable combobox (pages  purchasing fields)
 - src/pages/Purchasing/fields/CurrencyAutocomplete.tsx (321 lines) - currency autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/DepartmentAutocomplete.tsx (416 lines) - department autocomplete (pages  purchasing fields)
-- src/pages/Purchasing/fields/GLCodeAutocomplete.tsx (335 lines) - g l code autocomplete (pages  purchasing fields)
+- src/pages/Purchasing/fields/GLCodeAutocomplete.tsx (375 lines) - g l code autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/LocationAutocomplete.tsx (352 lines) - location autocomplete (pages  purchasing fields)
 - src/pages/Purchasing/fields/PaymentMethodSelect.tsx (357 lines) - payment method select (pages  purchasing fields)
 - src/pages/Purchasing/fields/PrioritySelector.tsx (180 lines) - priority selector (pages  purchasing fields)
@@ -614,7 +626,8 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/services/api.ts (6 lines) - api (services)
 - src/services/apiActionTracker.ts (56 lines) - api action tracker (services)
 - src/services/apiClient.ts (842 lines) - api client (services)
-- src/services/arInvoiceService.ts (644 lines) - ar invoice service (services)
+- src/services/arEmailPaymentService.ts (136 lines) - ar email payment service (services)
+- src/services/arInvoiceService.ts (638 lines) - ar invoice service (services)
 - src/services/arQuoteService.ts (489 lines) - ar quote service (services)
 - src/services/arService.ts (150 lines) - ar service (services)
 - src/services/entityService.ts (79 lines) - entity service (services)
@@ -623,7 +636,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/services/financeService.ts (100 lines) - finance service (services)
 - src/services/helper.ts (103 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
 - src/services/masterTablesService.ts (180 lines) - master tables service (services)
-- src/services/oauthService.ts (362 lines) - oauth service (services)
+- src/services/oauthService.ts (377 lines) - oauth service (services)
 - src/services/productAiService.ts (18 lines) - Product extraction from a request's vendor URL and its AI chart-of-accounts suggestions (each run again on request).
 - src/services/purchasingService.ts (786 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
 - src/services/queryKeys.ts (26 lines) - All React Query cache keys live here so that invalidation calls in

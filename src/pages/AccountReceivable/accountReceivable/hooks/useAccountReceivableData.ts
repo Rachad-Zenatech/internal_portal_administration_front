@@ -5,6 +5,7 @@ import { arInvoiceService } from "../../../../services/arInvoiceService";
 import type { GeneratedInvoiceSummary } from "../../../../services/arInvoiceService";
 import { arQuoteService } from "../../../../services/arQuoteService";
 import type { ARQuote } from "../../../../services/arQuoteService";
+import { arEmailPaymentService, type EmailPaymentMatch } from "../../../../services/arEmailPaymentService";
 import { useNotificationStream } from "@/hooks/useNotifications";
 import { oauthService } from "../../../../services/oauthService";
 import { useSyncHubSpotCompanies } from "../../../../hooks/useHubSpotCompanies";
@@ -60,6 +61,7 @@ export function useAccountReceivableData() {
   const { data: customers = [], refetch: refetchCustomers } = useQuery({
     queryKey: ["ar-customers"],
     queryFn: () => arInvoiceService.getCustomers(),
+    staleTime: 5 * 60 * 1000,
   });
   // HubSpot Companies Search & Query
   const [hubspotSearchTerm, setHubspotSearchTerm] = useState("");
@@ -87,6 +89,7 @@ export function useAccountReceivableData() {
         hubspotBrand === "all" ? undefined : hubspotBrand,
       ),
     placeholderData: keepPreviousData,
+    staleTime: 5 * 60 * 1000,
   });
   const hubspotCompanies = hubspotCompaniesData?.items || [];
   const hubspotTotal = hubspotCompaniesData?.total ?? 0;
@@ -226,8 +229,37 @@ export function useAccountReceivableData() {
   const [invoicePaymentGLCode, setInvoicePaymentGLCode] = useState("");
   const [invoicePaymentClass, setInvoicePaymentClass] = useState("");
   const [invoicePaymentNotes, setInvoicePaymentNotes] = useState("");
+  const [linkedEmailPayment, setLinkedEmailPayment] = useState<EmailPaymentMatch | null>(null);
+  const [rememberEmailPayer, setRememberEmailPayer] = useState(true);
   const [isSubmittingInvoicePayment, setIsSubmittingInvoicePayment] = useState(false);
-  const handleOpenRecordInvoicePayment = (inv: GeneratedInvoiceSummary) => {
+
+  const applyEmailPaymentToModal = (match: EmailPaymentMatch | null, inv?: GeneratedInvoiceSummary | null) => {
+    setLinkedEmailPayment(match);
+    if (!match) return;
+    const ex = match.extracted_data || {};
+    const targetInv = inv || selectedInvoiceForPayment;
+    const balanceRemaining = targetInv
+      ? (targetInv.balance_due !== undefined ? targetInv.balance_due : (targetInv.total_amount - (targetInv.amount_paid || 0)))
+      : 0;
+    const amt = match.allocated_amount ?? ex.total_amount ?? (balanceRemaining > 0 ? balanceRemaining : targetInv?.total_amount || 0);
+    if (amt && Number(amt) > 0) setInvoicePaymentAmount(Number(amt));
+    if (ex.payment_method) setInvoicePaymentMethod(String(ex.payment_method).toUpperCase());
+    if (ex.payment_date) setInvoicePaymentDate(String(ex.payment_date).slice(0, 10));
+    if (ex.reference_number) setInvoicePaymentRef(String(ex.reference_number));
+    setInvoicePaymentNotes(ex.memo || `Matched from A/R email: ${match.subject || ""}`.trim());
+  };
+
+  const handleDetachEmailPayment = async (emailId: string, matchId?: string) => {
+    try {
+      await arEmailPaymentService.dismissMatch(emailId, true, matchId);
+      queryClient.invalidateQueries({ queryKey: ["ar-email-payment-matches"] });
+    } catch {
+      // ignore detach network error and still clear locally
+    }
+    setLinkedEmailPayment(null);
+  };
+
+  const handleOpenRecordInvoicePayment = (inv: GeneratedInvoiceSummary, matchedEmail?: EmailPaymentMatch | null) => {
     setSelectedInvoiceForPayment(inv);
     const balanceRemaining = inv.balance_due !== undefined ? inv.balance_due : (inv.total_amount - (inv.amount_paid || 0));
     setInvoicePaymentAmount(balanceRemaining > 0 ? balanceRemaining : (inv.total_amount || 0));
@@ -237,6 +269,9 @@ export function useAccountReceivableData() {
     setInvoicePaymentGLCode("");
     setInvoicePaymentClass("");
     setInvoicePaymentNotes("");
+    setRememberEmailPayer(true);
+    setLinkedEmailPayment(null);
+    if (matchedEmail) applyEmailPaymentToModal(matchedEmail, inv);
     setIsInvoicePaymentModalOpen(true);
   };
   const handleConfirmInvoicePayment = async () => {
@@ -258,12 +293,19 @@ export function useAccountReceivableData() {
         class_name: invoicePaymentClass,
         class: invoicePaymentClass,
         notes: invoicePaymentNotes,
+        source_email_id: linkedEmailPayment?.email_id,
+        source_match_id: linkedEmailPayment?.id,
+        attachment_ids: linkedEmailPayment?.attachments?.map((a) => a.id),
+        remember_payer: rememberEmailPayer,
+        payer_name: linkedEmailPayment?.extracted_data?.payer_name || linkedEmailPayment?.sender_name,
       });
       queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
       queryClient.invalidateQueries({ queryKey: ["ar-quotes"] });
       queryClient.invalidateQueries({ queryKey: ["ar-quote-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-email-payment-matches"] });
       setIsInvoicePaymentModalOpen(false);
       setSelectedInvoiceForPayment(null);
+      setLinkedEmailPayment(null);
       setBannerSuccess(`Successfully recorded $${numAmt.toFixed(2)} payment for invoice ${selectedInvoiceForPayment.invoice_number}`);
       setTimeout(() => setBannerSuccess(null), 5000);
     } catch (err: any) {
@@ -329,7 +371,7 @@ export function useAccountReceivableData() {
 
     invoices.forEach((inv) => {
       const rawCustName = (inv.customer_name || inv.bill_to_name || "Direct Client").trim();
-      const custKey = (inv.customer_id || rawCustName || "UNKNOWN").toLowerCase();
+      const custKey = (rawCustName.replace(/\s+/g, " ") || inv.customer_id || "UNKNOWN").toLowerCase();
 
       if (!groupsMap.has(custKey)) {
         groupsMap.set(custKey, {
@@ -373,5 +415,5 @@ export function useAccountReceivableData() {
 
     return result;
   }, [invoices]);
-  return { navigate, activeTab, setActiveTab, searchTerm, setSearchTerm, statusFilter, setStatusFilter, quoteToSend, setQuoteToSend, selectedInvoiceForEmail, isInvoiceEmailModalOpen, setIsInvoiceEmailModalOpen, emailRecipient, setEmailRecipient, emailSubject, setEmailSubject, emailCustomMessage, setEmailCustomMessage, bannerSuccess, setBannerSuccess, summaryStats, quotes, refetchQuotes, invoices, refetchInvoices, customers, hubspotSearchTerm, setHubspotSearchTerm, debouncedHubspotSearch, hubspotPage, setHubspotPage, hubspotBrand, setHubspotBrand, hubspotBrands, allHubspotCompaniesTotal, isHubspotCompaniesLoading, isHubspotCompaniesFetching, hubspotCompanies, hubspotTotal, hubspotPageCount, hubspotRangeStart, hubspotRangeEnd, syncHubspotCompaniesMutation, convertInvoiceMutation, deleteQuoteMutation, deleteInvoiceMutation, generateRenewalQuoteMutation, sendInvoiceEmailMutation, handleOpenSendInvoiceEmail, selectedInvoiceForPayment, isInvoicePaymentModalOpen, setIsInvoicePaymentModalOpen, invoicePaymentAmount, setInvoicePaymentAmount, invoicePaymentMethod, setInvoicePaymentMethod, invoicePaymentDate, setInvoicePaymentDate, invoicePaymentRef, setInvoicePaymentRef, invoicePaymentGLCode, setInvoicePaymentGLCode, invoicePaymentClass, setInvoicePaymentClass, invoicePaymentNotes, setInvoicePaymentNotes, isSubmittingInvoicePayment, handleOpenRecordInvoicePayment, handleConfirmInvoicePayment, expandedQuoteIds, toggleQuoteExpanded, expandedCustomerInvoiceKeys, toggleCustomerInvoiceExpanded, handleExpandAllInvoiceCustomers, handleCollapseAllInvoiceCustomers, customerInvoiceGroups };
+  return { navigate, activeTab, setActiveTab, searchTerm, setSearchTerm, statusFilter, setStatusFilter, quoteToSend, setQuoteToSend, selectedInvoiceForEmail, isInvoiceEmailModalOpen, setIsInvoiceEmailModalOpen, emailRecipient, setEmailRecipient, emailSubject, setEmailSubject, emailCustomMessage, setEmailCustomMessage, bannerSuccess, setBannerSuccess, summaryStats, quotes, refetchQuotes, invoices, refetchInvoices, customers, hubspotSearchTerm, setHubspotSearchTerm, debouncedHubspotSearch, hubspotPage, setHubspotPage, hubspotBrand, setHubspotBrand, hubspotBrands, allHubspotCompaniesTotal, isHubspotCompaniesLoading, isHubspotCompaniesFetching, hubspotCompanies, hubspotTotal, hubspotPageCount, hubspotRangeStart, hubspotRangeEnd, syncHubspotCompaniesMutation, convertInvoiceMutation, deleteQuoteMutation, deleteInvoiceMutation, generateRenewalQuoteMutation, sendInvoiceEmailMutation, handleOpenSendInvoiceEmail, selectedInvoiceForPayment, isInvoicePaymentModalOpen, setIsInvoicePaymentModalOpen, invoicePaymentAmount, setInvoicePaymentAmount, invoicePaymentMethod, setInvoicePaymentMethod, invoicePaymentDate, setInvoicePaymentDate, invoicePaymentRef, setInvoicePaymentRef, invoicePaymentGLCode, setInvoicePaymentGLCode, invoicePaymentClass, setInvoicePaymentClass, invoicePaymentNotes, setInvoicePaymentNotes, linkedEmailPayment, rememberEmailPayer, setRememberEmailPayer, applyEmailPaymentToModal, handleDetachEmailPayment, isSubmittingInvoicePayment, handleOpenRecordInvoicePayment, handleConfirmInvoicePayment, expandedQuoteIds, toggleQuoteExpanded, expandedCustomerInvoiceKeys, toggleCustomerInvoiceExpanded, handleExpandAllInvoiceCustomers, handleCollapseAllInvoiceCustomers, customerInvoiceGroups };
 }

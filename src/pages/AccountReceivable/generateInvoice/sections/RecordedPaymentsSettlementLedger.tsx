@@ -2,13 +2,13 @@ import { CheckCircle2, CreditCard, Plus } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { Badge } from "../../../../components/ui/badge";
 import type { GenerateInvoiceState } from "../hooks/useGenerateInvoice";
+import { PaymentAttachmentsCell } from "./PaymentAttachmentsCell";
 
 export function RecordedPaymentsSettlementLedger({ s }: { s: GenerateInvoiceState }) {
   const { currency, invoicePayments, handleOpenRecordPayment, calculatedTotals, currentInvoiceId } = s;
+  if (!currentInvoiceId) return null;
   return (
-    <>
-      {currentInvoiceId && (
-            <div className="pt-3.5 border-t border-border space-y-3">
+    <div className="pt-3.5 border-t border-border space-y-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -65,6 +65,7 @@ export function RecordedPaymentsSettlementLedger({ s }: { s: GenerateInvoiceStat
                         <th className="py-2 px-3">Category (GL Code)</th>
                         <th className="py-2 px-3">Class</th>
                         <th className="py-2 px-3">Notes</th>
+                        <th className="py-2 px-3">Attachments</th>
                         <th className="py-2 px-3 text-right">Amount Paid</th>
                       </tr>
                     </thead>
@@ -79,18 +80,11 @@ export function RecordedPaymentsSettlementLedger({ s }: { s: GenerateInvoiceStat
                               {p.payment_method || "WIRE"}
                             </Badge>
                           </td>
-                          <td className="py-2 px-3 font-mono text-muted-foreground">
-                            {p.reference_number || "—"}
-                          </td>
-                          <td className="py-2 px-3 text-muted-foreground font-mono text-[11px]">
-                            {p.gl_code || "—"}
-                          </td>
-                          <td className="py-2 px-3 text-muted-foreground">
-                            {p.class_name || "—"}
-                          </td>
-                          <td className="py-2 px-3 text-muted-foreground truncate max-w-[200px]" title={p.notes}>
-                            {p.notes || "—"}
-                          </td>
+                          <td className="py-2 px-3 font-mono text-muted-foreground">{p.reference_number || "—"}</td>
+                          <td className="py-2 px-3 text-muted-foreground font-mono text-[11px]">{p.gl_code || "—"}</td>
+                          <td className="py-2 px-3 text-muted-foreground">{p.class_name || "—"}</td>
+                          <td className="py-2 px-3 text-muted-foreground truncate max-w-[200px]" title={p.notes}>{p.notes || "—"}</td>
+                          <td className="py-2 px-3"><PaymentAttachmentsCell paymentId={p.id} attachments={(p as any).attachments} /></td>
                           <td className="py-2 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                             +${Number(p.amount).toFixed(2)} {currency}
                           </td>
@@ -99,7 +93,7 @@ export function RecordedPaymentsSettlementLedger({ s }: { s: GenerateInvoiceStat
                     </tbody>
                     <tfoot>
                       <tr className="border-t border-border bg-muted/40 font-semibold text-xs">
-                        <td colSpan={6} className="py-2 px-3 text-right text-muted-foreground">
+                        <td colSpan={7} className="py-2 px-3 text-right text-muted-foreground">
                           Total Payments Recorded:
                         </td>
                         <td className="py-2 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
@@ -111,7 +105,5 @@ export function RecordedPaymentsSettlementLedger({ s }: { s: GenerateInvoiceStat
                 </div>
               )}
             </div>
-          )}
-    </>
   );
 }

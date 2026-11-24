@@ -485,15 +485,9 @@ export const arInvoiceService = {
   },
 
   async recordInvoicePayment(invoiceId: string, payload: {
-    amount: number;
-    payment_method?: string;
-    payment_date?: string;
-    reference_number?: string;
-    notes?: string;
-    gl_code?: string;
-    category?: string;
-    class_name?: string;
-    class?: string;
+    amount: number; payment_method?: string; payment_date?: string; reference_number?: string;
+    notes?: string; gl_code?: string; category?: string; class_name?: string; class?: string;
+    source_email_id?: string; source_match_id?: string; attachment_ids?: string[]; remember_payer?: boolean; payer_name?: string;
   }): Promise<any> {
     return apiClient.post(
       `/api/ar/invoices/${encodeURIComponent(invoiceId)}/payment`,

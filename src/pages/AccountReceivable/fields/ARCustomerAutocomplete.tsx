@@ -13,10 +13,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Check, ChevronsUpDown, Plus, X, Building2, User, Mail, Loader2 } from "lucide-react";
-import { financeService } from "@/services/financeService";
-import { arInvoiceService } from "@/services/arInvoiceService";
-import type { ARCustomer } from "@/services/arInvoiceService";
-import { useQueryClient } from "@tanstack/react-query";
+import { oauthService } from "@/services/oauthService";
+import { useARCompaniesDirectory } from "@/hooks/useHubSpotCompanies";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface ARCustomerOption {
   id: string;
@@ -71,14 +70,27 @@ export function ARCustomerAutocomplete({
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(customerName || "");
-  const [customers, setCustomers] = useState<ARCustomerOption[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
+  const [createdCustomers, setCreatedCustomers] = useState<ARCustomerOption[]>([]);
+  const [visibleCount, setVisibleCount] = useState(CUSTOMER_PAGE_SIZE);
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const requestSeq = useRef(0);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const { data: directoryData, isLoading: isDirectoryLoading } = useARCompaniesDirectory();
+  const { data: brandsData } = useQuery({
+    queryKey: ["hubspot-companies", "brands"],
+    queryFn: () => oauthService.getHubSpotCompanyBrands(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const availableBrands = useMemo(() => {
+    const set = new Set<string>();
+    (brandsData?.brands || []).forEach((b) => { if (b.brand?.trim()) set.add(b.brand.trim()); });
+    (directoryData?.items || []).forEach((c) => {
+      (c.brand || "").split(/[;,]/).forEach((b) => { if (b.trim()) set.add(b.trim()); });
+    });
+    const list = Array.from(set).sort((a, b) => a.localeCompare(b));
+    return list.length > 0 ? list : ["General"];
+  }, [brandsData, directoryData]);
+  const isLoading = isDirectoryLoading || (open && query.trim() !== debouncedQuery);
+  const isLoadingMore = false;
 
   // New Customer Dialog state
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -86,6 +98,7 @@ export function ARCustomerAutocomplete({
   const [createError, setCreateError] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState({
     display_name: "",
+    brand: "",
     full_name: "",
     email: "",
     phone_numbers: "",
@@ -108,87 +121,73 @@ export function ARCustomerAutocomplete({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerName]);
 
+  // Use the cached local A/R Companies table (no per-keystroke server/HubSpot fetch).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+      setVisibleCount(CUSTOMER_PAGE_SIZE);
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const allCustomers = useMemo<ARCustomerOption[]>(() => {
+    const items = directoryData?.items || [];
+    const fromDir = items
+      .filter((c) => Boolean(c.brand && c.brand.trim()))
+      .map((c) => ({
+        id: `CUST-${c.hubspot_id}`,
+        display_name: c.name,
+        name: c.name,
+        full_name: c.contact_name || null,
+        email: c.billing_email || c.contact_email || null,
+        phone: c.phone || c.contact_phone || null,
+        bill_address: c.address || null,
+        account_number: "HUBSPOT",
+        is_active: true,
+        hubspot_id: c.hubspot_id ?? null,
+        is_hubspot: true,
+        brand: c.brand || null,
+        domain: c.domain || null,
+        currency: c.currency || null,
+      }));
+    return createdCustomers.length ? [...createdCustomers, ...fromDir] : fromDir;
+  }, [directoryData, createdCustomers]);
+
   // Resolve the display name from customerId only when no name was given and the user isn't typing.
   useEffect(() => {
-    if (customerName || isTypingRef.current || !customerId || customers.length === 0) return;
-    const match = customers.find(
+    if (customerName || isTypingRef.current || !customerId || allCustomers.length === 0) return;
+    const match = allCustomers.find(
       (c) =>
         c.id.toLowerCase() === customerId.toLowerCase() ||
         `CUST-${c.id}`.toLowerCase() === customerId.toLowerCase() ||
         c.id.toLowerCase().endsWith(customerId.toLowerCase())
     );
     if (match) setQuery(match.display_name);
-  }, [customerName, customerId, customers]);
+  }, [customerName, customerId, allCustomers]);
 
-  // Server-side search + paging (GET /api/ar/customers/search): HubSpot companies first, then
-  // contacts/profiles deduplicated by name. Loads CUSTOMER_PAGE_SIZE rows at a time.
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
-    return () => clearTimeout(t);
-  }, [query]);
+  const matchingCustomers = useMemo(() => {
+    if (!debouncedQuery) return allCustomers;
+    const q = debouncedQuery.toLowerCase();
+    return allCustomers.filter(
+      (c) =>
+        c.display_name.toLowerCase().includes(q) ||
+        c.id.toLowerCase().includes(q) ||
+        (c.email || "").toLowerCase().includes(q) ||
+        (c.full_name || "").toLowerCase().includes(q) ||
+        (c.domain || "").toLowerCase().includes(q) ||
+        (c.brand || "").toLowerCase().includes(q)
+    );
+  }, [allCustomers, debouncedQuery]);
 
-  const toOption = (c: ARCustomer): ARCustomerOption => ({
-    id: c.id,
-    display_name: c.display_name || c.name,
-    name: c.name,
-    full_name: c.contact_person || null,
-    email: c.email || null,
-    phone: c.phone || null,
-    bill_address: c.billing_address || null,
-    account_number: c.is_hubspot ? "HUBSPOT" : "1100",
-    is_active: true,
-    hubspot_id: c.hubspot_id ?? null,
-    is_hubspot: !!c.is_hubspot,
-    brand: c.brand || null,
-    domain: c.domain || null,
-    currency: c.currency || null,
-  });
-
-  useEffect(() => {
-    const seq = ++requestSeq.current;
-    setIsLoading(true);
-    arInvoiceService
-      .searchCustomers({ search: debouncedQuery || undefined, limit: CUSTOMER_PAGE_SIZE, offset: 0 })
-      .then((page) => {
-        if (seq !== requestSeq.current) return;
-        setCustomers(page.items.map(toOption));
-        setTotalCount(page.total);
-        setHasMore(page.has_more);
-      })
-      .catch((err) => {
-        if (seq !== requestSeq.current) return;
-        console.debug("Could not fetch contacts:", err);
-        setCustomers([]);
-        setTotalCount(0);
-        setHasMore(false);
-      })
-      .finally(() => {
-        if (seq === requestSeq.current) setIsLoading(false);
-      });
-  }, [debouncedQuery]);
-
-  const loadMore = () => {
-    if (!hasMore || isLoading || isLoadingMore) return;
-    const seq = requestSeq.current;
-    setIsLoadingMore(true);
-    arInvoiceService
-      .searchCustomers({ search: debouncedQuery || undefined, limit: CUSTOMER_PAGE_SIZE, offset: customers.length })
-      .then((page) => {
-        if (seq !== requestSeq.current) return;
-        setCustomers((prev) => {
-          const seen = new Set(prev.map((c) => c.id));
-          return [...prev, ...page.items.map(toOption).filter((c) => !seen.has(c.id))];
-        });
-        setTotalCount(page.total);
-        setHasMore(page.has_more);
-      })
-      .catch((err) => console.debug("Could not load more contacts:", err))
-      .finally(() => setIsLoadingMore(false));
-  };
+  const customers = useMemo(() => matchingCustomers.slice(0, visibleCount), [matchingCustomers, visibleCount]);
+  const totalCount = matchingCustomers.length;
+  const hasMore = visibleCount < matchingCustomers.length;
 
   const handleListScroll = () => {
     const el = listRef.current;
-    if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 48) loadMore();
+    if (el && hasMore && el.scrollHeight - el.scrollTop - el.clientHeight < 48) {
+      setVisibleCount((prev) => prev + CUSTOMER_PAGE_SIZE);
+    }
   };
 
   // Close dropdown on click outside
@@ -227,6 +226,7 @@ export function ARCustomerAutocomplete({
   const handleOpenCreateModal = () => {
     setCreateForm({
       display_name: trimmedQuery,
+      brand: availableBrands[0] || "General",
       full_name: "",
       email: "",
       phone_numbers: "",
@@ -246,52 +246,39 @@ export function ARCustomerAutocomplete({
     setCreateError(null);
 
     try {
-      const created = await financeService.createPayableContact({
-        account_side: "ar",
-        contact_type: "customer",
-        display_name: custName,
-        full_name: createForm.full_name.trim() || null,
-        email: createForm.email.trim() || null,
-        phone_numbers: createForm.phone_numbers.trim() || null,
-        bill_address: createForm.bill_address.trim() || null,
-        account_number: "1100",
-        account_name: "Accounts Receivable",
-        account_type: "Accounts Receivable",
+      const created = await oauthService.createARCompany({
+        name: custName,
+        brand: createForm.brand.trim() || "General",
+        contact_name: createForm.full_name.trim() || undefined,
+        billing_email: createForm.email.trim() || undefined,
+        phone: createForm.phone_numbers.trim() || undefined,
+        address: createForm.bill_address.trim() || undefined,
       });
 
       const newCustOption: ARCustomerOption = {
-        id: `CUST-${created.id || Math.floor(Math.random() * 80000 + 10000)}`,
-        display_name: created.display_name || custName,
-        full_name: created.full_name,
-        email: created.email,
-        phone: created.phone_numbers,
-        bill_address: created.bill_address,
-        account_number: "1100",
+        id: created.customer_id || `CUST-${created.hubspot_id}`,
+        display_name: created.display_name || created.name || custName,
+        name: created.name || custName,
+        full_name: created.contact_name || null,
+        email: created.billing_email || null,
+        phone: created.phone || null,
+        bill_address: created.address || null,
+        account_number: "HUBSPOT",
         is_active: true,
+        hubspot_id: created.hubspot_id ?? null,
+        is_hubspot: true,
+        brand: created.brand || createForm.brand.trim() || "General",
+        currency: created.currency || "USD",
       };
 
-      setCustomers((prev) => [newCustOption, ...prev]);
+      setCreatedCustomers((prev) => [newCustOption, ...prev]);
       handleSelectCustomer(newCustOption);
-      queryClient.invalidateQueries({ queryKey: ["businessContacts"] });
-      queryClient.invalidateQueries({ queryKey: ["payable-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["hubspot-companies"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-customers"] });
       setCreateModalOpen(false);
     } catch (err: any) {
       console.error("Failed to create AR customer:", err);
-      // Fallback: create local option if offline or server mock
-      const fallbackId = `CUST-${Math.floor(Math.random() * 80000 + 10000)}`;
-      const fallbackCust: ARCustomerOption = {
-        id: fallbackId,
-        display_name: custName,
-        full_name: createForm.full_name.trim() || null,
-        email: createForm.email.trim() || null,
-        phone: createForm.phone_numbers.trim() || null,
-        bill_address: createForm.bill_address.trim() || null,
-        account_number: "1100",
-        is_active: true,
-      };
-      setCustomers((prev) => [fallbackCust, ...prev]);
-      handleSelectCustomer(fallbackCust);
-      setCreateModalOpen(false);
+      setCreateError(err?.response?.data?.detail || err?.message || "Failed to save A/R company.");
     } finally {
       setIsCreating(false);
     }
@@ -352,7 +339,7 @@ export function ARCustomerAutocomplete({
           <Building2 className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           
           <Input
-            ref={inputRef}
+            ref={inputRef} autoComplete="new-password" data-lpignore="true" data-form-type="other"
             disabled={disabled}
             required={required}
             value={query}
@@ -379,7 +366,7 @@ export function ARCustomerAutocomplete({
 
           <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
             {isLoading && (
-              <Loader2 className="w-3 h-3 animate-spin text-muted-foreground mr-1" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary mr-1" />
             )}
             {query && !disabled && (
               <button
@@ -428,8 +415,8 @@ export function ARCustomerAutocomplete({
                   <>Accounts Receivable Customer Directory</>
                 )}
               </span>
-              <span className="text-[10px] opacity-80">
-                {filteredCustomers.length}{totalCount > filteredCustomers.length ? ` of ${totalCount}` : ""} contact(s)
+              <span className="text-[10px] opacity-80 inline-flex items-center gap-1">
+                {isLoading ? (<><Loader2 className="w-3 h-3 animate-spin text-primary" /> Searching...</>) : `${filteredCustomers.length}${totalCount > filteredCustomers.length ? ` of ${totalCount}` : ""} contact(s)`}
               </span>
             </div>
 
@@ -538,8 +525,8 @@ export function ARCustomerAutocomplete({
               )}
 
               {filteredCustomers.length === 0 && !showAddOption && (
-                <div className="px-3 py-4 text-center text-muted-foreground text-xs">
-                  No matching AR customers found.
+                <div className="px-3 py-4 text-center text-muted-foreground text-xs flex items-center justify-center gap-1.5">
+                  {isLoading ? (<><Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> Searching AR customers...</>) : "No matching AR customers found."}
                 </div>
               )}
             </div>
@@ -606,18 +593,16 @@ export function ARCustomerAutocomplete({
                 />
               </div>
 
-              <div className="space-y-1 sm:col-span-2">
-                <Label className="text-xs font-semibold text-foreground">
-                  Phone Number
-                </Label>
-                <Input
-                  placeholder="+1 (555) 000-0000"
-                  value={createForm.phone_numbers}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, phone_numbers: e.target.value })
-                  }
-                  className="h-8 text-xs"
-                />
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-foreground">Brand <span className="text-red-500">*</span></Label>
+                <select value={createForm.brand} onChange={(e) => setCreateForm({ ...createForm, brand: e.target.value })} className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs">
+                  {availableBrands.map((b) => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-foreground">Phone Number</Label>
+                <Input placeholder="+1 (555) 000-0000" value={createForm.phone_numbers} onChange={(e) => setCreateForm({ ...createForm, phone_numbers: e.target.value })} className="h-8 text-xs" />
               </div>
 
               <div className="space-y-1 sm:col-span-2">

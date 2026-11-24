@@ -1,4 +1,4 @@
-import { Building2, CheckCircle2, ChevronDown, ChevronRight, CreditCard, Eye, FileText, Loader2, Mail, PenTool, Plus, Receipt, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
+import { Building2, CheckCircle2, ChevronDown, ChevronRight, Eye, FileText, Loader2, Mail, PenTool, Plus, Receipt, Sparkles, TrendingUp } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -16,11 +16,13 @@ import { Tab1Overview } from "./accountReceivable/sections/Tab1Overview";
 import { Tab2Quotes } from "./accountReceivable/sections/Tab2Quotes";
 import { TabARCompanies } from "./accountReceivable/sections/TabARCompanies";
 import { Tab4InvoicesGrouped } from "./accountReceivable/sections/Tab4InvoicesGrouped";
+import { Tab5AwaitingPayment } from "./accountReceivable/sections/Tab5AwaitingPayment";
 import { RecordInvoicePaymentDialog } from "./accountReceivable/sections/RecordInvoicePaymentDialog";
+import { UnmatchedPaymentsDrawer } from "./accountReceivable/sections/UnmatchedPaymentsDrawer";
 
 export default function AccountReceivablePage() {
   const s = useAccountReceivable();
-  const { sendInvoiceEmailMutation, emailRecipient, setIsInvoiceEmailModalOpen, setEmailCustomMessage, emailCustomMessage, setEmailSubject, emailSubject, setEmailRecipient, selectedInvoiceForEmail, isInvoiceEmailModalOpen, setBannerSuccess, setQuoteToSend, quoteToSend, navigate, generateRenewalQuoteMutation, completedRecords, activeTab, handleOpenRecordInvoicePayment, awaitingPaymentInvoices, convertInvoiceMutation, toInvoiceQuotes, allHubspotCompaniesTotal, setActiveTab, invoices, pipelineStages, refetchInvoices, refetchQuotes, bannerSuccess } = s;
+  const { sendInvoiceEmailMutation, emailRecipient, setIsInvoiceEmailModalOpen, setEmailCustomMessage, emailCustomMessage, setEmailSubject, emailSubject, setEmailRecipient, selectedInvoiceForEmail, isInvoiceEmailModalOpen, setBannerSuccess, setQuoteToSend, quoteToSend, navigate, generateRenewalQuoteMutation, completedRecords, activeTab, convertInvoiceMutation, toInvoiceQuotes, allHubspotCompaniesTotal, setActiveTab, invoices, pipelineStages, bannerSuccess } = s;
   return (
     <div className="w-full">
       <div className="w-full flex flex-col gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
@@ -47,18 +49,6 @@ export default function AccountReceivablePage() {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              onClick={() => {
-                refetchQuotes();
-                refetchInvoices();
-              }}
-              className="gap-2 cursor-pointer"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Refresh</span>
-            </Button>
-
             {/* Generate Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -265,61 +255,7 @@ export default function AccountReceivablePage() {
         <Tab4InvoicesGrouped s={s} />
 
         {/* TAB 5: AWAITING PAYMENT */}
-        {activeTab === "awaiting_payment" && (
-          <div className="space-y-4">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 font-bold border-b border-slate-200/80">
-                    <tr>
-                      <th className="py-3 px-4">Invoice #</th>
-                      <th className="py-3 px-4">Customer</th>
-                      <th className="py-3 px-4">Invoice Date</th>
-                      <th className="py-3 px-4 text-right">Total Amount</th>
-                      <th className="py-3 px-4 text-right">Balance Due</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {awaitingPaymentInvoices.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-400">
-                          No invoices currently awaiting payment.
-                        </td>
-                      </tr>
-                    ) : (
-                      awaitingPaymentInvoices.map((inv) => (
-                        <tr key={inv.id} className="hover:bg-slate-50/70">
-                          <td className="py-3 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">{inv.invoice_number}</td>
-                          <td className="py-3 px-4 font-semibold">{inv.customer_name}</td>
-                          <td className="py-3 px-4 text-slate-500 font-mono">{inv.invoice_date}</td>
-                          <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
-                            ${Number(inv.total_amount).toFixed(2)} {inv.currency || "USD"}
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono font-bold">
-                            <span className={Number(inv.balance_due !== undefined ? inv.balance_due : (inv.total_amount - (inv.amount_paid || 0))) === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
-                              ${Number(inv.balance_due !== undefined ? inv.balance_due : (inv.total_amount - (inv.amount_paid || 0))).toFixed(2)} {inv.currency || "USD"}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <Button
-                              size="sm"
-                              onClick={() => handleOpenRecordInvoicePayment(inv)}
-                              className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-xs cursor-pointer gap-1"
-                            >
-                              <CreditCard className="w-3.5 h-3.5" />
-                              <span>Record Payment</span>
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
+        <Tab5AwaitingPayment s={s} />
 
         {/* TAB 6: COMPLETED */}
         {activeTab === "completed" && (
@@ -491,6 +427,18 @@ export default function AccountReceivablePage() {
 
       {/* Record Invoice Payment Dialog (Centered modal dialog for invoices) */}
       <RecordInvoicePaymentDialog s={s} />
+
+      <UnmatchedPaymentsDrawer
+        open={s.isUnmatchedDrawerOpen}
+        onOpenChange={s.setIsUnmatchedDrawerOpen}
+        unmatched={s.unmatchedEmailPayments}
+        openInvoices={s.awaitingPaymentInvoices}
+        isScanning={s.isScanningEmails}
+        onScan={s.handleScanEmailPayments}
+        onMappedOrRecorded={async () => {
+          await Promise.all([s.refetchInvoices(), s.refetchEmailMatches()]);
+        }}
+      />
 
       {/* Add Seats / Add-ons Modal from AR list */}
     </div>

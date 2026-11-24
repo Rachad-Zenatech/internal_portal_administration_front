@@ -21,10 +21,11 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `pipelineRank` (export function) L119 - Position in the pipeline, or null for states that sit outside it.
 - `isExceptionStatus` (export function) L125 - States that interrupt the pipeline rather than advance it.
 
-## src/lib/sanitizeHtml.ts (61 lines) - Allowlist HTML sanitizer for rich email/quote previews rendered with dangerouslySetInnerHTML.
+## src/lib/sanitizeHtml.ts (88 lines) - Allowlist HTML sanitizer for rich email/quote previews rendered with dangerouslySetInnerHTML.
 - `safeHref` (export function) L18 - Allow only http(s) and mailto URLs after stripping ASCII control characters and spaces.
-- `copyClean` (function) L25
-- `sanitizeHtml` (export function) L54 - Sanitize untrusted HTML string into safe markup for quote/email preview rendering.
+- `safeStyle` (function) L35
+- `copyClean` (function) L50
+- `sanitizeHtml` (export function) L81 - Sanitize untrusted HTML string into safe markup for quote/email preview rendering.
 
 ## src/lib/userDepartment.ts (170 lines) - user department (lib)
 - `isGenericRole` (function) L22

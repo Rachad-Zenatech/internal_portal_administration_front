@@ -53,11 +53,13 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/hooks/useHeartbeat.ts (47 lines) - Track user activity (throttled + passive to avoid main-thread scroll/mousemove overhead)
 - `useHeartbeat` (export function) L4
 
-## src/hooks/useHubSpotCompanies.ts (51 lines) - Live progress of the background companies sync; polls every second only while a sync is running.
-- `useHubSpotCompanies` (export function) L5
-- `HUBSPOT_SYNC_STATUS_KEY` (export const) L14
-- `useHubSpotCompaniesSyncStatus` (export function) L17 - Live progress of the background companies sync; polls every second only while a sync is running.
-- `useSyncHubSpotCompanies` (export function) L32 - Starts the companies sync in the background.
+## src/hooks/useHubSpotCompanies.ts (62 lines) - Shared cached list from the local A/R Companies table (used by Quotes, Invoices, and A/R autocomplete).
+- `AR_COMPANIES_DIRECTORY_KEY` (export const) L5
+- `useARCompaniesDirectory` (export function) L8 - Shared cached list from the local A/R Companies table (used by Quotes, Invoices, and A/R autocomplete).
+- `useHubSpotCompanies` (export function) L16
+- `HUBSPOT_SYNC_STATUS_KEY` (export const) L25
+- `useHubSpotCompaniesSyncStatus` (export function) L28 - Live progress of the background companies sync; polls every second only while a sync is running.
+- `useSyncHubSpotCompanies` (export function) L43 - Starts the companies sync in the background.
 
 ## src/hooks/useMasterTables.ts (234 lines) - use master tables (hooks)
 - `useMasterLocations` (export function) L5
@@ -93,6 +95,9 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `useMarkAllNotificationsAsRead` (export function) L251
 - `useClearReadNotifications` (export function) L268
 - `useClearAllNotifications` (export function) L286
+
+## src/hooks/usePortalScrollRef.ts (31 lines) - use portal scroll ref (hooks)
+- `usePortalScrollRef` (export function) L8 - Returns a callback ref that prevents native wheel/touchmove events inside a  portaled Popover from bubbling to `document`, where Radix Di...
 
 ## src/hooks/usePurchasing.ts (436 lines) - use purchasing (hooks)
 - `useProjects` (export function) L19

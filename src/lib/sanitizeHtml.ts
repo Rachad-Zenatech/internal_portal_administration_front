@@ -22,6 +22,31 @@ export function safeHref(value: string | null | undefined): string | null {
   return /^(https?:\/\/|mailto:)/.test(compact) ? value.trim() : null;
 }
 
+const ALLOWED_STYLE_PROPS = new Set([
+  "color", "background", "background-color", "font-family", "font-size", "font-weight",
+  "font-style", "letter-spacing", "line-height", "text-align", "text-decoration",
+  "text-transform", "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
+  "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
+  "border", "border-top", "border-right", "border-bottom", "border-left",
+  "border-collapse", "border-radius", "border-color", "width", "max-width",
+  "display", "align-items", "justify-content", "gap", "box-shadow", "word-break", "vertical-align",
+]);
+
+function safeStyle(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const parts: string[] = [];
+  for (const decl of raw.split(";")) {
+    const idx = decl.indexOf(":");
+    if (idx === -1) continue;
+    const prop = decl.slice(0, idx).trim().toLowerCase();
+    const val = decl.slice(idx + 1).trim();
+    if (!prop || !val || !ALLOWED_STYLE_PROPS.has(prop)) continue;
+    if (/url\s*\(|expression\s*\(|javascript:|@import/i.test(val)) continue;
+    parts.push(`${prop}: ${val}`);
+  }
+  return parts.length ? parts.join("; ") : null;
+}
+
 function copyClean(from: Node, to: Node, doc: Document): void {
   from.childNodes.forEach((node) => {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -37,6 +62,8 @@ function copyClean(from: Node, to: Node, doc: Document): void {
       return;
     }
     const clean = doc.createElement(tag.toLowerCase());
+    const cleanedStyle = safeStyle(el.getAttribute("style"));
+    if (cleanedStyle) clean.setAttribute("style", cleanedStyle);
     if (tag === "A") {
       const href = safeHref(el.getAttribute("href"));
       if (href) {

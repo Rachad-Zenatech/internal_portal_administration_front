@@ -1,12 +1,13 @@
 import { Fragment } from "react";
-import { Building2, ChevronRight, CornerDownRight, Mail, Plus, Search, Trash2 } from "lucide-react";
+import { Building2, ChevronRight, CornerDownRight, Link2, Plus, Search } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
 import { Badge } from "../../../../components/ui/badge";
 import type { AccountReceivableState } from "../hooks/useAccountReceivable";
+import { InvoiceRowActions } from "./InvoiceRowActions";
 
 export function Tab4InvoicesGrouped({ s }: { s: AccountReceivableState }) {
-  const { deleteInvoiceMutation, handleOpenSendInvoiceEmail, navigate, toggleCustomerInvoiceExpanded, expandedCustomerInvoiceKeys, filteredCustomerInvoiceGroups, handleCollapseAllInvoiceCustomers, handleExpandAllInvoiceCustomers, setStatusFilter, statusFilter, setSearchTerm, searchTerm, activeTab } = s;
+  const { deleteInvoiceMutation, handleOpenSendInvoiceEmail, handleOpenRecordInvoicePayment, emailMatchesByInvoice, unmatchedEmailCount, setIsUnmatchedDrawerOpen, navigate, toggleCustomerInvoiceExpanded, expandedCustomerInvoiceKeys, filteredCustomerInvoiceGroups, handleCollapseAllInvoiceCustomers, handleExpandAllInvoiceCustomers, setStatusFilter, statusFilter, setSearchTerm, searchTerm, activeTab } = s;
   return (
     <>
       {activeTab === "invoices" && (
@@ -64,6 +65,17 @@ export function Tab4InvoicesGrouped({ s }: { s: AccountReceivableState }) {
                     Collapse All
                   </Button>
                 </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsUnmatchedDrawerOpen(true)}
+                  size="sm"
+                  className="gap-1.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 rounded-xl cursor-pointer h-8"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  <span>Unmatched ({unmatchedEmailCount})</span>
+                </Button>
 
                 <Button
                   onClick={() => navigate("/account-receivable/generate")}
@@ -271,37 +283,14 @@ export function Tab4InvoicesGrouped({ s }: { s: AccountReceivableState }) {
                                   </td>
 
                                   <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                    <div className="flex items-center justify-end gap-1.5">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleOpenSendInvoiceEmail(inv)}
-                                        className="h-7 text-xs rounded-lg gap-1 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border-indigo-200 cursor-pointer"
-                                      >
-                                        <Mail className="w-3 h-3" />
-                                        <span>Send Email</span>
-                                      </Button>
-
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (
-                                            window.confirm(
-                                              `Are you sure you want to delete invoice ${inv.invoice_number}? This action cannot be undone.`
-                                            )
-                                          ) {
-                                            deleteInvoiceMutation.mutate(inv.id);
-                                          }
-                                        }}
-                                        disabled={deleteInvoiceMutation.isPending}
-                                        className="h-7 w-7 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer"
-                                        title="Delete invoice"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </Button>
-                                    </div>
+                                    <InvoiceRowActions
+                                      inv={inv}
+                                      match={emailMatchesByInvoice[inv.id]}
+                                      isDeleting={deleteInvoiceMutation.isPending}
+                                      onRecordPayment={handleOpenRecordInvoicePayment}
+                                      onSendEmail={handleOpenSendInvoiceEmail}
+                                      onDelete={(id) => deleteInvoiceMutation.mutate(id)}
+                                    />
                                   </td>
                                 </tr>
                               ))}

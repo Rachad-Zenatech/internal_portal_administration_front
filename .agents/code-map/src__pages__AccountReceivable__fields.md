@@ -4,23 +4,23 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/AccountReceivable/fields/ARCustomerAutocomplete.tsx (677 lines) - a r customer autocomplete (pages  account receivable fields)
-- `ARCustomerOption` (export interface) L21
-- `ARCustomerAutocompleteProps` (interface) L52
-- `ARCustomerAutocomplete` (export function) L63
-    - `queryClient` (fn) L71
-    - `requestSeq` (fn) L80
-    - `isTypingRef` (fn) L101 - True while the user is editing the text; stops prop-driven syncing from overwriting their edits.
-    - `toOption` (fn) L130
-    - `loadMore` (fn) L170
-    - `handleListScroll` (fn) L189
-    - `handleClickOutside` (fn) L196
-    - `isExactMatch` (fn) L210
-    - `totalItemsCount` (fn) L218
-    - `handleSelectCustomer` (fn) L220
-    - `handleOpenCreateModal` (fn) L227
+## src/pages/AccountReceivable/fields/ARCustomerAutocomplete.tsx (662 lines) - a r customer autocomplete (pages  account receivable fields)
+- `ARCustomerOption` (export interface) L20
+- `ARCustomerAutocompleteProps` (interface) L51
+- `ARCustomerAutocomplete` (export function) L62
+    - `queryClient` (fn) L70
+    - `availableBrands` (fn) L83
+    - `isTypingRef` (fn) L114 - True while the user is editing the text; stops prop-driven syncing from overwriting their edits.
+    - `matchingCustomers` (fn) L168
+    - `customers` (fn) L182
+    - `handleListScroll` (fn) L186
+    - `handleClickOutside` (fn) L195
+    - `isExactMatch` (fn) L209
+    - `totalItemsCount` (fn) L217
+    - `handleSelectCustomer` (fn) L219
+    - `handleOpenCreateModal` (fn) L226
     - `handleCreateCustomerSubmit` (fn) L240
-    - `handleKeyDown` (fn) L300
+    - `handleKeyDown` (fn) L287
 
 ## src/pages/AccountReceivable/fields/BillingStartDatePicker.tsx (151 lines) - billing start date picker (pages  account receivable fields)
 - `BillingStartDatePickerProps` (interface) L8

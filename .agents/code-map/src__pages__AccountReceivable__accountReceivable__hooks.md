@@ -4,12 +4,34 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivable.ts (11 lines) - use account receivable (pages  account receivable account receivable hooks)
-- `useAccountReceivable` (export function) L4
-- `AccountReceivableState` (export type) L10
+## src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivable.ts (13 lines) - use account receivable (pages  account receivable account receivable hooks)
+- `useAccountReceivable` (export function) L5
+- `AccountReceivableState` (export type) L12
 
-## src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableData.ts (378 lines) - use account receivable data (pages  account receivable account receivable hooks)
-- `useAccountReceivableData` (export function) L14
+## src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableData.ts (420 lines) - use account receivable data (pages  account receivable account receivable hooks)
+- `useAccountReceivableData` (export function) L15
+    - `navigate` (fn) L16
+    - `queryClient` (fn) L18
+    - `setActiveTab` (fn) L22
+    - `syncHubspotCompaniesMutation` (fn) L112 - Starts the sync in the background; progress and the result are shown by the app-shell HubSpotSyncProgress widget.
+    - `convertInvoiceMutation` (fn) L144 - Convert to Invoice Mutation
+    - `deleteQuoteMutation` (fn) L155 - Delete Draft Quote Mutation
+    - `deleteInvoiceMutation` (fn) L168 - Delete Invoice Mutation
+    - `generateRenewalQuoteMutation` (fn) L181 - Generate Renewal Quote Mutation
+    - `sendInvoiceEmailMutation` (fn) L197 - Send Invoice Email Mutation
+    - `handleOpenSendInvoiceEmail` (fn) L213
+    - `applyEmailPaymentToModal` (fn) L236
+    - `handleDetachEmailPayment` (fn) L252
+    - `handleOpenRecordInvoicePayment` (fn) L262
+    - `handleConfirmInvoicePayment` (fn) L277
+    - `toggleQuoteExpanded` (fn) L318
+    - `toggleCustomerInvoiceExpanded` (fn) L332
+    - `handleExpandAllInvoiceCustomers` (fn) L344
+    - `handleCollapseAllInvoiceCustomers` (fn) L347
+    - `parseDueDateEpoch` (fn) L354
 
-## src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableDerived.ts (269 lines) - Filter customer invoice groups by search term and status filter
+## src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableDerived.ts (278 lines) - Filter customer invoice groups by search term and status filter
 - `useAccountReceivableDerived` (export function) L8
+
+## src/pages/AccountReceivable/accountReceivable/hooks/useEmailPaymentMatches.ts (66 lines) - Subscribe to A/R Email SSE stream so incoming emails auto-sync, auto-analyze,
+- `useEmailPaymentMatches` (export function) L7

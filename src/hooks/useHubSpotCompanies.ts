@@ -2,6 +2,17 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { oauthService } from "@/services/oauthService";
 import { toast } from "sonner";
 
+export const AR_COMPANIES_DIRECTORY_KEY = ["hubspot-companies", "ar-directory"] as const;
+
+/** Shared cached list from the local A/R Companies table (used by Quotes, Invoices, and A/R autocomplete). */
+export function useARCompaniesDirectory() {
+  return useQuery({
+    queryKey: AR_COMPANIES_DIRECTORY_KEY,
+    queryFn: () => oauthService.getHubSpotCompanies(),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 export function useHubSpotCompanies(search: string | undefined, page: number, pageSize: number) {
   return useQuery({
     queryKey: ["hubspot-companies", search || "", page, pageSize],

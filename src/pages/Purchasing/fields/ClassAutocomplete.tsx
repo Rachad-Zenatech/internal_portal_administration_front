@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
+import { usePortalScrollRef } from "@/hooks/usePortalScrollRef";
 import { Building2, Check, ChevronDown, X, Plus, Loader2 } from "lucide-react";
 import { useMasterClasses, useCreateMasterClass } from "@/hooks/useMasterTables";
 import { cleanAndStandardizeText } from "@/utils/textStandardizer";
@@ -12,6 +14,112 @@ interface ClassAutocompleteProps {
   className?: string;
   placeholder?: string;
   label?: string;
+}
+
+interface ClassDropdownContentProps {
+  isLoading: boolean;
+  filteredClasses: string[];
+  inputValue: string;
+  highlightedIndex: number;
+  canCreateNew: boolean;
+  standardizedCandidate: string;
+  setListNode: (node: HTMLDivElement | null) => void;
+  onSelect: (classNameVal: string) => void;
+  onCreateNew: (rawName: string) => void;
+  onHover: (index: number) => void;
+  renderHighlightedName: (name: string, query: string) => React.ReactNode;
+}
+
+function ClassDropdownContent({
+  isLoading,
+  filteredClasses,
+  inputValue,
+  highlightedIndex,
+  canCreateNew,
+  standardizedCandidate,
+  setListNode,
+  onSelect,
+  onCreateNew,
+  onHover,
+  renderHighlightedName,
+}: ClassDropdownContentProps) {
+  return (
+    <>
+      <div className="px-3 py-2 bg-slate-50 dark:bg-zinc-800/80 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-muted-foreground">
+        <span className="flex items-center gap-1 font-medium">
+          <Building2 className="h-3.5 w-3.5 text-sky-600" />
+          Class / Department
+        </span>
+        <span className="text-[11px] font-mono">
+          {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : `${filteredClasses.length} records`}
+        </span>
+      </div>
+
+      <div
+        ref={setListNode}
+        role="listbox"
+        className="max-h-[min(14rem,calc(var(--radix-popover-content-available-height,18rem)-2.75rem))] overflow-y-auto divide-y divide-slate-50 dark:divide-zinc-800/50 py-1"
+      >
+        {filteredClasses.map((cls, index) => {
+          const isSelected = cls.toLowerCase() === inputValue.toLowerCase();
+          const isHighlighted = highlightedIndex === index;
+          return (
+            <div
+              key={cls}
+              role="option"
+              aria-selected={isSelected}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onSelect(cls);
+              }}
+              onMouseEnter={() => onHover(index)}
+              className={`px-3 py-2 cursor-pointer flex items-center justify-between text-sm transition-colors ${
+                isHighlighted
+                  ? "bg-sky-50 dark:bg-sky-950/60 text-sky-950 dark:text-sky-100"
+                  : isSelected
+                  ? "bg-slate-50 dark:bg-zinc-800 font-semibold"
+                  : "hover:bg-slate-50 dark:hover:bg-zinc-800/50 text-slate-800 dark:text-zinc-200"
+              }`}
+            >
+              <span className="truncate">{renderHighlightedName(cls, inputValue)}</span>
+              {isSelected && <Check className="h-4 w-4 text-sky-600 shrink-0 ml-2" />}
+            </div>
+          );
+        })}
+
+        {canCreateNew && (
+          <div
+            role="option"
+            aria-selected={highlightedIndex === filteredClasses.length}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onCreateNew(standardizedCandidate || inputValue);
+            }}
+            onMouseEnter={() => onHover(filteredClasses.length)}
+            className={`px-3 py-2.5 cursor-pointer flex items-center gap-2 text-sm border-t border-dashed border-sky-200 dark:border-sky-800/50 transition-colors ${
+              highlightedIndex === filteredClasses.length
+                ? "bg-sky-100 dark:bg-sky-900/40 text-sky-950 dark:text-sky-100 font-medium"
+                : "bg-sky-50/50 dark:bg-sky-950/20 text-sky-800 dark:text-sky-300 hover:bg-sky-100/70"
+            }`}
+          >
+            <Plus className="h-4 w-4 text-sky-600 shrink-0" />
+            <div className="flex flex-col truncate text-left">
+              <span className="font-semibold text-xs text-sky-900 dark:text-sky-200">Create new class:</span>
+              <span className="truncate font-medium text-slate-700 dark:text-zinc-200 text-xs">
+                &quot;{standardizedCandidate || inputValue}&quot;
+              </span>
+            </div>
+          </div>
+        )}
+
+        {filteredClasses.length === 0 && !canCreateNew && (
+          <div className="p-3 text-center text-xs text-muted-foreground">
+            <p>No classes available.</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
 }
 
 export function ClassAutocomplete({
@@ -28,9 +136,14 @@ export function ClassAutocomplete({
 
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const portalScrollRef = usePortalScrollRef();
+
+  const setListNode = (node: HTMLDivElement | null) => {
+    listRef.current = node;
+    portalScrollRef(node);
+  };
 
   const inputValue = value || "";
 
@@ -62,34 +175,6 @@ export function ClassAutocomplete({
 
   const canCreateNew = inputValue.trim().length > 0 && !isExactMatch;
 
-  // Determine whether to open upward or downward
-  useEffect(() => {
-    if (isOpen && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      if (spaceBelow < 260 && rect.top > spaceBelow) {
-        setOpenUpward(true);
-      } else {
-        setOpenUpward(false);
-      }
-    }
-  }, [isOpen]);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen]);
-
   // Scroll highlighted item into view
   useEffect(() => {
     if (isOpen && highlightedIndex >= 0 && listRef.current) {
@@ -99,6 +184,14 @@ export function ClassAutocomplete({
       }
     }
   }, [highlightedIndex, isOpen]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (disabled) return;
+    setIsOpen(nextOpen);
+    if (!nextOpen) {
+      setHighlightedIndex(-1);
+    }
+  };
 
   const handleSelect = (classNameVal: string) => {
     const cleaned = cleanAndStandardizeText(classNameVal);
@@ -162,6 +255,8 @@ export function ClassAutocomplete({
         setIsOpen(false);
       }
     } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
       setIsOpen(false);
       setHighlightedIndex(-1);
     }
@@ -198,148 +293,86 @@ export function ClassAutocomplete({
         </label>
       )}
 
-      <div className="relative">
-        <Input
-          value={inputValue}
-          onFocus={() => {
-            setIsOpen(true);
-            setHighlightedIndex(-1);
-          }}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setIsOpen(true);
-            setHighlightedIndex(0);
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
-          required={required}
-          className="w-full pr-14 text-sm font-medium"
-        />
-
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          {inputValue && !disabled && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onChange("");
-                setIsOpen(true);
+      <Popover open={isOpen && !disabled} onOpenChange={handleOpenChange}>
+        <PopoverAnchor asChild>
+          <div className="relative">
+            <Input
+              value={inputValue}
+              onFocus={() => {
+                if (!disabled) {
+                  setIsOpen(true);
+                  setHighlightedIndex(-1);
+                }
               }}
-              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-              title="Clear class"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => !disabled && setIsOpen(!isOpen)}
-            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            <ChevronDown
-              className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                isOpen ? "rotate-180" : ""
-              }`}
+              onChange={(e) => {
+                onChange(e.target.value);
+                setIsOpen(true);
+                setHighlightedIndex(0);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              disabled={disabled}
+              required={required}
+              className="w-full pr-14 text-sm font-medium"
             />
-          </button>
-        </div>
 
-        {/* Dropdown Menu */}
-        {isOpen && !disabled && (
-          <div
-            ref={listRef}
-            className={`absolute z-50 left-0 right-0 w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${
-              openUpward ? "bottom-full mb-1.5" : "top-full mt-1.5"
-            }`}
-          >
-            {/* Header info */}
-            <div className="px-3 py-2 bg-slate-50 dark:bg-zinc-800/80 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-muted-foreground">
-              <span className="flex items-center gap-1 font-medium">
-                <Building2 className="h-3.5 w-3.5 text-sky-600" />
-                Class / Department
-              </span>
-              <span className="text-[11px] font-mono">
-                {isLoading ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  `${filteredClasses.length} records`
-                )}
-              </span>
-            </div>
-
-            {/* List */}
-            <div className="max-h-56 overflow-y-auto divide-y divide-slate-50 dark:divide-zinc-800/50 py-1">
-              {filteredClasses.map((cls, index) => {
-                const isSelected =
-                  cls.toLowerCase() === inputValue.toLowerCase();
-                const isHighlighted = highlightedIndex === index;
-
-                return (
-                  <div
-                    key={cls}
-                    role="option"
-                    aria-selected={isSelected}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      handleSelect(cls);
-                    }}
-                    onMouseEnter={() => setHighlightedIndex(index)}
-                    className={`px-3 py-2 cursor-pointer flex items-center justify-between text-sm transition-colors ${
-                      isHighlighted
-                        ? "bg-sky-50 dark:bg-sky-950/60 text-sky-950 dark:text-sky-100"
-                        : isSelected
-                        ? "bg-slate-50 dark:bg-zinc-800 font-semibold"
-                        : "hover:bg-slate-50 dark:hover:bg-zinc-800/50 text-slate-800 dark:text-zinc-200"
-                    }`}
-                  >
-                    <span className="truncate">
-                      {renderHighlightedName(cls, inputValue)}
-                    </span>
-                    {isSelected && (
-                      <Check className="h-4 w-4 text-sky-600 shrink-0 ml-2" />
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Option to create new record if no exact match */}
-              {canCreateNew && (
-                <div
-                  role="option"
-                  aria-selected={highlightedIndex === filteredClasses.length}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleCreateNew(standardizedCandidate || inputValue);
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {inputValue && !disabled && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onChange("");
+                    setIsOpen(true);
                   }}
-                  onMouseEnter={() => setHighlightedIndex(filteredClasses.length)}
-                  className={`px-3 py-2.5 cursor-pointer flex items-center gap-2 text-sm border-t border-dashed border-sky-200 dark:border-sky-800/50 transition-colors ${
-                    highlightedIndex === filteredClasses.length
-                      ? "bg-sky-100 dark:bg-sky-900/40 text-sky-950 dark:text-sky-100 font-medium"
-                      : "bg-sky-50/50 dark:bg-sky-950/20 text-sky-800 dark:text-sky-300 hover:bg-sky-100/70"
-                  }`}
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                  title="Clear class"
                 >
-                  <Plus className="h-4 w-4 text-sky-600 shrink-0" />
-                  <div className="flex flex-col truncate text-left">
-                    <span className="font-semibold text-xs text-sky-900 dark:text-sky-200">
-                      Create new class:
-                    </span>
-                    <span className="truncate font-medium text-slate-700 dark:text-zinc-200 text-xs">
-                      &quot;{standardizedCandidate || inputValue}&quot;
-                    </span>
-                  </div>
-                </div>
+                  <X className="h-3.5 w-3.5" />
+                </button>
               )}
-
-              {filteredClasses.length === 0 && !canCreateNew && (
-                <div className="p-3 text-center text-xs text-muted-foreground">
-                  <p>No classes available.</p>
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                    isOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </PopoverAnchor>
+
+        <PopoverContent
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            if (containerRef.current?.contains(e.target as Node)) {
+              e.preventDefault();
+            }
+          }}
+          className="z-[60] w-[var(--radix-popover-trigger-width)] min-w-[240px] max-w-[calc(100vw-1.5rem)] p-0 gap-0 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden"
+        >
+          <ClassDropdownContent
+            isLoading={isLoading}
+            filteredClasses={filteredClasses}
+            inputValue={inputValue}
+            highlightedIndex={highlightedIndex}
+            canCreateNew={canCreateNew}
+            standardizedCandidate={standardizedCandidate}
+            setListNode={setListNode}
+            onSelect={handleSelect}
+            onCreateNew={handleCreateNew}
+            onHover={setHighlightedIndex}
+            renderHighlightedName={renderHighlightedName}
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
