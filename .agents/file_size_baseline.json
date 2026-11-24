@@ -38,7 +38,7 @@
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/pages/AccountReceivable/fields/ARCustomerAutocomplete.tsx": {
-      "max_lines": 676,
+      "max_lines": 661,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/pages/AccountReceivable/generateInvoice/hooks/useGenerateInvoiceActions2.ts": {
@@ -106,7 +106,7 @@
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/pages/Purchasing/fields/WireGeneralPaymentFields.tsx": {
-      "max_lines": 733,
+      "max_lines": 646,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/pages/Purchasing/PurchaseRequests.tsx": {
@@ -134,11 +134,11 @@
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/services/apiClient.ts": {
-      "max_lines": 855,
+      "max_lines": 841,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/services/arInvoiceService.ts": {
-      "max_lines": 643,
+      "max_lines": 637,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
     },
     "src/services/purchasingService.ts": {
@@ -173,10 +173,6 @@
     },
     "src/components/AppShell/FloatingChat.tsx#FloatingChat": {
       "max_lines": 326,
-      "kind": "jsx_return"
-    },
-    "src/components/AppShell/GlobalSettingsDialog.tsx#GlobalSettingsDialog": {
-      "max_lines": 126,
       "kind": "jsx_return"
     },
     "src/components/AppShell/globalSettingsDialog/sections/EnableLongHeldItems.tsx#EnableLongHeldItems": {
@@ -260,7 +256,7 @@
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/accountReceivable/sections/RecordInvoicePaymentDialog.tsx#RecordInvoicePaymentDialog": {
-      "max_lines": 147,
+      "max_lines": 98,
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/accountReceivable/sections/Tab1Overview.tsx#Tab1Overview": {
@@ -272,7 +268,7 @@
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/accountReceivable/sections/Tab4InvoicesGrouped.tsx#Tab4InvoicesGrouped": {
-      "max_lines": 310,
+      "max_lines": 298,
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/accountReceivable/sections/TabARCompanies.tsx#TabARCompanies": {
@@ -280,7 +276,7 @@
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/AccountReceivablePage.tsx#AccountReceivablePage": {
-      "max_lines": 474,
+      "max_lines": 432,
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/components/InvoiceHierarchyItemsTable.tsx#InvoiceHierarchyItemsTable": {
@@ -296,7 +292,7 @@
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/fields/ARCustomerAutocomplete.tsx#ARCustomerAutocomplete": {
-      "max_lines": 326,
+      "max_lines": 324,
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/fields/ProductServiceAutocomplete.tsx#ProductServiceAutocomplete": {
@@ -348,7 +344,7 @@
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/generateInvoice/sections/RecordedPaymentsSettlementLedger.tsx#RecordedPaymentsSettlementLedger": {
-      "max_lines": 109,
+      "max_lines": 99,
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/generateInvoice/sections/RecordPaymentModal.tsx#RecordPaymentModal": {
@@ -436,7 +432,7 @@
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/modals/SendQuoteModal.tsx#SendQuoteModal": {
-      "max_lines": 209,
+      "max_lines": 207,
       "kind": "jsx_return"
     },
     "src/pages/AccountReceivable/modals/workflowDetailDrawer/sections/DrawerHeader.tsx#DrawerHeader": {
@@ -560,7 +556,7 @@
       "kind": "jsx_return"
     },
     "src/pages/Configurations/oAuthConfiguration/sections/MainMailboxHeaderCard.tsx#MainMailboxHeaderCard": {
-      "max_lines": 238,
+      "max_lines": 226,
       "kind": "jsx_return"
     },
     "src/pages/Configurations/oAuthConfiguration/sections/RightColumnSyncPipelines.tsx#RightColumnSyncPipelines": {
@@ -828,7 +824,7 @@
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/fields/ClassAutocomplete.tsx#ClassAutocomplete": {
-      "max_lines": 159,
+      "max_lines": 97,
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/fields/CountryAutocomplete.tsx#CountryAutocomplete": {
@@ -848,7 +844,7 @@
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/fields/GLCodeAutocomplete.tsx#GLCodeAutocomplete": {
-      "max_lines": 213,
+      "max_lines": 168,
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/fields/LocationAutocomplete.tsx#LocationAutocomplete": {
@@ -888,7 +884,7 @@
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/fields/WireGeneralPaymentFields.tsx#WireGeneralPaymentFields": {
-      "max_lines": 528,
+      "max_lines": 440,
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/invoices/sections/FiltersSearchToolbar.tsx#FiltersSearchToolbar": {
@@ -1068,15 +1064,11 @@
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/requestDetail/sections/ActionFormFields.tsx#ActionFormFields": {
-      "max_lines": 228,
+      "max_lines": 218,
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/requestDetail/sections/ApprovalsTab.tsx#ApprovalsTab": {
-      "max_lines": 163,
-      "kind": "jsx_return"
-    },
-    "src/pages/Purchasing/requestDetail/sections/AttachmentsTab.tsx#AttachmentsTab": {
-      "max_lines": 92,
+      "max_lines": 125,
       "kind": "jsx_return"
     },
     "src/pages/Purchasing/requestDetail/sections/CurrentReferenceInfo.tsx#CurrentReferenceInfo": {

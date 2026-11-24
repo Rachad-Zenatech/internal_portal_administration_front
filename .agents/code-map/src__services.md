@@ -27,7 +27,15 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
     - `method` (fn) L639
 - `apiClient` (export const) L728
 
-## src/services/arInvoiceService.ts (644 lines) - ar invoice service (services)
+## src/services/arEmailPaymentService.ts (136 lines) - ar email payment service (services)
+- `EmailPaymentAttachment` (export interface) L3
+- `EmailPaymentAllocation` (export interface) L10
+- `ExtractedPaymentData` (export interface) L21
+- `EmailPaymentMatch` (export interface) L37
+- `EmailPaymentMatchesResponse` (export interface) L62
+- `arEmailPaymentService` (export const) L69
+
+## src/services/arInvoiceService.ts (638 lines) - ar invoice service (services)
 - `ARCustomer` (export interface) L3
 - `ARCustomerPage` (export interface) L19
 - `InvoiceLineItem` (export interface) L27
@@ -41,9 +49,9 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `AddonPreviewPayload` (export interface) L194
 - `AddonPreviewResponse` (export interface) L211
 - `arInvoiceService` (export const) L227
-- `ARDueDateReminderSettings` (export interface) L589
-- `NextInvoiceEligibility` (export interface) L604
-- `NextInvoiceGenerateResult` (export interface) L632
+- `ARDueDateReminderSettings` (export interface) L583
+- `NextInvoiceEligibility` (export interface) L598
+- `NextInvoiceGenerateResult` (export interface) L626
 
 ## src/services/arQuoteService.ts (489 lines) - ar quote service (services)
 - `ARQuoteLineItem` (export interface) L3
@@ -105,7 +113,7 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `MasterProductListResponse` (export interface) L166
 - `HubSpotSyncResult` (export interface) L173
 
-## src/services/oauthService.ts (362 lines) - oauth service (services)
+## src/services/oauthService.ts (377 lines) - oauth service (services)
 - `HubSpotOAuthConfig` (export interface) L3
 - `HubSpotConnectionInfo` (export interface) L14
 - `HubSpotOAuthStatus` (export interface) L28
@@ -115,15 +123,15 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `HubSpotSyncResult` (export interface) L64
 - `HubSpotCompaniesSyncProgress` (export interface) L70
 - `oauthService` (export const) L87
-- `HubSpotCompanyItem` (export interface) L248
-- `HubSpotCompaniesResponse` (export interface) L273
-- `MicrosoftEntraOAuthConfig` (export interface) L281
-- `MicrosoftEntraConnectionInfo` (export interface) L296
-- `MicrosoftEntraOAuthStatus` (export interface) L314
-- `ReceivableEmailItem` (export interface) L325
-- `ReceivableEmailAttachment` (export interface) L339
-- `ReceivableEmailDetail` (export interface) L348
-- `ReceivableEmailsResponse` (export interface) L357
+- `HubSpotCompanyItem` (export interface) L263
+- `HubSpotCompaniesResponse` (export interface) L288
+- `MicrosoftEntraOAuthConfig` (export interface) L296
+- `MicrosoftEntraConnectionInfo` (export interface) L311
+- `MicrosoftEntraOAuthStatus` (export interface) L329
+- `ReceivableEmailItem` (export interface) L340
+- `ReceivableEmailAttachment` (export interface) L354
+- `ReceivableEmailDetail` (export interface) L363
+- `ReceivableEmailsResponse` (export interface) L372
 
 ## src/services/productAiService.ts (18 lines) - Product extraction from a request's vendor URL and its AI chart-of-accounts suggestions (each run again on request).
 - `extractProductInfo` (export function) L7

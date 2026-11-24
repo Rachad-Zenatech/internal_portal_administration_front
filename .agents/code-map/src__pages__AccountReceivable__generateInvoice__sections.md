@@ -31,6 +31,10 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/AccountReceivable/generateInvoice/sections/PayableChargesSeparationBlock.tsx (112 lines) - payable charges separation block (pages  account receivable generate invoice sections)
 - `PayableChargesSeparationBlock` (export function) L5
 
+## src/pages/AccountReceivable/generateInvoice/sections/PaymentAttachmentsCell.tsx (39 lines) - payment attachments cell (pages  account receivable generate invoice sections)
+- `PaymentAttachmentItem` (interface) L4
+- `PaymentAttachmentsCell` (export function) L9
+
 ## src/pages/AccountReceivable/generateInvoice/sections/QuickBalancePaidSnapshot.tsx (95 lines) - quick balance paid snapshot (pages  account receivable generate invoice sections)
 - `QuickBalancePaidSnapshot` (export function) L5
 
@@ -40,8 +44,8 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/AccountReceivable/generateInvoice/sections/RecordPaymentModal.tsx (161 lines) - record payment modal (pages  account receivable generate invoice sections)
 - `RecordPaymentModal` (export function) L12
 
-## src/pages/AccountReceivable/generateInvoice/sections/RecordedPaymentsSettlementLedger.tsx (118 lines) - recorded payments settlement ledger (pages  account receivable generate invoice sections)
-- `RecordedPaymentsSettlementLedger` (export function) L6
+## src/pages/AccountReceivable/generateInvoice/sections/RecordedPaymentsSettlementLedger.tsx (110 lines) - recorded payments settlement ledger (pages  account receivable generate invoice sections)
+- `RecordedPaymentsSettlementLedger` (export function) L7
 
 ## src/pages/AccountReceivable/generateInvoice/sections/RecurringBillingScheduleNext.tsx (102 lines) - recurring billing schedule next (pages  account receivable generate invoice sections)
 - `RecurringBillingScheduleNext` (export function) L6

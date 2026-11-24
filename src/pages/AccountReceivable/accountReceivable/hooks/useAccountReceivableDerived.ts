@@ -163,7 +163,16 @@ export function useAccountReceivableDerived(ctx: ReturnType<typeof useAccountRec
     });
   }, [quoteGroups, searchTerm, statusFilter]);
   const toInvoiceQuotes = quotes.filter(isToInvoiceQuote);
-  const awaitingPaymentInvoices = invoices.filter(isAwaitingPaymentInvoice);
+  const awaitingPaymentInvoices = useMemo(() => {
+    const toTime = (val?: string | null) => {
+      if (!val) return Number.POSITIVE_INFINITY;
+      const ms = Date.parse(val);
+      return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
+    };
+    return invoices
+      .filter(isAwaitingPaymentInvoice)
+      .sort((a, b) => toTime(a.invoice_date) - toTime(b.invoice_date));
+  }, [invoices]);
   const completedRecords = useMemo<CompletedInvoiceRecord[]>(() => {
     const list: CompletedInvoiceRecord[] = [];
 

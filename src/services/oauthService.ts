@@ -146,6 +146,21 @@ export const oauthService = {
     return apiClient.get<HubSpotCompaniesResponse>(`/api/oauth/hubspot/companies${qs ? `?${qs}` : ""}`);
   },
 
+  createARCompany: (payload: {
+    name: string;
+    brand?: string;
+    contact_name?: string;
+    billing_email?: string;
+    phone?: string;
+    address?: string;
+    currency?: string;
+  }) => {
+    return apiClient.post<any>("/api/oauth/hubspot/companies", payload, {
+      actionLabel: "Adding A/R Company",
+      actionSubtitle: `Saving ${payload.name} to A/R Companies...`,
+    });
+  },
+
   /** Starts the companies sync in the background and returns immediately; poll getHubSpotCompaniesSyncStatus. */
   syncHubSpotCompanies: (full = false) => {
     return apiClient.post<HubSpotCompaniesSyncProgress>(

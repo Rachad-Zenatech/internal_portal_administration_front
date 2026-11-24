@@ -227,7 +227,7 @@ export function UserAutocomplete({
             <div className="relative">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
               <Input
-                ref={inputRef}
+                ref={inputRef} autoComplete="new-password" data-lpignore="true" data-form-type="other"
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);

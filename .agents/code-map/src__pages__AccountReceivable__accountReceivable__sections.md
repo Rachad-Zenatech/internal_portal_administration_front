@@ -4,8 +4,24 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/AccountReceivable/accountReceivable/sections/RecordInvoicePaymentDialog.tsx (161 lines) - record invoice payment dialog (pages  account receivable account receivable sections)
-- `RecordInvoicePaymentDialog` (export function) L11
+## src/pages/AccountReceivable/accountReceivable/sections/AwaitingPaymentRow.tsx (45 lines) - awaiting payment row (pages  account receivable account receivable sections)
+- `AwaitingPaymentRowProps` (interface) L7
+- `AwaitingPaymentRow` (export function) L13
+
+## src/pages/AccountReceivable/accountReceivable/sections/EmailPaymentLinkSection.tsx (178 lines) - email payment link section (pages  account receivable account receivable sections)
+- `EmailPaymentLinkSectionProps` (interface) L7
+- `EmailPaymentLinkSection` (export function) L16
+
+## src/pages/AccountReceivable/accountReceivable/sections/InvoiceRowActions.tsx (68 lines) - invoice row actions (pages  account receivable account receivable sections)
+- `InvoiceRowActionsProps` (interface) L7
+- `InvoiceRowActions` (export function) L16
+
+## src/pages/AccountReceivable/accountReceivable/sections/PaymentFoundBadge.tsx (25 lines) - payment found badge (pages  account receivable account receivable sections)
+- `PaymentFoundBadgeProps` (interface) L4
+- `PaymentFoundBadge` (export function) L9
+
+## src/pages/AccountReceivable/accountReceivable/sections/RecordInvoicePaymentDialog.tsx (113 lines) - record invoice payment dialog (pages  account receivable account receivable sections)
+- `RecordInvoicePaymentDialog` (export function) L12
 
 ## src/pages/AccountReceivable/accountReceivable/sections/Tab1Overview.tsx (180 lines) - tab1 overview (pages  account receivable account receivable sections)
 - `Tab1Overview` (export function) L6
@@ -13,8 +29,27 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/AccountReceivable/accountReceivable/sections/Tab2Quotes.tsx (314 lines) - tab2 quotes (pages  account receivable account receivable sections)
 - `Tab2Quotes` (export function) L9
 
-## src/pages/AccountReceivable/accountReceivable/sections/Tab4InvoicesGrouped.tsx (321 lines) - tab4 invoices grouped (pages  account receivable account receivable sections)
-- `Tab4InvoicesGrouped` (export function) L8
+## src/pages/AccountReceivable/accountReceivable/sections/Tab4InvoicesGrouped.tsx (310 lines) - tab4 invoices grouped (pages  account receivable account receivable sections)
+- `Tab4InvoicesGrouped` (export function) L9
+
+## src/pages/AccountReceivable/accountReceivable/sections/Tab5AwaitingPayment.tsx (70 lines) - tab5 awaiting payment (pages  account receivable account receivable sections)
+- `Tab5AwaitingPayment` (export function) L6
 
 ## src/pages/AccountReceivable/accountReceivable/sections/TabARCompanies.tsx (247 lines) - tab a r companies (pages  account receivable account receivable sections)
 - `TabARCompanies` (export function) L9
+
+## src/pages/AccountReceivable/accountReceivable/sections/UnmatchedEmailPreviewPane.tsx (251 lines) - unmatched email preview pane (pages  account receivable account receivable sections)
+- `Props` (interface) L9
+- `formatDisplayDate` (function) L17
+- `AttachmentPreviewBox` (function) L24
+- `EmailBodyPreviewBox` (function) L54
+- `UnmatchedEmailStrip` (function) L95
+- `UnmatchedEmailPreviewPane` (export function) L135
+
+## src/pages/AccountReceivable/accountReceivable/sections/UnmatchedInvoicePickerPane.tsx (110 lines) - unmatched invoice picker pane (pages  account receivable account receivable sections)
+- `Props` (interface) L5
+- `UnmatchedInvoicePickerPane` (export function) L19
+
+## src/pages/AccountReceivable/accountReceivable/sections/UnmatchedPaymentsDrawer.tsx (153 lines) - unmatched payments drawer (pages  account receivable account receivable sections)
+- `UnmatchedPaymentsDrawerProps` (interface) L10
+- `UnmatchedPaymentsDrawer` (export function) L20

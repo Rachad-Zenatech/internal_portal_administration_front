@@ -17,7 +17,11 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/AccountReceivable/modals/QuoteDetailDrawer.tsx (12 lines) - quote detail drawer (pages  account receivable modals)
 - `QuoteDetailDrawer` (export function) L6
 
-## src/pages/AccountReceivable/modals/SendQuoteModal.tsx (385 lines) - send quote modal (pages  account receivable modals)
+## src/pages/AccountReceivable/modals/QuoteEmailVisualEditor.tsx (86 lines) - quote email visual editor (pages  account receivable modals)
+- `QuoteEmailVisualEditorProps` (interface) L8
+- `QuoteEmailVisualEditor` (export function) L17
+
+## src/pages/AccountReceivable/modals/SendQuoteModal.tsx (388 lines) - send quote modal (pages  account receivable modals)
 - `SendQuoteModalProps` (interface) L40
 - `SendQuoteModal` (export function) L47
 

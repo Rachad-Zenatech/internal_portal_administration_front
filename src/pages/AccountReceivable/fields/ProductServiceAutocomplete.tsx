@@ -188,7 +188,7 @@ export function ProductServiceAutocomplete({
   return (
     <div className="relative flex items-center w-full">
       <Input
-        ref={inputRef}
+        ref={inputRef} autoComplete="new-password" data-lpignore="true" data-form-type="other"
         id={id}
         name={name}
         type="text"

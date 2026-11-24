@@ -35,7 +35,7 @@ import {
 import type {
   ARQuote,
 } from "../../../services/arQuoteService";
-import { sanitizeHtml } from "../../../lib/sanitizeHtml";
+import { QuoteEmailVisualEditor } from "./QuoteEmailVisualEditor";
 
 interface SendQuoteModalProps {
   quote: ARQuote | null;
@@ -57,17 +57,19 @@ export function SendQuoteModal({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("default");
   const [subject, setSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isPreviewMode, setIsPreviewMode] = useState(true);
+  const [editorRevision, setEditorRevision] = useState(0);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Fetch Reusable Email Templates
-  const { data: templates = [] } = useQuery({
+  const { data: templatesData } = useQuery({
     queryKey: ["ar-quote-templates"],
     queryFn: () => arQuoteService.listEmailTemplates(),
     enabled: isOpen,
   });
+  const templates = templatesData ?? [];
 
   // Populate Fields when Quote changes or modal opens
   useEffect(() => {
@@ -76,7 +78,7 @@ export function SendQuoteModal({
       setRecipientName(quote.customer_contact_person || quote.customer_name || "");
       setSubject(`Quotation ${quote.quote_number} from ${quote.company_name}`);
 
-      const defaultTemplate = templates.find((t) => t.is_default) || templates[0];
+      const defaultTemplate = (templatesData || []).find((t) => t.is_default) || (templatesData || [])[0];
       if (defaultTemplate) {
         setSelectedTemplateId(defaultTemplate.id);
         setCustomMessage(defaultTemplate.body_html);
@@ -88,16 +90,18 @@ export function SendQuoteModal({
           `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 620px; margin: 0 auto; background-color: #f8fafc; padding: 24px 16px;"><div style="background-color: #0b1329; border-radius: 10px 10px 0 0; padding: 18px 24px; display: flex; align-items: center;"><span style="font-size: 17px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">ZENATECH</span><span style="font-size: 14px; font-weight: 500; color: #60a5fa; margin-left: 10px;">Purchasing Portal</span></div><div style="background-color: #ffffff; border-radius: 0 0 10px 10px; border: 1px solid #e2e8f0; border-top: none; padding: 32px 28px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);"><h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">Formal Quotation Proposal (Quote# {{quote_number}})</h2><p style="margin: 0 0 18px 0; font-size: 14px; color: #334155;">Hello <strong>{{customer_name}}</strong>,</p><div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 6px; padding: 14px 18px; margin: 18px 0;"><p style="margin: 0 0 5px 0; font-size: 14px; font-weight: 700; color: #166534;">You have received a formal quotation proposal from {{company_name}}.</p><p style="margin: 0; font-size: 13px; color: #15803d; line-height: 1.5;">Please review the quotation details and summary below. You can inspect itemized line items, download the official PDF, request revisions, or provide your electronic signature.</p></div><table style="width: 100%; border-collapse: collapse; margin: 24px 0 28px 0; font-size: 13px;"><thead><tr style="border-bottom: 2px solid #e2e8f0; text-align: left; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;"><th style="padding: 10px 8px; font-weight: 600;">Quote #</th><th style="padding: 10px 8px; font-weight: 600;">Client</th><th style="padding: 10px 8px; font-weight: 600; text-align: right;">Amount</th><th style="padding: 10px 8px; font-weight: 600; text-align: right;">Valid Until</th></tr></thead><tbody><tr style="border-bottom: 1px solid #f1f5f9; color: #1e293b;"><td style="padding: 14px 8px; font-weight: 700; color: #2563eb;">#{{quote_number}}</td><td style="padding: 14px 8px; font-weight: 500; color: #334155;">{{customer_name}}</td><td style="padding: 14px 8px; font-weight: 700; text-align: right; color: #0f172a; font-family: monospace; font-size: 14px;">{{total_amount}}</td><td style="padding: 14px 8px; text-align: right; color: #d97706; font-weight: 600;">{{expiry_date}}</td></tr></tbody></table><div style="margin: 28px 0 24px 0;"><a href="{{quote_link}}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); text-align: center;">View &amp; Sign Quotation &rarr;</a></div><div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; line-height: 1.6;"><p style="margin: 0 0 6px 0;">Or copy and paste this secure link into your browser:</p><p style="margin: 0 0 10px 0;"><a href="{{quote_link}}" style="color: #2563eb; word-break: break-all; text-decoration: underline;">{{quote_link}}</a></p><p style="margin: 0; font-style: italic; color: #94a3b8;">Note: This secure link is valid until {{expiry_date}}.</p></div><div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f1f5f9; font-size: 13px; color: #334155; line-height: 1.5;"><div>Best regards,</div><div style="font-weight: 700; color: #0f172a; margin-top: 2px;">{{prepared_by_name}}</div><div style="color: #64748b;">{{company_name}}</div></div></div></div>`
         );
       }
-      setIsPreviewMode(false);
+      setIsPreviewMode(true);
+      setEditorRevision((r) => r + 1);
       setStatusMsg(null);
     }
-  }, [quote, isOpen, templates]);
+  }, [quote?.id, isOpen, templatesData]);
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId);
     const tmpl = templates.find((t) => t.id === templateId);
     if (tmpl && quote) {
       setCustomMessage(tmpl.body_html);
+      setEditorRevision((r) => r + 1);
       setSubject(
         tmpl.subject
           .replace("{{quote_number}}", quote.quote_number)
@@ -163,9 +167,10 @@ export function SendQuoteModal({
 
   const totalAmountStr = `$${Number(quote.total_amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${quote.currency || "USD"}`;
 
+  const cleanQuoteNum = (quote.quote_number || "").replace(/^Quote#?\s*/i, "").trim() || quote.quote_number;
   const renderedPreviewHtml = customMessage
     .replace(/{{customer_name}}/g, recipientName || quote.customer_name || "Customer")
-    .replace(/{{quote_number}}/g, quote.quote_number)
+    .replace(/{{quote_number}}/g, cleanQuoteNum)
     .replace(/{{company_name}}/g, quote.company_name)
     .replace(/{{quote_link}}/g, "https://portal.zenatech.com/q/sample-secure-token")
     .replace(/{{expiry_date}}/g, expiryDateStr)
@@ -255,11 +260,15 @@ export function SendQuoteModal({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setIsPreviewMode(!isPreviewMode)}
+                onClick={() => {
+                  const next = !isPreviewMode;
+                  setIsPreviewMode(next);
+                  if (next) setEditorRevision((r) => r + 1);
+                }}
                 className="h-8 text-xs gap-1.5 rounded-lg cursor-pointer"
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>{isPreviewMode ? "Edit Mode" : "Preview Email"}</span>
+                <span>{isPreviewMode ? "HTML Source" : "Visual Preview"}</span>
               </Button>
             </div>
           </div>
@@ -336,20 +345,14 @@ export function SendQuoteModal({
               </div>
             </div>
           ) : (
-            /* Live Email Preview */
-            <div className="space-y-2">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs text-slate-600">
-                <p><strong>To:</strong> {recipientEmail || "(No email specified)"}</p>
-                <p><strong>Subject:</strong> {subject}</p>
-              </div>
-
-              <div className="p-6 bg-white border border-slate-200 rounded-xl shadow-xs space-y-4">
-                <div
-                  className="prose prose-sm max-w-none text-slate-800 text-xs"
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderedPreviewHtml) }}
-                />
-              </div>
-            </div>
+            <QuoteEmailVisualEditor
+              recipientEmail={recipientEmail}
+              subject={subject}
+              onSubjectChange={setSubject}
+              renderedHtml={renderedPreviewHtml}
+              templateVersionKey={`${quote.id}-${selectedTemplateId}-${editorRevision}-${recipientName}`}
+              onBodyHtmlEdit={setCustomMessage}
+            />
           )}
 
           {/* Link Expiry Notice */}

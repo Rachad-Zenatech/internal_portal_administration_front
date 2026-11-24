@@ -4,9 +4,9 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/AccountReceivable/AccountReceivablePage.tsx (501 lines) - account receivable page (pages  account receivable)
-- `AccountReceivablePage` (export function) L21
-    - `s` (fn) L22
+## src/pages/AccountReceivable/AccountReceivablePage.tsx (449 lines) - account receivable page (pages  account receivable)
+- `AccountReceivablePage` (export function) L23
+    - `s` (fn) L24
 
 ## src/pages/AccountReceivable/CustomerQuoteViewPage.tsx (972 lines) - customer quote view page (pages  account receivable)
 - `CustomerQuoteViewPage` (export function) L43
