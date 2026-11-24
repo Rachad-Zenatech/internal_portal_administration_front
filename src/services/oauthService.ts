@@ -161,6 +161,36 @@ export const oauthService = {
     });
   },
 
+  updateARCompany: (
+    hubspotId: string,
+    payload: {
+      name: string;
+      brand?: string;
+      contact_name?: string;
+      billing_email?: string;
+      phone?: string;
+      address?: string;
+      domain?: string;
+      industry?: string;
+      currency?: string;
+    }
+  ) => {
+    return apiClient.put<any>(`/api/oauth/hubspot/companies/${encodeURIComponent(hubspotId)}`, payload, {
+      actionLabel: "Updating A/R Company",
+      actionSubtitle: `Saving changes for ${payload.name}...`,
+    });
+  },
+
+  deleteARCompany: (hubspotId: string) => {
+    return apiClient.delete<{ success: boolean; hubspot_id: string; name: string }>(
+      `/api/oauth/hubspot/companies/${encodeURIComponent(hubspotId)}`,
+      {
+        actionLabel: "Deleting A/R Company",
+        actionSubtitle: "Removing company from A/R Companies...",
+      }
+    );
+  },
+
   /** Starts the companies sync in the background and returns immediately; poll getHubSpotCompaniesSyncStatus. */
   syncHubSpotCompanies: (full = false) => {
     return apiClient.post<HubSpotCompaniesSyncProgress>(

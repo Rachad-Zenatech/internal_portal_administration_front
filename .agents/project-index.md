@@ -139,6 +139,8 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableData.ts (420 lines) - use account receivable data (pages  account receivable account receivable hooks)
 - src/pages/AccountReceivable/accountReceivable/hooks/useAccountReceivableDerived.ts (278 lines) - Filter customer invoice groups by search term and status filter
 - src/pages/AccountReceivable/accountReceivable/hooks/useEmailPaymentMatches.ts (66 lines) - Subscribe to A/R Email SSE stream so incoming emails auto-sync, auto-analyze,
+- src/pages/AccountReceivable/accountReceivable/sections/ARCompanyCard.tsx (87 lines) - a r company card (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/sections/ARCompanyEditDialog.tsx (139 lines) - a r company edit dialog (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/AwaitingPaymentRow.tsx (45 lines) - awaiting payment row (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/EmailPaymentLinkSection.tsx (178 lines) - email payment link section (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/InvoiceRowActions.tsx (68 lines) - invoice row actions (pages  account receivable account receivable sections)
@@ -148,7 +150,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/AccountReceivable/accountReceivable/sections/Tab2Quotes.tsx (314 lines) - tab2 quotes (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/Tab4InvoicesGrouped.tsx (310 lines) - tab4 invoices grouped (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/Tab5AwaitingPayment.tsx (70 lines) - tab5 awaiting payment (pages  account receivable account receivable sections)
-- src/pages/AccountReceivable/accountReceivable/sections/TabARCompanies.tsx (247 lines) - tab a r companies (pages  account receivable account receivable sections)
+- src/pages/AccountReceivable/accountReceivable/sections/TabARCompanies.tsx (165 lines) - tab a r companies (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/UnmatchedEmailPreviewPane.tsx (251 lines) - unmatched email preview pane (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/UnmatchedInvoicePickerPane.tsx (110 lines) - unmatched invoice picker pane (pages  account receivable account receivable sections)
 - src/pages/AccountReceivable/accountReceivable/sections/UnmatchedPaymentsDrawer.tsx (153 lines) - unmatched payments drawer (pages  account receivable account receivable sections)
@@ -644,7 +646,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/services/financeService.ts (100 lines) - finance service (services)
 - src/services/helper.ts (103 lines) - Machine-readable code when the backend sends detail as {code, message}, e.g.
 - src/services/masterTablesService.ts (180 lines) - master tables service (services)
-- src/services/oauthService.ts (377 lines) - oauth service (services)
+- src/services/oauthService.ts (407 lines) - oauth service (services)
 - src/services/productAiService.ts (18 lines) - Product extraction from a request's vendor URL and its AI chart-of-accounts suggestions (each run again on request).
 - src/services/purchasingService.ts (786 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
 - src/services/queryKeys.ts (26 lines) - All React Query cache keys live here so that invalidation calls in
