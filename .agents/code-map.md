@@ -27,7 +27,7 @@ to find the right file.
 | .agents/code-map/src__components__Tasks__taskDetailPanel__hooks.md | 4 | 1 KB |
 | .agents/code-map/src__components__Tasks__taskDetailPanel__sections.md | 2 | 1 KB |
 | .agents/code-map/src__components__ui.md | 35 | 8 KB |
-| .agents/code-map/src__hooks.md | 14 | 8 KB |
+| .agents/code-map/src__hooks.md | 15 | 8 KB |
 | .agents/code-map/src__lib.md | 5 | 2 KB |
 | .agents/code-map/src__pages__AccountReceivable.md | 6 | 2 KB |
 | .agents/code-map/src__pages__AccountReceivable__accountReceivable.md | 3 | 1 KB |
@@ -62,7 +62,8 @@ to find the right file.
 | .agents/code-map/src__pages__AccountReceivable__workflowDetail__hooks.md | 5 | 2 KB |
 | .agents/code-map/src__pages__AccountReceivable__workflowDetail__sections.md | 13 | 3 KB |
 | .agents/code-map/src__pages__Auth.md | 2 | 1 KB |
-| .agents/code-map/src__pages__Configurations.md | 17 | 5 KB |
+| .agents/code-map/src__pages__Configurations.md | 18 | 6 KB |
+| .agents/code-map/src__pages__Configurations__aiStatus.md | 6 | 2 KB |
 | .agents/code-map/src__pages__Configurations__entities__hooks.md | 2 | 1 KB |
 | .agents/code-map/src__pages__Configurations__entities__sections.md | 3 | 1 KB |
 | .agents/code-map/src__pages__Configurations__oAuthConfiguration.md | 1 | 1 KB |
@@ -156,5 +157,5 @@ to find the right file.
 | .agents/code-map/src__pages__Tasks.md | 1 | 1 KB |
 | .agents/code-map/src__pages__UploadFiles.md | 1 | 1 KB |
 | .agents/code-map/src__services.md | 19 | 11 KB |
-| .agents/code-map/src__types.md | 13 | 7 KB |
+| .agents/code-map/src__types.md | 14 | 7 KB |
 | .agents/code-map/src__utils.md | 4 | 4 KB |

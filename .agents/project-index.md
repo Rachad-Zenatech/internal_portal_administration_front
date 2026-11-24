@@ -14,7 +14,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/AppShell/GlobalSettingsDialog.tsx (93 lines) - global settings dialog (components  app shell)
 - src/components/AppShell/HubSpotSyncProgress.tsx (109 lines) - A finished sync is only announced if we watched it run, so an old result never pops up on page load.
 - src/components/AppShell/MessageHubStatusDropdown.tsx (571 lines) - message hub status dropdown (components  app shell)
-- src/components/AppShell/Navigation.tsx (160 lines) - navigation (components  app shell)
+- src/components/AppShell/Navigation.tsx (161 lines) - navigation (components  app shell)
 - src/components/AppShell/NotificationDropdown.tsx (149 lines) - notification dropdown (components  app shell)
 - src/components/AppShell/Sidebar.tsx (505 lines) - sidebar (components  app shell)
 - src/components/AppShell/ThemeSwitch.tsx (41 lines) - theme switch (components  app shell)
@@ -107,6 +107,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/ui/toggle.tsx (46 lines) - toggle (components ui)
 - src/components/ui/tooltip.tsx (56 lines) - tooltip (components ui)
 - src/hooks/useARStatusCounts.ts (23 lines) - Per-status A/R totals for the sidebar.
+- src/hooks/useAiOverview.ts (16 lines) - use ai overview (hooks)
 - src/hooks/useBusinessContact.ts (96 lines) - use business contact (hooks)
 - src/hooks/useChartOfAccount.ts (71 lines) - use chart of account (hooks)
 - src/hooks/useDashboard.ts (84 lines) - use dashboard (hooks)
@@ -271,6 +272,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/AccountReceivable/workflowDetail/sections/TopNavigationActionBar.tsx (98 lines) - top navigation action bar (pages  account receivable workflow detail sections)
 - src/pages/Auth/Login.tsx (186 lines) - login (pages  auth)
 - src/pages/Auth/PendingAccess.tsx (62 lines) - If user somehow gets another role, maybe redirect them to home
+- src/pages/Configurations/AiStatusPage.tsx (86 lines) - ai status page (pages  configurations)
 - src/pages/Configurations/BusinessContacts.tsx (443 lines) - business contacts (pages  configurations)
 - src/pages/Configurations/ChartOfAccounts.tsx (30 lines) - chart of accounts (pages  configurations)
 - src/pages/Configurations/Classes.tsx (621 lines) - classes (pages  configurations)
@@ -288,6 +290,12 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Configurations/UserRoleAssignment.tsx (387 lines) - user role assignment (pages  configurations)
 - src/pages/Configurations/Users.tsx (291 lines) - users (pages  configurations)
 - src/pages/Configurations/WorkflowAssignments.tsx (301 lines) - workflow assignments (pages  configurations)
+- src/pages/Configurations/aiStatus/AiCoresGrid.tsx (78 lines) - ai cores grid (pages  configurations ai status)
+- src/pages/Configurations/aiStatus/AiErrorsDialog.tsx (110 lines) - ai errors dialog (pages  configurations ai status)
+- src/pages/Configurations/aiStatus/AiFeatureMatrix.tsx (203 lines) - ai feature matrix (pages  configurations ai status)
+- src/pages/Configurations/aiStatus/AiPipelineTelemetry.tsx (179 lines) - ai pipeline telemetry (pages  configurations ai status)
+- src/pages/Configurations/aiStatus/AiSummaryCards.tsx (140 lines) - ai summary cards (pages  configurations ai status)
+- src/pages/Configurations/aiStatus/statusStyles.ts (31 lines) - status styles (pages  configurations ai status)
 - src/pages/Configurations/entities/hooks/useEntitiesDerived.tsx (292 lines) - Dialog States
 - src/pages/Configurations/entities/hooks/useEntitiesPage.ts (9 lines) - use entities page (pages  configurations entities hooks)
 - src/pages/Configurations/entities/sections/AddEntityDialog.tsx (136 lines) - add entity dialog (pages  configurations entities sections)
@@ -642,6 +650,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/services/queryKeys.ts (26 lines) - All React Query cache keys live here so that invalidation calls in
 - src/services/uploadArchiveService.ts (22 lines) - upload archive service (services)
 - src/types/aiAssistant.ts (5 lines) - ai assistant (types)
+- src/types/aiOverview.ts (152 lines) - ai overview (types)
 - src/types/ar.ts (204 lines) - ar (types)
 - src/types/bankAccount.ts (11 lines) - bank account (types)
 - src/types/bankFeedRule.ts (39 lines) - bank feed rule (types)

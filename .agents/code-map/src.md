@@ -5,7 +5,7 @@
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
 ## src/App.tsx (198 lines) - app
-- `NotFoundAlert` (function) L52
-- `App` (function) L70
+- `NotFoundAlert` (function) L53
+- `App` (function) L71
 
 ## src/main.tsx (66 lines) - Automatically reload once if a new deployment removed old hashed chunks
