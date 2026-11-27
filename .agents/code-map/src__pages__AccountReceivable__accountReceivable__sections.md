@@ -4,6 +4,14 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
+## src/pages/AccountReceivable/accountReceivable/sections/ARCompanyCard.tsx (87 lines) - a r company card (pages  account receivable account receivable sections)
+- `Props` (interface) L7
+- `ARCompanyCard` (export function) L16
+
+## src/pages/AccountReceivable/accountReceivable/sections/ARCompanyEditDialog.tsx (139 lines) - a r company edit dialog (pages  account receivable account receivable sections)
+- `Props` (interface) L10
+- `ARCompanyEditDialog` (export function) L28
+
 ## src/pages/AccountReceivable/accountReceivable/sections/AwaitingPaymentRow.tsx (45 lines) - awaiting payment row (pages  account receivable account receivable sections)
 - `AwaitingPaymentRowProps` (interface) L7
 - `AwaitingPaymentRow` (export function) L13
@@ -35,8 +43,8 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 ## src/pages/AccountReceivable/accountReceivable/sections/Tab5AwaitingPayment.tsx (70 lines) - tab5 awaiting payment (pages  account receivable account receivable sections)
 - `Tab5AwaitingPayment` (export function) L6
 
-## src/pages/AccountReceivable/accountReceivable/sections/TabARCompanies.tsx (247 lines) - tab a r companies (pages  account receivable account receivable sections)
-- `TabARCompanies` (export function) L9
+## src/pages/AccountReceivable/accountReceivable/sections/TabARCompanies.tsx (165 lines) - tab a r companies (pages  account receivable account receivable sections)
+- `TabARCompanies` (export function) L15
 
 ## src/pages/AccountReceivable/accountReceivable/sections/UnmatchedEmailPreviewPane.tsx (251 lines) - unmatched email preview pane (pages  account receivable account receivable sections)
 - `Props` (interface) L9

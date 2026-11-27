@@ -32,7 +32,7 @@ to find the right file.
 | .agents/code-map/src__pages__AccountReceivable.md | 6 | 2 KB |
 | .agents/code-map/src__pages__AccountReceivable__accountReceivable.md | 3 | 1 KB |
 | .agents/code-map/src__pages__AccountReceivable__accountReceivable__hooks.md | 4 | 2 KB |
-| .agents/code-map/src__pages__AccountReceivable__accountReceivable__sections.md | 13 | 3 KB |
+| .agents/code-map/src__pages__AccountReceivable__accountReceivable__sections.md | 15 | 4 KB |
 | .agents/code-map/src__pages__AccountReceivable__components.md | 5 | 2 KB |
 | .agents/code-map/src__pages__AccountReceivable__fields.md | 4 | 2 KB |
 | .agents/code-map/src__pages__AccountReceivable__generateInvoice.md | 1 | 1 KB |

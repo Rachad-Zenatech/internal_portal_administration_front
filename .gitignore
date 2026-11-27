@@ -49,6 +49,5 @@ temp/
 *.sqlite
 *.db
 
-
-
 .env
+.env.*
