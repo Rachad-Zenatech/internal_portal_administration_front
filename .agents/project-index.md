@@ -107,7 +107,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/ui/toggle.tsx (46 lines) - toggle (components ui)
 - src/components/ui/tooltip.tsx (56 lines) - tooltip (components ui)
 - src/hooks/useARStatusCounts.ts (23 lines) - Per-status A/R totals for the sidebar.
-- src/hooks/useAiOverview.ts (16 lines) - use ai overview (hooks)
+- src/hooks/useAiOverview.ts (78 lines) - use ai overview (hooks)
 - src/hooks/useBusinessContact.ts (96 lines) - use business contact (hooks)
 - src/hooks/useChartOfAccount.ts (71 lines) - use chart of account (hooks)
 - src/hooks/useDashboard.ts (84 lines) - use dashboard (hooks)
